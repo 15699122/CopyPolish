@@ -19,15 +19,15 @@ Tauri 2
         └── ccw_engine.py       权威 Python 引擎（兜底 + parity 基准）
 ```
 
-- **格式化主路径是 Rust**：`format_text` / `get_rules` / `get_enabled_defaults` 均以 Rust 实现优先，仅在异常时回退 PyO3 → `src-python/main.py` → `ccw_engine.py`。
+- **格式化主路径是 Rust**：`format_text` / `get_rules` / `get_enabled_defaults` 默认完全由 Rust 实现，**默认构建不含 Python 依赖**。启用 `python-fallback` feature（`cargo build/test --features python-fallback`）时，Rust 出错或元数据缺失会回退 PyO3 → `src-python/main.py` → `ccw_engine.py`。
 - **双引擎一致性**：`test/compare_rust_parity.py` 用 71 条语料 × defaults/all 两模式 = 142 项检查对比 Rust 与 Python 输出，当前 **0 差异**。修改任一引擎后必须重跑。
 - **用户设置**：保存在当前工作目录的 `ccw-formatter-settings.json`（见下文），与旧版 `rules.yaml` 设置无关。
 
 ## 目录结构
 
 ```text
-├── ccw_engine.py                  # 权威 Python 引擎（13 条规则 + 保护层），兜底保留
-├── rules.yaml                     # 规则元数据（只读参考；运行时元数据已在 Rust 内置）
+├── ccw_engine.py                  # 权威 Python 引擎（13 条规则 + 保护层），parity 基准
+├── rules.yaml                     # 规则元数据（只读参考，不参与构建与打包）
 ├── frontend/                      # React/Vite/TS/Tailwind v4/shadcn-ui 界面
 │   └── src/App.tsx                # 主界面：双栏编辑、设置 Dialog、防抖实时排版
 ├── src-tauri/
@@ -94,7 +94,8 @@ cd frontend && npm run tauri build   # Linux deb/rpm/AppImage
 ```bash
 cargo fmt --manifest-path src-tauri/Cargo.toml --check
 cargo check --manifest-path src-tauri/Cargo.toml
-cargo test --manifest-path src-tauri/Cargo.toml          # 15 项
+cargo test --manifest-path src-tauri/Cargo.toml          # 默认纯 Rust：11 项
+cargo test --manifest-path src-tauri/Cargo.toml --features python-fallback  # 含 PyO3：15 项
 npm run build --prefix frontend                           # tsc + vite
 .venv/bin/python -m unittest discover -s test             # Python 40 项
 .venv/bin/python test/compare_rust_parity.py              # 必须 0 差异
@@ -109,8 +110,7 @@ npm run build --prefix frontend                           # tsc + vite
 
 ## 后续计划
 
-1. 将 `pyo3` / Python 兜底降级为可选 feature（默认纯 Rust 构建）。
-2. 从 bundle 资源移除 `rules.yaml`（元数据已在 Rust 内置）；视决策移除 `ccw_engine.py` 兜底。
-3. 真实窗口 smoke 验证（WSL2 图形栈限制暂无法本地执行）：输入 `在LeanCloud上，花了5000元` → 应输出 `在 LeanCloud 上，花了 5000 元`；验证设置弹窗 13 条规则、开关即时重排、设置文件持久化。
-4. 替换正式图标集（当前为临时生成的 RGBA PNG）。
-5. Windows/macOS 打包与嵌入式 CPython 分发策略验证。
+1. 真实窗口 smoke 验证（WSL2 图形栈限制暂无法本地执行）：输入 `在LeanCloud上，花了5000元` → 应输出 `在 LeanCloud 上，花了 5000 元`；验证设置弹窗 13 条规则、开关即时重排、设置文件持久化。
+2. 替换正式图标集（当前为临时生成的 RGBA PNG）。
+3. Windows/macOS 打包与嵌入式 CPython 分发策略验证（若启用 python-fallback feature）。
+4. 评估从 bundle 资源移除 `src-python/main.py` 与 `ccw_engine.py`（默认纯 Rust 构建已不使用它们；保留是为 feature 构建与 parity 基准）。

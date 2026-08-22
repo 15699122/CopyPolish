@@ -12,6 +12,16 @@ use regex::{Captures, Regex};
 use std::collections::BTreeSet;
 use std::sync::OnceLock;
 
+/// 规则元数据（与前端 Rule 类型对齐；serde 序列化给 Tauri 返回前端）。
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+pub struct RuleMeta {
+    pub key: String,
+    pub section: String,
+    pub name: String,
+    pub disputed: bool,
+    pub default: bool,
+}
+
 pub struct FormatRequest {
     pub text: String,
     pub enabled: Vec<String>,
@@ -237,8 +247,7 @@ pub const K_CORNER_QUOTES: &str = "简体中文使用直角引号";
 
 /// 13 条规则元数据（key/section/name/disputed/default 与 ccw_engine.py
 /// _EMBEDDED_RULES 完全一致）。运行时不再需要 Python 即可返回规则表。
-pub fn default_rules() -> Vec<crate::python_runtime::RuleMeta> {
-    use crate::python_runtime::RuleMeta;
+pub fn default_rules() -> Vec<RuleMeta> {
     fn rule(key: &str, section: &str, name: &str, disputed: bool) -> RuleMeta {
         RuleMeta {
             key: key.to_string(),

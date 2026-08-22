@@ -15,12 +15,18 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 tauri = { version = "2", features = [] }
-# PyO3：Rust 内嵌并调用 CPython 3.14（路线 B，已在本机验证链路可通）。
+# PyO3：可选的 Python 兜底路径（feature = "python-fallback"）。
+# 默认不启用——主路径是纯 Rust 引擎，无需 libpython 即可构建。
+# 启用方式：cargo build/test --features python-fallback
 # auto-initialize 使解释器首次调用时自动初始化；PYO3_PYTHON 指向 /usr/bin/python3.14。
-pyo3 = { version = "0.29", features = ["auto-initialize"] }
+pyo3 = { version = "0.29", optional = true, features = ["auto-initialize"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 regex = "1"
 # 保护层正则需要 lookbehind / backreference（LaTeX 转义 $、fenced code 缩进回引等），
 # regex crate 不支持，使用 fancy-regex。
 fancy-regex = "0.14"
+
+[features]
+default = []
+python-fallback = ["dep:pyo3"]
