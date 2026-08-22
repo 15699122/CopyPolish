@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "identifier": "com.ccw.formatter",
   "build": {
-    "beforeDevCommand": "npm run dev --prefix ../frontend",
+    "beforeDevCommand": "cd ../frontend "beforeDevCommand": "npm run dev --prefix ../frontend""beforeDevCommand": "npm run dev --prefix ../frontend" npm run dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "npm run build --prefix ../frontend",
+    "beforeBuildCommand": "cd ../frontend "beforeBuildCommand": "npm run build --prefix ../frontend""beforeBuildCommand": "npm run build --prefix ../frontend" npm run build",
     "frontendDist": "../frontend/dist"
   },
   "app": {
