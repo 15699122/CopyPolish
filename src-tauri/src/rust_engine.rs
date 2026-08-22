@@ -235,6 +235,61 @@ pub const K_NO_ABBR: &str = "不要使用不地道的缩写";
 pub const K_SPACE_AROUND_LINKS: &str = "链接之间增加空格";
 pub const K_CORNER_QUOTES: &str = "简体中文使用直角引号";
 
+/// 13 条规则元数据（key/section/name/disputed/default 与 ccw_engine.py
+/// _EMBEDDED_RULES 完全一致）。运行时不再需要 Python 即可返回规则表。
+pub fn default_rules() -> Vec<crate::python_runtime::RuleMeta> {
+    use crate::python_runtime::RuleMeta;
+    fn rule(key: &str, section: &str, name: &str, disputed: bool) -> RuleMeta {
+        RuleMeta {
+            key: key.to_string(),
+            section: section.to_string(),
+            name: name.to_string(),
+            disputed,
+            default: !disputed,
+        }
+    }
+    vec![
+        rule(K_CN_EN_SPACE, "空格", "中英文之间需要增加空格", false),
+        rule(
+            K_CN_DIGIT_SPACE,
+            "空格",
+            "中文与数字之间需要增加空格",
+            false,
+        ),
+        rule(
+            K_DIGIT_UNIT_SPACE,
+            "空格",
+            "数字与单位之间需要增加空格",
+            false,
+        ),
+        rule(
+            K_FW_PUNCT_NO_SPACE,
+            "空格",
+            "全角标点与其他字符之间不加空格",
+            false,
+        ),
+        rule(
+            K_CSS_TEXT_SPACING,
+            "空格",
+            "用 text-spacing 来挽救？（说明：CSS 自动排版）",
+            false,
+        ),
+        rule(K_NO_REPEAT_PUNCT, "标点符号", "不重复使用标点符号", false),
+        rule(K_FW_CHINESE_PUNCT, "全角和半角", "使用全角中文标点", false),
+        rule(K_HALFWIDTH_DIGITS, "全角和半角", "数字使用半角字符", false),
+        rule(
+            K_HALFWIDTH_IN_ENGLISH,
+            "全角和半角",
+            "遇到完整的英文整句、特殊名词，其内容使用半角标点",
+            false,
+        ),
+        rule(K_PROPER_NOUNS, "名词", "专有名词使用正确的大小写", false),
+        rule(K_NO_ABBR, "名词", "不要使用不地道的缩写", false),
+        rule(K_SPACE_AROUND_LINKS, "争议", "链接之间增加空格", true),
+        rule(K_CORNER_QUOTES, "争议", "简体中文使用直角引号", true),
+    ]
+}
+
 pub fn enabled_defaults() -> Vec<String> {
     vec![
         K_CN_EN_SPACE,
@@ -643,6 +698,18 @@ mod tests {
     #[test]
     fn exposes_eleven_defaults() {
         assert_eq!(enabled_defaults().len(), 11);
+        assert_eq!(default_rules().len(), 13);
+        // 争议规则默认关闭，其余默认开启。
+        let rules = default_rules();
+        let disputed: Vec<_> = rules
+            .iter()
+            .filter(|r| r.disputed)
+            .map(|r| r.key.as_str())
+            .collect();
+        assert_eq!(disputed, vec![K_SPACE_AROUND_LINKS, K_CORNER_QUOTES]);
+        for rule in default_rules() {
+            assert_eq!(rule.default, !rule.disputed);
+        }
     }
 
     #[test]

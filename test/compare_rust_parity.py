@@ -76,6 +76,28 @@ CASES = [
     "联系 admin@example.com 或 visit https://example.com 了解",
     "他说\"你好世界\"然后离开",
     "他说“你好世界”然后离开",
+    # 边界补充（第三轮扩充）
+    "这是中文,但是逗号是半角的;还有分号:以及冒号",
+    "Hello world. This is English only!",
+    "混合mixed内容with数字123和单位kg",
+    "升级到 iOS 18 后，iPhone 15 Pro 的续航提升了",
+    "使用 TypeScript 和 React 开发，部署在 Vercel",
+    "详见 https://example.com/docs?a=1&b=2 说明",
+    "邮箱是 test.user+tag@example.cn，请发邮件",
+    "参考 [文档](https://docs.rs/regex) 和 <https://crates.io>。",
+    "多个链接：https://a.com 和 https://b.com 以及 https://c.com",
+    "「引号内的English内容」不应被转换",
+    "\"Quote without CJK inside\" stays",
+    "温度是 36.5°C，湿度 60%",
+    "第 1 章\n\n第 2 章\n第 3 章",
+    "行内公式 $a_1 + b_2$ 与文字混排",
+    "两个公式 $x$ 和 $y$ 相邻",
+    "代码 `select * from t` 中间不处理",
+    "URL 在句尾。https://example.com/path 结束了",
+    "大写转小写再修正：GITHUB、GitLab、JavaScript",
+    "缩写展开：熟悉 TS / JS / RJS",
+    "重复的中文标点。。。。。。！！！？？？",
+    "嵌套：他说\"引用[链接](https://x.com)内容\"结束",
 ]
 
 
