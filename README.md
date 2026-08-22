@@ -18,6 +18,7 @@
 - **Markdown / LaTeX 保护**：尽量避免误改代码块、行内代码、链接、图片链接、URL、邮箱和公式内容。
 - **低依赖规则引擎**：核心排版逻辑在 `ccw_engine.py`，不依赖 GUI；`rules.yaml` 可由内置轻量 YAML 读写器处理，PyYAML 不是必需依赖。
 - **现代桌面壳迁移中**：新版使用 Tauri 2 承载 React/shadcn/ui，前端只通过受限 Tauri commands 调用 Rust/PyO3，避免向 UI 暴露任意 Python 调用。
+- **Rust 原生后端迁移中**：新版 Tauri 已新增第一版 Rust 文字处理引擎，参考 `typeset-rs` 的字符分类与渲染管线思路，当前采用 Rust 优先、Python/PyO3 回退的保守策略。
 - **浏览器预览回退**：新版前端在非 Tauri 浏览器环境中也可以预览界面和基础交互，便于开发调试。
 - **旧版 GUI 仍可运行**：customtkinter 版本固定浅色界面，主窗口为自绘圆角窗口，设置窗口保留系统标题栏。
 
@@ -29,6 +30,7 @@
 
 - `frontend/`：React + Vite + TypeScript + Tailwind v4 + shadcn/ui 界面已落地。
 - `src-tauri/`：Tauri 2 应用已接入自定义 PyO3 运行时。
+- `src-tauri/src/rust_engine.rs`：新增第一版 Rust 原生排版引擎，已覆盖基础中英文/数字空格、数字单位、标点、专有名词和缩写等核心样例。
 - `src-tauri/src-python/main.py`：作为 Python 桥接模块，调用 `ccw_engine.py` 的格式化和规则读取能力。
 - Rust 单元测试已覆盖 `PyO3 → main.py → ccw_engine.py`：
   - 读取 13 条规则；
