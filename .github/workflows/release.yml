@@ -1,39 +1,67 @@
-name: build
+name: release
 
 on:
   push:
-    branches: [master]
     tags: ['v*']
-  pull_request:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing v* tag to release
+        required: true
+        type: string
 
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Verify version consistency (tag builds only)
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: python3 scripts/check_version.py "${{ github.ref_name }}"
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+
+      - name: Verify version consistency
+        run: python3 scripts/check_version.py "${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}"
+
       - name: Install dependencies (Linux)
         run: |
           sudo apt-get update
           sudo apt-get install -y libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev
+
       - name: Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.98.0
+          components: rustfmt, clippy
+
+      - name: Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Print tool versions
         run: |
-          rustup update stable
-          rustup component add rustfmt clippy
+          node --version
+          npm --version
+          rustc --version
+          cargo --version
+          python3 --version
+          uname -a
+          cat /etc/os-release
+
       - name: Rust tests (default, pure-Rust build)
         working-directory: src-tauri
         run: cargo fmt --check && cargo test
+
       - name: Frontend typecheck, tests & build
         working-directory: frontend
         run: |
           npm ci
-          npm test
+          npm test -- --run
           npm run build
 
   tauri-build:
+    needs: test
     strategy:
       fail-fast: false
       matrix:
@@ -47,17 +75,36 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+
       - name: Install dependencies (Linux)
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
       - name: Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.98.0
+
       - name: Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Print tool versions
+        shell: bash
+        run: |
+          node --version
+          npm --version
+          rustc --version
+          cargo --version
+          if command -v uname >/dev/null 2>&1; then uname -a; fi
+
       - name: Build bundles
         working-directory: frontend
         run: |
@@ -125,20 +172,40 @@ jobs:
 
   # Windows hosted runner 冒烟测试：真实启动 GUI，校验进程存活且主窗口出现。
   windows-smoke:
+    needs: test
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+
       - name: Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.98.0
+
       - name: Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Print tool versions
+        shell: pwsh
+        run: |
+          node --version
+          npm --version
+          rustc --version
+          cargo --version
+          Get-ComputerInfo | Select-Object WindowsProductName, WindowsVersion, OsHardwareAbstractionLayer
+
       - name: Build app (skip bundling)
         working-directory: frontend
         run: |
           npm ci
           npm run tauri build -- --no-bundle
+
       - name: Launch and verify main window
         shell: pwsh
         run: |
@@ -170,19 +237,21 @@ jobs:
             if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force }
           }
 
-  # 推送 v* tag 时：下载双平台构建产物并自动创建 GitHub Release。
   release:
-    if: startsWith(github.ref, 'refs/tags/v')
     needs: [test, tauri-build]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
           path: dist
+
       - name: Collect release files (ASCII names)
         run: |
           mkdir -p release-files
@@ -192,24 +261,26 @@ jobs:
           find dist/bundle-ubuntu-latest -name '*.rpm' -exec cp {} release-files/CopyPolish-linux-x86_64.rpm \;
           find dist/bundle-ubuntu-latest -name '*.AppImage' -exec cp {} release-files/CopyPolish_linux_amd64.AppImage \;
           ls -la release-files
+
       # 在自动生成的 notes 基础上补充固定说明（改名、设置迁移等）。
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
         run: |
-          gh release create "${{ github.ref_name }}" \
+          gh release create "$RELEASE_TAG" \
             --repo "$GITHUB_REPOSITORY" \
-            --title "${{ github.ref_name }}" \
+            --title "$RELEASE_TAG" \
             --generate-notes \
             --latest \
             release-files/*
-          gh release edit "${{ github.ref_name }}" --repo "$GITHUB_REPOSITORY" --notes "$(gh release view "${{ github.ref_name }}" --repo "$GITHUB_REPOSITORY" --json body -q .body)
+          gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --notes "$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json body -q .body)
 
           ## 重要变更说明
 
           - Windows 便携版可执行文件更名为 \`CopyPolish.exe\`，压缩包为 \`CopyPolish-windows-x64.7z\`（压缩包根目录直接包含 exe，无嵌套目录）。
           - 用户设置现保存在程序（exe）相同目录的 \`rules.yaml\`；首次运行会自动迁移旧版 \`ccw-formatter-settings.json\` 中的规则开关与上次输入。
           - 「用 text-spacing 来挽救」说明性规则已彻底移除；「专有名词使用正确的大小写」与「不要使用不地道的缩写」默认关闭，可在设置中手动启用。"
+
       - name: Verify version consistency
-        run: python3 scripts/check_version.py "${{ github.ref_name }}"
-        if: startsWith(github.ref, 'refs/tags/v')
+        run: python3 scripts/check_version.py "${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}"

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { Check, Copy, Eraser, Maximize2, Minus, Settings, X } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
@@ -21,7 +21,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
@@ -40,13 +39,6 @@ import {
 const APP_NAME = "文案净排";
 const APP_REFERENCE_NAME = "CopyPolish";
 const DEBOUNCE_MS = 160;
-const SETTINGS_DIALOG_DEFAULT_SIZE = { width: 840, height: 680 };
-const SETTINGS_DIALOG_MIN_SIZE = { width: 560, height: 520 };
-const SETTINGS_DIALOG_VIEWPORT_MARGIN = 32;
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(Math.max(value, min), max);
-}
 
 /**
  * 主界面：左输入 / 右输出（小窗口时上下堆叠）+ 操作栏 + 规则设置对话框。
@@ -61,8 +53,6 @@ export default function App() {
   const [copied, setCopied] = useState(false);
   const [cleared, setCleared] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [settingsDialogOffset, setSettingsDialogOffset] = useState({ x: 0, y: 0 });
-  const [settingsDialogSize, setSettingsDialogSize] = useState(SETTINGS_DIALOG_DEFAULT_SIZE);
 
   const debounceRef = useRef<number | null>(null);
   const settingsDebounceRef = useRef<number | null>(null);
@@ -300,73 +290,6 @@ export default function App() {
     });
   }
 
-  function onSettingsDialogDragStart(event: PointerEvent<HTMLElement>) {
-    if (event.button !== 0) return;
-
-    const target = event.target as HTMLElement;
-    if (target.closest("[data-dialog-control]")) return;
-    if (target.closest("button, input, textarea, select, a, label")) return;
-
-    event.preventDefault();
-    const startX = event.clientX;
-    const startY = event.clientY;
-    const startOffset = settingsDialogOffset;
-
-    function onPointerMove(moveEvent: globalThis.PointerEvent) {
-      const viewportWidth = window.innerWidth || SETTINGS_DIALOG_DEFAULT_SIZE.width;
-      const viewportHeight = window.innerHeight || SETTINGS_DIALOG_DEFAULT_SIZE.height;
-      const maxX = Math.max(0, (viewportWidth - settingsDialogSize.width) / 2 - SETTINGS_DIALOG_VIEWPORT_MARGIN);
-      const maxY = Math.max(0, (viewportHeight - settingsDialogSize.height) / 2 - SETTINGS_DIALOG_VIEWPORT_MARGIN);
-
-      setSettingsDialogOffset({
-        x: clamp(startOffset.x + moveEvent.clientX - startX, -maxX, maxX),
-        y: clamp(startOffset.y + moveEvent.clientY - startY, -maxY, maxY),
-      });
-    }
-
-    function onPointerUp() {
-      window.removeEventListener("pointermove", onPointerMove);
-      window.removeEventListener("pointerup", onPointerUp);
-    }
-
-    window.addEventListener("pointermove", onPointerMove);
-    window.addEventListener("pointerup", onPointerUp, { once: true });
-  }
-
-  function onSettingsDialogResizeStart(event: PointerEvent<HTMLDivElement>) {
-    if (event.button !== 0) return;
-    event.preventDefault();
-    event.stopPropagation();
-
-    const startX = event.clientX;
-    const startY = event.clientY;
-    const startSize = settingsDialogSize;
-
-    function onPointerMove(moveEvent: globalThis.PointerEvent) {
-      const maxWidth = Math.max(
-        SETTINGS_DIALOG_MIN_SIZE.width,
-        (window.innerWidth || SETTINGS_DIALOG_DEFAULT_SIZE.width) - SETTINGS_DIALOG_VIEWPORT_MARGIN,
-      );
-      const maxHeight = Math.max(
-        SETTINGS_DIALOG_MIN_SIZE.height,
-        (window.innerHeight || SETTINGS_DIALOG_DEFAULT_SIZE.height) - SETTINGS_DIALOG_VIEWPORT_MARGIN,
-      );
-
-      setSettingsDialogSize({
-        width: clamp(startSize.width + moveEvent.clientX - startX, SETTINGS_DIALOG_MIN_SIZE.width, maxWidth),
-        height: clamp(startSize.height + moveEvent.clientY - startY, SETTINGS_DIALOG_MIN_SIZE.height, maxHeight),
-      });
-    }
-
-    function onPointerUp() {
-      window.removeEventListener("pointermove", onPointerMove);
-      window.removeEventListener("pointerup", onPointerUp);
-    }
-
-    window.addEventListener("pointermove", onPointerMove);
-    window.addEventListener("pointerup", onPointerUp, { once: true });
-  }
-
   // 按 section 分组规则
   const groups = useMemo(() => {
     const map = new Map<string, Rule[]>();
@@ -414,16 +337,18 @@ return (
       </header>
 
       {/* 主体：左右双栏，小窗口上下堆叠 */}
-      <main className="grid min-h-0 flex-1 gap-4 p-4 md:grid-cols-2">
+      <main className="grid min-h-0 flex-1 gap-4 p-4 lg:grid-cols-2">
         <Card className="flex min-h-0 flex-col">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">输入文字</CardTitle>
-            <CardDescription className="text-xs">粘贴后自动排版</CardDescription>
+            <CardTitle className="text-sm">原始文案</CardTitle>
+            <CardDescription className="text-xs">
+              输入或粘贴需要规范化的中文文案，结果会实时生成
+            </CardDescription>
           </CardHeader>
           <CardContent className="flex min-h-0 flex-1">
             <Textarea
-              className="min-h-0 flex-1 resize-none"
-              placeholder="请输入或粘贴需要排版的中文文案"
+              className="min-h-0 flex-1 resize-none placeholder:text-muted-foreground/75"
+              placeholder="请输入或粘贴中文文案，例如：在LeanCloud上，花了5000元"
               aria-label="输入文字"
               data-testid="input-textarea"
               value={input}
@@ -444,7 +369,15 @@ return (
             </CardDescription>
           </CardHeader>
           <CardContent className="flex min-h-0 min-w-0 flex-1 flex-col">
-            <div className="min-h-0 w-full flex-1 overflow-auto rounded-md border bg-background p-3">
+            <div className="relative min-h-0 w-full flex-1 overflow-auto rounded-md border bg-background p-3">
+              {!output && !error && (
+                <div
+                  className="pointer-events-none absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-muted-foreground"
+                  data-testid="output-empty-state"
+                >
+                  输入内容后，这里将实时显示规范化结果
+                </div>
+              )}
               <pre
                 className="w-full whitespace-pre-wrap wrap-break-word font-sans text-sm"
                 data-testid="output-text"
@@ -467,19 +400,10 @@ return (
           </DialogTrigger>
           <DialogContent
             data-testid="settings-dialog"
-            className="flex max-h-[calc(100vh-2rem)] max-w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0"
-            style={{
-              width: settingsDialogSize.width,
-              height: settingsDialogSize.height,
-              transform: `translate(calc(-50% + ${settingsDialogOffset.x}px), calc(-50% + ${settingsDialogOffset.y}px))`,
-            }}
+            className="flex h-[min(680px,calc(100vh-2rem))] w-[min(760px,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0 sm:min-h-[520px] sm:min-w-[560px]"
           >
             {/* 固定标题区 */}
-            <DialogHeader
-              className="shrink-0 select-none border-b px-6 py-5 pr-12"
-              data-testid="settings-drag-region"
-              onPointerDown={onSettingsDialogDragStart}
-            >
+            <DialogHeader className="shrink-0 border-b px-6 py-5 pr-12">
               <DialogTitle>设置 — 排版规则</DialogTitle>
               <DialogDescription>
                 逐条启用/停用规则。已启用 {enabled.length}/{rules.length} 条
@@ -487,8 +411,11 @@ return (
             </DialogHeader>
 
             {/* 规则与主题滚动区：仅此区域滚动 */}
-            <ScrollArea className="min-h-0 flex-1 px-6 py-4" data-testid="settings-rules-scroll">
-              <div className="space-y-5 pb-6">
+            <div
+              className="min-h-0 flex-1 overflow-y-auto px-6 py-4"
+              data-testid="settings-scroll-area"
+            >
+              <div className="space-y-6 pb-4">
                 {/* 主题设置 */}
                 <div className="space-y-2">
                   <h3 className="text-sm font-semibold">主题</h3>
@@ -497,65 +424,65 @@ return (
                     data-testid="theme-options"
                   >
                     <label
-                    className={cn(
-                      "flex min-w-0 cursor-pointer items-center gap-2 rounded-md border px-3 py-2",
-                      theme === "system" && "border-primary bg-accent",
-                    )}
-                  >
-                    <input
-                      type="radio"
-                      name="theme"
-                      value="system"
-                      checked={theme === "system"}
-                      onChange={() => onThemeChange("system")}
-                      data-testid="theme-system"
-                      className="h-4 w-4 shrink-0"
-                    />
-                    <span className="truncate text-sm">跟随系统</span>
-                  </label>
-                  <label
-                    className={cn(
-                      "flex min-w-0 cursor-pointer items-center gap-2 rounded-md border px-3 py-2",
-                      theme === "light" && "border-primary bg-accent",
-                    )}
-                  >
-                    <input
-                      type="radio"
-                      name="theme"
-                      value="light"
-                      checked={theme === "light"}
-                      onChange={() => onThemeChange("light")}
-                      data-testid="theme-light"
-                      className="h-4 w-4 shrink-0"
-                    />
-                    <span className="truncate text-sm">浅色</span>
-                  </label>
-                  <label
-                    className={cn(
-                      "flex min-w-0 cursor-pointer items-center gap-2 rounded-md border px-3 py-2",
-                      theme === "dark" && "border-primary bg-accent",
-                    )}
-                  >
-                    <input
-                      type="radio"
-                      name="theme"
-                      value="dark"
-                      checked={theme === "dark"}
-                      onChange={() => onThemeChange("dark")}
-                      data-testid="theme-dark"
-                      className="h-4 w-4 shrink-0"
-                    />
-                    <span className="truncate text-sm">深色</span>
-                  </label>
+                      className={cn(
+                        "flex min-w-0 cursor-pointer items-center gap-2 rounded-md border px-3 py-2",
+                        theme === "system" && "border-primary bg-accent",
+                      )}
+                    >
+                      <input
+                        type="radio"
+                        name="theme"
+                        value="system"
+                        checked={theme === "system"}
+                        onChange={() => onThemeChange("system")}
+                        data-testid="theme-system"
+                        className="h-4 w-4 shrink-0"
+                      />
+                      <span className="truncate text-sm">跟随系统</span>
+                    </label>
+                    <label
+                      className={cn(
+                        "flex min-w-0 cursor-pointer items-center gap-2 rounded-md border px-3 py-2",
+                        theme === "light" && "border-primary bg-accent",
+                      )}
+                    >
+                      <input
+                        type="radio"
+                        name="theme"
+                        value="light"
+                        checked={theme === "light"}
+                        onChange={() => onThemeChange("light")}
+                        data-testid="theme-light"
+                        className="h-4 w-4 shrink-0"
+                      />
+                      <span className="truncate text-sm">浅色</span>
+                    </label>
+                    <label
+                      className={cn(
+                        "flex min-w-0 cursor-pointer items-center gap-2 rounded-md border px-3 py-2",
+                        theme === "dark" && "border-primary bg-accent",
+                      )}
+                    >
+                      <input
+                        type="radio"
+                        name="theme"
+                        value="dark"
+                        checked={theme === "dark"}
+                        onChange={() => onThemeChange("dark")}
+                        data-testid="theme-dark"
+                        className="h-4 w-4 shrink-0"
+                      />
+                      <span className="truncate text-sm">深色</span>
+                    </label>
                   </div>
                 </div>
 
                 {groups.map(([section, items]) => (
-                  <div key={section}>
+                  <section key={section}>
                     <h3 className="mb-2 text-sm font-semibold">{section}</h3>
                     <div className="space-y-2">
                       {items.map((r) => (
-                        <div key={r.key} className="flex items-start gap-3">
+                        <div key={r.key} className="flex items-start gap-3 rounded-md border p-3">
                           <Checkbox
                             id={`rule-${r.key}`}
                             checked={enabledSet.has(r.key)}
@@ -565,7 +492,7 @@ return (
                           />
                           <Label
                             htmlFor={`rule-${r.key}`}
-                            className="text-sm leading-snug"
+                            className="min-w-0 flex-1 text-sm leading-5"
                           >
                             {r.name}
                             {r.disputed && (
@@ -577,10 +504,10 @@ return (
                         </div>
                       ))}
                     </div>
-                  </div>
+                  </section>
                 ))}
               </div>
-            </ScrollArea>
+            </div>
 
             {/* 固定底部操作区：设置文件贴近左下角，操作按钮靠右下角。 */}
             <DialogFooter
@@ -629,13 +556,6 @@ return (
                 </div>
               </div>
             </DialogFooter>
-            <div
-              aria-label="调整设置窗口大小"
-              className="absolute bottom-0 right-0 h-5 w-5 cursor-se-resize"
-              data-testid="settings-resize-handle"
-              role="separator"
-              onPointerDown={onSettingsDialogResizeStart}
-            />
           </DialogContent>
         </Dialog>
 

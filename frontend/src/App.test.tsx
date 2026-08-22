@@ -3,7 +3,7 @@
  * mock 掉 @/lib/tauri，专注 UI 行为：
  * 输入→实时排版、设置弹窗规则开关与持久化、清除输入、启动时恢复用户设置。
  */
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -100,23 +100,39 @@ describe("App 主流程", () => {
     await user.click(screen.getByTestId("clear-input"));
     expect(input).toHaveValue("");
     await waitFor(() => expect(screen.getByTestId("output-text")).toBeEmptyDOMElement());
+    expect(screen.getByTestId("output-empty-state")).toBeInTheDocument();
   });
 
-  it("输入框显示默认占位符", async () => {
+  it("输入框显示示例型占位符，输出框空状态显示引导提示", async () => {
     await setup();
     expect(screen.getByTestId("input-textarea")).toHaveAttribute(
       "placeholder",
-      "请输入或粘贴需要排版的中文文案",
+      "请输入或粘贴中文文案，例如：在LeanCloud上，花了5000元",
+    );
+    expect(screen.getByTestId("output-empty-state")).toHaveTextContent(
+      "输入内容后，这里将实时显示规范化结果",
     );
   });
 
-  it("设置弹窗包含可拖动/可调整大小区域、主题选项、底部设置文件与右下角按钮", async () => {
+  it("输入内容后隐藏输出框空状态提示", async () => {
+    mockFormat((t) => `格式化(${t})`);
+    const { user } = await setup();
+    await user.type(screen.getByTestId("input-textarea"), "hello");
+    await waitFor(() =>
+      expect(screen.getByTestId("output-text")).toHaveTextContent("格式化(hello)"),
+    );
+    expect(screen.queryByTestId("output-empty-state")).not.toBeInTheDocument();
+  });
+
+  it("设置弹窗使用稳定滚动布局并完整显示主题、规则和底部操作", async () => {
     const { user } = await setup();
     await user.click(screen.getByTestId("open-settings"));
-    expect(screen.getByTestId("settings-dialog")).toBeInTheDocument();
-    expect(screen.getByTestId("settings-drag-region")).toBeInTheDocument();
-    expect(screen.getByTestId("settings-rules-scroll")).toBeInTheDocument();
-    expect(screen.getByTestId("settings-resize-handle")).toBeInTheDocument();
+    expect(screen.getByTestId("settings-dialog")).toBeVisible();
+    expect(screen.getByText("设置 — 排版规则")).toBeVisible();
+    expect(screen.getByText("主题")).toBeVisible();
+    expect(screen.getByTestId("settings-scroll-area")).toBeInTheDocument();
+    expect(screen.queryByTestId("settings-drag-region")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("settings-resize-handle")).not.toBeInTheDocument();
     expect(screen.getByTestId("settings-footer")).toBeInTheDocument();
     expect(screen.getByTestId("settings-file-info")).toHaveTextContent("设置文件：");
     expect(screen.getByTestId("settings-actions")).toBeInTheDocument();
@@ -125,6 +141,9 @@ describe("App 主流程", () => {
     expect(screen.getByTestId("theme-system")).toBeInTheDocument();
     expect(screen.getByTestId("theme-light")).toBeInTheDocument();
     expect(screen.getByTestId("theme-dark")).toBeInTheDocument();
+    expect(screen.getByText("中英文之间增加空格")).toBeVisible();
+    expect(screen.getByText("中文与数字之间增加空格")).toBeVisible();
+    expect(screen.getByText("争议规则")).toBeVisible();
     // 辅助按钮与完成按钮均存在。
     expect(screen.getByTestId("select-all")).toBeInTheDocument();
     expect(screen.getByTestId("select-none")).toBeInTheDocument();
@@ -134,33 +153,6 @@ describe("App 主流程", () => {
     const actionRow = screen.getByTestId("settings-actions").parentElement;
     expect(actionRow).not.toBeNull();
     expect(screen.getByTestId("settings-actions")).toContainElement(screen.getByTestId("settings-done"));
-  });
-
-  it("设置弹窗可通过标题区拖动并通过右下角手柄调整大小", async () => {
-    const { user } = await setup();
-    await user.click(screen.getByTestId("open-settings"));
-
-    const dialog = screen.getByTestId("settings-dialog");
-    const dragRegion = screen.getByTestId("settings-drag-region");
-    const resizeHandle = screen.getByTestId("settings-resize-handle");
-
-    fireEvent.pointerDown(dragRegion, { button: 0, clientX: 100, clientY: 100 });
-    fireEvent.pointerMove(window, { clientX: 130, clientY: 110 });
-    fireEvent.pointerUp(window);
-
-    await waitFor(() => {
-      expect(dialog).toHaveStyle({
-        transform: "translate(calc(-50% + 30px), calc(-50% + 10px))",
-      });
-    });
-
-    fireEvent.pointerDown(resizeHandle, { button: 0, clientX: 100, clientY: 100 });
-    fireEvent.pointerMove(window, { clientX: 140, clientY: 125 });
-    fireEvent.pointerUp(window);
-
-    await waitFor(() => {
-      expect(dialog).toHaveStyle({ width: "880px", height: "705px" });
-    });
   });
 
   it("设置弹窗中开关规则会立即持久化用户设置", async () => {
