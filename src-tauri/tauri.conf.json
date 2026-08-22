@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "中文文案排版助手",
+  "productName": "chinese-copywriting-formatter",
   "version": "0.1.0",
   "identifier": "com.ccw.formatter",
   "build": {
