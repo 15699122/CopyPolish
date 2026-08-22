@@ -7,6 +7,7 @@
 // 排版规则；复杂 Markdown/LaTeX 保护仍在后续阶段迁移。
 // =============================================================================
 
+use fancy_regex::Regex as FancyRegex;
 use regex::{Captures, Regex};
 use std::collections::BTreeSet;
 use std::sync::OnceLock;
@@ -55,6 +56,127 @@ fn tokenize(text: &str) -> Vec<Token> {
         .collect()
 }
 
+// ---------------------------------------------------------------------------
+// 保护层：Markdown / LaTeX / URL / 邮箱 / 代码片段 -> 私有区占位符
+// 与 ccw_engine.py 的 _PROTECT_PATTERNS 一一对应（顺序也一致）。
+// ---------------------------------------------------------------------------
+const PH_START: char = '\u{E000}';
+
+fn placeholder(idx: usize) -> String {
+    format!("{PH_START}CCWPROTECTED{idx}\u{E001}")
+}
+
+fn protect_patterns() -> &'static Vec<FancyRegex> {
+    static PATTERNS: OnceLock<Vec<FancyRegex>> = OnceLock::new();
+    PATTERNS.get_or_init(|| {
+        [
+            // fenced code block（``` 或 ~~~，支持缩进闭合）
+            r"(?s)(^|\n)([ \t]*)(`{3,}|~{3,})[^\n]*\n.*?\n\2\3[ \t]*(?=\n|$)",
+            // LaTeX environment
+            r"(?s)\\begin\{(equation\*?|align\*?|gather\*?|multline\*?|matrix|pmatrix|bmatrix|cases)\}.*?\\end\{\1\}",
+            // LaTeX display \[...\]
+            r"(?s)\\\[.*?\\\]",
+            // LaTeX inline \(...\)
+            r"(?s)\\\(.*?\\\)",
+            // LaTeX display $$...$$（排除转义 \$）
+            r"(?s)(?<!\\)\$\$(?!\$).*?(?<!\\)\$\$",
+            // LaTeX inline $...$（排除转义与空白起始）
+            r"(?<!\\)\$(?!\s|\$)(?:\\.|[^$\n\\]){1,300}?(?<!\\)\$(?!\$)",
+            // Markdown image
+            r"!\[[^\]\n]*\]\([^\n)]*\)",
+            // Markdown link
+            r"\[[^\]\n]+\]\([^\n)]*\)",
+            // autolink <https://...> / <mail@...>
+            r"(?i)<(?:(?:https?://[^>\s]+)|(?:[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}))>",
+            // inline code
+            r"`[^`\n]*`",
+            // LaTeX command（\frac{a}{b} 等）
+            r"\\[A-Za-z]+\*?(?:\[[^\]\n]*\])?(?:\{[^{}\n]*(?:\{[^{}\n]*\}[^{}\n]*)*\})+",
+            // URL（内含双引号，使用 r#""# 形式）
+            r#"(?i)https?://[^\s，。；：！？、（）《》【】「」“”‘’…—<>'"]+"#,
+            // Email
+            r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}",
+        ]
+        .iter()
+        .map(|p| FancyRegex::new(p).expect("invalid protect pattern"))
+        .collect()
+    })
+}
+
+/// 把受保护片段替换为占位符；placeholders 按创建顺序保存 (占位符, 原文)。
+fn protect(text: &str, placeholders: &mut Vec<(String, String)>) -> Result<String, String> {
+    let mut current = text.to_string();
+    for pat in protect_patterns() {
+        let mut out = String::new();
+        let mut last = 0;
+        for m in pat.find_iter(&current) {
+            let m = m.map_err(|e| format!("protect regex error: {e}"))?;
+            let (s, e) = (m.start(), m.end());
+            let ph = placeholder(placeholders.len());
+            placeholders.push((ph.clone(), current[s..e].to_string()));
+            out.push_str(&current[last..s]);
+            out.push_str(&ph);
+            last = e;
+        }
+        out.push_str(&current[last..]);
+        current = out;
+    }
+    Ok(current)
+}
+
+/// 保护缩进代码行（整行占位）；普通 Markdown 标记行继续参与排版。
+fn protect_markdown_lines(text: &str, placeholders: &mut Vec<(String, String)>) -> String {
+    let mut lines = Vec::new();
+    for line in text.split('\n') {
+        if line.starts_with("    ") || line.starts_with('\t') {
+            let ph = placeholder(placeholders.len());
+            placeholders.push((ph.clone(), line.to_string()));
+            lines.push(ph);
+        } else {
+            lines.push(line.to_string());
+        }
+    }
+    lines.join("\n")
+}
+
+fn is_placeholder_line(line: &str) -> bool {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| Regex::new(&format!(r"^{PH_START}CCWPROTECTED\d+\u{{E001}}$")).unwrap())
+        .is_match(line.trim())
+}
+
+/// 为行内保护片段补边界空格；整行/跨行保护块保持原样。
+fn space_around_inline_placeholders(text: &str, placeholders: &[(String, String)]) -> String {
+    static BEFORE_CACHE: OnceLock<Regex> = OnceLock::new();
+    static AFTER_CACHE: OnceLock<Regex> = OnceLock::new();
+    let inline: Vec<String> = placeholders
+        .iter()
+        .filter(|(_, val)| !val.contains('\n'))
+        .map(|(ph, _)| regex::escape(ph))
+        .collect();
+    if inline.is_empty() {
+        return text.to_string();
+    }
+    let alt = inline.join("|");
+    let before = BEFORE_CACHE
+        .get_or_init(|| Regex::new(&format!(r"(\S)({alt})")).unwrap())
+        .replace_all(text, "$1 $2");
+    AFTER_CACHE
+        .get_or_init(|| Regex::new(&format!(r"({alt})([^\s，。；：！？、）】》」』])")).unwrap())
+        .replace_all(&before, "$1 $2")
+        .to_string()
+}
+
+/// 为行内保护片段补边界空格；整行保护块保持原样。
+/// 按创建顺序的逆序还原占位符，保证嵌套内容（如链接中的 URL）正确还原。
+fn restore(text: &str, placeholders: &[(String, String)]) -> String {
+    let mut current = text.to_string();
+    for (ph, val) in placeholders.iter().rev() {
+        current = current.replace(ph.as_str(), val);
+    }
+    current
+}
+
 pub fn enabled_defaults() -> Vec<String> {
     vec![
         "中英文之间需要增加空格",
@@ -79,19 +201,19 @@ pub fn format_text(req: &FormatRequest) -> Result<String, String> {
         return Ok(req.text.clone());
     }
 
-    // 第一版 Rust engine 暂不处理复杂保护场景，检测到高风险标记时回退 Python。
-    if should_fallback_to_python(&req.text) {
-        return Err("contains protected markdown/latex/url pattern not migrated yet".to_string());
-    }
-
     let enabled: BTreeSet<&str> = req.enabled.iter().map(String::as_str).collect();
     let enabled_all = req.enabled.is_empty();
     let (normalized, newline) = normalize_newlines(&req.text);
-    let mut out = Vec::new();
 
-    for line in normalized.split('\n') {
-        if line.trim().is_empty() {
-            out.push(String::new());
+    // 保护层：Markdown / LaTeX / URL / 邮箱 / 代码片段先替换为占位符。
+    let mut placeholders: Vec<(String, String)> = Vec::new();
+    let protected = protect(&normalized, &mut placeholders)?;
+    let protected = protect_markdown_lines(&protected, &mut placeholders);
+
+    let mut out = Vec::new();
+    for line in protected.split('\n') {
+        if line.trim().is_empty() || is_placeholder_line(line) {
+            out.push(line.to_string());
             continue;
         }
 
@@ -128,21 +250,10 @@ pub fn format_text(req: &FormatRequest) -> Result<String, String> {
         out.push(current);
     }
 
-    Ok(restore_newlines(&out.join("\n"), newline))
-}
-
-fn should_fallback_to_python(text: &str) -> bool {
-    text.contains("```")
-        || text.contains('`')
-        || text.contains("http://")
-        || text.contains("https://")
-        || text.contains("\\(")
-        || text.contains("\\[")
-        || text.contains("\\begin{")
-        || text.contains("$$")
-        || text.contains("$E=")
-        || text.contains("![")
-        || text.contains("](")
+    let formatted = out.join("\n");
+    let formatted = space_around_inline_placeholders(&formatted, &placeholders);
+    let restored = restore(&formatted, &placeholders);
+    Ok(restore_newlines(&restored, newline))
 }
 
 fn normalize_newlines(text: &str) -> (String, &'static str) {
@@ -487,9 +598,63 @@ mod tests {
     }
 
     #[test]
-    fn falls_back_for_protected_content() {
-        assert!(format_text(&req("公式$E=mc^2$很重要")).is_err());
-        assert!(format_text(&req("请看[链接](https://example.com)")).is_err());
+    fn formats_protected_content_like_python_engine() {
+        // LaTeX / Markdown 保护（对齐 test/test_ccw_engine.py）
+        assert_eq!(
+            format_text(&req("公式$E=mc^2$很重要")).unwrap(),
+            "公式 $E=mc^2$ 很重要"
+        );
+        assert_eq!(
+            format_text(&req(r"公式\( E=mc^2 \)很重要")).unwrap(),
+            r"公式 \( E=mc^2 \) 很重要"
+        );
+        assert_eq!(
+            format_text(&req(r"使用\frac{a}{b}计算")).unwrap(),
+            r"使用 \frac{a}{b} 计算"
+        );
+        assert_eq!(format_text(&req(r"价格是\$100")).unwrap(), r"价格是\$100");
+
+        let display_math = "如下：\n$$\nE=mc^2; github\n$$\n结束";
+        assert_eq!(format_text(&req(display_math)).unwrap(), display_math);
+
+        let latex_env = "如下：\n\\begin{align}\na&=b+c; github\n\\end{align}\n结束";
+        assert_eq!(format_text(&req(latex_env)).unwrap(), latex_env);
+
+        let fenced = "示例：\n```python\nprint('github; $x | y')\n```\n结束";
+        assert_eq!(format_text(&req(fenced)).unwrap(), fenced);
+
+        let indented = "命令：\n    npm install foo/bar; echo '$x|y'\n完成";
+        assert_eq!(format_text(&req(indented)).unwrap(), indented);
+
+        assert_eq!(
+            format_text(&req("使用`a;b|c/$x`安装")).unwrap(),
+            "使用 `a;b|c/$x` 安装"
+        );
+        assert_eq!(
+            format_text(&req(
+                "请看[GitHub链接](https://example.com/a;b?x=$1|y)然后继续"
+            ))
+            .unwrap(),
+            "请看 [GitHub链接](https://example.com/a;b?x=$1|y) 然后继续"
+        );
+        assert_eq!(
+            format_text(&req(r#"图片![alt text](image/path.png "title")很好"#)).unwrap(),
+            r#"图片 ![alt text](image/path.png "title") 很好"#
+        );
+    }
+
+    #[test]
+    fn protected_cases_are_idempotent() {
+        let cases = [
+            "第一段\n\n第二段",
+            "公式$E=mc^2$很重要",
+            "示例：\n```\ngithub; $x | y\n```\n结束",
+            r"路径是 <windows-user-home>，价格是\$100",
+        ];
+        for src in cases {
+            let once = format_text(&req(src)).unwrap();
+            assert_eq!(format_text(&req(&once)).unwrap(), once, "{src}");
+        }
     }
 
     #[test]

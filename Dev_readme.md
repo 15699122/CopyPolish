@@ -33,7 +33,8 @@
 - `src-tauri/src-python/main.py`：已改为同时支持开发树和 Tauri Linux 资源布局。Linux bundle 中 `../ccw_engine.py` 与 `../rules.yaml` 会落在资源根的 `_up_/` 下，因此桥接模块会把资源根、`_up_`、项目根候选路径加入 `sys.path`，并优先选择已存在的打包 `rules.yaml`。
 - `frontend/tsconfig.app.json`：移除了 TypeScript 5.9 不接受的 `"ignoreDeprecations": "6.0"` 配置；`npm run build --prefix frontend` 已恢复通过。
 - Git：项目已初始化为 Git 仓库，并提交基线 `chore: baseline before rust typesetting engine migration`，便于后续 Rust 后端引擎迁移回滚与对比。
-- `src-tauri/src/rust_engine.rs`：新增第一版 Rust 原生文字处理引擎。该模块参考 `typeset-rs` 的字符分类 / token 化 / 渲染管线思路，但不复制其源码；当前实现基础中英文/数字空格、数字单位、全角标点空格、重复标点、全角中文标点、半角数字、英文语境半角标点、专有名词与缩写等核心规则，并对 Markdown/LaTeX/URL 等保护场景主动返回错误以触发 Python fallback。
+- `src-tauri/src/rust_engine.rs`：新增第一版 Rust 原生文字处理引擎。该模块参考 `typeset-rs` 的字符分类 / token 化 / 渲染管线思路，但不复制其源码；当前实现基础中英文/数字空格、数字单位、全角标点空格、重复标点、全角中文标点、半角数字、英文语境半角标点、专有名词与缩写等核心规则。
+- 保护层已迁移到 Rust（第二版）：`rust_engine.rs` 现在完整复刻 `ccw_engine.py` 的 `_protect` / `_protect_markdown_lines` / `_space_around_inline_placeholders` / `_restore` 管线，覆盖 fenced code block、LaTeX 环境/display/inline/command、Markdown 图片/链接/autolink、行内代码、URL、邮箱与缩进代码行共 13 类保护模式，占位符格式与 Python 完全一致（`\u{E000}CCWPROTECTED{n}\u{E001}`）。保护层正则需要 lookbehind/backreference，因此引入 `fancy-regex` 依赖。`format_text` 的 `should_fallback_to_python` 拦截已移除——普通含保护内容的输入不再回退 Python。
 - `src-tauri/src/commands.rs`：`format_text` 已改为 **Rust engine 优先，PyO3/Python fallback**。`get_rules` 仍由 Python/rules.yaml 提供，避免迁移早期破坏规则元数据；`get_enabled_defaults` 已可从 Rust 返回，并保留 Python fallback 分支。
 
 `typeset-rs` 调研结论：该仓库适合作为 Rust 原生排版核心的架构参考（字符分类、token、上下文渲染、全半角和中英文空格处理），许可证为 MIT；但其 README/TODO 显示 URL/文件名保护、专有名词大小写、复杂语义引号等仍非完整覆盖。本项目因此采用“本项目内 Rust engine 渐进重写 + Python fallback”的路线，不直接把上游作为即插即用依赖。
@@ -98,7 +99,7 @@ usr/lib/中文文案排版助手/_up_/rules.yaml
 ### 后续计划 / 下一步
 
 1. **真实窗口交互验证**：在 Tauri 窗口中输入 `在LeanCloud上，花了5000元`，确认输出为 `在 LeanCloud 上，花了 5000 元`；打开设置弹窗，确认 13 条规则 / 11 条默认规则，切换规则后输出更新。
-2. **扩大 Rust engine 覆盖面**：把 Python 中的 Markdown/LaTeX/URL/邮箱/代码保护迁移到 Rust，使 `format_text` 能逐步减少 fallback；建议用现有 `test/test_ccw_engine.py` 样例生成 Rust golden tests。
+2. **扩大 Rust engine 覆盖面**：保护层（Markdown/LaTeX/URL/邮箱/代码）已迁移到 Rust 并通过 golden 测试；下一步是用现有 `test/test_ccw_engine.py` 全部样例做 Python vs Rust 输出对比脚本，找出残余差异（如争议规则的链接空格细节），再逐步让 fallback 只作为兜底而非功能来源。
 3. **release 二进制 / AppImage 短时启动验证**：隔离资源 import smoke 已通过；仍建议在目标图形环境中运行 release 二进制或 AppImage，确认 WebView、Rust engine 与 PyO3 fallback 在安装态同时可用。WSL 下如出现 `libEGL` / `MESA` / `ZINK` 警告，优先按图形栈问题排查。
 4. **处理用户设置持久化**：正式版不要修改随包分发的 `rules.yaml`。建议将用户选择写入 Tauri `AppData` / `AppConfig`，`rules.yaml` 仅作为只读默认元数据。
 5. **替换正式图标集**：当前 `src-tauri/icons/icon.png` 是临时有效 PNG，只用于解除构建阻塞。发布前应生成完整 Linux/Windows/macOS 图标集合。
