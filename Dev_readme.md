@@ -116,6 +116,14 @@ npm ci --prefix frontend
 
 默认在 `dev` 分支开发，`master` 只保留已验证的稳定代码：
 
+使用 Cline Act Mode 修改本地文件时，完成实现与必要验证后应自动同步到 GitHub 远程仓库的相应分支：
+
+1. 先检查 `git status --short --branch`，确认当前分支、远程跟踪分支与待提交文件；
+2. 查看 diff，确保提交范围只包含本次任务相关更改；
+3. 使用清晰的 commit message 提交；
+4. 推送到当前分支对应的远程分支（通常为 `origin/<当前分支>`，例如 `dev -> origin/dev`）；
+5. 推送后再次检查 `git status --short --branch`，确认本地分支与远程分支已同步。
+
 ```bash
 git switch dev
 git pull --ff-only origin dev
@@ -211,4 +219,9 @@ CI/Release 会打印 Node/npm/Rust/Cargo/系统版本，便于核对本地与 Ru
 | Linux | `bundle-ubuntu-latest` | `CopyPolish_linux_amd64.deb` / `CopyPolish-linux-x86_64.rpm` / `CopyPolish_linux_amd64.AppImage` |
 | Windows | `windows-portable` | `CopyPolish.exe` / `CopyPolish-windows-x64.7z` |
 
-Release Notes 由 GitHub 自动生成后追加固定说明（Windows 便携版命名、设置迁移、规则调整等）。
+Release Notes 由 GitHub 自动生成后，必须在正式发布前重新审查并按需编辑：
+
+- 确认自动生成内容覆盖本次更新的大致范围（功能、修复、规则调整、构建/发布流程变化等），不要只保留 commit/PR 标题而遗漏用户可感知的变化；
+- 对比上一版 Release Notes，删除或改写与既有版本重复的描述，避免把旧版本已发布的内容再次列为“本次更新”；
+- 保留并按需更新固定说明（Windows 便携版命名、设置迁移、规则调整、已知限制等）；
+- 最终发布前再检查资产列表与 Release Notes 是否一致，特别是 Linux `.deb` / `.rpm` / `.AppImage` 与 Windows `CopyPolish.exe` / `.7z` 是否均已说明清楚。
