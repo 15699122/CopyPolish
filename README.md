@@ -11,6 +11,7 @@
 - **实时排版**：输入或粘贴文本后自动生成格式化结果。
 - **左右双栏编辑**：输入区和输出区并排显示，适合对照检查。
 - **规则可配置**：设置窗口支持逐条启用/停用规则，也支持全选、全不选和恢复默认。
+- **深色 / 浅色 / 跟随系统主题**：设置中可切换主题，选择会持久化，下次启动自动恢复。
 - **争议规则默认关闭**：例如链接之间增加空格、简体中文使用直角引号，可按个人习惯开启。
 - **Markdown / LaTeX 保护**：尽量避免误改代码块、行内代码、链接、图片链接、URL、邮箱和公式内容。
 - **低依赖规则引擎**：Rust 原生引擎为主路径；`ccw_engine.py` 仅作为兜底保留。
@@ -40,16 +41,14 @@ Windows 无边框便携版依赖系统的 WebView2 Evergreen Runtime（Windows 1
 推送 `v*` tag 即可自动发布：
 
 ```bash
-git tag v0.1.1 && git push origin v0.1.1
+git tag v0.3.1 && git push origin v0.3.1
 ```
 
-CI 会构建双平台产物并自动创建 GitHub Release（资产统一使用 ASCII 文件名：`.exe`、`.7z`、`_linux_amd64.deb`、`-linux-x86_64.rpm`、`_linux_amd64.AppImage`），Release Notes 由 GitHub 自动生成。
+CI 会构建双平台产物并自动创建 GitHub Release（资产统一使用 ASCII 文件名：`.exe`、`.7z`、`_linux_amd64.deb`、`-linux-x86_64.rpm`、`_linux_amd64.AppImage`），Release Notes 在 GitHub 自动生成的变更基础上追加固定说明（改名、设置迁移、规则调整等）。
 
 ### 编码说明
 
 全链路统一使用 UTF-8：Rust `String` 原生 UTF-8，Tauri command 走 JSON（UTF-8），设置文件 `rules.yaml`（YAML）以 UTF-8 写入/读取；中文输入输出、emoji、CJK 扩展区字符均有自动化回归测试覆盖。
-
-当前仍建议把 Tauri 版视为迁移中的开发版。
 
 ## 当前支持的规则
 
@@ -125,6 +124,10 @@ npm run tauri build -- --no-bundle
 
 Windows 仅提供无边框便携版 `.exe` 与 `.7z` 压缩包两种格式，不提供安装器；运行需系统已安装 WebView2 Runtime。
 
+### Windows `.7z` 内容
+
+`.7z` 压缩包的根目录直接包含 `CopyPolish.exe` 及构建目录中存在的旁置 DLL 依赖（如有），不会包含 `dist`、`windows` 或其他上级目录。
+
 ## 基本使用
 
 1. 启动应用。
@@ -132,10 +135,11 @@ Windows 仅提供无边框便携版 `.exe` 与 `.7z` 压缩包两种格式，不
 3. 右侧输出框会自动显示排版后的结果；无边框窗口可通过顶部标题栏拖动，右上角按钮控制最小化、最大化和关闭。
 4. 点击 **复制结果** 将输出复制到剪贴板。
 5. 点击 **清空输入** 清除当前文本。
-6. 点击 **设置** 打开规则窗口：
+6. 点击 **设置** 打开设置窗口：
    - 勾选或取消勾选单条规则；
    - 使用全选、全不选、恢复默认；
-   - 点击完成或直接关闭窗口保存并返回主界面。
+   - 切换主题（跟随系统 / 浅色 / 深色，横向排列）；
+   - 点击右下角 **完成** 保存并返回主界面（辅助按钮位于完成按钮上方）。
 
 ## 文本保护范围
 
@@ -165,9 +169,11 @@ enabled:
   - 中英文之间需要增加空格
   - 数字使用半角字符
 last_input: 在LeanCloud上，花了5000元
+theme: system
 ```
 
 - 启动时自动恢复；文件缺失或损坏时使用内置默认规则集。
+- 主题保存在 `theme` 字段（`system` / `light` / `dark`），旧版设置文件无此字段时默认回落为 `system`。
 - 该文件已加入 `.gitignore`，不会进入版本库。
 - 旧版 `ccw-formatter-settings.json`（JSON）会在首次运行时被自动读取并迁移为 `rules.yaml`。
 - 注意：若程序放在只读目录（如 `Program Files`），设置将无法保存；建议将便携版解压到有写权限的目录。
@@ -200,7 +206,3 @@ npm run build --prefix frontend
 项目结构、架构说明、验证命令、打包细节和后续计划请参阅：
 
 - [Dev_readme.md](Dev_readme.md)
-
-### Windows `.7z` 内容
-
-`.7z` 压缩包的根目录直接包含 `CopyPolish.exe` 及构建目录中存在的旁置 DLL 依赖（如有），不会包含 `dist`、`windows` 或其他上级目录。
