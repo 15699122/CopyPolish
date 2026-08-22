@@ -15,8 +15,8 @@
         "title": "文案净排",
         "width": 920,
         "height": 720,
-        "minWidth": 720,
-        "minHeight": 540,
+        "minWidth": 800,
+        "minHeight": 600,
         "resizable": true,
         "decorations": false
       }

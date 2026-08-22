@@ -79,6 +79,46 @@ export PATH="$HOME/.cargo/bin:$PATH"
 
 依赖：Node.js/npm、Rust 工具链、Linux 下 Tauri/WebKitGTK 系统依赖。应用构建无需 Python；仅运行 `test/` 的 Python 单测与 parity 校验需要本地 Python（当前 `.venv`）。
 
+工具链版本通过仓库文件固定：
+
+- Node.js：`.nvmrc`（当前 22，与 GitHub Actions 一致）；
+- Rust：`rust-toolchain.toml`（当前 1.98.0，包含 rustfmt / clippy）；
+- 前端依赖：`frontend/package-lock.json` + `npm ci`；
+- Rust 依赖：`src-tauri/Cargo.lock`。
+
+建议本地开发前执行：
+
+```bash
+nvm use
+npm ci --prefix frontend
+```
+
+依赖更新不在普通 CI 构建中自动执行；Dependabot 会为 npm、Cargo 和 GitHub Actions 依赖创建独立 PR，合并前必须通过 CI。
+
+## 分支开发流程
+
+默认在 `dev` 分支开发，`master` 只保留已验证的稳定代码：
+
+```bash
+git switch dev
+git pull --ff-only origin dev
+
+# 开发、测试、提交
+git push origin dev
+
+# 功能确认后创建 PR：dev → master
+gh pr create --base master --head dev
+```
+
+发布仅从 `master` 创建 `v*` tag：
+
+```bash
+git switch master
+git pull --ff-only origin master
+git tag v0.3.x
+git push origin v0.3.x
+```
+
 ## 启动 / 构建
 
 ```bash
@@ -118,8 +158,11 @@ npm test --prefix frontend                                # vitest 组件测试�
 
 ## 持续集成
 
-`.github/workflows/build.yml`：
+`.github/workflows/ci.yml` 与 `.github/workflows/release.yml`：
 
-- `test` job（ubuntu）：cargo fmt + 纯 Rust cargo test（13 项，含 UTF-8 多字节回归）+ 前端 vitest 组件测试 + tsc/vite 构建；
+- `ci.yml` 在 `dev`、`master` 与 PR 上运行快速验证：cargo fmt + 纯 Rust cargo test（16 项，含 UTF-8 多字节回归）+ 前端 vitest 组件测试 + tsc/vite 构建；
+- `release.yml` 仅在 `v*` tag 或手动指定既有 `v*` tag 时运行完整发布流水线；
 - `tauri-build` matrix（ubuntu/windows）：Linux 构建 deb/rpm/AppImage 并上传 `bundle-ubuntu-latest`；Windows 以 `--no-bundle` 构建无边框便携 `.exe`，以临时根目录打包为只含 exe/DLL 的 `.7z` 后上传 `windows-portable`（不生成任何安装器——WiX MSI 无法处理中文产品名，且产品定位为免安装便携版）。项目不支持 macOS。
 - `windows-smoke` job（windows-latest）：真实启动 GUI 冒烟测试——构建 exe → 启动进程 → 轮询等待主窗口句柄出现（最长 60 秒）→ 保持 10 秒验证稳定性 → 强制结束进程。已通过。
+
+CI/Release 会打印 Node/npm/Rust/Cargo/系统版本，便于核对本地与 Runner 环境差异。

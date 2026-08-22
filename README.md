@@ -38,13 +38,18 @@ Windows 无边框便携版依赖系统的 WebView2 Evergreen Runtime（Windows 1
 
 ### 版本发布
 
-推送 `v*` tag 即可自动发布：
+项目采用 `dev` 开发、`master` 稳定发布的分支流程：日常修改先推送到 `dev` 并通过 CI，确认功能正常后通过 PR 合并到 `master`。在 `master` 上推送 `v*` tag 即可自动发布：
 
 ```bash
+git switch dev
+# 开发、测试并推送 dev；确认后创建 dev → master PR
+
+git switch master
+git pull --ff-only origin master
 git tag v0.3.2 && git push origin v0.3.2
 ```
 
-CI 会构建双平台产物并自动创建 GitHub Release（资产统一使用 ASCII 文件名：`.exe`、`.7z`、`_linux_amd64.deb`、`-linux-x86_64.rpm`、`_linux_amd64.AppImage`），Release Notes 在 GitHub 自动生成的变更基础上追加固定说明（改名、设置迁移、规则调整等）。
+CI 会在 `dev`、`master`、PR 和 `v*` tag 上验证代码；仅 `v*` tag 会构建双平台产物并自动创建 GitHub Release（资产统一使用 ASCII 文件名：`.exe`、`.7z`、`_linux_amd64.deb`、`-linux-x86_64.rpm`、`_linux_amd64.AppImage`），Release Notes 在 GitHub 自动生成的变更基础上追加固定说明（改名、设置迁移、规则调整等）。
 
 ### 编码说明
 
