@@ -12,6 +12,7 @@ pub fn run() {
             commands::get_rules,
             commands::get_enabled_defaults,
             commands::get_user_settings,
+            commands::get_settings_path,
             commands::save_user_settings,
         ])
         .run(tauri::generate_context!())
