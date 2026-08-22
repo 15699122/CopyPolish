@@ -36,7 +36,7 @@ jobs:
           - os: ubuntu-latest
             args: ""
           - os: windows-latest
-            args: ""
+            args: "--bundles nsis"
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
