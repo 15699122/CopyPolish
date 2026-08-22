@@ -41,7 +41,7 @@ Windows 无边框便携版依赖系统的 WebView2 Evergreen Runtime（Windows 1
 推送 `v*` tag 即可自动发布：
 
 ```bash
-git tag v0.3.1 && git push origin v0.3.1
+git tag v0.3.2 && git push origin v0.3.2
 ```
 
 CI 会构建双平台产物并自动创建 GitHub Release（资产统一使用 ASCII 文件名：`.exe`、`.7z`、`_linux_amd64.deb`、`-linux-x86_64.rpm`、`_linux_amd64.AppImage`），Release Notes 在 GitHub 自动生成的变更基础上追加固定说明（改名、设置迁移、规则调整等）。

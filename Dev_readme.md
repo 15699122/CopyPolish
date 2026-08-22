@@ -94,7 +94,7 @@ cargo fmt --manifest-path src-tauri/Cargo.toml --check
 cargo check --manifest-path src-tauri/Cargo.toml
 cargo test --manifest-path src-tauri/Cargo.toml          # 纯 Rust：16 项
 npm run build --prefix frontend                           # tsc + vite
-npm test --prefix frontend                                # vitest 组件测试（jsdom，8 项）
+npm test --prefix frontend                                # vitest 组件测试（jsdom，9 项）
 .venv/bin/python -m unittest discover -s test             # Python 40 项
 .venv/bin/python test/compare_rust_parity.py              # 必须 0 差异
 ```

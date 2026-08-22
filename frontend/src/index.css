@@ -174,3 +174,29 @@
 [data-window-control] * {
   cursor: default;
 }
+
+/* 设置弹窗标题拖动区与右下角缩放手柄。 */
+[data-testid="settings-drag-region"] {
+  cursor: grab;
+}
+
+[data-testid="settings-drag-region"]:active {
+  cursor: grabbing;
+}
+
+[data-testid="settings-resize-handle"] {
+  background:
+    linear-gradient(
+      135deg,
+      transparent 0 45%,
+      var(--muted-foreground) 46% 52%,
+      transparent 53% 65%,
+      var(--muted-foreground) 66% 72%,
+      transparent 73%
+    );
+  opacity: 0.5;
+}
+
+[data-testid="settings-resize-handle"]:hover {
+  opacity: 0.9;
+}
