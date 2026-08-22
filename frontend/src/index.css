@@ -63,3 +63,13 @@
     color: var(--color-foreground);
   }
 }
+
+
+/* Tauri 无边框窗口的拖动区域；按钮区域通过 data-tauri-drag-region=false 排除。 */
+[data-tauri-drag-region] {
+  cursor: grab;
+}
+
+[data-tauri-drag-region]:active {
+  cursor: grabbing;
+}
