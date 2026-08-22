@@ -101,8 +101,8 @@ npm test --prefix frontend                                # vitest 组件测试�
 
 ## 后续计划
 
-1. 真实窗口 smoke 验证（WSL2 图形栈限制暂无法本地执行）：输入 `在LeanCloud上，花了5000元` → 应输出 `在 LeanCloud 上，花了 5000 元`；验证设置弹窗 13 条规则、开关即时重排、设置文件持久化。
-2. 关注 `.github/workflows/build.yml` 的 Linux/Windows 构建结果；如需分发产物再启用 upload-artifact。
+1. 真实 Windows 机器人工验收：下载 CI 的 `windows-portable` artifact，运行 `.exe`，输入 `在LeanCloud上，花了5000元` → 应输出 `在 LeanCloud 上，花了 5000 元`；验证设置弹窗 13 条规则、开关即时重排、设置文件持久化、高 DPI 显示。
+2. GUI 功能迭代（空状态 / 错误态 UI 等）。
 
 ## 图标
 
@@ -113,5 +113,6 @@ npm test --prefix frontend                                # vitest 组件测试�
 
 `.github/workflows/build.yml`：
 
-- `test` job（ubuntu）：cargo fmt + 默认纯 Rust cargo test + 前端 vitest 组件测试 + tsc/vite 构建；
-- `tauri-build` matrix（ubuntu/windows）：Linux/Windows 双平台 `tauri build`，构建产物通过 upload-artifact 上传（bundle-ubuntu / bundle-windows），失败时上传 build-log-*。项目不支持 macOS，构建矩阵中已移除 macos-latest 与 Apple target。因默认构建不含 Python，Windows 无需任何 Python 工具链。
+- `test` job（ubuntu）：cargo fmt + 纯 Rust cargo test（13 项，含 UTF-8 多字节回归）+ 前端 vitest 组件测试 + tsc/vite 构建；
+- `tauri-build` matrix（ubuntu/windows）：Linux 构建 deb/rpm/AppImage 并上传 `bundle-ubuntu-latest`；Windows 以 `--no-bundle` 构建便携 `.exe`，打包为 `.exe` + `.7z` 上传 `windows-portable`（不生成任何安装器——WiX MSI 无法处理中文产品名，且产品定位为免安装便携版）。项目不支持 macOS。
+- `windows-smoke` job（windows-latest）：真实启动 GUI 冒烟测试——构建 exe → 启动进程 → 轮询等待主窗口句柄出现（最长 60 秒）→ 保持 10 秒验证稳定性 → 强制结束进程。已通过。

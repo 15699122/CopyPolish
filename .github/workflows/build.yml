@@ -35,8 +35,10 @@ jobs:
         include:
           - os: ubuntu-latest
             args: ""
+          # Windows 仅提供便携版：不生成安装器，直接产出 release .exe，
+          # 由后续步骤打包为 .7z。
           - os: windows-latest
-            args: "--bundles nsis"
+            args: "--no-bundle"
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -57,14 +59,39 @@ jobs:
           npm ci
           npm run tauri build -- ${{ matrix.args }}
 
-      # 分发产物：上传 Linux/Windows bundle。
+      # Linux：上传 Tauri bundle（deb/rpm/AppImage）。
       - uses: actions/upload-artifact@v4
-        if: matrix.os == 'ubuntu-latest' || matrix.os == 'windows-latest'
+        if: matrix.os == 'ubuntu-latest'
         with:
-          name: bundle-${{ matrix.os }}
+          name: bundle-ubuntu-latest
           path: |
             src-tauri/target/release/bundle/**
           if-no-files-found: error
+
+      # Windows：便携版发布 —— 仅 .exe 与 .7z 压缩包，无安装器。
+      - name: Package Windows portable (exe + 7z)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          $exe = "src-tauri/target/release/chinese-copywriting-formatter.exe"
+          if (-not (Test-Path $exe)) { Write-Error "Executable not found: $exe"; exit 1 }
+          New-Item -ItemType Directory -Force -Path dist/windows | Out-Null
+          Copy-Item $exe "dist/windows/chinese-copywriting-formatter.exe"
+          $sevenZip = (Get-Command 7z -ErrorAction SilentlyContinue).Source
+          if (-not $sevenZip) { $sevenZip = "C:\Program Files\7-Zip\7z.exe" }
+          & $sevenZip a -t7z -mx=9 "dist/windows/chinese-copywriting-formatter-windows-x64.7z" "dist/windows/chinese-copywriting-formatter.exe"
+          if ($LASTEXITCODE -ne 0) { Write-Error "7z failed with exit code $LASTEXITCODE"; exit 1 }
+          Get-ChildItem dist/windows
+
+      - uses: actions/upload-artifact@v4
+        if: matrix.os == 'windows-latest'
+        with:
+          name: windows-portable
+          path: |
+            dist/windows/chinese-copywriting-formatter.exe
+            dist/windows/chinese-copywriting-formatter-windows-x64.7z
+          if-no-files-found: error
+
       # 构建失败时上传日志辅助排查。
       - uses: actions/upload-artifact@v4
         if: failure()

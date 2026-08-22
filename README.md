@@ -22,13 +22,22 @@
 
 - `frontend/`：React + Vite + TypeScript + Tailwind v4 + shadcn/ui 界面已落地。
 - `src-tauri/`：**纯 Rust 实现**（`rust_engine.rs` + `user_settings.rs`），无 Python/PyO3 依赖；仓库根目录的 `ccw_engine.py` 仅作为 `test/compare_rust_parity.py` 的权威基准保留。
-- Rust 单元测试覆盖引擎核心样例与设置持久化。
+- Rust 单元测试覆盖引擎核心样例、设置持久化与 UTF-8 多字节回归（emoji / CJK 扩展区 / 全角字符）。
 - Linux 打包已能生成：
   - `.deb`
   - `.rpm`
   - `.AppImage`
+- Windows 仅提供**便携版**（无安装器）：
+  - `chinese-copywriting-formatter.exe`（单文件，直接运行）
+  - `chinese-copywriting-formatter-windows-x64.7z`（压缩包）
 
-当前仍建议把 Tauri 版视为迁移中的开发版。正式分发前还需要继续确认安装后资源路径、用户设置持久化、真实图标集和多平台打包策略。
+Windows 便携版依赖系统的 WebView2 Evergreen Runtime（Windows 10/11 一般已内置）；如缺失，请从微软官网安装。CI 已包含 Windows hosted runner 真实启动冒烟测试（进程存活 + 主窗口出现 + 10 秒稳定性校验）。
+
+### 编码说明
+
+全链路统一使用 UTF-8：Rust `String` 原生 UTF-8，Tauri command 走 JSON（UTF-8），设置文件 `ccw-formatter-settings.json` 以 UTF-8 写入/读取；中文输入输出、emoji、CJK 扩展区字符均有自动化回归测试覆盖。
+
+当前仍建议把 Tauri 版视为迁移中的开发版。
 
 ## 当前支持的规则
 
@@ -85,6 +94,25 @@ npm run tauri build
 ```text
 src-tauri/target/release/bundle/
 ```
+
+构建 Windows 便携版（不生成安装器）：
+
+```bash
+cd frontend
+npm run tauri build -- --no-bundle
+# 产物：src-tauri/target/release/chinese-copywriting-formatter.exe
+```
+
+## 下载与发布
+
+每次 push 到 master 后，CI（GitHub Actions `build` workflow）自动构建并上传 artifact：
+
+| 平台 | Artifact | 内容 |
+| --- | --- | --- |
+| Linux | `bundle-ubuntu-latest` | `.deb` / `.rpm` / `.AppImage` |
+| Windows | `windows-portable` | `chinese-copywriting-formatter.exe` + `chinese-copywriting-formatter-windows-x64.7z` |
+
+Windows 仅提供便携版 `.exe` 与 `.7z` 压缩包两种格式，不提供安装器；运行需系统已安装 WebView2 Runtime。
 
 ## 基本使用
 
