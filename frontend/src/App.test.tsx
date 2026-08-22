@@ -102,6 +102,37 @@ describe("App 主流程", () => {
     await waitFor(() => expect(screen.getByTestId("output-text")).toBeEmptyDOMElement());
   });
 
+  it("输入框显示默认占位符", async () => {
+    await setup();
+    expect(screen.getByTestId("input-textarea")).toHaveAttribute(
+      "placeholder",
+      "请输入或粘贴需要排版的中文文案",
+    );
+  });
+
+  it("设置弹窗包含主题选项、辅助按钮与右下角完成按钮", async () => {
+    const { user } = await setup();
+    await user.click(screen.getByTestId("open-settings"));
+    expect(screen.getByTestId("settings-dialog")).toBeInTheDocument();
+    expect(screen.getByTestId("settings-footer")).toBeInTheDocument();
+    expect(screen.getByTestId("settings-actions")).toBeInTheDocument();
+    // 主题选项横向网格容器。
+    expect(screen.getByTestId("theme-options")).toBeInTheDocument();
+    expect(screen.getByTestId("theme-system")).toBeInTheDocument();
+    expect(screen.getByTestId("theme-light")).toBeInTheDocument();
+    expect(screen.getByTestId("theme-dark")).toBeInTheDocument();
+    // 辅助按钮与完成按钮均存在。
+    expect(screen.getByTestId("select-all")).toBeInTheDocument();
+    expect(screen.getByTestId("select-none")).toBeInTheDocument();
+    expect(screen.getByTestId("reset-defaults")).toBeInTheDocument();
+    expect(screen.getByTestId("settings-done")).toBeInTheDocument();
+    // 完成按钮所在行位于辅助按钮所在行之后（更靠下）。
+    const actionRow = screen.getByTestId("settings-actions").parentElement;
+    expect(actionRow).not.toBeNull();
+    const doneRow = screen.getByTestId("settings-done").parentElement;
+    expect(doneRow).not.toBeNull();
+  });
+
   it("设置弹窗中开关规则会立即持久化用户设置", async () => {
     mockFormat((t) => t);
     const { user } = await setup();

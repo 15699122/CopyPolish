@@ -23,6 +23,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 import {
   formatText,
   getEnabledDefaults,
@@ -346,7 +347,7 @@ return (
           <CardContent className="flex min-h-0 flex-1">
             <Textarea
               className="min-h-0 flex-1 resize-none"
-              placeholder="在LeanCloud上，花了5000元"
+              placeholder="请输入或粘贴需要排版的中文文案"
               aria-label="输入文字"
               data-testid="input-textarea"
               value={input}
@@ -388,56 +389,79 @@ return (
               设置
             </Button>
           </DialogTrigger>
-                    <DialogContent className="max-h-[80vh] max-w-md">
-            <DialogHeader>
+          <DialogContent
+            data-testid="settings-dialog"
+            className="flex max-h-[min(90vh,720px)] w-[calc(100vw-2rem)] max-w-2xl flex-col gap-0 overflow-hidden p-0"
+          >
+            {/* 固定标题区 */}
+            <DialogHeader className="shrink-0 border-b px-6 py-5">
               <DialogTitle>设置 — 排版规则</DialogTitle>
               <DialogDescription>
                 逐条启用/停用规则。已启用 {enabled.length}/{rules.length} 条
               </DialogDescription>
             </DialogHeader>
 
-            <ScrollArea className="h-[50vh] pr-4">
-              <div className="space-y-4">
+            {/* 规则与主题滚动区：仅此区域滚动 */}
+            <ScrollArea className="min-h-0 flex-1 px-6 py-4">
+              <div className="space-y-5 pb-2">
                 {/* 主题设置 */}
                 <div className="space-y-2">
                   <h3 className="text-sm font-semibold">主题</h3>
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-3">
-                      <input
-                        type="radio"
-                        name="theme"
-                        value="system"
-                        checked={theme === "system"}
-                        onChange={() => onThemeChange("system")}
-                        data-testid="theme-system"
-                        className="h-4 w-4"
-                      />
-                      <span className="text-sm">跟随系统</span>
-                    </label>
-                    <label className="flex items-center gap-3">
-                      <input
-                        type="radio"
-                        name="theme"
-                        value="light"
-                        checked={theme === "light"}
-                        onChange={() => onThemeChange("light")}
-                        data-testid="theme-light"
-                        className="h-4 w-4"
-                      />
-                      <span className="text-sm">浅色</span>
-                    </label>
-                    <label className="flex items-center gap-3">
-                      <input
-                        type="radio"
-                        name="theme"
-                        value="dark"
-                        checked={theme === "dark"}
-                        onChange={() => onThemeChange("dark")}
-                        data-testid="theme-dark"
-                        className="h-4 w-4"
-                      />
-                      <span className="text-sm">深色</span>
-                    </label>
+                  <div
+                    className="grid grid-cols-1 gap-2 sm:grid-cols-3"
+                    data-testid="theme-options"
+                  >
+                    <label
+                    className={cn(
+                      "flex min-w-0 cursor-pointer items-center gap-2 rounded-md border px-3 py-2",
+                      theme === "system" && "border-primary bg-accent",
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      name="theme"
+                      value="system"
+                      checked={theme === "system"}
+                      onChange={() => onThemeChange("system")}
+                      data-testid="theme-system"
+                      className="h-4 w-4 shrink-0"
+                    />
+                    <span className="truncate text-sm">跟随系统</span>
+                  </label>
+                  <label
+                    className={cn(
+                      "flex min-w-0 cursor-pointer items-center gap-2 rounded-md border px-3 py-2",
+                      theme === "light" && "border-primary bg-accent",
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      name="theme"
+                      value="light"
+                      checked={theme === "light"}
+                      onChange={() => onThemeChange("light")}
+                      data-testid="theme-light"
+                      className="h-4 w-4 shrink-0"
+                    />
+                    <span className="truncate text-sm">浅色</span>
+                  </label>
+                  <label
+                    className={cn(
+                      "flex min-w-0 cursor-pointer items-center gap-2 rounded-md border px-3 py-2",
+                      theme === "dark" && "border-primary bg-accent",
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      name="theme"
+                      value="dark"
+                      checked={theme === "dark"}
+                      onChange={() => onThemeChange("dark")}
+                      data-testid="theme-dark"
+                      className="h-4 w-4 shrink-0"
+                    />
+                    <span className="truncate text-sm">深色</span>
+                  </label>
                   </div>
                 </div>
 
@@ -473,39 +497,48 @@ return (
               </div>
             </ScrollArea>
 
-            <DialogFooter className="flex flex-col gap-3">
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex min-w-0 flex-1 flex-col gap-0.5 text-xs">
-                  {settingsStatus === "saving" && (
-                    <span className="text-muted-foreground" data-testid="settings-status">正在保存…</span>
-                  )}
-                  {settingsStatus === "saved" && (
-                    <span className="text-green-600" data-testid="settings-status">设置已保存</span>
-                  )}
-                  {settingsStatus === "error" && (
-                    <span className="text-destructive wrap-break-word" data-testid="settings-status">
-                      设置保存失败：{settingsError}
-                    </span>
-                  )}
-                  {settingsPath && (
-                    <span className="break-all text-muted-foreground" title={settingsPath}>
-                      设置文件：{settingsPath}
-                    </span>
-                  )}
-                </div>
-                <Button size="sm" data-testid="settings-done" onClick={() => setSettingsOpen(false)}>
-                  完成
-                </Button>
+            {/* 固定底部操作区：辅助按钮在上方，完成按钮靠右下角。 */}
+            <DialogFooter
+              className="shrink-0 flex-col gap-3 border-t px-6 py-4"
+              data-testid="settings-footer"
+            >
+              <div className="flex min-w-0 flex-col gap-1 text-xs">
+                {settingsStatus === "saving" && (
+                  <span className="text-muted-foreground" data-testid="settings-status">正在保存…</span>
+                )}
+                {settingsStatus === "saved" && (
+                  <span className="text-green-600" data-testid="settings-status">设置已保存</span>
+                )}
+                {settingsStatus === "error" && (
+                  <span className="text-destructive break-all" data-testid="settings-status">
+                    设置保存失败：{settingsError}
+                  </span>
+                )}
+                {settingsPath && (
+                  <span className="truncate text-muted-foreground" title={settingsPath}>
+                    设置文件：{settingsPath}
+                  </span>
+                )}
               </div>
-              <div className="flex flex-wrap justify-end gap-2">
+
+              <div
+                className="flex flex-wrap justify-end gap-2"
+                data-testid="settings-actions"
+              >
                 <Button variant="outline" size="sm" data-testid="select-all" onClick={() => onSetAll(true)}>
                   全选
                 </Button>
                 <Button variant="outline" size="sm" data-testid="select-none" onClick={() => onSetAll(false)}>
                   全不选
                 </Button>
-                <Button variant="outline" size="sm" data-testid="reset-defaults" onClick={onResetDefaults}>
+                <Button variant="secondary" size="sm" data-testid="reset-defaults" onClick={onResetDefaults}>
                   恢复默认
+                </Button>
+              </div>
+
+              <div className="flex justify-end">
+                <Button size="sm" data-testid="settings-done" onClick={() => setSettingsOpen(false)}>
+                  完成
                 </Button>
               </div>
             </DialogFooter>
