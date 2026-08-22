@@ -70,3 +70,50 @@ jobs:
             src-tauri/target/release/**/*.log
             frontend/npm-debug.log*
           if-no-files-found: ignore
+
+  # Windows hosted runner 冒烟测试：真实启动 GUI，校验进程存活且主窗口出现。
+  windows-smoke:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build app (skip bundling)
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run tauri build -- --no-bundle
+      - name: Launch and verify main window
+        shell: pwsh
+        run: |
+          $exe = "src-tauri/target/release/chinese-copywriting-formatter.exe"
+          if (-not (Test-Path $exe)) { Write-Error "Executable not found: $exe"; exit 1 }
+          $p = Start-Process -FilePath $exe -PassThru
+          try {
+            # 等待 WebView2 初始化并创建主窗口。
+            $deadline = (Get-Date).AddSeconds(60)
+            while ((Get-Date) -lt $deadline) {
+              if ($p.HasExited) {
+                Write-Error "App exited early with code $($p.ExitCode)"; exit 1
+              }
+              $p.Refresh()
+              if ($p.MainWindowHandle -ne 0) { break }
+              Start-Sleep -Seconds 2
+            }
+            if ($p.HasExited) { Write-Error "App exited before showing window"; exit 1 }
+            if ($p.MainWindowHandle -eq 0) {
+              Write-Error "Main window did not appear within 60s"; exit 1
+            }
+            Write-Host "Smoke OK: process $($p.Id) alive, window '$($p.MainWindowTitle)' handle=$($p.MainWindowHandle)"
+            # 再保持 10 秒确认稳定运行不崩溃。
+            Start-Sleep -Seconds 10
+            $p.Refresh()
+            if ($p.HasExited) { Write-Error "App exited during stability wait"; exit 1 }
+            Write-Host "Stability OK"
+          } finally {
+            if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force }
+          }
