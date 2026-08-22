@@ -25,11 +25,11 @@ def versions() -> dict[str, str]:
     conf = json.loads(read_text("src-tauri/tauri.conf.json"))
     cargo = read_text("src-tauri/Cargo.toml")
     m = re.search(r'(?m)^version\s*=\s*"([^"]+)"', cargo)
-    cargo_version = m.group(1) if m else None
+    cargo_version = m.group(1) if m else ""
     return {
-        "frontend/package.json": pkg.get("version"),
-        "frontend/package-lock.json": lock.get("version"),
-        "src-tauri/tauri.conf.json": conf.get("version"),
+        "frontend/package.json": pkg.get("version") or "",
+        "frontend/package-lock.json": lock.get("version") or "",
+        "src-tauri/tauri.conf.json": conf.get("version") or "",
         "src-tauri/Cargo.toml": cargo_version,
     }
 
