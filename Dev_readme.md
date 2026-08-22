@@ -21,6 +21,23 @@ Tauri 2
 - **双引擎一致性**：仓库根目录的 `ccw_engine.py` 是权威 Python 引擎，`test/compare_rust_parity.py` 用 71 条语料 × defaults/all 两模式 = 142 项检查对比 Rust 与 Python 输出，当前 **0 差异**。修改任一引擎后必须重跑（parity 脚本经 `src-tauri/examples/parity_dump.rs` 调用 Rust 引擎）。
 - **用户设置**：保存在 exe 相同目录的 `rules.yaml`（YAML；见下文），首次运行自动迁移旧版 `ccw-formatter-settings.json`。
 
+## 当前开发状态
+
+Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
+
+- `frontend/`：React + Vite + TypeScript + Tailwind v4 + shadcn/ui 界面已落地。
+- `src-tauri/`：纯 Rust 实现（`rust_engine.rs` + `user_settings.rs`），无 Python/PyO3 运行时依赖。
+- 仓库根目录的 `ccw_engine.py` 仅作为 parity 权威基准保留，不参与应用构建和打包。
+- 设置 Dialog 已改为稳定响应式布局：固定 header/footer + 原生 `overflow-y-auto` 内容滚动；不再模拟 Dialog 内部拖动/缩放，主 Tauri 窗口仍可拖动和 resize。
+- 主窗口最小尺寸为 `800×600`，用于避免布局过度压缩。
+- 输入框已有示例 placeholder；输出框已有真实空状态提示。
+- Linux 打包目标：`.deb` / `.rpm` / `.AppImage`。
+- Windows 仅提供无边框便携版：`CopyPolish.exe` 与 `CopyPolish-windows-x64.7z`，不提供安装器。
+
+## 编码说明
+
+全链路统一使用 UTF-8：Rust `String` 原生 UTF-8，Tauri command 走 JSON（UTF-8），设置文件 `rules.yaml`（YAML）以 UTF-8 写入/读取；中文输入输出、emoji、CJK 扩展区字符均有自动化回归测试覆盖。
+
 ## 目录结构
 
 ```text
@@ -122,21 +139,41 @@ git push origin v0.3.x
 ## 启动 / 构建
 
 ```bash
-cd frontend && npm run tauri dev     # 开发运行
-cd frontend && npm run tauri build   # Linux deb/rpm/AppImage
-# 产物：src-tauri/target/release/bundle/
+cd frontend && npm run tauri dev       # 开发运行
+cd frontend && npm run tauri build     # Linux deb/rpm/AppImage
+cd frontend && npm run tauri build -- --no-bundle  # Windows 便携 exe（不生成安装器）
 ```
 
+构建产物位置：
+
+- Linux bundle：`src-tauri/target/release/bundle/`
+- Windows 便携 exe：`src-tauri/target/release/chinese-copywriting-formatter.exe`，发布流水线会重命名为 `CopyPolish.exe`
+
+Windows `.7z` 压缩包约定：根目录直接包含 `CopyPolish.exe` 及构建目录中存在的旁置 DLL 依赖（如有），不得包含 `dist`、`windows` 或其他上级目录。
+
 ## 验证命令
+
+开发提交前建议至少运行：
 
 ```bash
 cargo fmt --manifest-path src-tauri/Cargo.toml --check
 cargo check --manifest-path src-tauri/Cargo.toml
 cargo test --manifest-path src-tauri/Cargo.toml          # 纯 Rust：16 项
-npm run build --prefix frontend                           # tsc + vite
 npm test --prefix frontend                                # vitest 组件测试（jsdom，9 项）
+npm run build --prefix frontend                           # tsc + vite
 .venv/bin/python -m unittest discover -s test             # Python 40 项
 .venv/bin/python test/compare_rust_parity.py              # 必须 0 差异
+```
+
+与 CI 对齐的快速验证命令：
+
+```bash
+npm ci --prefix frontend
+npm test --prefix frontend -- --run
+npm run build --prefix frontend
+cargo fmt --manifest-path src-tauri/Cargo.toml --check
+cargo test --manifest-path src-tauri/Cargo.toml
+git diff --check
 ```
 
 ## 重要实现约束
@@ -149,7 +186,7 @@ npm test --prefix frontend                                # vitest 组件测试�
 ## 后续计划
 
 1. 真实 Windows 机器人工验收：下载 CI 的 `windows-portable` artifact，运行 `.exe`，输入 `在LeanCloud上，花了5000元` → 应输出 `在 LeanCloud 上，花了 5000 元`；验证设置弹窗 12 条规则、开关即时重排、设置文件持久化、高 DPI 显示。
-2. GUI 功能迭代（空状态 / 错误态 UI 等）。
+2. GUI 功能迭代：继续完善错误态、长文本性能提示、无障碍焦点顺序与键盘操作体验。
 
 ## 图标
 
@@ -166,3 +203,12 @@ npm test --prefix frontend                                # vitest 组件测试�
 - `windows-smoke` job（windows-latest）：真实启动 GUI 冒烟测试——构建 exe → 启动进程 → 轮询等待主窗口句柄出现（最长 60 秒）→ 保持 10 秒验证稳定性 → 强制结束进程。已通过。
 
 CI/Release 会打印 Node/npm/Rust/Cargo/系统版本，便于核对本地与 Runner 环境差异。
+
+发布产物命名约定：
+
+| 平台 | Artifact | Release 资产 |
+| --- | --- | --- |
+| Linux | `bundle-ubuntu-latest` | `CopyPolish_linux_amd64.deb` / `CopyPolish-linux-x86_64.rpm` / `CopyPolish_linux_amd64.AppImage` |
+| Windows | `windows-portable` | `CopyPolish.exe` / `CopyPolish-windows-x64.7z` |
+
+Release Notes 由 GitHub 自动生成后追加固定说明（Windows 便携版命名、设置迁移、规则调整等）。
