@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent } from "react";
 import { Check, Copy, Eraser, Maximize2, Minus, Settings, X } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
@@ -40,6 +40,13 @@ import {
 const APP_NAME = "文案净排";
 const APP_REFERENCE_NAME = "CopyPolish";
 const DEBOUNCE_MS = 160;
+const SETTINGS_DIALOG_DEFAULT_SIZE = { width: 840, height: 680 };
+const SETTINGS_DIALOG_MIN_SIZE = { width: 560, height: 520 };
+const SETTINGS_DIALOG_VIEWPORT_MARGIN = 32;
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
 
 /**
  * 主界面：左输入 / 右输出（小窗口时上下堆叠）+ 操作栏 + 规则设置对话框。
@@ -53,7 +60,9 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [cleared, setCleared] = useState(false);
-    const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsDialogOffset, setSettingsDialogOffset] = useState({ x: 0, y: 0 });
+  const [settingsDialogSize, setSettingsDialogSize] = useState(SETTINGS_DIALOG_DEFAULT_SIZE);
 
   const debounceRef = useRef<number | null>(null);
   const settingsDebounceRef = useRef<number | null>(null);
@@ -291,6 +300,73 @@ export default function App() {
     });
   }
 
+  function onSettingsDialogDragStart(event: PointerEvent<HTMLElement>) {
+    if (event.button !== 0) return;
+
+    const target = event.target as HTMLElement;
+    if (target.closest("[data-dialog-control]")) return;
+    if (target.closest("button, input, textarea, select, a, label")) return;
+
+    event.preventDefault();
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const startOffset = settingsDialogOffset;
+
+    function onPointerMove(moveEvent: globalThis.PointerEvent) {
+      const viewportWidth = window.innerWidth || SETTINGS_DIALOG_DEFAULT_SIZE.width;
+      const viewportHeight = window.innerHeight || SETTINGS_DIALOG_DEFAULT_SIZE.height;
+      const maxX = Math.max(0, (viewportWidth - settingsDialogSize.width) / 2 - SETTINGS_DIALOG_VIEWPORT_MARGIN);
+      const maxY = Math.max(0, (viewportHeight - settingsDialogSize.height) / 2 - SETTINGS_DIALOG_VIEWPORT_MARGIN);
+
+      setSettingsDialogOffset({
+        x: clamp(startOffset.x + moveEvent.clientX - startX, -maxX, maxX),
+        y: clamp(startOffset.y + moveEvent.clientY - startY, -maxY, maxY),
+      });
+    }
+
+    function onPointerUp() {
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+    }
+
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp, { once: true });
+  }
+
+  function onSettingsDialogResizeStart(event: PointerEvent<HTMLDivElement>) {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const startSize = settingsDialogSize;
+
+    function onPointerMove(moveEvent: globalThis.PointerEvent) {
+      const maxWidth = Math.max(
+        SETTINGS_DIALOG_MIN_SIZE.width,
+        (window.innerWidth || SETTINGS_DIALOG_DEFAULT_SIZE.width) - SETTINGS_DIALOG_VIEWPORT_MARGIN,
+      );
+      const maxHeight = Math.max(
+        SETTINGS_DIALOG_MIN_SIZE.height,
+        (window.innerHeight || SETTINGS_DIALOG_DEFAULT_SIZE.height) - SETTINGS_DIALOG_VIEWPORT_MARGIN,
+      );
+
+      setSettingsDialogSize({
+        width: clamp(startSize.width + moveEvent.clientX - startX, SETTINGS_DIALOG_MIN_SIZE.width, maxWidth),
+        height: clamp(startSize.height + moveEvent.clientY - startY, SETTINGS_DIALOG_MIN_SIZE.height, maxHeight),
+      });
+    }
+
+    function onPointerUp() {
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+    }
+
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp, { once: true });
+  }
+
   // 按 section 分组规则
   const groups = useMemo(() => {
     const map = new Map<string, Rule[]>();
@@ -391,10 +467,19 @@ return (
           </DialogTrigger>
           <DialogContent
             data-testid="settings-dialog"
-            className="flex max-h-[min(90vh,720px)] w-[calc(100vw-2rem)] max-w-2xl flex-col gap-0 overflow-hidden p-0"
+            className="flex max-h-[calc(100vh-2rem)] max-w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0"
+            style={{
+              width: settingsDialogSize.width,
+              height: settingsDialogSize.height,
+              transform: `translate(calc(-50% + ${settingsDialogOffset.x}px), calc(-50% + ${settingsDialogOffset.y}px))`,
+            }}
           >
             {/* 固定标题区 */}
-            <DialogHeader className="shrink-0 border-b px-6 py-5">
+            <DialogHeader
+              className="shrink-0 select-none border-b px-6 py-5 pr-12"
+              data-testid="settings-drag-region"
+              onPointerDown={onSettingsDialogDragStart}
+            >
               <DialogTitle>设置 — 排版规则</DialogTitle>
               <DialogDescription>
                 逐条启用/停用规则。已启用 {enabled.length}/{rules.length} 条
@@ -402,8 +487,8 @@ return (
             </DialogHeader>
 
             {/* 规则与主题滚动区：仅此区域滚动 */}
-            <ScrollArea className="min-h-0 flex-1 px-6 py-4">
-              <div className="space-y-5 pb-2">
+            <ScrollArea className="min-h-0 flex-1 px-6 py-4" data-testid="settings-rules-scroll">
+              <div className="space-y-5 pb-6">
                 {/* 主题设置 */}
                 <div className="space-y-2">
                   <h3 className="text-sm font-semibold">主题</h3>
@@ -497,51 +582,60 @@ return (
               </div>
             </ScrollArea>
 
-            {/* 固定底部操作区：辅助按钮在上方，完成按钮靠右下角。 */}
+            {/* 固定底部操作区：设置文件贴近左下角，操作按钮靠右下角。 */}
             <DialogFooter
-              className="shrink-0 flex-col gap-3 border-t px-6 py-4"
+              className="shrink-0 border-t px-6 py-4"
               data-testid="settings-footer"
             >
-              <div className="flex min-w-0 flex-col gap-1 text-xs">
-                {settingsStatus === "saving" && (
-                  <span className="text-muted-foreground" data-testid="settings-status">正在保存…</span>
-                )}
-                {settingsStatus === "saved" && (
-                  <span className="text-green-600" data-testid="settings-status">设置已保存</span>
-                )}
-                {settingsStatus === "error" && (
-                  <span className="text-destructive break-all" data-testid="settings-status">
-                    设置保存失败：{settingsError}
-                  </span>
-                )}
-                {settingsPath && (
-                  <span className="truncate text-muted-foreground" title={settingsPath}>
-                    设置文件：{settingsPath}
-                  </span>
-                )}
-              </div>
+              <div className="flex w-full min-w-0 flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                <div
+                  className="min-w-0 flex-1 space-y-1 text-left text-xs"
+                  data-testid="settings-file-info"
+                >
+                  {settingsStatus === "saving" && (
+                    <div className="text-muted-foreground" data-testid="settings-status">正在保存…</div>
+                  )}
+                  {settingsStatus === "saved" && (
+                    <div className="text-green-600" data-testid="settings-status">设置已保存</div>
+                  )}
+                  {settingsStatus === "error" && (
+                    <div className="break-all text-destructive" data-testid="settings-status">
+                      设置保存失败：{settingsError}
+                    </div>
+                  )}
+                  {settingsPath && (
+                    <div className="break-all text-muted-foreground" title={settingsPath}>
+                      设置文件：{settingsPath}
+                    </div>
+                  )}
+                </div>
 
-              <div
-                className="flex flex-wrap justify-end gap-2"
-                data-testid="settings-actions"
-              >
-                <Button variant="outline" size="sm" data-testid="select-all" onClick={() => onSetAll(true)}>
-                  全选
-                </Button>
-                <Button variant="outline" size="sm" data-testid="select-none" onClick={() => onSetAll(false)}>
-                  全不选
-                </Button>
-                <Button variant="secondary" size="sm" data-testid="reset-defaults" onClick={onResetDefaults}>
-                  恢复默认
-                </Button>
-              </div>
+                <div className="flex shrink-0 flex-col items-end gap-3" data-testid="settings-actions">
+                  <div className="flex flex-wrap justify-end gap-2">
+                    <Button variant="outline" size="sm" data-testid="select-all" onClick={() => onSetAll(true)}>
+                      全选
+                    </Button>
+                    <Button variant="outline" size="sm" data-testid="select-none" onClick={() => onSetAll(false)}>
+                      全不选
+                    </Button>
+                    <Button variant="secondary" size="sm" data-testid="reset-defaults" onClick={onResetDefaults}>
+                      恢复默认
+                    </Button>
+                  </div>
 
-              <div className="flex justify-end">
-                <Button size="sm" data-testid="settings-done" onClick={() => setSettingsOpen(false)}>
-                  完成
-                </Button>
+                  <Button size="sm" data-testid="settings-done" onClick={() => setSettingsOpen(false)}>
+                    完成
+                  </Button>
+                </div>
               </div>
             </DialogFooter>
+            <div
+              aria-label="调整设置窗口大小"
+              className="absolute bottom-0 right-0 h-5 w-5 cursor-se-resize"
+              data-testid="settings-resize-handle"
+              role="separator"
+              onPointerDown={onSettingsDialogResizeStart}
+            />
           </DialogContent>
         </Dialog>
 

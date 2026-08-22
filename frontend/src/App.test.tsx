@@ -3,7 +3,7 @@
  * mock 掉 @/lib/tauri，专注 UI 行为：
  * 输入→实时排版、设置弹窗规则开关与持久化、清除输入、启动时恢复用户设置。
  */
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -47,7 +47,7 @@ vi.mock("@/lib/tauri", () => ({
   formatText: mocks.formatText,
   getRules: mocks.getRules,
   getEnabledDefaults: mocks.getEnabledDefaults,
-  getSettingsPath: () => null,
+  getSettingsPath: () => "C:\\Users\\Tester\\AppData\\Roaming\\CopyPolish\\settings.json",
   getUserSettings: mocks.getUserSettings,
   saveUserSettings: mocks.saveUserSettings,
 }));
@@ -110,11 +110,15 @@ describe("App 主流程", () => {
     );
   });
 
-  it("设置弹窗包含主题选项、辅助按钮与右下角完成按钮", async () => {
+  it("设置弹窗包含可拖动/可调整大小区域、主题选项、底部设置文件与右下角按钮", async () => {
     const { user } = await setup();
     await user.click(screen.getByTestId("open-settings"));
     expect(screen.getByTestId("settings-dialog")).toBeInTheDocument();
+    expect(screen.getByTestId("settings-drag-region")).toBeInTheDocument();
+    expect(screen.getByTestId("settings-rules-scroll")).toBeInTheDocument();
+    expect(screen.getByTestId("settings-resize-handle")).toBeInTheDocument();
     expect(screen.getByTestId("settings-footer")).toBeInTheDocument();
+    expect(screen.getByTestId("settings-file-info")).toHaveTextContent("设置文件：");
     expect(screen.getByTestId("settings-actions")).toBeInTheDocument();
     // 主题选项横向网格容器。
     expect(screen.getByTestId("theme-options")).toBeInTheDocument();
@@ -126,11 +130,37 @@ describe("App 主流程", () => {
     expect(screen.getByTestId("select-none")).toBeInTheDocument();
     expect(screen.getByTestId("reset-defaults")).toBeInTheDocument();
     expect(screen.getByTestId("settings-done")).toBeInTheDocument();
-    // 完成按钮所在行位于辅助按钮所在行之后（更靠下）。
+    // 设置文件位于底部左侧区域，完成按钮仍位于右侧操作区内。
     const actionRow = screen.getByTestId("settings-actions").parentElement;
     expect(actionRow).not.toBeNull();
-    const doneRow = screen.getByTestId("settings-done").parentElement;
-    expect(doneRow).not.toBeNull();
+    expect(screen.getByTestId("settings-actions")).toContainElement(screen.getByTestId("settings-done"));
+  });
+
+  it("设置弹窗可通过标题区拖动并通过右下角手柄调整大小", async () => {
+    const { user } = await setup();
+    await user.click(screen.getByTestId("open-settings"));
+
+    const dialog = screen.getByTestId("settings-dialog");
+    const dragRegion = screen.getByTestId("settings-drag-region");
+    const resizeHandle = screen.getByTestId("settings-resize-handle");
+
+    fireEvent.pointerDown(dragRegion, { button: 0, clientX: 100, clientY: 100 });
+    fireEvent.pointerMove(window, { clientX: 130, clientY: 110 });
+    fireEvent.pointerUp(window);
+
+    await waitFor(() => {
+      expect(dialog).toHaveStyle({
+        transform: "translate(calc(-50% + 30px), calc(-50% + 10px))",
+      });
+    });
+
+    fireEvent.pointerDown(resizeHandle, { button: 0, clientX: 100, clientY: 100 });
+    fireEvent.pointerMove(window, { clientX: 140, clientY: 125 });
+    fireEvent.pointerUp(window);
+
+    await waitFor(() => {
+      expect(dialog).toHaveStyle({ width: "880px", height: "705px" });
+    });
   });
 
   it("设置弹窗中开关规则会立即持久化用户设置", async () => {
