@@ -3,6 +3,7 @@ name: build
 on:
   push:
     branches: [master]
+    tags: ['v*']
   pull_request:
 
 jobs:
@@ -148,3 +149,36 @@ jobs:
           } finally {
             if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force }
           }
+
+  # 推送 v* tag 时：下载双平台构建产物并自动创建 GitHub Release。
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [test, tauri-build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+      - name: Collect release files (ASCII names)
+        run: |
+          mkdir -p release-files
+          cp dist/windows-portable/chinese-copywriting-formatter.exe release-files/
+          cp dist/windows-portable/chinese-copywriting-formatter-windows-x64.7z release-files/
+          find dist/bundle-ubuntu-latest -name '*.deb' -exec cp {} release-files/chinese-copywriting-formatter_linux_amd64.deb \;
+          find dist/bundle-ubuntu-latest -name '*.rpm' -exec cp {} release-files/chinese-copywriting-formatter-linux-x86_64.rpm \;
+          find dist/bundle-ubuntu-latest -name '*.AppImage' -exec cp {} release-files/chinese-copywriting-formatter_linux_amd64.AppImage \;
+          ls -la release-files
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "${{ github.ref_name }}" \
+            --generate-notes \
+            --latest \
+            release-files/*

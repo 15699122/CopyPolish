@@ -33,6 +33,16 @@
 
 Windows 便携版依赖系统的 WebView2 Evergreen Runtime（Windows 10/11 一般已内置）；如缺失，请从微软官网安装。CI 已包含 Windows hosted runner 真实启动冒烟测试（进程存活 + 主窗口出现 + 10 秒稳定性校验）。
 
+### 版本发布
+
+推送 `v*` tag 即可自动发布：
+
+```bash
+git tag v0.1.1 && git push origin v0.1.1
+```
+
+CI 会构建双平台产物并自动创建 GitHub Release（资产统一使用 ASCII 文件名：`.exe`、`.7z`、`_linux_amd64.deb`、`-linux-x86_64.rpm`、`_linux_amd64.AppImage`），Release Notes 由 GitHub 自动生成。
+
 ### 编码说明
 
 全链路统一使用 UTF-8：Rust `String` 原生 UTF-8，Tauri command 走 JSON（UTF-8），设置文件 `ccw-formatter-settings.json` 以 UTF-8 写入/读取；中文输入输出、emoji、CJK 扩展区字符均有自动化回归测试覆盖。
