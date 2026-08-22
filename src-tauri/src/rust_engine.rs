@@ -832,4 +832,31 @@ mod tests {
             "在 LeanCloud 上\r\n\r\n花了 5000 元"
         );
     }
+
+    /// UTF-8 回归：emoji、CJK 扩展区、全角字符、多行混合文本。
+    /// Rust String 本身是 UTF-8，此测试确保规则正则不会破坏多字节字符
+    /// （历史上 Python/Windows 代码页链路曾出现过 mojibake 风险点）。
+    #[test]
+    fn handles_utf8_multibyte_and_emoji() {
+        // emoji 与变体选择符不被拆散。
+        assert_eq!(
+            format_text(&req("好👍！用GitHub提交")).unwrap(),
+            "好👍！用 GitHub 提交"
+        );
+        // CJK 扩展 B区（𠀀）等多字节字符保持完整。
+        assert_eq!(
+            format_text(&req("古字𠀀在LeanCloud文档中")).unwrap(),
+            "古字𠀀在 LeanCloud 文档中"
+        );
+        // 全角数字转半角（全角字母保留），并补中英文间空格。
+        assert_eq!(
+            format_text(&req("版本Ｖ２已发布！！")).unwrap(),
+            "版本Ｖ2 已发布！"
+        );
+        // 多行混合：每行独立处理且换行符原样保留。
+        assert_eq!(
+            format_text(&req("第一行LeanCloud\n第二行5000元\n第三行👍")).unwrap(),
+            "第一行 LeanCloud\n第二行 5000 元\n第三行👍"
+        );
+    }
 }

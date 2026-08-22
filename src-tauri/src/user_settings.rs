@@ -110,4 +110,23 @@ mod tests {
         assert_eq!(loaded.last_input, "");
         let _ = fs::remove_file(&path);
     }
+
+    /// UTF-8 回归：设置文件必须以 UTF-8 写入/读回，emoji 与 CJK 不损坏。
+    #[test]
+    fn roundtrip_preserves_utf8_multibyte() {
+        let path = temp_settings_file("utf8");
+        let settings = UserSettings {
+            enabled: vec![
+                "中英文之间需要增加空格".to_string(),
+                "简体中文使用直角引号".to_string(),
+            ],
+            last_input: "在LeanCloud上，花了5000元👍𠀀".to_string(),
+        };
+        save_to(&path, &settings).expect("save should succeed");
+        // 文件字节必须是合法 UTF-8 且包含原始字符。
+        let raw = fs::read_to_string(&path).expect("settings file must be valid UTF-8");
+        assert!(raw.contains("在LeanCloud上，花了5000元👍𠀀"));
+        assert_eq!(load_from(&path), Some(settings));
+        let _ = fs::remove_file(&path);
+    }
 }
