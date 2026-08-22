@@ -11,16 +11,13 @@ Tauri 2
 ├── frontend/            React + TypeScript + Tailwind v4 + shadcn/ui
 │   └── src/lib/tauri.ts 受限 command 封装（前端唯一后端入口）
 └── src-tauri/
-    ├── src/rust_engine.rs      Rust 原生排版引擎（主路径）
+    ├── src/rust_engine.rs      Rust 原生排版引擎
     ├── src/user_settings.rs    用户设置持久化（cwd JSON 文件）
-    ├── src/commands.rs         Tauri command 层
-    ├── src/python_runtime.rs   PyO3 运行时（仅兜底路径使用）
-    └── src-python/main.py      Python 桥接模块（兜底）
-        └── ccw_engine.py       权威 Python 引擎（兜底 + parity 基准）
+    └── src/commands.rs         Tauri command 层
 ```
 
-- **格式化主路径是 Rust**：`format_text` / `get_rules` / `get_enabled_defaults` 默认完全由 Rust 实现，**默认构建不含 Python 依赖**。启用 `python-fallback` feature（`cargo build/test --features python-fallback`）时，Rust 出错或元数据缺失会回退 PyO3 → `src-python/main.py` → `ccw_engine.py`。
-- **双引擎一致性**：`test/compare_rust_parity.py` 用 71 条语料 × defaults/all 两模式 = 142 项检查对比 Rust 与 Python 输出，当前 **0 差异**。修改任一引擎后必须重跑。
+- **应用为纯 Rust 实现**：`format_text` / `get_rules` / `get_enabled_defaults` / 设置读写全部由 Rust 提供，构建与打包不依赖 Python。
+- **双引擎一致性**：仓库根目录的 `ccw_engine.py` 是权威 Python 引擎，`test/compare_rust_parity.py` 用 71 条语料 × defaults/all 两模式 = 142 项检查对比 Rust 与 Python 输出，当前 **0 差异**。修改任一引擎后必须重跑（parity 脚本经 `src-tauri/examples/parity_dump.rs` 调用 Rust 引擎）。
 - **用户设置**：保存在当前工作目录的 `ccw-formatter-settings.json`（见下文），与旧版 `rules.yaml` 设置无关。
 
 ## 目录结构
@@ -39,9 +36,7 @@ Tauri 2
 │   ├── src/user_settings.rs       # 设置持久化 + 单元测试（临时文件）
 │   ├── src/commands.rs            # format_text / get_rules / get_enabled_defaults
 │   │                              # / get_user_settings / save_user_settings
-│   ├── src/python_runtime.rs      # PyO3 内嵌 CPython 3.14
-│   ├── src/lib.rs                 # command 注册 + 资源路径解析
-│   └── src-python/main.py         # Python 桥接（开发树与打包 _up_/ 布局兼容）
+│   └── src/lib.rs                 # command 注册
 └── test/
     ├── test_ccw_engine.py         # Python 引擎单元测试（40 项，设置测试用 tempfile）
     └── compare_rust_parity.py     # 双引擎一致性校验
@@ -73,11 +68,9 @@ Tauri 2
 
 ```bash
 export PATH="$HOME/.cargo/bin:$PATH"
-export PYO3_PYTHON=/usr/bin/python3.14
-export LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:${LD_LIBRARY_PATH:-}
 ```
 
-依赖：Node.js/npm、Rust 工具链、Python 3.14 开发库（`libpython3.14.so`）、Linux 下 Tauri/WebKitGTK 系统依赖。
+依赖：Node.js/npm、Rust 工具链、Linux 下 Tauri/WebKitGTK 系统依赖。应用构建无需 Python；仅运行 `test/` 的 Python 单测与 parity 校验需要本地 Python（当前 `.venv`）。
 
 ## 启动 / 构建
 
@@ -87,15 +80,12 @@ cd frontend && npm run tauri build   # Linux deb/rpm/AppImage
 # 产物：src-tauri/target/release/bundle/
 ```
 
-安装态资源注意：Linux bundle 中 `../xxx` 形式的资源落在 `_up_/` 子目录，`src-python/main.py` 的 `_UP_ROOT` 探测逻辑不可删。
-
 ## 验证命令
 
 ```bash
 cargo fmt --manifest-path src-tauri/Cargo.toml --check
 cargo check --manifest-path src-tauri/Cargo.toml
-cargo test --manifest-path src-tauri/Cargo.toml          # 默认纯 Rust：11 项
-cargo test --manifest-path src-tauri/Cargo.toml --features python-fallback  # 含 PyO3：15 项
+cargo test --manifest-path src-tauri/Cargo.toml          # 纯 Rust：11 项
 npm run build --prefix frontend                           # tsc + vite
 .venv/bin/python -m unittest discover -s test             # Python 40 项
 .venv/bin/python test/compare_rust_parity.py              # 必须 0 差异
@@ -112,7 +102,6 @@ npm run build --prefix frontend                           # tsc + vite
 
 1. 真实窗口 smoke 验证（WSL2 图形栈限制暂无法本地执行）：输入 `在LeanCloud上，花了5000元` → 应输出 `在 LeanCloud 上，花了 5000 元`；验证设置弹窗 13 条规则、开关即时重排、设置文件持久化。
 2. 关注 `.github/workflows/build.yml` 的 Windows/macOS 构建结果；如需分发产物再启用 upload-artifact。
-3. 评估从 bundle 资源移除 `src-python/main.py` 与 `ccw_engine.py`（默认纯 Rust 构建已不使用它们；保留是为 feature 构建与 parity 基准）。
 
 ## 图标
 
