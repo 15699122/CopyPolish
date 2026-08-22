@@ -483,7 +483,7 @@ return (
                     <span className="text-green-600" data-testid="settings-status">设置已保存</span>
                   )}
                   {settingsStatus === "error" && (
-                    <span className="text-destructive break-words" data-testid="settings-status">
+                    <span className="text-destructive wrap-break-word" data-testid="settings-status">
                       设置保存失败：{settingsError}
                     </span>
                   )}
