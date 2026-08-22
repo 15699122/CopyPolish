@@ -1,4 +1,4 @@
-# 中文文案排版助手：开发说明
+# 文案净排（CopyPolish）：开发说明
 
 本文档面向后续维护者，记录当前项目结构、架构边界、开发运行方式、测试命令、打包方式和已知注意事项。普通用户使用说明请参阅 [README.md](README.md)。
 
@@ -9,6 +9,7 @@
 ```text
 Tauri 2
 ├── frontend/            React + TypeScript + Tailwind v4 + shadcn/ui
+│   └── 无边框标题栏：拖动、最小化、最大化、关闭
 │   └── src/lib/tauri.ts 受限 command 封装（前端唯一后端入口）
 └── src-tauri/
     ├── src/rust_engine.rs      Rust 原生排版引擎
@@ -114,5 +115,5 @@ npm test --prefix frontend                                # vitest 组件测试�
 `.github/workflows/build.yml`：
 
 - `test` job（ubuntu）：cargo fmt + 纯 Rust cargo test（13 项，含 UTF-8 多字节回归）+ 前端 vitest 组件测试 + tsc/vite 构建；
-- `tauri-build` matrix（ubuntu/windows）：Linux 构建 deb/rpm/AppImage 并上传 `bundle-ubuntu-latest`；Windows 以 `--no-bundle` 构建便携 `.exe`，打包为 `.exe` + `.7z` 上传 `windows-portable`（不生成任何安装器——WiX MSI 无法处理中文产品名，且产品定位为免安装便携版）。项目不支持 macOS。
+- `tauri-build` matrix（ubuntu/windows）：Linux 构建 deb/rpm/AppImage 并上传 `bundle-ubuntu-latest`；Windows 以 `--no-bundle` 构建无边框便携 `.exe`，以临时根目录打包为只含 exe/DLL 的 `.7z` 后上传 `windows-portable`（不生成任何安装器——WiX MSI 无法处理中文产品名，且产品定位为免安装便携版）。项目不支持 macOS。
 - `windows-smoke` job（windows-latest）：真实启动 GUI 冒烟测试——构建 exe → 启动进程 → 轮询等待主窗口句柄出现（最长 60 秒）→ 保持 10 秒验证稳定性 → 强制结束进程。已通过。

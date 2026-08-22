@@ -12,12 +12,13 @@
   "app": {
     "windows": [
       {
-        "title": "中文文案排版助手",
+        "title": "文案净排",
         "width": 920,
         "height": 720,
         "minWidth": 720,
         "minHeight": 540,
-        "resizable": true
+        "resizable": true,
+        "decorations": false
       }
     ],
     "security": {

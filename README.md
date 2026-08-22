@@ -1,4 +1,6 @@
-# 中文文案排版助手
+# 文案净排
+
+> 项目参考名称：**文案净排**（英文：**CopyPolish**）。Windows 可执行文件名暂保持 `chinese-copywriting-formatter.exe`，以兼容现有发布流程。
 
 中文文案排版助手（Chinese Copywriting Formatter）是一款本地桌面端中文文案排版工具，用于按照 [chinese-copywriting-guidelines](https://github.com/sparanoid/chinese-copywriting-guidelines) 的简体中文文案规范，自动整理中文、英文、数字、单位和标点之间的格式。
 
@@ -27,11 +29,11 @@
   - `.deb`
   - `.rpm`
   - `.AppImage`
-- Windows 仅提供**便携版**（无安装器）：
+- Windows 仅提供**无边框便携版**（无安装器）：
   - `chinese-copywriting-formatter.exe`（单文件，直接运行）
   - `chinese-copywriting-formatter-windows-x64.7z`（压缩包）
 
-Windows 便携版依赖系统的 WebView2 Evergreen Runtime（Windows 10/11 一般已内置）；如缺失，请从微软官网安装。CI 已包含 Windows hosted runner 真实启动冒烟测试（进程存活 + 主窗口出现 + 10 秒稳定性校验）。
+Windows 无边框便携版依赖系统的 WebView2 Evergreen Runtime（Windows 10/11 一般已内置）；如缺失，请从微软官网安装。CI 已包含 Windows hosted runner 真实启动冒烟测试（进程存活 + 主窗口出现 + 10 秒稳定性校验）。
 
 ### 版本发布
 
@@ -122,13 +124,13 @@ npm run tauri build -- --no-bundle
 | Linux | `bundle-ubuntu-latest` | `.deb` / `.rpm` / `.AppImage` |
 | Windows | `windows-portable` | `chinese-copywriting-formatter.exe` + `chinese-copywriting-formatter-windows-x64.7z` |
 
-Windows 仅提供便携版 `.exe` 与 `.7z` 压缩包两种格式，不提供安装器；运行需系统已安装 WebView2 Runtime。
+Windows 仅提供无边框便携版 `.exe` 与 `.7z` 压缩包两种格式，不提供安装器；运行需系统已安装 WebView2 Runtime。
 
 ## 基本使用
 
 1. 启动应用。
 2. 在左侧输入框输入或粘贴中文文案。
-3. 右侧输出框会自动显示排版后的结果。
+3. 右侧输出框会自动显示排版后的结果；无边框窗口可通过顶部标题栏拖动，右上角按钮控制最小化、最大化和关闭。
 4. 点击 **复制结果** 将输出复制到剪贴板。
 5. 点击 **清空输入** 清除当前文本。
 6. 点击 **设置** 打开规则窗口：
@@ -198,3 +200,7 @@ npm run build --prefix frontend
 项目结构、架构说明、验证命令、打包细节和后续计划请参阅：
 
 - [Dev_readme.md](Dev_readme.md)
+
+### Windows `.7z` 内容
+
+`.7z` 压缩包的根目录直接包含 `chinese-copywriting-formatter.exe` 及构建目录中存在的旁置 DLL 依赖（如有），不会包含 `dist`、`windows` 或其他上级目录。

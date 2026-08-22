@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, Copy, Eraser, Settings } from "lucide-react";
+import { Check, Copy, Eraser, Maximize2, Minus, Settings, X } from "lucide-react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -33,7 +34,8 @@ import {
   type UserSettings,
 } from "@/lib/tauri";
 
-const APP_NAME = "中文文案排版助手";
+const APP_NAME = "文案净排";
+const APP_REFERENCE_NAME = "CopyPolish";
 const DEBOUNCE_MS = 160;
 
 /**
@@ -187,6 +189,18 @@ export default function App() {
     persistSettings(enabled, "");
   }
 
+  async function onMinimize() {
+    if (isTauri()) await getCurrentWindow().minimize();
+  }
+
+  async function onToggleMaximize() {
+    if (isTauri()) await getCurrentWindow().toggleMaximize();
+  }
+
+  async function onClose() {
+    if (isTauri()) await getCurrentWindow().close();
+  }
+
   // 按 section 分组规则
   const groups = useMemo(() => {
     const map = new Map<string, Rule[]>();
@@ -199,20 +213,37 @@ export default function App() {
   }, [rules]);
 return (
     <div className="flex min-h-svh flex-col bg-background text-foreground">
-      {/* 标题栏 */}
-      <header className="flex items-center justify-between border-b px-6 py-4">
-        <div>
+      {/* 无边框窗口标题栏：标题区可拖动，右侧提供窗口控制。 */}
+      <header
+        className="flex select-none items-center justify-between border-b px-6 py-3"
+        data-tauri-drag-region
+        onDoubleClick={onToggleMaximize}
+      >
+        <div data-tauri-drag-region>
           <h1 className="text-xl font-bold leading-tight">{APP_NAME}</h1>
           <p className="text-xs text-muted-foreground">
             {isTauri()
-              ? "实时保护 LaTeX / Markdown 结构"
+              ? `实时保护 LaTeX / Markdown 结构 · ${APP_REFERENCE_NAME}`
               : "浏览器预览模式 · 内置回退排版"}
           </p>
         </div>
+        {isTauri() && (
+          <div className="flex items-center gap-1" data-tauri-drag-region="false">
+            <Button variant="ghost" size="icon" onClick={onMinimize} aria-label="最小化">
+              <Minus className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={onToggleMaximize} aria-label="最大化或还原">
+              <Maximize2 className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={onClose} aria-label="关闭">
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
       </header>
 
       {/* 主体：左右双栏，小窗口上下堆叠 */}
-      <main className="grid flex-1 gap-4 p-4 md:grid-cols-2">
+      <main className="grid min-h-0 flex-1 gap-4 p-4 md:grid-cols-2">
         <Card className="flex min-h-0 flex-col">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">输入文字</CardTitle>
@@ -242,9 +273,9 @@ return (
             </CardDescription>
           </CardHeader>
           <CardContent className="flex min-h-0 flex-1">
-            <ScrollArea className="w-full">
+            <ScrollArea className="h-full w-full">
               <pre
-                className="whitespace-pre-wrap break-words font-sans text-sm"
+                className="min-h-full whitespace-pre-wrap break-words font-sans text-sm"
                 data-testid="output-text"
               >
                 {output}

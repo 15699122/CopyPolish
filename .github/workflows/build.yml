@@ -76,12 +76,28 @@ jobs:
         run: |
           $exe = "src-tauri/target/release/chinese-copywriting-formatter.exe"
           if (-not (Test-Path $exe)) { Write-Error "Executable not found: $exe"; exit 1 }
-          New-Item -ItemType Directory -Force -Path dist/windows | Out-Null
-          Copy-Item $exe "dist/windows/chinese-copywriting-formatter.exe"
+          $staging = Join-Path $PWD "windows-portable-staging"
+          New-Item -ItemType Directory -Force -Path $staging | Out-Null
+          Copy-Item $exe (Join-Path $staging "chinese-copywriting-formatter.exe")
+          # 若未来构建产出旁置 DLL，连同 exe 一起带入；不引入 dist/windows 目录层级。
+          Get-ChildItem (Split-Path $exe) -Filter *.dll -File -ErrorAction SilentlyContinue |
+            Copy-Item -Destination $staging
           $sevenZip = (Get-Command 7z -ErrorAction SilentlyContinue).Source
           if (-not $sevenZip) { $sevenZip = "<program-files-path> }
-          & $sevenZip a -t7z -mx=9 "dist/windows/chinese-copywriting-formatter-windows-x64.7z" "dist/windows/chinese-copywriting-formatter.exe"
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          $archive = Join-Path $PWD "dist\windows-portable.7z"
+          $files = Get-ChildItem $staging -File | ForEach-Object { $_.Name }
+          Push-Location $staging
+          try {
+            & $sevenZip a -t7z -mx=9 $archive $files
+          } finally {
+            Pop-Location
+          }
           if ($LASTEXITCODE -ne 0) { Write-Error "7z failed with exit code $LASTEXITCODE"; exit 1 }
+          New-Item -ItemType Directory -Force -Path dist/windows | Out-Null
+          Copy-Item (Join-Path $staging "chinese-copywriting-formatter.exe") "dist/windows/chinese-copywriting-formatter.exe"
+          Move-Item "dist\windows-portable.7z" "dist/windows/chinese-copywriting-formatter-windows-x64.7z" -Force
+          Remove-Item $staging -Recurse -Force
           Get-ChildItem dist/windows
 
       - uses: actions/upload-artifact@v4
