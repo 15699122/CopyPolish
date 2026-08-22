@@ -5,7 +5,7 @@ __pycache__/
 .pylib/
 *.egg-info/
 
-# 构建产物（旧 GUI PyInstaller）
+# 构建产物
 build/
 dist/
 *.spec
