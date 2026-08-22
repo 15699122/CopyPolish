@@ -205,11 +205,11 @@ jobs:
             release-files/*
           gh release edit "${{ github.ref_name }}" --repo "$GITHUB_REPOSITORY" --notes "$(gh release view "${{ github.ref_name }}" --repo "$GITHUB_REPOSITORY" --json body -q .body)
 
-## 重要变更说明
+          ## 重要变更说明
 
-- Windows 便携版可执行文件更名为 \`CopyPolish.exe\`，压缩包为 \`CopyPolish-windows-x64.7z\`（压缩包根目录直接包含 exe，无嵌套目录）。
-- 用户设置现保存在程序（exe）相同目录的 \`rules.yaml\`；首次运行会自动迁移旧版 \`ccw-formatter-settings.json\` 中的规则开关与上次输入。
-- 「用 text-spacing 来挽救」说明性规则已彻底移除；「专有名词使用正确的大小写」与「不要使用不地道的缩写」默认关闭，可在设置中手动启用。"
+          - Windows 便携版可执行文件更名为 \`CopyPolish.exe\`，压缩包为 \`CopyPolish-windows-x64.7z\`（压缩包根目录直接包含 exe，无嵌套目录）。
+          - 用户设置现保存在程序（exe）相同目录的 \`rules.yaml\`；首次运行会自动迁移旧版 \`ccw-formatter-settings.json\` 中的规则开关与上次输入。
+          - 「用 text-spacing 来挽救」说明性规则已彻底移除；「专有名词使用正确的大小写」与「不要使用不地道的缩写」默认关闭，可在设置中手动启用。"
       - name: Verify version consistency
         run: python3 scripts/check_version.py "${{ github.ref_name }}"
         if: startsWith(github.ref, 'refs/tags/v')
