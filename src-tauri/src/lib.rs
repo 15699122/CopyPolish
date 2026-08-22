@@ -3,8 +3,8 @@
 // 通过 python_runtime.rs 调用（见 Dev_readme「路线 B」对比）。
 
 mod commands;
-mod python_runtime;
-mod rust_engine;
+pub mod python_runtime;
+pub mod rust_engine;
 
 use std::path::PathBuf;
 use tauri::{path::BaseDirectory, Manager};

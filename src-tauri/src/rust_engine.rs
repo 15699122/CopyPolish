@@ -105,8 +105,16 @@ fn protect_patterns() -> &'static Vec<FancyRegex> {
 
 /// 把受保护片段替换为占位符；placeholders 按创建顺序保存 (占位符, 原文)。
 fn protect(text: &str, placeholders: &mut Vec<(String, String)>) -> Result<String, String> {
+    protect_with(protect_patterns(), text, placeholders)
+}
+
+fn protect_with(
+    patterns: &[FancyRegex],
+    text: &str,
+    placeholders: &mut Vec<(String, String)>,
+) -> Result<String, String> {
     let mut current = text.to_string();
-    for pat in protect_patterns() {
+    for pat in patterns {
         let mut out = String::new();
         let mut last = 0;
         for m in pat.find_iter(&current) {
@@ -122,6 +130,41 @@ fn protect(text: &str, placeholders: &mut Vec<(String, String)>) -> Result<Strin
         current = out;
     }
     Ok(current)
+}
+
+/// “链接之间增加空格”使用的保护模式子集（与 Python _r_space_around_links 一致）。
+fn link_patterns() -> &'static Vec<FancyRegex> {
+    static PATTERNS: OnceLock<Vec<FancyRegex>> = OnceLock::new();
+    PATTERNS.get_or_init(|| {
+        [
+            r"!\[[^\]\n]*\]\([^\n)]*\)",
+            r"\[[^\]\n]+\]\([^\n)]*\)",
+            r"(?i)<(?:(?:https?://[^>\s]+)|(?:[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}))>",
+            r#"(?i)https?://[^\s，。；：！？、（）《》【】「」“”‘’…—<>'"]+"#,
+            r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}",
+        ]
+        .iter()
+        .map(|p| FancyRegex::new(p).expect("invalid link protect pattern"))
+        .collect()
+    })
+}
+
+/// 12. 链接之间增加空格（争议规则，默认关闭）。
+fn space_around_links(text: &str) -> String {
+    static BEFORE: OnceLock<Regex> = OnceLock::new();
+    static AFTER: OnceLock<Regex> = OnceLock::new();
+    let mut phs: Vec<(String, String)> = Vec::new();
+    let protected = match protect_with(link_patterns(), text, &mut phs) {
+        Ok(p) => p,
+        Err(_) => return text.to_string(),
+    };
+    let before = BEFORE
+        .get_or_init(|| Regex::new(&format!(r"(\S)({PH_START}CCWPROTECTED\d+\u{{E001}})")).unwrap())
+        .replace_all(&protected, "$1 $2");
+    let after = AFTER
+        .get_or_init(|| Regex::new(&format!(r"({PH_START}CCWPROTECTED\d+\u{{E001}})(\S)")).unwrap())
+        .replace_all(&before, "$1 $2");
+    restore(&after, &phs)
 }
 
 /// 保护缩进代码行（整行占位）；普通 Markdown 标记行继续参与排版。
@@ -177,19 +220,34 @@ fn restore(text: &str, placeholders: &[(String, String)]) -> String {
     current
 }
 
+// 规则 key 与 ccw_engine.py 的 _slug() 输出完全一致（前端传递的就是这些 key）。
+pub const K_CN_EN_SPACE: &str = "中英文之间需要增加空格";
+pub const K_CN_DIGIT_SPACE: &str = "中文与数字之间需要增加空格";
+pub const K_DIGIT_UNIT_SPACE: &str = "数字与单位之间需要增加空格";
+pub const K_FW_PUNCT_NO_SPACE: &str = "全角标点与其他字符之间不加空格";
+pub const K_CSS_TEXT_SPACING: &str = "用_text_spacing_来挽救";
+pub const K_NO_REPEAT_PUNCT: &str = "不重复使用标点符号";
+pub const K_FW_CHINESE_PUNCT: &str = "使用全角中文标点";
+pub const K_HALFWIDTH_DIGITS: &str = "数字使用半角字符";
+pub const K_HALFWIDTH_IN_ENGLISH: &str = "遇到完整的英文整句_特殊名词_其内容使用半角标点";
+pub const K_PROPER_NOUNS: &str = "专有名词使用正确的大小写";
+pub const K_NO_ABBR: &str = "不要使用不地道的缩写";
+pub const K_SPACE_AROUND_LINKS: &str = "链接之间增加空格";
+pub const K_CORNER_QUOTES: &str = "简体中文使用直角引号";
+
 pub fn enabled_defaults() -> Vec<String> {
     vec![
-        "中英文之间需要增加空格",
-        "中文与数字之间需要增加空格",
-        "数字与单位之间需要增加空格",
-        "全角标点与其他字符之间不加空格",
-        "用 `text-spacing` 来挽救？",
-        "不重复使用标点符号",
-        "使用全角中文标点",
-        "数字使用半角字符",
-        "遇到完整的英文整句、特殊名词，其内容使用半角标点",
-        "专有名词使用正确的大小写",
-        "不要使用不地道的缩写",
+        K_CN_EN_SPACE,
+        K_CN_DIGIT_SPACE,
+        K_DIGIT_UNIT_SPACE,
+        K_FW_PUNCT_NO_SPACE,
+        K_CSS_TEXT_SPACING,
+        K_NO_REPEAT_PUNCT,
+        K_FW_CHINESE_PUNCT,
+        K_HALFWIDTH_DIGITS,
+        K_HALFWIDTH_IN_ENGLISH,
+        K_PROPER_NOUNS,
+        K_NO_ABBR,
     ]
     .into_iter()
     .map(str::to_string)
@@ -212,41 +270,49 @@ pub fn format_text(req: &FormatRequest) -> Result<String, String> {
 
     let mut out = Vec::new();
     for line in protected.split('\n') {
-        if line.trim().is_empty() || is_placeholder_line(line) {
+        if is_placeholder_line(line) {
             out.push(line.to_string());
+            continue;
+        }
+        if line.trim().is_empty() {
+            // Python 版会把空白行规范化为空行（result.append("")）。
+            out.push(String::new());
             continue;
         }
 
         let mut current = line.to_string();
-        if enabled_all || enabled.contains("数字使用半角字符") {
-            current = fullwidth_digits(&current);
-        }
-        if enabled_all || enabled.contains("使用全角中文标点") {
-            current = fullwidth_chinese_punct(&current);
-        }
-        if enabled_all || enabled.contains("遇到完整的英文整句、特殊名词，其内容使用半角标点")
-        {
-            current = halfwidth_in_english(&current);
-        }
-        if enabled_all || enabled.contains("专有名词使用正确的大小写") {
-            current = proper_nouns(&current);
-        }
-        if enabled_all || enabled.contains("不要使用不地道的缩写") {
-            current = no_abbr(&current);
-        }
-        if enabled_all || enabled.contains("不重复使用标点符号") {
+        // 执行顺序与 ccw_engine.py 的 RULES 注册表一致（规则 6 -> 13）。
+        if enabled_all || enabled.contains(K_NO_REPEAT_PUNCT) {
             current = no_repeat_punct(&current);
         }
-        if enabled_all || enabled.contains("简体中文使用直角引号") {
+        if enabled_all || enabled.contains(K_FW_CHINESE_PUNCT) {
+            current = fullwidth_chinese_punct(&current);
+        }
+        if enabled_all || enabled.contains(K_HALFWIDTH_DIGITS) {
+            current = fullwidth_digits(&current);
+        }
+        if enabled_all || enabled.contains(K_HALFWIDTH_IN_ENGLISH) {
+            current = halfwidth_in_english(&current);
+        }
+        if enabled_all || enabled.contains(K_PROPER_NOUNS) {
+            current = proper_nouns(&current);
+        }
+        if enabled_all || enabled.contains(K_NO_ABBR) {
+            current = no_abbr(&current);
+        }
+        if enabled_all || enabled.contains(K_SPACE_AROUND_LINKS) {
+            current = space_around_links(&current);
+        }
+        if enabled_all || enabled.contains(K_CORNER_QUOTES) {
             current = corner_quotes(&current);
         }
 
-        // 与 Python 保持一致：基础空格收尾规则始终执行。
+        // 与 Python 保持一致：基础空格收尾规则始终执行（对应
+        // _format_regular_text 末尾固定追加的四个函数）。
         current = cn_en_space(&current);
         current = cn_digit_space(&current);
         current = digit_unit_space(&current);
         current = fw_punct_no_space(&current);
-        current = normalize_spaces(&current);
         out.push(current);
     }
 
@@ -330,20 +396,38 @@ fn fw_punct_no_space(text: &str) -> String {
 }
 
 fn no_repeat_punct(text: &str) -> String {
-    static SAME: OnceLock<Regex> = OnceLock::new();
     static MIXED: OnceLock<Regex> = OnceLock::new();
-    let text = SAME
-        .get_or_init(|| Regex::new(r"([！？!?~～])+").unwrap())
-        .replace_all(text, |caps: &Captures| {
-            caps[0].chars().next().unwrap().to_string()
-        });
+    // 与 ccw_engine.py _r_no_repeat_punct 三步一致：
+    // 1) [！？!?~～] 同字符折叠；2) [。，；：、] 同字符折叠；3) 混合叹问号 -> ？！
+    let collapsed = collapse_repeated_runs(
+        &collapse_repeated_runs(text, &['！', '？', '!', '?', '~', '～']),
+        &['。', '，', '；', '：', '、'],
+    );
     MIXED
-        .get_or_init(|| Regex::new(r"[？?！!]{2,}").unwrap())
-        .replace_all(&text, "？！")
+        .get_or_init(|| Regex::new(r"[！？!?][！？!?]+").unwrap())
+        .replace_all(&collapsed, "？！")
         .to_string()
 }
 
+/// 折叠同一字符的连续重复（模拟 Python 的 r"([..])\1+" backreference）。
+fn collapse_repeated_runs(text: &str, set: &[char]) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut prev: Option<char> = None;
+    for ch in text.chars() {
+        if prev == Some(ch) && set.contains(&ch) {
+            continue;
+        }
+        out.push(ch);
+        prev = Some(ch);
+    }
+    out
+}
+
 fn fullwidth_chinese_punct(text: &str) -> String {
+    // Python 版仅对含中文的行生效。
+    if !contains_cjk(text) {
+        return text.to_string();
+    }
     let mut out = String::new();
     let chars: Vec<char> = text.chars().collect();
     for (idx, ch) in chars.iter().enumerate() {
@@ -362,7 +446,7 @@ fn fullwidth_chinese_punct(text: &str) -> String {
         };
         out.push(converted);
     }
-    corner_quotes(&out)
+    straight_corner_quotes(&out)
 }
 
 fn fullwidth_digits(text: &str) -> String {
@@ -440,21 +524,29 @@ fn replace_word_case_insensitive(text: &str, wrong: &str, right: &str) -> String
         .to_string()
 }
 
-fn corner_quotes(text: &str) -> String {
+/// 仅转换直引号（规则 7 全角中文标点内部的行为，与 Python _conv_line 一致）。
+fn straight_corner_quotes(text: &str) -> String {
     static DOUBLE: OnceLock<Regex> = OnceLock::new();
-    static SMART_DOUBLE: OnceLock<Regex> = OnceLock::new();
     static SINGLE: OnceLock<Regex> = OnceLock::new();
-    static SMART_SINGLE: OnceLock<Regex> = OnceLock::new();
     let cjk = r"[\u{3400}-\u{4dbf}\u{4e00}-\u{9fff}\u{f900}-\u{faff}]";
     let text = DOUBLE
         .get_or_init(|| Regex::new(&format!(r#""([^"\n]*?{}[^"\n]*?)""#, cjk)).unwrap())
         .replace_all(text, "「$1」");
+    SINGLE
+        .get_or_init(|| Regex::new(&format!(r"'([^'\n]*?{}[^'\n]*?)'", cjk)).unwrap())
+        .replace_all(&text, "『$1』")
+        .to_string()
+}
+
+/// 13. 简体中文使用直角引号（争议规则；直引号 + 弯引号都转换）。
+fn corner_quotes(text: &str) -> String {
+    static SMART_DOUBLE: OnceLock<Regex> = OnceLock::new();
+    static SMART_SINGLE: OnceLock<Regex> = OnceLock::new();
+    let cjk = r"[\u{3400}-\u{4dbf}\u{4e00}-\u{9fff}\u{f900}-\u{faff}]";
+    let text = straight_corner_quotes(text);
     let text = SMART_DOUBLE
         .get_or_init(|| Regex::new(&format!(r"“([^”\n]*?{}[^”\n]*?)”", cjk)).unwrap())
         .replace_all(&text, "「$1」");
-    let text = SINGLE
-        .get_or_init(|| Regex::new(&format!(r"'([^'\n]*?{}[^'\n]*?)'", cjk)).unwrap())
-        .replace_all(&text, "『$1』");
     SMART_SINGLE
         .get_or_init(|| Regex::new(&format!(r"‘([^’\n]*?{}[^’\n]*?)’", cjk)).unwrap())
         .replace_all(&text, "『$1』")
