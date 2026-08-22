@@ -17,9 +17,12 @@ jobs:
       - name: Rust tests (default, pure-Rust build)
         working-directory: src-tauri
         run: cargo fmt --check && cargo test
-      - name: Frontend typecheck & build
+      - name: Frontend typecheck, tests & build
         working-directory: frontend
-        run: npm ci && npm run build
+        run: |
+          npm ci
+          npm test
+          npm run build
 
   tauri-build:
     strategy:
@@ -50,9 +53,20 @@ jobs:
           npm ci
           npm run tauri build -- ${{ matrix.args }}
 
-      # 产物在构建日志中确认即可；如需上传，取消以下注释：
-      # - uses: actions/upload-artifact@v4
-      #   with:
-      #     name: bundle-${{ matrix.os }}
-      #     path: |
-      #       src-tauri/target/release/bundle/**
+      # 分发产物：上传 Linux/Windows bundle。
+      - uses: actions/upload-artifact@v4
+        if: matrix.os == 'ubuntu-latest' || matrix.os == 'windows-latest'
+        with:
+          name: bundle-${{ matrix.os }}
+          path: |
+            src-tauri/target/release/bundle/**
+          if-no-files-found: error
+      # 构建失败时上传日志辅助排查。
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: build-log-${{ matrix.os }}
+          path: |
+            src-tauri/target/release/**/*.log
+            frontend/npm-debug.log*
+          if-no-files-found: ignore
