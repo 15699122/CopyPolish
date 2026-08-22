@@ -38,6 +38,9 @@
 - 规则 key 已对齐：Rust 引擎改用与 Python `_slug()` 完全一致的规则 key（如 `遇到完整的英文整句_特殊名词_其内容使用半角标点`、`用_text_spacing_来挽救`），修复了此前前端传真实 key 时部分规则不生效的问题；规则执行顺序也与 Python RULES 注册表一致。
 - `get_rules` 已切换为 Rust 端内置元数据（`rust_engine::default_rules()`，13 条规则的 key/section/name/disputed/default 与 Python `_EMBEDDED_RULES` 完全一致），仅在异常时回退 Python/rules.yaml。至此 `format_text` / `get_rules` / `get_enabled_defaults` 三个 command 均以 Rust 为主路径，PyO3/Python 降级为兜底。
 - parity 语料已从 50 条扩充到 71 条（新增半角标点中文语境、纯英文行、多链接、嵌套引号+链接、相邻公式、句尾 URL 等边界用例），defaults/all 两种模式下仍为 0 差异。
+- **旧 GUI 已彻底移除**：删除 `gui/`、`chinese_copywriting_formatter.py`、`python/formatter_bridge.py`、`test/test_formatter_bridge.py`、`packaging/build_win.bat`、`run.sh` 与 PyInstaller 的 GitHub Actions 工作流。项目不再保留 customtkinter 界面与其 `rules.yaml` 设置兼容。
+- **用户设置持久化（新方案）**：新增 `src-tauri/src/user_settings.rs` 与 `get_user_settings` / `save_user_settings` command。设置保存在**当前工作目录**的 `ccw-formatter-settings.json`（`enabled` + `last_input`），文件缺失/损坏时回落默认规则集。前端 `App.tsx` 启动时恢复设置，规则开关与清空操作即时持久化、输入内容防抖持久化；浏览器预览环境回退 localStorage。Rust 单元测试全部使用系统临时目录中的随机文件，避免写覆盖仓库内文件；设置文件已加入 `.gitignore`。
+
 
 - 争议规则「链接之间增加空格」已在 Rust 端实现（含独立的链接保护模式子集）。
 - **双引擎 parity 校验通过**：新增 `test/compare_rust_parity.py` 与 `src-tauri/examples/parity_dump.rs`，对 50 条语料在 defaults / all 两种规则模式下逐字对比 ccw_engine.py 与 Rust 引擎输出，结果 0 差异。对比中发现并修复了三处行为偏差：混合重复标点折叠、空白行规范化、弯引号误转换。

@@ -5,6 +5,7 @@
 mod commands;
 pub mod python_runtime;
 pub mod rust_engine;
+mod user_settings;
 
 use std::path::PathBuf;
 use tauri::{path::BaseDirectory, Manager};
@@ -53,6 +54,8 @@ pub fn run() {
             commands::format_text,
             commands::get_rules,
             commands::get_enabled_defaults,
+            commands::get_user_settings,
+            commands::save_user_settings,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

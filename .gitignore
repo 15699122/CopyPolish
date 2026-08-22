@@ -23,3 +23,6 @@ src-tauri/src-python/.venv/
 # 编辑器 / 系统
 .DS_Store
 *.log
+
+# 用户设置（保存在当前工作目录）
+/ccw-formatter-settings.json
