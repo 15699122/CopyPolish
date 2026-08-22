@@ -9,6 +9,23 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import App from "./App";
 
+// jsdom 不实现 window.matchMedia，需 mock 以支持主题 effect。
+beforeEach(() => {
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
+});
+
 const mocks = vi.hoisted(() => {
   const rules = [
     { key: "rule-a", section: "空格", name: "中英文之间增加空格", disputed: false, default: true },
@@ -30,6 +47,7 @@ vi.mock("@/lib/tauri", () => ({
   formatText: mocks.formatText,
   getRules: mocks.getRules,
   getEnabledDefaults: mocks.getEnabledDefaults,
+  getSettingsPath: () => null,
   getUserSettings: mocks.getUserSettings,
   saveUserSettings: mocks.saveUserSettings,
 }));
@@ -98,6 +116,7 @@ describe("App 主流程", () => {
       expect(mocks.saveUserSettings).toHaveBeenCalledWith({
         enabled: ["rule-a", "rule-b", "rule-c"],
         last_input: "",
+        theme: "system",
       }),
     );
 
@@ -125,6 +144,7 @@ describe("App 主流程", () => {
     mocks.getUserSettings.mockResolvedValue({
       enabled: ["rule-c"],
       last_input: "上次输入",
+      theme: "dark",
     });
     mockFormat((t) => `格式化(${t})`);
     const { user } = await setup();
@@ -136,5 +156,32 @@ describe("App 主流程", () => {
     await user.click(screen.getByTestId("open-settings"));
     expect(screen.getByTestId("rule-rule-c")).toBeChecked();
     expect(screen.getByTestId("rule-rule-a")).not.toBeChecked();
+    // 主题被正确恢复到深色。
+    expect(document.documentElement).toHaveAttribute("data-theme", "dark");
+  });
+
+  it("主题切换会立即应用并持久化", async () => {
+    mockFormat((t) => t);
+    const { user } = await setup();
+    await user.click(screen.getByTestId("open-settings"));
+
+    // 默认 theme=system；切换到 dark。
+    await user.click(screen.getByTestId("theme-dark"));
+    expect(document.documentElement).toHaveAttribute("data-theme", "dark");
+
+    await waitFor(() =>
+      expect(mocks.saveUserSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ theme: "dark" }),
+      ),
+    );
+
+    // 切换到 light。
+    await user.click(screen.getByTestId("theme-light"));
+    expect(document.documentElement).toHaveAttribute("data-theme", "light");
+    await waitFor(() =>
+      expect(mocks.saveUserSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ theme: "light" }),
+      ),
+    );
   });
 });
