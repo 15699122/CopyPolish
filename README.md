@@ -2,7 +2,7 @@
 
 中文文案排版助手（Chinese Copywriting Formatter）是一款本地桌面端中文文案排版工具，用于按照 [chinese-copywriting-guidelines](https://github.com/sparanoid/chinese-copywriting-guidelines) 的简体中文文案规范，自动整理中文、英文、数字、单位和标点之间的格式。
 
-项目界面为 Tauri 2 + React + shadcn/ui 前端，后端以 Rust 原生排版引擎为主路径（`ccw_engine.py` 经 PyO3 作为兜底保留）。左侧输入原文，右侧实时显示规范化结果；规则可逐条启用或关闭。
+项目界面为 Tauri 2 + React + shadcn/ui 前端，后端为纯 Rust 排版引擎。左侧输入原文，右侧实时显示规范化结果；规则可逐条启用或关闭。
 
 ## 功能亮点
 
@@ -21,13 +21,8 @@
 新版 Tauri 2 迁移已完成以下关键链路：
 
 - `frontend/`：React + Vite + TypeScript + Tailwind v4 + shadcn/ui 界面已落地。
-- `src-tauri/`：Tauri 2 应用已接入自定义 PyO3 运行时。
-- `src-tauri/src/rust_engine.rs`：新增第一版 Rust 原生排版引擎，已覆盖基础中英文/数字空格、数字单位、标点、专有名词和缩写等核心样例。
-- `src-tauri/src-python/main.py`：作为 Python 桥接模块，调用 `ccw_engine.py` 的格式化和规则读取能力。
-- Rust 单元测试已覆盖 `PyO3 → main.py → ccw_engine.py`：
-  - 读取 13 条规则；
-  - 读取 11 条默认规则；
-  - 格式化 `在LeanCloud上，花了5000元` 为 `在 LeanCloud 上，花了 5000 元`。
+- `src-tauri/`：**纯 Rust 实现**（`rust_engine.rs` + `user_settings.rs`），无 Python/PyO3 依赖；仓库根目录的 `ccw_engine.py` 仅作为 `test/compare_rust_parity.py` 的权威基准保留。
+- Rust 单元测试覆盖引擎核心样例与设置持久化。
 - Linux 打包已能生成：
   - `.deb`
   - `.rpm`
@@ -65,16 +60,9 @@ Tauri 版开发需要：
 
 - Node.js / npm；
 - Rust 工具链（`cargo` / `rustc` / `rustfmt`）；
-- Python 开发库与动态库（当前开发环境使用 Python 3.14，PyO3 通过 `/usr/bin/python3.14` 与 `libpython3.14.so` 验证）；
 - Linux 下还需要 Tauri/WebKitGTK 相关系统依赖。
 
-开发环境常用变量：
-
-```bash
-export PATH="$HOME/.cargo/bin:$PATH"
-export PYO3_PYTHON=/usr/bin/python3.14
-export LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:${LD_LIBRARY_PATH:-}
-```
+（运行 Python 侧 parity 校验时才需要 Python 环境；应用构建本身无需 Python。）
 
 ## 启动方式
 
