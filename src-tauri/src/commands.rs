@@ -25,6 +25,15 @@ pub fn get_user_settings() -> Result<Option<crate::user_settings::UserSettings>,
     Ok(crate::user_settings::load())
 }
 
+/// get_settings_path() -> String
+/// 返回设置文件的完整路径（rules.yaml），供前端在设置弹窗中展示。
+#[tauri::command]
+pub fn get_settings_path() -> Result<String, String> {
+    Ok(crate::user_settings::settings_path()
+        .to_string_lossy()
+        .into_owned())
+}
+
 /// save_user_settings(enabled, last_input)：写入 exe 同目录设置文件。
 /// 过滤掉引擎中不存在的规则 key，避免旧设置中的已删除规则被回写。
 #[tauri::command]

@@ -81,6 +81,12 @@ export interface UserSettings {
 
 const LS_SETTINGS_KEY = "ccw-formatter-settings";
 
+/** 返回设置文件（rules.yaml）的完整路径；浏览器预览返回 null。 */
+export async function getSettingsPath(): Promise<string | null> {
+  if (!isTauri()) return null;
+  return invoke<string>("get_settings_path");
+}
+
 export async function getUserSettings(): Promise<UserSettings | null> {
   if (!isTauri()) {
     try {

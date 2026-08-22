@@ -1,8 +1,8 @@
 // user_settings.rs
 // =============================================================================
 // 用户设置持久化：保存在「可执行文件所在目录」下的 rules.yaml（YAML 格式）。
-// Windows 便携版运行后在 exe 相同目录生成 rules.yaml；目录不可写或无法定位
-// 可执行文件时回退当前工作目录。
+// Windows 便携版运行后在 exe 相同目录生成 rules.yaml；目录不可写时向前端返回
+// 带路径的明确错误，便于用户把便携版放到可写目录。
 //
 // 迁移：若 rules.yaml 不存在但同目录存在旧版 ccw-formatter-settings.json，
 // 自动读取旧 JSON 并转换写入新的 rules.yaml。
@@ -13,6 +13,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::fs;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 /// 用户设置文件名（exe 同目录，YAML 格式）。
@@ -58,8 +59,60 @@ pub fn load_from(path: &Path) -> Option<UserSettings> {
 }
 
 pub fn save_to(path: &Path, settings: &UserSettings) -> Result<(), String> {
-    let yaml = serde_yaml::to_string(settings).map_err(|e| format!("serialize settings: {e}"))?;
-    fs::write(path, yaml).map_err(|e| format!("write settings {}: {e}", path.display()))
+    let yaml = serde_yaml::to_string(settings)
+        .map_err(|e| format!("serialize settings for {}: {e}", path.display()))?;
+    let dir = path
+        .parent()
+        .ok_or_else(|| format!("settings path has no parent directory: {}", path.display()))?;
+
+    if !dir.exists() {
+        return Err(format!(
+            "settings directory does not exist: {}; target settings file is {}",
+            dir.display(),
+            path.display()
+        ));
+    }
+    if !dir.is_dir() {
+        return Err(format!(
+            "settings parent path is not a directory: {}",
+            dir.display()
+        ));
+    }
+
+    let tmp_path = path.with_extension("yaml.tmp");
+    let mut file = fs::File::create(&tmp_path).map_err(|e| {
+        format!(
+            "create temporary settings file {} failed; target settings file is {}; directory is {}: {e}",
+            tmp_path.display(),
+            path.display(),
+            dir.display()
+        )
+    })?;
+    file.write_all(yaml.as_bytes()).map_err(|e| {
+        format!(
+            "write temporary settings file {} failed; target settings file is {}: {e}",
+            tmp_path.display(),
+            path.display()
+        )
+    })?;
+    file.sync_all().map_err(|e| {
+        format!(
+            "flush temporary settings file {} failed; target settings file is {}: {e}",
+            tmp_path.display(),
+            path.display()
+        )
+    })?;
+    drop(file);
+
+    fs::rename(&tmp_path, path).map_err(|e| {
+        let _ = fs::remove_file(&tmp_path);
+        format!(
+            "replace settings file {} with temporary file {} failed; directory is {}: {e}",
+            path.display(),
+            tmp_path.display(),
+            dir.display()
+        )
+    })
 }
 
 /// 读取指定目录下的用户设置（含旧版 JSON 迁移逻辑），供测试注入目录。
@@ -104,7 +157,7 @@ mod tests {
         let n = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let pid = std::process::id();
         let mut path = std::env::temp_dir();
-        path.push(format!("ccw-user-settings-test-{pid}-{n}-{tag}.json"));
+        path.push(format!("ccw-user-settings-test-{pid}-{n}-{tag}.yaml"));
         let _ = fs::remove_file(&path);
         path
     }
@@ -129,6 +182,17 @@ mod tests {
         assert!(raw.contains("enabled"));
         assert!(raw.contains("last_input"));
         let _ = fs::remove_file(&path);
+    }
+
+    #[test]
+    fn save_to_missing_directory_returns_diagnostic_error() {
+        let path = std::env::temp_dir()
+            .join(format!("ccw-missing-dir-{}", std::process::id()))
+            .join(SETTINGS_FILE_NAME);
+        let settings = UserSettings::default();
+        let error = save_to(&path, &settings).expect_err("save should fail for missing dir");
+        assert!(error.contains("settings directory does not exist"));
+        assert!(error.contains(SETTINGS_FILE_NAME));
     }
 
     /// 旧版 ccw-formatter-settings.json（JSON）应被自动迁移为 rules.yaml。

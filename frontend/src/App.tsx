@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { Check, Copy, Eraser, Maximize2, Minus, Settings, X } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
@@ -27,6 +27,7 @@ import {
   formatText,
   getEnabledDefaults,
   getRules,
+  getSettingsPath,
   getUserSettings,
   isTauri,
   saveUserSettings,
@@ -61,11 +62,26 @@ export default function App() {
 
   const enabledSet = useMemo(() => new Set(enabled), [enabled]);
 
+  // 设置持久化状态：saving / saved / error，用于在设置弹窗中给出可见反馈。
+  const [settingsStatus, setSettingsStatus] = useState<
+    "idle" | "saving" | "saved" | "error"
+  >("idle");
+  const [settingsError, setSettingsError] = useState<string | null>(null);
+  const [settingsPath, setSettingsPath] = useState<string | null>(null);
+
   function persistSettings(nextEnabled: string[], nextInput: string) {
     if (!hydratedRef.current) return;
-    saveUserSettings({ enabled: nextEnabled, last_input: nextInput }).catch(() => {
-      // 持久化失败不打断排版主流程。
-    });
+    setSettingsStatus("saving");
+    saveUserSettings({ enabled: nextEnabled, last_input: nextInput })
+      .then(() => {
+        setSettingsStatus("saved");
+        setSettingsError(null);
+      })
+      .catch((e) => {
+        // 持久化失败不打断排版主流程，但必须让用户看到原因。
+        setSettingsStatus("error");
+        setSettingsError(String(e));
+      });
   }
 
   function schedulePersist(nextEnabled: string[], nextInput: string) {
@@ -92,6 +108,14 @@ export default function App() {
           saved = await getUserSettings();
         } catch {
           saved = null;
+        }
+        if (cancelled) return;
+
+        try {
+          const path = await getSettingsPath();
+          if (!cancelled && path) setSettingsPath(path);
+        } catch {
+          // 路径获取失败不影响主流程；保存错误会在保存时展示。
         }
         if (cancelled) return;
 
@@ -189,16 +213,40 @@ export default function App() {
     persistSettings(enabled, "");
   }
 
-  async function onMinimize() {
-    if (isTauri()) await getCurrentWindow().minimize();
+  async function runWindowAction(action: () => Promise<void>) {
+    if (!isTauri()) return;
+
+    try {
+      await action();
+    } catch (error) {
+      setError(`窗口操作失败：${String(error)}`);
+    }
   }
 
-  async function onToggleMaximize() {
-    if (isTauri()) await getCurrentWindow().toggleMaximize();
+  function onMinimize() {
+    return runWindowAction(() => getCurrentWindow().minimize());
   }
 
-  async function onClose() {
-    if (isTauri()) await getCurrentWindow().close();
+  function onToggleMaximize() {
+    return runWindowAction(() => getCurrentWindow().toggleMaximize());
+  }
+
+  function onClose() {
+    return runWindowAction(() => getCurrentWindow().close());
+  }
+
+  // 标题栏按下时显式启动窗口拖动；控制按钮区域已在容器上 stopPropagation。
+  function onHeaderMouseDown(event: MouseEvent<HTMLElement>) {
+    if (!isTauri()) return;
+    if (event.button !== 0) return;
+    if (event.detail > 1) return;
+
+    const target = event.target as HTMLElement;
+    if (target.closest("[data-window-control]")) return;
+
+    void getCurrentWindow().startDragging().catch((error) => {
+      setError(`窗口拖动失败：${String(error)}`);
+    });
   }
 
   // 按 section 分组规则
@@ -212,14 +260,15 @@ export default function App() {
     return Array.from(map.entries());
   }, [rules]);
 return (
-    <div className="flex min-h-svh flex-col bg-background text-foreground">
-      {/* 无边框窗口标题栏：标题区可拖动，右侧提供窗口控制。 */}
+    <div className="flex h-full min-h-0 flex-col bg-background text-foreground">
+      {/* 无边框窗口标题栏：按下空白处显式调用 startDragging；右侧为窗口控制。 */}
       <header
         className="flex select-none items-center justify-between border-b px-6 py-3"
-        data-tauri-drag-region
+        data-testid="title-bar"
+        onMouseDown={onHeaderMouseDown}
         onDoubleClick={onToggleMaximize}
       >
-        <div data-tauri-drag-region>
+        <div>
           <h1 className="text-xl font-bold leading-tight">{APP_NAME}</h1>
           <p className="text-xs text-muted-foreground">
             {isTauri()
@@ -228,14 +277,18 @@ return (
           </p>
         </div>
         {isTauri() && (
-          <div className="flex items-center gap-1" data-tauri-drag-region="false">
-            <Button variant="ghost" size="icon" onClick={onMinimize} aria-label="最小化">
+          <div
+            className="flex items-center gap-1"
+            data-window-control
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <Button variant="ghost" size="icon" onClick={onMinimize} aria-label="最小化" data-window-control>
               <Minus className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={onToggleMaximize} aria-label="最大化或还原">
+            <Button variant="ghost" size="icon" onClick={onToggleMaximize} aria-label="最大化或还原" data-window-control>
               <Maximize2 className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={onClose} aria-label="关闭">
+            <Button variant="ghost" size="icon" onClick={onClose} aria-label="关闭" data-window-control>
               <X className="h-4 w-4" />
             </Button>
           </div>
@@ -261,7 +314,7 @@ return (
           </CardContent>
         </Card>
 
-        <Card className="flex min-h-0 flex-col">
+        <Card className="flex h-full min-h-0 min-w-0 flex-col">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">规范化结果（实时）</CardTitle>
             <CardDescription className="text-xs">
@@ -272,15 +325,15 @@ return (
               )}
             </CardDescription>
           </CardHeader>
-          <CardContent className="flex min-h-0 flex-1">
-            <ScrollArea className="h-full w-full">
+          <CardContent className="flex min-h-0 min-w-0 flex-1 flex-col">
+            <div className="min-h-0 w-full flex-1 overflow-auto rounded-md border bg-background p-3">
               <pre
-                className="min-h-full whitespace-pre-wrap break-words font-sans text-sm"
+                className="w-full whitespace-pre-wrap break-words font-sans text-sm"
                 data-testid="output-text"
               >
                 {output}
               </pre>
-            </ScrollArea>
+            </div>
           </CardContent>
         </Card>
       </main>
@@ -337,6 +390,24 @@ return (
             </ScrollArea>
 
             <DialogFooter className="flex items-center justify-between gap-2">
+              <div className="flex min-w-0 flex-col gap-0.5 text-xs">
+                {settingsStatus === "saving" && (
+                  <span className="text-muted-foreground" data-testid="settings-status">正在保存…</span>
+                )}
+                {settingsStatus === "saved" && (
+                  <span className="text-green-600" data-testid="settings-status">设置已保存</span>
+                )}
+                {settingsStatus === "error" && (
+                  <span className="text-destructive break-all" data-testid="settings-status">
+                    设置保存失败：{settingsError}
+                  </span>
+                )}
+                {settingsPath && (
+                  <span className="truncate text-muted-foreground" title={settingsPath}>
+                    设置文件：{settingsPath}
+                  </span>
+                )}
+              </div>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" data-testid="select-all" onClick={() => onSetAll(true)}>
                   全选
