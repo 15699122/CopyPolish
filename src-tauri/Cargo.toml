@@ -1,6 +1,6 @@
 [package]
 name = "chinese-copywriting-formatter"
-version = "0.1.0"
+version = "0.1.1"
 description = "中文文案排版助手"
 authors = ["chinese-copywriting-formatter"]
 edition = "2021"
