@@ -4,6 +4,7 @@
 
 mod commands;
 mod python_runtime;
+mod rust_engine;
 
 use std::path::PathBuf;
 use tauri::{path::BaseDirectory, Manager};

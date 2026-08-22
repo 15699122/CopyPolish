@@ -314,6 +314,7 @@ name = "chinese-copywriting-formatter"
 version = "0.1.0"
 dependencies = [
  "pyo3",
+ "regex",
  "serde",
  "serde_json",
  "tauri",
