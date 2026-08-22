@@ -87,6 +87,7 @@ cargo fmt --manifest-path src-tauri/Cargo.toml --check
 cargo check --manifest-path src-tauri/Cargo.toml
 cargo test --manifest-path src-tauri/Cargo.toml          # 纯 Rust：11 项
 npm run build --prefix frontend                           # tsc + vite
+npm test --prefix frontend                                # vitest 组件测试（jsdom）
 .venv/bin/python -m unittest discover -s test             # Python 40 项
 .venv/bin/python test/compare_rust_parity.py              # 必须 0 差异
 ```
@@ -112,5 +113,5 @@ npm run build --prefix frontend                           # tsc + vite
 
 `.github/workflows/build.yml`：
 
-- `test` job（ubuntu）：cargo fmt + 默认纯 Rust cargo test + 前端 tsc/vite 构建；
-- `tauri-build` matrix（ubuntu/windows）：Linux/Windows 双平台 `tauri build`。项目不支持 macOS，构建矩阵中已移除 macos-latest 与 Apple target。因默认构建不含 Python，Windows 无需任何 Python 工具链。产物上传（upload-artifact）默认注释，需要分发时再启用。
+- `test` job（ubuntu）：cargo fmt + 默认纯 Rust cargo test + 前端 vitest 组件测试 + tsc/vite 构建；
+- `tauri-build` matrix（ubuntu/windows）：Linux/Windows 双平台 `tauri build`，构建产物通过 upload-artifact 上传（bundle-ubuntu / bundle-windows），失败时上传 build-log-*。项目不支持 macOS，构建矩阵中已移除 macos-latest 与 Apple target。因默认构建不含 Python，Windows 无需任何 Python 工具链。

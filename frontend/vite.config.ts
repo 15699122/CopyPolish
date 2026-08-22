@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import path from "path";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
@@ -22,5 +23,12 @@ export default defineConfig({
       ? { protocol: "ws", host, port: 1421 }
       : undefined,
     watch: { ignored: ["**/src-tauri/**"] },
+  },
+  // Vitest（组件交互测试，jsdom 环境）
+  test: {
+    environment: "jsdom",
+    globals: true,
+    setupFiles: ["./src/test/setup.ts"],
+    css: false,
   },
 });

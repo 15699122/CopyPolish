@@ -222,6 +222,8 @@ return (
             <Textarea
               className="min-h-0 flex-1 resize-none"
               placeholder="在LeanCloud上，花了5000元"
+              aria-label="输入文字"
+              data-testid="input-textarea"
               value={input}
               onChange={(e) => onInputChange(e.target.value)}
             />
@@ -241,7 +243,10 @@ return (
           </CardHeader>
           <CardContent className="flex min-h-0 flex-1">
             <ScrollArea className="w-full">
-              <pre className="whitespace-pre-wrap break-words font-sans text-sm">
+              <pre
+                className="whitespace-pre-wrap break-words font-sans text-sm"
+                data-testid="output-text"
+              >
                 {output}
               </pre>
             </ScrollArea>
@@ -253,7 +258,7 @@ return (
       <footer className="flex items-center gap-2 border-t px-6 py-4">
         <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
           <DialogTrigger asChild>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" data-testid="open-settings" aria-label="打开设置">
               <Settings className="h-4 w-4" />
               设置
             </Button>
@@ -278,6 +283,8 @@ return (
                             id={`rule-${r.key}`}
                             checked={enabledSet.has(r.key)}
                             onCheckedChange={() => onToggleRule(r.key)}
+                            data-testid={`rule-${r.key}`}
+                            aria-label={r.name}
                           />
                           <Label
                             htmlFor={`rule-${r.key}`}
@@ -300,24 +307,24 @@ return (
 
             <DialogFooter className="flex items-center justify-between gap-2">
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => onSetAll(true)}>
+                <Button variant="outline" size="sm" data-testid="select-all" onClick={() => onSetAll(true)}>
                   全选
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => onSetAll(false)}>
+                <Button variant="outline" size="sm" data-testid="select-none" onClick={() => onSetAll(false)}>
                   全不选
                 </Button>
-                <Button variant="outline" size="sm" onClick={onResetDefaults}>
+                <Button variant="outline" size="sm" data-testid="reset-defaults" onClick={onResetDefaults}>
                   恢复默认
                 </Button>
               </div>
-              <Button size="sm" onClick={() => setSettingsOpen(false)}>
+              <Button size="sm" data-testid="settings-done" onClick={() => setSettingsOpen(false)}>
                 完成
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
 
-        <Button variant="outline" size="sm" onClick={onClear}>
+        <Button variant="outline" size="sm" data-testid="clear-input" onClick={onClear}>
           {cleared ? (
             <Check className="h-4 w-4 text-green-600" />
           ) : (
@@ -327,7 +334,7 @@ return (
         </Button>
 
         <div className="ml-auto">
-          <Button size="sm" onClick={onCopy} disabled={!output}>
+          <Button size="sm" data-testid="copy-output" onClick={onCopy} disabled={!output} aria-label="复制结果">
             {copied ? (
               <>
                 <Check className="h-4 w-4 text-green-600" />
