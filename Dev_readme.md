@@ -111,6 +111,17 @@ npm run build --prefix frontend                           # tsc + vite
 ## 后续计划
 
 1. 真实窗口 smoke 验证（WSL2 图形栈限制暂无法本地执行）：输入 `在LeanCloud上，花了5000元` → 应输出 `在 LeanCloud 上，花了 5000 元`；验证设置弹窗 13 条规则、开关即时重排、设置文件持久化。
-2. 替换正式图标集（当前为临时生成的 RGBA PNG）。
-3. Windows/macOS 打包与嵌入式 CPython 分发策略验证（若启用 python-fallback feature）。
-4. 评估从 bundle 资源移除 `src-python/main.py` 与 `ccw_engine.py`（默认纯 Rust 构建已不使用它们；保留是为 feature 构建与 parity 基准）。
+2. 关注 `.github/workflows/build.yml` 的 Windows/macOS 构建结果；如需分发产物再启用 upload-artifact。
+3. 评估从 bundle 资源移除 `src-python/main.py` 与 `ccw_engine.py`（默认纯 Rust 构建已不使用它们；保留是为 feature 构建与 parity 基准）。
+
+## 图标
+
+完整桌面图标集（ico/icns/各尺寸 PNG）由 Tauri CLI 从 `icons/icon.png` 生成：
+`./frontend/node_modules/.bin/tauri icon src-tauri/icons/icon.png -o src-tauri/icons`。更换设计稿后重跑该命令即可。
+
+## 持续集成
+
+`.github/workflows/build.yml`：
+
+- `test` job（ubuntu）：cargo fmt + 默认纯 Rust cargo test + 前端 tsc/vite 构建；
+- `tauri-build` matrix（ubuntu/windows/macos）：三平台 `tauri build`。因默认构建不含 Python，Windows/macOS 无需任何 Python 工具链。产物上传（upload-artifact）默认注释，需要分发时再启用。

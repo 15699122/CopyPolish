@@ -1,0 +1,62 @@
+name: build
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rust toolchain
+        run: |
+          rustup update stable
+          rustup component add rustfmt clippy
+      - name: Rust tests (default, pure-Rust build)
+        working-directory: src-tauri
+        run: cargo fmt --check && cargo test
+      - name: Frontend typecheck & build
+        working-directory: frontend
+        run: npm ci && npm run build
+
+  tauri-build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            args: ""
+          - os: windows-latest
+            args: ""
+          - os: macos-latest
+            args: "--target universal-apple-darwin"
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+      - name: Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.os == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+      - name: Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build bundles
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run tauri build -- ${{ matrix.args }}
+
+      # 产物在构建日志中确认即可；如需上传，取消以下注释：
+      # - uses: actions/upload-artifact@v4
+      #   with:
+      #     name: bundle-${{ matrix.os }}
+      #     path: |
+      #       src-tauri/target/release/bundle/**
