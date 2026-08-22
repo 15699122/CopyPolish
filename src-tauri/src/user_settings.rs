@@ -21,12 +21,41 @@ pub const SETTINGS_FILE_NAME: &str = "rules.yaml";
 /// 旧版设置文件名（JSON，仅用于一次性迁移读取）。
 pub const LEGACY_SETTINGS_FILE_NAME: &str = "ccw-formatter-settings.json";
 
+/// 主题模式：跟随系统 / 浅色 / 深色。
+/// `#[serde(default)]` 确保旧版设置文件（无 theme 字段）可反序列化，
+/// 默认回退为 `System`。
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum ThemeMode {
+    System,
+    Light,
+    Dark,
+}
+
+impl Default for ThemeMode {
+    fn default() -> Self {
+        Self::System
+    }
+}
+
+impl std::fmt::Display for ThemeMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ThemeMode::System => write!(f, "system"),
+            ThemeMode::Light => write!(f, "light"),
+            ThemeMode::Dark => write!(f, "dark"),
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct UserSettings {
     #[serde(default)]
     pub enabled: Vec<String>,
     #[serde(default)]
     pub last_input: String,
+    #[serde(default)]
+    pub theme: ThemeMode,
 }
 
 impl Default for UserSettings {
@@ -34,6 +63,7 @@ impl Default for UserSettings {
         Self {
             enabled: Vec::new(),
             last_input: String::new(),
+            theme: ThemeMode::default(),
         }
     }
 }
@@ -174,13 +204,15 @@ mod tests {
         let settings = UserSettings {
             enabled: vec!["中英文之间需要增加空格".to_string()],
             last_input: "在LeanCloud上".to_string(),
+            theme: ThemeMode::Dark,
         };
         save_to(&path, &settings).expect("save should succeed");
         assert_eq!(load_from(&path), Some(settings));
-        // 保存格式必须是 YAML（含键名 enabled / last_input）。
+        // 保存格式必须是 YAML（含键名 enabled / last_input / theme）。
         let raw = fs::read_to_string(&path).expect("settings file must be readable");
         assert!(raw.contains("enabled"));
         assert!(raw.contains("last_input"));
+        assert!(raw.contains("theme"));
         let _ = fs::remove_file(&path);
     }
 
@@ -210,6 +242,7 @@ mod tests {
         let expected = UserSettings {
             enabled: vec!["中英文之间需要增加空格".to_string()],
             last_input: "在LeanCloud上".to_string(),
+            theme: ThemeMode::Light,
         };
         fs::write(
             dir.join(LEGACY_SETTINGS_FILE_NAME),
@@ -226,7 +259,7 @@ mod tests {
     #[test]
     fn corrupt_file_returns_none() {
         let path = temp_settings_file("corrupt");
-        fs::write(&path, "not json {{{").unwrap();
+        fs::write(&path, "not json {{{\"").unwrap();
         assert_eq!(load_from(&path), None);
         let _ = fs::remove_file(&path);
     }
@@ -238,6 +271,7 @@ mod tests {
         let loaded = load_from(&path).expect("should parse");
         assert_eq!(loaded.enabled, vec!["a".to_string()]);
         assert_eq!(loaded.last_input, "");
+        assert_eq!(loaded.theme, ThemeMode::System);
         let _ = fs::remove_file(&path);
     }
 
@@ -251,12 +285,23 @@ mod tests {
                 "简体中文使用直角引号".to_string(),
             ],
             last_input: "在LeanCloud上，花了5000元👍𠀀".to_string(),
+            theme: ThemeMode::Dark,
         };
         save_to(&path, &settings).expect("save should succeed");
         // 文件字节必须是合法 UTF-8 且包含原始字符。
         let raw = fs::read_to_string(&path).expect("settings file must be valid UTF-8");
         assert!(raw.contains("在LeanCloud上，花了5000元👍𠀀"));
         assert_eq!(load_from(&path), Some(settings));
+        let _ = fs::remove_file(&path);
+    }
+
+    /// 无 theme 字段的旧版设置应默认回退为 System。
+    #[test]
+    fn theme_defaults_to_system() {
+        let path = temp_settings_file("theme-default");
+        fs::write(&path, "enabled: ['rule-a']\nlast_input: 'test'\n").unwrap();
+        let loaded = load_from(&path).expect("should parse");
+        assert_eq!(loaded.theme, ThemeMode::System);
         let _ = fs::remove_file(&path);
     }
 }

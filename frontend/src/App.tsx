@@ -32,6 +32,7 @@ import {
   isTauri,
   saveUserSettings,
   type Rule,
+  type ThemeMode,
   type UserSettings,
 } from "@/lib/tauri";
 
@@ -51,7 +52,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [cleared, setCleared] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+    const [settingsOpen, setSettingsOpen] = useState(false);
 
   const debounceRef = useRef<number | null>(null);
   const settingsDebounceRef = useRef<number | null>(null);
@@ -69,10 +70,13 @@ export default function App() {
   const [settingsError, setSettingsError] = useState<string | null>(null);
   const [settingsPath, setSettingsPath] = useState<string | null>(null);
 
+  // 主题状态：system / light / dark。
+  const [theme, setTheme] = useState<ThemeMode>("system");
+
   function persistSettings(nextEnabled: string[], nextInput: string) {
     if (!hydratedRef.current) return;
     setSettingsStatus("saving");
-    saveUserSettings({ enabled: nextEnabled, last_input: nextInput })
+    saveUserSettings({ enabled: nextEnabled, last_input: nextInput, theme })
       .then(() => {
         setSettingsStatus("saved");
         setSettingsError(null);
@@ -124,6 +128,9 @@ export default function App() {
             ruleList.some((r) => r.key === k),
           );
           setEnabled(restoredEnabled);
+          if (saved.theme !== undefined) {
+            setTheme(saved.theme);
+          }
           if (saved.last_input) {
             setInput(saved.last_input);
             scheduleFormat(saved.last_input, restoredEnabled);
@@ -140,8 +147,28 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // 主题应用：更新 document.documentElement 的 data-theme 属性。
+  // system 模式下跟随 prefers-color-scheme；切换时自动更新。
+  useEffect(() => {
+    const root = document.documentElement;
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+
+    function applyTheme() {
+      const effective = theme === "system" ? (mediaQuery.matches ? "dark" : "light") : theme;
+      root.setAttribute("data-theme", effective);
+    }
+
+    applyTheme();
+    if (theme === "system") {
+      mediaQuery.addEventListener("change", applyTheme);
+    }
+    return () => {
+      mediaQuery.removeEventListener("change", applyTheme);
+    };
+  }, [theme]);
 
   // 实时排版（防抖 + 忽略乱序的旧请求）
   function scheduleFormat(nextInput: string, applyEnabled = enabled) {
@@ -233,6 +260,20 @@ export default function App() {
 
   function onClose() {
     return runWindowAction(() => getCurrentWindow().close());
+  }
+
+  function onThemeChange(nextTheme: ThemeMode) {
+    setTheme(nextTheme);
+    setSettingsStatus("saving");
+    saveUserSettings({ enabled, last_input: input, theme: nextTheme })
+      .then(() => {
+        setSettingsStatus("saved");
+        setSettingsError(null);
+      })
+      .catch((e) => {
+        setSettingsStatus("error");
+        setSettingsError(String(e));
+      });
   }
 
   // 标题栏按下时显式启动窗口拖动；控制按钮区域已在容器上 stopPropagation。
@@ -347,7 +388,7 @@ return (
               设置
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-h-[80vh] max-w-md">
+                    <DialogContent className="max-h-[80vh] max-w-md">
             <DialogHeader>
               <DialogTitle>设置 — 排版规则</DialogTitle>
               <DialogDescription>
@@ -357,6 +398,49 @@ return (
 
             <ScrollArea className="h-[50vh] pr-4">
               <div className="space-y-4">
+                {/* 主题设置 */}
+                <div className="space-y-2">
+                  <h3 className="text-sm font-semibold">主题</h3>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-3">
+                      <input
+                        type="radio"
+                        name="theme"
+                        value="system"
+                        checked={theme === "system"}
+                        onChange={() => onThemeChange("system")}
+                        data-testid="theme-system"
+                        className="h-4 w-4"
+                      />
+                      <span className="text-sm">跟随系统</span>
+                    </label>
+                    <label className="flex items-center gap-3">
+                      <input
+                        type="radio"
+                        name="theme"
+                        value="light"
+                        checked={theme === "light"}
+                        onChange={() => onThemeChange("light")}
+                        data-testid="theme-light"
+                        className="h-4 w-4"
+                      />
+                      <span className="text-sm">浅色</span>
+                    </label>
+                    <label className="flex items-center gap-3">
+                      <input
+                        type="radio"
+                        name="theme"
+                        value="dark"
+                        checked={theme === "dark"}
+                        onChange={() => onThemeChange("dark")}
+                        data-testid="theme-dark"
+                        className="h-4 w-4"
+                      />
+                      <span className="text-sm">深色</span>
+                    </label>
+                  </div>
+                </div>
+
                 {groups.map(([section, items]) => (
                   <div key={section}>
                     <h3 className="mb-2 text-sm font-semibold">{section}</h3>
@@ -389,26 +473,31 @@ return (
               </div>
             </ScrollArea>
 
-            <DialogFooter className="flex items-center justify-between gap-2">
-              <div className="flex min-w-0 flex-col gap-0.5 text-xs">
-                {settingsStatus === "saving" && (
-                  <span className="text-muted-foreground" data-testid="settings-status">正在保存…</span>
-                )}
-                {settingsStatus === "saved" && (
-                  <span className="text-green-600" data-testid="settings-status">设置已保存</span>
-                )}
-                {settingsStatus === "error" && (
-                  <span className="text-destructive break-all" data-testid="settings-status">
-                    设置保存失败：{settingsError}
-                  </span>
-                )}
-                {settingsPath && (
-                  <span className="truncate text-muted-foreground" title={settingsPath}>
-                    设置文件：{settingsPath}
-                  </span>
-                )}
+            <DialogFooter className="flex flex-col gap-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex min-w-0 flex-1 flex-col gap-0.5 text-xs">
+                  {settingsStatus === "saving" && (
+                    <span className="text-muted-foreground" data-testid="settings-status">正在保存…</span>
+                  )}
+                  {settingsStatus === "saved" && (
+                    <span className="text-green-600" data-testid="settings-status">设置已保存</span>
+                  )}
+                  {settingsStatus === "error" && (
+                    <span className="text-destructive break-words" data-testid="settings-status">
+                      设置保存失败：{settingsError}
+                    </span>
+                  )}
+                  {settingsPath && (
+                    <span className="break-all text-muted-foreground" title={settingsPath}>
+                      设置文件：{settingsPath}
+                    </span>
+                  )}
+                </div>
+                <Button size="sm" data-testid="settings-done" onClick={() => setSettingsOpen(false)}>
+                  完成
+                </Button>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap justify-end gap-2">
                 <Button variant="outline" size="sm" data-testid="select-all" onClick={() => onSetAll(true)}>
                   全选
                 </Button>
@@ -419,9 +508,6 @@ return (
                   恢复默认
                 </Button>
               </div>
-              <Button size="sm" data-testid="settings-done" onClick={() => setSettingsOpen(false)}>
-                完成
-              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

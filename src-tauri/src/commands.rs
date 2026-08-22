@@ -34,10 +34,14 @@ pub fn get_settings_path() -> Result<String, String> {
         .into_owned())
 }
 
-/// save_user_settings(enabled, last_input)：写入 exe 同目录设置文件。
+/// save_user_settings(enabled, lastInput, theme)：写入 exe 同目录设置文件。
 /// 过滤掉引擎中不存在的规则 key，避免旧设置中的已删除规则被回写。
 #[tauri::command]
-pub fn save_user_settings(enabled: Vec<String>, last_input: String) -> Result<(), String> {
+pub fn save_user_settings(
+    enabled: Vec<String>,
+    last_input: String,
+    theme: crate::user_settings::ThemeMode,
+) -> Result<(), String> {
     let known: std::collections::HashSet<String> = rust_engine::default_rules()
         .into_iter()
         .map(|r| r.key)
@@ -46,6 +50,7 @@ pub fn save_user_settings(enabled: Vec<String>, last_input: String) -> Result<()
     crate::user_settings::save(&crate::user_settings::UserSettings {
         enabled: filtered,
         last_input,
+        theme,
     })
 }
 

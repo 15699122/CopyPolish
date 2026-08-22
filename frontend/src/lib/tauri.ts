@@ -74,9 +74,12 @@ export async function getEnabledDefaults(): Promise<string[]> {
 // 浏览器预览时回退到 localStorage）。
 // ---------------------------------------------------------------------------
 
+export type ThemeMode = "system" | "light" | "dark";
+
 export interface UserSettings {
   enabled: string[];
   last_input: string;
+  theme: ThemeMode;
 }
 
 const LS_SETTINGS_KEY = "ccw-formatter-settings";
@@ -91,12 +94,24 @@ export async function getUserSettings(): Promise<UserSettings | null> {
   if (!isTauri()) {
     try {
       const raw = window.localStorage.getItem(LS_SETTINGS_KEY);
-      return raw ? (JSON.parse(raw) as UserSettings) : null;
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as UserSettings;
+      return {
+        enabled: parsed.enabled ?? [],
+        last_input: parsed.last_input ?? "",
+        theme: ensureThemeMode(parsed.theme),
+      };
     } catch {
       return null;
     }
   }
-  return invoke<UserSettings | null>("get_user_settings");
+  const settings = await invoke<UserSettings | null>("get_user_settings");
+  if (!settings) return null;
+  return {
+    enabled: settings.enabled ?? [],
+    last_input: settings.last_input ?? "",
+    theme: ensureThemeMode(settings.theme),
+  };
 }
 
 export async function saveUserSettings(settings: UserSettings): Promise<void> {
@@ -110,6 +125,12 @@ export async function saveUserSettings(settings: UserSettings): Promise<void> {
   }
   await invoke("save_user_settings", {
     enabled: settings.enabled,
-    last_input: settings.last_input,
+    lastInput: settings.last_input,
+    theme: settings.theme,
   });
+}
+
+function ensureThemeMode(value: unknown): ThemeMode {
+  if (value === "light" || value === "dark") return value;
+  return "system";
 }
