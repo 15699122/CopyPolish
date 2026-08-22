@@ -1,0 +1,296 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Check, Copy, Eraser, Settings } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  formatText,
+  getEnabledDefaults,
+  getRules,
+  isTauri,
+  type Rule,
+} from "@/lib/tauri";
+
+const APP_NAME = "中文文案排版助手";
+const DEBOUNCE_MS = 160;
+
+/**
+ * 主界面：左输入 / 右输出（小窗口时上下堆叠）+ 操作栏 + 规则设置对话框。
+ * 排版由 Tauri 侧 Python 引擎完成；浏览器预览时走内置回退实现。
+ */
+export default function App() {
+  const [input, setInput] = useState("");
+  const [output, setOutput] = useState("");
+  const [rules, setRules] = useState<Rule[]>([]);
+  const [enabled, setEnabled] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [cleared, setCleared] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  const debounceRef = useRef<number | null>(null);
+  const seqRef = useRef(0);
+
+  const enabledSet = useMemo(() => new Set(enabled), [enabled]);
+
+  // 初始化：加载规则与默认启用集
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [ruleList, defaults] = await Promise.all([
+          getRules(),
+          getEnabledDefaults(),
+        ]);
+        if (cancelled) return;
+        setRules(ruleList);
+        setEnabled(defaults.filter((k) => ruleList.some((r) => r.key === k)));
+      } catch (e) {
+        setError(String(e));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // 实时排版（防抖 + 忽略乱序的旧请求）
+  function scheduleFormat(nextInput: string, applyEnabled = enabled) {
+    if (debounceRef.current !== null) window.clearTimeout(debounceRef.current);
+    debounceRef.current = window.setTimeout(async () => {
+      const seq = ++seqRef.current;
+      try {
+        const result = await formatText({ text: nextInput, enabled: applyEnabled });
+        if (seqRef.current === seq) setOutput(result);
+      } catch (e) {
+        if (seqRef.current === seq) setError(String(e));
+      } finally {
+        if (seqRef.current === seq) setError((prev) => (prev ? prev : null));
+      }
+    }, DEBOUNCE_MS);
+  }
+
+  function onInputChange(value: string) {
+    setInput(value);
+    scheduleFormat(value);
+  }
+
+  function onToggleRule(key: string) {
+    let next: string[];
+    if (enabledSet.has(key)) {
+      next = enabled.filter((k) => k !== key);
+    } else {
+      next = [...enabled, key];
+    }
+    setEnabled(next);
+    scheduleFormat(input, next); // 规则变更后立即重排
+  }
+
+  function onSetAll(on: boolean) {
+    const next = on ? rules.map((r) => r.key) : [];
+    setEnabled(next);
+    scheduleFormat(input, next);
+  }
+
+  function onResetDefaults() {
+    const next = rules.filter((r) => r.default).map((r) => r.key);
+    setEnabled(next);
+    scheduleFormat(input, next);
+  }
+
+  async function onCopy() {
+    if (!output) return;
+    try {
+      await navigator.clipboard.writeText(output);
+    } catch (e) {
+      setError(String(e));
+      return;
+    }
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1200);
+  }
+
+  function onClear() {
+    setInput("");
+    setOutput("");
+    if (debounceRef.current !== null) window.clearTimeout(debounceRef.current);
+    setError(null);
+    setCleared(true);
+    window.setTimeout(() => setCleared(false), 1200);
+  }
+
+  // 按 section 分组规则
+  const groups = useMemo(() => {
+    const map = new Map<string, Rule[]>();
+    for (const r of rules) {
+      const list = map.get(r.section) ?? [];
+      list.push(r);
+      map.set(r.section, list);
+    }
+    return Array.from(map.entries());
+  }, [rules]);
+return (
+    <div className="flex min-h-svh flex-col bg-background text-foreground">
+      {/* 标题栏 */}
+      <header className="flex items-center justify-between border-b px-6 py-4">
+        <div>
+          <h1 className="text-xl font-bold leading-tight">{APP_NAME}</h1>
+          <p className="text-xs text-muted-foreground">
+            {isTauri()
+              ? "实时保护 LaTeX / Markdown 结构"
+              : "浏览器预览模式 · 内置回退排版"}
+          </p>
+        </div>
+      </header>
+
+      {/* 主体：左右双栏，小窗口上下堆叠 */}
+      <main className="grid flex-1 gap-4 p-4 md:grid-cols-2">
+        <Card className="flex min-h-0 flex-col">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">输入文字</CardTitle>
+            <CardDescription className="text-xs">粘贴后自动排版</CardDescription>
+          </CardHeader>
+          <CardContent className="flex min-h-0 flex-1">
+            <Textarea
+              className="min-h-0 flex-1 resize-none"
+              placeholder="在LeanCloud上，花了5000元"
+              value={input}
+              onChange={(e) => onInputChange(e.target.value)}
+            />
+          </CardContent>
+        </Card>
+
+        <Card className="flex min-h-0 flex-col">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">规范化结果（实时）</CardTitle>
+            <CardDescription className="text-xs">
+              {error ? (
+                <span className="text-destructive">排版出错：{error}</span>
+              ) : (
+                "由规则引擎生成"
+              )}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex min-h-0 flex-1">
+            <ScrollArea className="w-full">
+              <pre className="whitespace-pre-wrap break-words font-sans text-sm">
+                {output}
+              </pre>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+      </main>
+
+      {/* 操作栏 */}
+      <footer className="flex items-center gap-2 border-t px-6 py-4">
+        <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+          <DialogTrigger asChild>
+            <Button variant="outline" size="sm">
+              <Settings className="h-4 w-4" />
+              设置
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-h-[80vh] max-w-md">
+            <DialogHeader>
+              <DialogTitle>设置 — 排版规则</DialogTitle>
+              <DialogDescription>
+                逐条启用/停用规则。已启用 {enabled.length}/{rules.length} 条
+              </DialogDescription>
+            </DialogHeader>
+
+            <ScrollArea className="h-[50vh] pr-4">
+              <div className="space-y-4">
+                {groups.map(([section, items]) => (
+                  <div key={section}>
+                    <h3 className="mb-2 text-sm font-semibold">{section}</h3>
+                    <div className="space-y-2">
+                      {items.map((r) => (
+                        <div key={r.key} className="flex items-start gap-3">
+                          <Checkbox
+                            id={`rule-${r.key}`}
+                            checked={enabledSet.has(r.key)}
+                            onCheckedChange={() => onToggleRule(r.key)}
+                          />
+                          <Label
+                            htmlFor={`rule-${r.key}`}
+                            className="text-sm leading-snug"
+                          >
+                            {r.name}
+                            {r.disputed && (
+                              <span className="ml-1 text-xs text-muted-foreground">
+                                （争议，默认关闭）
+                              </span>
+                            )}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+
+            <DialogFooter className="flex items-center justify-between gap-2">
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => onSetAll(true)}>
+                  全选
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => onSetAll(false)}>
+                  全不选
+                </Button>
+                <Button variant="outline" size="sm" onClick={onResetDefaults}>
+                  恢复默认
+                </Button>
+              </div>
+              <Button size="sm" onClick={() => setSettingsOpen(false)}>
+                完成
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Button variant="outline" size="sm" onClick={onClear}>
+          {cleared ? (
+            <Check className="h-4 w-4 text-green-600" />
+          ) : (
+            <Eraser className="h-4 w-4" />
+          )}
+          清除输入
+        </Button>
+
+        <div className="ml-auto">
+          <Button size="sm" onClick={onCopy} disabled={!output}>
+            {copied ? (
+              <>
+                <Check className="h-4 w-4 text-green-600" />
+                已复制
+              </>
+            ) : (
+              <Copy className="h-4 w-4" />
+            )}
+            复制结果
+          </Button>
+        </div>
+      </footer>
+    </div>
+  );
+}

@@ -1,0 +1,22 @@
+[package]
+name = "chinese-copywriting-formatter"
+version = "0.1.0"
+description = "中文文案排版助手"
+authors = ["chinese-copywriting-formatter"]
+edition = "2021"
+
+# 参考脚手架：本机尚未安装 cargo / pkg-config / libpython，需先安装工具链后再编译。
+[lib]
+name = "chinese_copywriting_formatter_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+# PyO3：Rust 内嵌并调用 CPython 3.14（路线 B，已在本机验证链路可通）。
+# auto-initialize 使解释器首次调用时自动初始化；PYO3_PYTHON 指向 /usr/bin/python3.14。
+pyo3 = { version = "0.29", features = ["auto-initialize"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

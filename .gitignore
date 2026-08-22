@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pylib/
+*.egg-info/
+
+# 构建产物（旧 GUI PyInstaller）
+build/
+dist/
+*.spec
+
+# 前端（Vite + shadcn/ui）
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Rust / Tauri
+src-tauri/target/
+src-tauri/gen/
+src-tauri/src-python/.venv/
+
+# 编辑器 / 系统
+.DS_Store
+*.log

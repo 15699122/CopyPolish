@@ -1,0 +1,33 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "中文文案排版助手",
+  "version": "0.1.0",
+  "identifier": "com.ccw.formatter",
+  "build": {
+    "beforeDevCommand": "if [ -d ../frontend ]; then npm run dev --prefix ../frontend; else npm run dev --prefix frontend; fi",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "if [ -d ../frontend ]; then npm run build --prefix ../frontend; else npm run build --prefix frontend; fi",
+    "frontendDist": "../frontend/dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "中文文案排版助手",
+        "width": 920,
+        "height": 720,
+        "minWidth": 720,
+        "minHeight": 540,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "resources": ["src-python/main.py", "../ccw_engine.py", "../rules.yaml"],
+    "icon": ["icons/icon.png"]
+  }
+}
