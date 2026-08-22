@@ -68,3 +68,42 @@ export async function getEnabledDefaults(): Promise<string[]> {
   if (!isTauri()) return FALLBACK_RULES.filter((r) => r.default).map((r) => r.key);
   return invoke<string[]>("get_enabled_defaults");
 }
+
+// ---------------------------------------------------------------------------
+// 用户设置持久化（保存在当前工作目录的 ccw-formatter-settings.json；
+// 浏览器预览时回退到 localStorage）。与旧版 rules.yaml 设置无关。
+// ---------------------------------------------------------------------------
+
+export interface UserSettings {
+  enabled: string[];
+  last_input: string;
+}
+
+const LS_SETTINGS_KEY = "ccw-formatter-settings";
+
+export async function getUserSettings(): Promise<UserSettings | null> {
+  if (!isTauri()) {
+    try {
+      const raw = window.localStorage.getItem(LS_SETTINGS_KEY);
+      return raw ? (JSON.parse(raw) as UserSettings) : null;
+    } catch {
+      return null;
+    }
+  }
+  return invoke<UserSettings | null>("get_user_settings");
+}
+
+export async function saveUserSettings(settings: UserSettings): Promise<void> {
+  if (!isTauri()) {
+    try {
+      window.localStorage.setItem(LS_SETTINGS_KEY, JSON.stringify(settings));
+    } catch {
+      // localStorage 不可用时静默忽略（预览环境）。
+    }
+    return;
+  }
+  await invoke("save_user_settings", {
+    enabled: settings.enabled,
+    last_input: settings.last_input,
+  });
+}

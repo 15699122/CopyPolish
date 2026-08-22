@@ -30,6 +30,22 @@ pub fn format_text(text: String, enabled: Vec<String>) -> Result<String, String>
     }
 }
 
+/// get_user_settings() -> Option<UserSettings>
+/// 读取当前工作目录设置文件；不存在时返回 None（前端使用默认规则集）。
+#[tauri::command]
+pub fn get_user_settings() -> Result<Option<crate::user_settings::UserSettings>, String> {
+    Ok(crate::user_settings::load())
+}
+
+/// save_user_settings(enabled, last_input)：写入当前工作目录设置文件。
+#[tauri::command]
+pub fn save_user_settings(enabled: Vec<String>, last_input: String) -> Result<(), String> {
+    crate::user_settings::save(&crate::user_settings::UserSettings {
+        enabled,
+        last_input,
+    })
+}
+
 /// get_rules() -> Vec<RuleMeta>
 /// Rust 端内置规则元数据；仅在异常情况下回退 Python/rules.yaml。
 #[tauri::command]

@@ -2,12 +2,7 @@
 
 中文文案排版助手（Chinese Copywriting Formatter）是一款本地桌面端中文文案排版工具，用于按照 [chinese-copywriting-guidelines](https://github.com/sparanoid/chinese-copywriting-guidelines) 的简体中文文案规范，自动整理中文、英文、数字、单位和标点之间的格式。
 
-项目当前有两条界面路线：
-
-- **新版主线（进行中）**：Tauri 2 + React + shadcn/ui 前端，Rust/PyO3 在进程内调用现有 Python 规则引擎 `ccw_engine.py`。该路线已经可以构建、运行、通过 Rust/PyO3 桥接测试，并可生成 Linux deb/rpm/AppImage 包。
-- **旧版可用界面**：Python + `customtkinter` GUI，仍可按下文方式本地运行。
-
-两条路线共享同一套核心规则引擎：左侧输入原文，右侧实时显示规范化结果；规则可逐条启用或关闭。
+项目界面为 Tauri 2 + React + shadcn/ui 前端，后端以 Rust 原生排版引擎为主路径（`ccw_engine.py` 经 PyO3 作为兜底保留）。左侧输入原文，右侧实时显示规范化结果；规则可逐条启用或关闭。
 
 ## 功能亮点
 
@@ -16,13 +11,10 @@
 - **规则可配置**：设置窗口支持逐条启用/停用规则，也支持全选、全不选和恢复默认。
 - **争议规则默认关闭**：例如链接之间增加空格、简体中文使用直角引号，可按个人习惯开启。
 - **Markdown / LaTeX 保护**：尽量避免误改代码块、行内代码、链接、图片链接、URL、邮箱和公式内容。
-- **低依赖规则引擎**：核心排版逻辑在 `ccw_engine.py`，不依赖 GUI；`rules.yaml` 可由内置轻量 YAML 读写器处理，PyYAML 不是必需依赖。
-- **现代桌面壳迁移中**：新版使用 Tauri 2 承载 React/shadcn/ui，前端只通过受限 Tauri commands 调用 Rust/PyO3，避免向 UI 暴露任意 Python 调用。
-- **Rust 原生后端迁移中**：新版 Tauri 已新增第一版 Rust 文字处理引擎，参考 `typeset-rs` 的字符分类与渲染管线思路，当前采用 Rust 优先、Python/PyO3 回退的保守策略。
-- **浏览器预览回退**：新版前端在非 Tauri 浏览器环境中也可以预览界面和基础交互，便于开发调试。
-- **旧版 GUI 仍可运行**：customtkinter 版本固定浅色界面，主窗口为自绘圆角窗口，设置窗口保留系统标题栏。
-
-> 说明：旧版 customtkinter GUI 会把规则启用状态与最近输入写入 `rules.yaml`。新版 Tauri 路线当前优先完成格式化与规则开关链路，后续计划改为把用户设置持久化到系统 AppData，而不是直接修改随包分发的 `rules.yaml`。
+- **低依赖规则引擎**：Rust 原生引擎为主路径；`ccw_engine.py` 仅作为兜底保留。
+- **现代桌面壳**：使用 Tauri 2 承载 React/shadcn/ui，前端只通过受限 Tauri commands 访问后端。
+- **用户设置持久化**：规则开关与最近输入保存在当前工作目录的 `ccw-formatter-settings.json`，启动时自动恢复。
+- **浏览器预览回退**：前端在非 Tauri 浏览器环境中也可以预览界面和基础交互（设置回退到 localStorage），便于开发调试。
 
 ## 当前 Tauri 版状态
 
@@ -67,33 +59,7 @@
 
 ## 安装要求
 
-### 旧版 Python GUI
-
-推荐环境：
-
-- Python 3.10 或更高版本；当前开发环境使用 Python 3.14。
-- tkinter。
-  - Debian / Ubuntu 可安装：
-    ```bash
-    sudo apt install python3-tk
-    ```
-- customtkinter。
-
-安装 GUI 依赖：
-
-```bash
-python3 -m pip install customtkinter
-```
-
-如果使用项目本地虚拟环境，可执行：
-
-```bash
-.venv/bin/python -m pip install customtkinter
-```
-
-`rules.yaml` 的读写优先使用 PyYAML；如果未安装 PyYAML，程序会回退到项目内置的轻量 YAML 子集读写器。
-
-### 新版 Tauri 开发环境
+### Tauri 开发环境
 
 Tauri 版开发需要：
 
@@ -132,26 +98,6 @@ npm run tauri build
 src-tauri/target/release/bundle/
 ```
 
-### 旧版 Python GUI
-
-在项目目录中运行：
-
-```bash
-./run.sh
-```
-
-或直接运行入口文件：
-
-```bash
-python chinese_copywriting_formatter.py
-```
-
-如果使用项目虚拟环境：
-
-```bash
-.venv/bin/python chinese_copywriting_formatter.py
-```
-
 ## 基本使用
 
 1. 启动应用。
@@ -177,44 +123,40 @@ python chinese_copywriting_formatter.py
 
 例如 `$E=mc^2$`、代码块中的符号、链接地址通常不会被规则拆开或替换。
 
-## 配置文件
+## 用户设置
 
-`rules.yaml` 同时保存两类内容：
+用户设置（已启用规则 + 最近输入）保存在**当前工作目录**下的：
 
-- `rules`：规则元数据，包括章节、默认启用状态、是否争议规则。
-- `settings`：用户本地状态，包括已启用规则和最近输入。
+```text
+ccw-formatter-settings.json
+```
 
 示例：
 
-```yaml
-settings:
-  enabled:
-  last_input: ""
+```json
+{
+  "enabled": ["中英文之间需要增加空格", "数字使用半角字符"],
+  "last_input": "在LeanCloud上，花了5000元"
+}
 ```
 
-如需恢复默认状态，可关闭程序后手动清空 `settings.enabled` 与 `settings.last_input`，或在设置窗口中点击恢复默认。
+- 启动时自动恢复；文件缺失或损坏时使用内置默认规则集。
+- 该文件已加入 `.gitignore`，不会进入版本库。
+- 旧版 customtkinter GUI 的 `rules.yaml` 设置已废弃，不再读取或写入。
 
 ## 测试
 
-完整 Python 测试：
+完整 Python 测试（规则引擎兜底实现）：
 
 ```bash
 .venv/bin/python -m unittest discover -s test
 ```
 
-规则引擎单元测试：
+双引擎 parity 对比（Python vs Rust，71 条语料 × 两种模式）：
 
 ```bash
-.venv/bin/python -m unittest -v test.test_ccw_engine
+.venv/bin/python test/compare_rust_parity.py
 ```
-
-GUI 集成冒烟测试：
-
-```bash
-.venv/bin/python -m test.gui_integration_test
-```
-
-GUI 测试需要可用图形显示环境；没有 display 时会跳过。
 
 Tauri/Rust 检查：
 
@@ -224,22 +166,6 @@ cargo check --manifest-path src-tauri/Cargo.toml
 cargo test --manifest-path src-tauri/Cargo.toml
 npm run build --prefix frontend
 ```
-
-## Windows 打包
-
-Windows 10/11 上可在项目根目录运行：
-
-```bat
-packaging\build_win.bat
-```
-
-脚本会使用 PyInstaller 构建单文件窗口程序，并将结果移动到：
-
-```text
-build\windows\chinese_copywriting_formatter.exe
-```
-
-项目也包含 GitHub Actions 工作流 `.github/workflows/build-windows.yml`，用于在 Windows runner 上生成 exe 构建产物。
 
 ## 开发文档
 

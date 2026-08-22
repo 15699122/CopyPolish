@@ -26,8 +26,11 @@ import {
   formatText,
   getEnabledDefaults,
   getRules,
+  getUserSettings,
   isTauri,
+  saveUserSettings,
   type Rule,
+  type UserSettings,
 } from "@/lib/tauri";
 
 const APP_NAME = "中文文案排版助手";
@@ -48,11 +51,29 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const debounceRef = useRef<number | null>(null);
+  const settingsDebounceRef = useRef<number | null>(null);
   const seqRef = useRef(0);
+
+  // 规则加载完成后置 true，避免恢复流程把用户设置覆盖为默认值。
+  const hydratedRef = useRef(false);
 
   const enabledSet = useMemo(() => new Set(enabled), [enabled]);
 
-  // 初始化：加载规则与默认启用集
+  function persistSettings(nextEnabled: string[], nextInput: string) {
+    if (!hydratedRef.current) return;
+    saveUserSettings({ enabled: nextEnabled, last_input: nextInput }).catch(() => {
+      // 持久化失败不打断排版主流程。
+    });
+  }
+
+  function schedulePersist(nextEnabled: string[], nextInput: string) {
+    if (settingsDebounceRef.current !== null) window.clearTimeout(settingsDebounceRef.current);
+    settingsDebounceRef.current = window.setTimeout(() => {
+      persistSettings(nextEnabled, nextInput);
+    }, DEBOUNCE_MS);
+  }
+
+  // 初始化：加载规则与默认启用集；随后恢复上次保存的用户设置（若有）。
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -63,14 +84,37 @@ export default function App() {
         ]);
         if (cancelled) return;
         setRules(ruleList);
-        setEnabled(defaults.filter((k) => ruleList.some((r) => r.key === k)));
+
+        let saved: UserSettings | null = null;
+        try {
+          saved = await getUserSettings();
+        } catch {
+          saved = null;
+        }
+        if (cancelled) return;
+
+        if (saved && Array.isArray(saved.enabled)) {
+          const restoredEnabled = saved.enabled.filter((k) =>
+            ruleList.some((r) => r.key === k),
+          );
+          setEnabled(restoredEnabled);
+          if (saved.last_input) {
+            setInput(saved.last_input);
+            scheduleFormat(saved.last_input, restoredEnabled);
+          }
+        } else {
+          setEnabled(defaults.filter((k) => ruleList.some((r) => r.key === k)));
+        }
+        hydratedRef.current = true;
       } catch (e) {
         setError(String(e));
+        hydratedRef.current = true;
       }
     })();
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // 实时排版（防抖 + 忽略乱序的旧请求）
@@ -92,6 +136,7 @@ export default function App() {
   function onInputChange(value: string) {
     setInput(value);
     scheduleFormat(value);
+    schedulePersist(enabled, value);
   }
 
   function onToggleRule(key: string) {
@@ -103,18 +148,21 @@ export default function App() {
     }
     setEnabled(next);
     scheduleFormat(input, next); // 规则变更后立即重排
+    persistSettings(next, input);
   }
 
   function onSetAll(on: boolean) {
     const next = on ? rules.map((r) => r.key) : [];
     setEnabled(next);
     scheduleFormat(input, next);
+    persistSettings(next, input);
   }
 
   function onResetDefaults() {
     const next = rules.filter((r) => r.default).map((r) => r.key);
     setEnabled(next);
     scheduleFormat(input, next);
+    persistSettings(next, input);
   }
 
   async function onCopy() {
@@ -136,6 +184,7 @@ export default function App() {
     setError(null);
     setCleared(true);
     window.setTimeout(() => setCleared(false), 1200);
+    persistSettings(enabled, "");
   }
 
   // 按 section 分组规则
