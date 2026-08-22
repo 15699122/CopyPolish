@@ -328,7 +328,7 @@ return (
           <CardContent className="flex min-h-0 min-w-0 flex-1 flex-col">
             <div className="min-h-0 w-full flex-1 overflow-auto rounded-md border bg-background p-3">
               <pre
-                className="w-full whitespace-pre-wrap break-words font-sans text-sm"
+                className="w-full whitespace-pre-wrap wrap-break-word font-sans text-sm"
                 data-testid="output-text"
               >
                 {output}
