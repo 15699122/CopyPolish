@@ -1,17 +1,16 @@
 # -*- coding: utf-8 -*-
-"""中文文案排版助手 · 规则引擎（纯 Python，不依赖 GUI）
+"""文案净排（CopyPolish） · 规则引擎（纯 Python，不依赖 GUI）
 
 规则来源：chinese-copywriting-guidelines（简体中文分支）
 https://raw.githubusercontent.com/sparanoid/chinese-copywriting-guidelines/master/README.zh-Hans.md
 
-本模块实现 13 条排版规则的文本转换，可独立于 GUI 运行与测试：
+本模块实现 12 条排版规则的文本转换，可独立于 GUI 运行与测试：
   空格        中英文之间需要增加空格 / 中文与数字之间需要增加空格
               数字与单位之间需要增加空格 / 全角标点与其他字符之间不加空格
-              用 text-spacing 来挽救？（说明）
   标点符号    不重复使用标点符号
   全角和半角  使用全角中文标点 / 数字使用半角字符
               遇到完整的英文整句、特殊名词，其内容使用半角标点
-  名词        专有名词使用正确的大小写 / 不要使用不地道的缩写
+  名词        专有名词使用正确的大小写 / 不要使用不地道的缩写（均默认关闭）
   争议        链接之间增加空格 / 简体中文使用直角引号
 """
 
@@ -20,9 +19,9 @@ import os
 import re
 
 # ---------------------------------------------------------------------------
-# 标准库轻量 YAML 子集读写（零第三方依赖，供 rules.yaml 使用）。
+# 标准库轻量 YAML 子集读写（零第三方依赖，供 rule_catalog.yaml 使用）。
 # 优先使用 PyYAML（若可用），否则回退内置实现。支持注释、嵌套 dict/list、
-# 以及 str/int/bool/float/None 标量。解析足够支撑本项目 rules.yaml。
+# 以及 str/int/bool/float/None 标量。解析足够支撑本项目 rule_catalog.yaml。
 # 说明：这里用 importlib.import_module 做动态导入而非静态 import yaml，
 # 以在不安装 PyYAML 的环境下避免 Pylance 报“无法从源解析导入”告警；
 # 运行时行为与静态导入完全一致（可用则用，不可用则回退内置实现）。
@@ -395,11 +394,6 @@ def _r_fw_punct_no_space(text):
     return text
 
 
-def _r_css_text_spacing(text):
-    """5. 用 text-spacing 来挽救？（CSS 自动排版说明，无需文本转换）"""
-    return text
-
-
 def _r_no_repeat_punct(text):
     """6. 不重复使用标点符号"""
     text = re.sub(r"([！？!?~～])\1+", r"\1", text)
@@ -525,19 +519,19 @@ def _rule(key, section, name, disputed, fn, default=None):
             "disputed": disputed, "default": default, "fn": fn}
 
 
-# 内嵌规则表：元数据（section/disputed/default）可由 rules.yaml 覆盖，fn 不可序列化，保留于此。
+# 内嵌规则表：元数据（section/disputed/default）可由 rule_catalog.yaml 覆盖，fn 不可序列化，保留于此。
 _EMBEDDED_RULES = [
     _rule(_slug("中英文之间需要增加空格"), "空格", "中英文之间需要增加空格", False, _r_cn_en_space),
     _rule(_slug("中文与数字之间需要增加空格"), "空格", "中文与数字之间需要增加空格", False, _r_cn_digit_space),
     _rule(_slug("数字与单位之间需要增加空格"), "空格", "数字与单位之间需要增加空格", False, _r_digit_unit_space),
     _rule(_slug("全角标点与其他字符之间不加空格"), "空格", "全角标点与其他字符之间不加空格", False, _r_fw_punct_no_space),
-    _rule(_slug("用 `text-spacing` 来挽救？"), "空格", "用 text-spacing 来挽救？（说明：CSS 自动排版）", False, _r_css_text_spacing),
     _rule(_slug("不重复使用标点符号"), "标点符号", "不重复使用标点符号", False, _r_no_repeat_punct),
     _rule(_slug("使用全角中文标点"), "全角和半角", "使用全角中文标点", False, _r_fullwidth_chinese_punct),
     _rule(_slug("数字使用半角字符"), "全角和半角", "数字使用半角字符", False, _r_fullwidth_digits),
     _rule(_slug("遇到完整的英文整句、特殊名词，其内容使用半角标点"), "全角和半角", "遇到完整的英文整句、特殊名词，其内容使用半角标点", False, _r_halfwidth_in_english),
-    _rule(_slug("专有名词使用正确的大小写"), "名词", "专有名词使用正确的大小写", False, _r_proper_nouns),
-    _rule(_slug("不要使用不地道的缩写"), "名词", "不要使用不地道的缩写", False, _r_no_abbr),
+    # 专有名词 / 缩写规则误改概率较高，默认关闭，由用户手动启用。
+    _rule(_slug("专有名词使用正确的大小写"), "名词", "专有名词使用正确的大小写", False, _r_proper_nouns, default=False),
+    _rule(_slug("不要使用不地道的缩写"), "名词", "不要使用不地道的缩写", False, _r_no_abbr, default=False),
     _rule(_slug("链接之间增加空格"), "争议", "链接之间增加空格", True, _r_space_around_links),
     _rule(_slug("简体中文使用直角引号"), "争议", "简体中文使用直角引号", True, _r_corner_quotes),
 ]
@@ -581,13 +575,13 @@ def format_text(text, enabled=None):
 
 
 # ---------------------------------------------------------------------------
-# 规则装载与设置持久化（rules.yaml）
+# 规则装载与设置持久化（rule_catalog.yaml 元数据；运行时用户设置由 Rust 端 rules.yaml 管理）
 # ---------------------------------------------------------------------------
-_RULES_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "rules.yaml")
+_RULES_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "rule_catalog.yaml")
 
 
 def load_rules(path=None):
-    """从 rules.yaml 读取规则元数据，用内置实现补回 fn，重建并返回 RULES。
+    """从 rule_catalog.yaml 读取规则元数据，用内置实现补回 fn，重建并返回 RULES。
 
     yaml 中缺失的 key 保持内嵌默认；yaml 中多余但无内置实现的 key 会被忽略。
     失败时（无文件 / 解析出错）返回内嵌 RULES。
@@ -625,7 +619,7 @@ def load_rules(path=None):
 
 
 def load_settings(path=None):
-    """读取 rules.yaml 的 settings 段；返回 (enabled_set, last_input)。"""
+    """读取 rule_catalog.yaml 的 settings 段；返回 (enabled_set, last_input)。"""
     path = path or _RULES_PATH
     data = load_yaml(path)
     st = data.get("settings") if isinstance(data, dict) else None
@@ -641,7 +635,7 @@ def load_settings(path=None):
 
 
 def save_settings(enabled, last_input="", path=None):
-    """把用户设置写回 rules.yaml（保留 rules 元数据段）。"""
+    """把用户设置写回 rule_catalog.yaml（保留 rules 元数据段）。"""
     path = path or _RULES_PATH
     data = load_yaml(path)
     if not isinstance(data, dict):
@@ -657,7 +651,7 @@ def save_settings(enabled, last_input="", path=None):
 
 
 def ensure_defaults(path=None):
-    """若 rules.yaml 不存在或缺少 settings，用内置默认补齐并写回。"""
+    """若 rule_catalog.yaml 不存在或缺少 settings，用内置默认补齐并写回。"""
     path = path or _RULES_PATH
     data = load_yaml(path)
     if not isinstance(data, dict) or "rules" not in data:
@@ -673,7 +667,7 @@ def ensure_defaults(path=None):
 def initialize(config_path=None):
     """显式初始化默认配置（必要时写盘），由宿主（GUI / Rust / PyO3）按需调用。
 
-    注意：模块导入阶段不再自动写 rules.yaml，避免在只读资源目录或
+    注意：模块导入阶段不再自动写 rule_catalog.yaml，避免在只读资源目录或
     嵌入 CPython 场景下产生隐式副作用。config_path=None 表示使用默认路径。
     """
     ensure_defaults(config_path)

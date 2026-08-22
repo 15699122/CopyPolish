@@ -11,6 +11,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Verify version consistency (tag builds only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: python3 scripts/check_version.py "${{ github.ref_name }}"
       - name: Install dependencies (Linux)
         run: |
           sudo apt-get update
@@ -75,11 +78,11 @@ jobs:
         shell: pwsh
         run: |
           $exe = "src-tauri/target/release/chinese-copywriting-formatter.exe"
-          if (-not (Test-Path $exe)) { Write-Error "Executable not found: $exe"; exit 1 }
+          if (-not (Test-Path $exe)) { Write-Error "Executable not found: $exe" }
           $staging = Join-Path $PWD "windows-portable-staging"
           New-Item -ItemType Directory -Force -Path $staging | Out-Null
-          Copy-Item $exe (Join-Path $staging "chinese-copywriting-formatter.exe")
-          # 若未来构建产出旁置 DLL，连同 exe 一起带入；不引入 dist/windows 目录层级。
+          Copy-Item $exe (Join-Path $staging "CopyPolish.exe")
+          # 若未来构建产出旁置 DLL，连同 exe 一起带入；不引入目录层级。
           Get-ChildItem (Split-Path $exe) -Filter *.dll -File -ErrorAction SilentlyContinue |
             Copy-Item -Destination $staging
           $sevenZip = (Get-Command 7z -ErrorAction SilentlyContinue).Source
@@ -95,8 +98,8 @@ jobs:
           }
           if ($LASTEXITCODE -ne 0) { Write-Error "7z failed with exit code $LASTEXITCODE"; exit 1 }
           New-Item -ItemType Directory -Force -Path dist/windows | Out-Null
-          Copy-Item (Join-Path $staging "chinese-copywriting-formatter.exe") "dist/windows/chinese-copywriting-formatter.exe"
-          Move-Item "dist\windows-portable.7z" "dist/windows/chinese-copywriting-formatter-windows-x64.7z" -Force
+          Move-Item $archive "dist/windows/CopyPolish-windows-x64.7z" -Force
+          Copy-Item (Join-Path $staging "CopyPolish.exe") "dist/windows/CopyPolish.exe"
           Remove-Item $staging -Recurse -Force
           Get-ChildItem dist/windows
 
@@ -105,8 +108,8 @@ jobs:
         with:
           name: windows-portable
           path: |
-            dist/windows/chinese-copywriting-formatter.exe
-            dist/windows/chinese-copywriting-formatter-windows-x64.7z
+            dist/windows/CopyPolish.exe
+            dist/windows/CopyPolish-windows-x64.7z
           if-no-files-found: error
 
       # 构建失败时上传日志辅助排查。
@@ -182,12 +185,13 @@ jobs:
       - name: Collect release files (ASCII names)
         run: |
           mkdir -p release-files
-          cp dist/windows-portable/chinese-copywriting-formatter.exe release-files/
-          cp dist/windows-portable/chinese-copywriting-formatter-windows-x64.7z release-files/
-          find dist/bundle-ubuntu-latest -name '*.deb' -exec cp {} release-files/chinese-copywriting-formatter_linux_amd64.deb \;
-          find dist/bundle-ubuntu-latest -name '*.rpm' -exec cp {} release-files/chinese-copywriting-formatter-linux-x86_64.rpm \;
-          find dist/bundle-ubuntu-latest -name '*.AppImage' -exec cp {} release-files/chinese-copywriting-formatter_linux_amd64.AppImage \;
+          cp dist/windows-portable/CopyPolish.exe release-files/
+          cp dist/windows-portable/CopyPolish-windows-x64.7z release-files/
+          find dist/bundle-ubuntu-latest -name '*.deb' -exec cp {} release-files/CopyPolish_linux_amd64.deb \;
+          find dist/bundle-ubuntu-latest -name '*.rpm' -exec cp {} release-files/CopyPolish-linux-x86_64.rpm \;
+          find dist/bundle-ubuntu-latest -name '*.AppImage' -exec cp {} release-files/CopyPolish_linux_amd64.AppImage \;
           ls -la release-files
+      # 在自动生成的 notes 基础上补充固定说明（改名、设置迁移等）。
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -198,3 +202,13 @@ jobs:
             --generate-notes \
             --latest \
             release-files/*
+          gh release edit "${{ github.ref_name }}" --repo "$GITHUB_REPOSITORY" --notes "$(gh release view "${{ github.ref_name }}" --repo "$GITHUB_REPOSITORY" --json body -q .body)
+
+## 重要变更说明
+
+- Windows 便携版可执行文件更名为 \`CopyPolish.exe\`，压缩包为 \`CopyPolish-windows-x64.7z\`（压缩包根目录直接包含 exe，无嵌套目录）。
+- 用户设置现保存在程序（exe）相同目录的 \`rules.yaml\`；首次运行会自动迁移旧版 \`ccw-formatter-settings.json\` 中的规则开关与上次输入。
+- 「用 text-spacing 来挽救」说明性规则已彻底移除；「专有名词使用正确的大小写」与「不要使用不地道的缩写」默认关闭，可在设置中手动启用。"
+      - name: Verify version consistency
+        run: python3 scripts/check_version.py "${{ github.ref_name }}"
+        if: startsWith(github.ref, 'refs/tags/v')

@@ -1,7 +1,11 @@
 // user_settings.rs
 // =============================================================================
-// 用户设置持久化：保存在「当前工作目录」下的 JSON 文件。
-// 与旧版 customtkinter GUI 的 rules.yaml 设置完全无关（旧 GUI 已废弃）。
+// 用户设置持久化：保存在「可执行文件所在目录」下的 rules.yaml（YAML 格式）。
+// Windows 便携版运行后在 exe 相同目录生成 rules.yaml；目录不可写或无法定位
+// 可执行文件时回退当前工作目录。
+//
+// 迁移：若 rules.yaml 不存在但同目录存在旧版 ccw-formatter-settings.json，
+// 自动读取旧 JSON 并转换写入新的 rules.yaml。
 //
 // 注意：单元测试一律使用系统临时目录中的随机文件，绝不写仓库内文件，
 // 避免测试之间 / 测试与真实设置之间的写覆盖。
@@ -11,8 +15,10 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-/// 当前工作目录下的设置文件名。
-pub const SETTINGS_FILE_NAME: &str = "ccw-formatter-settings.json";
+/// 用户设置文件名（exe 同目录，YAML 格式）。
+pub const SETTINGS_FILE_NAME: &str = "rules.yaml";
+/// 旧版设置文件名（JSON，仅用于一次性迁移读取）。
+pub const LEGACY_SETTINGS_FILE_NAME: &str = "ccw-formatter-settings.json";
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct UserSettings {
@@ -31,29 +37,57 @@ impl Default for UserSettings {
     }
 }
 
-fn cwd() -> PathBuf {
+/// 设置保存目录：优先使用当前可执行文件所在目录，失败时回退当前工作目录。
+fn settings_dir() -> PathBuf {
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            return dir.to_path_buf();
+        }
+    }
     std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
 }
 
 pub fn settings_path() -> PathBuf {
-    cwd().join(SETTINGS_FILE_NAME)
+    settings_dir().join(SETTINGS_FILE_NAME)
 }
 
-/// 从指定路径读取；文件缺失或解析失败时返回 None（调用方自行回落默认值）。
+/// 从指定路径读取 YAML 设置；文件缺失或解析失败时返回 None（调用方自行回落默认值）。
 pub fn load_from(path: &Path) -> Option<UserSettings> {
     let text = fs::read_to_string(path).ok()?;
-    serde_json::from_str(&text).ok()
+    serde_yaml::from_str(&text).ok()
 }
 
 pub fn save_to(path: &Path, settings: &UserSettings) -> Result<(), String> {
-    let json =
-        serde_json::to_string_pretty(settings).map_err(|e| format!("serialize settings: {e}"))?;
-    fs::write(path, json).map_err(|e| format!("write settings {}: {e}", path.display()))
+    let yaml = serde_yaml::to_string(settings).map_err(|e| format!("serialize settings: {e}"))?;
+    fs::write(path, yaml).map_err(|e| format!("write settings {}: {e}", path.display()))
 }
 
-/// 读取当前工作目录的设置；文件不存在返回 None。
+/// 读取指定目录下的用户设置（含旧版 JSON 迁移逻辑），供测试注入目录。
+pub fn load_from_dir(dir: &Path) -> Option<UserSettings> {
+    let path = dir.join(SETTINGS_FILE_NAME);
+    if let Some(settings) = load_from(&path) {
+        return Some(settings);
+    }
+    let legacy = dir.join(LEGACY_SETTINGS_FILE_NAME);
+    if legacy.exists() {
+        if let Ok(json) = fs::read_to_string(&legacy) {
+            if let Ok(settings) = serde_json::from_str::<UserSettings>(&json) {
+                // 迁移成功与否不影响本次返回；失败则下次再试。
+                let _ = save_to(&path, &settings);
+                return Some(settings);
+            }
+        }
+    }
+    None
+}
+
+/// 读取用户设置：
+/// 1. 优先读 exe 同目录的 rules.yaml；
+/// 2. 若不存在，尝试读取同目录旧版 ccw-formatter-settings.json（JSON）并
+///    自动迁移写入 rules.yaml；
+/// 3. 均不存在时返回 None。
 pub fn load() -> Option<UserSettings> {
-    load_from(&settings_path())
+    load_from_dir(&settings_dir())
 }
 
 pub fn save(settings: &UserSettings) -> Result<(), String> {
@@ -90,7 +124,39 @@ mod tests {
         };
         save_to(&path, &settings).expect("save should succeed");
         assert_eq!(load_from(&path), Some(settings));
+        // 保存格式必须是 YAML（含键名 enabled / last_input）。
+        let raw = fs::read_to_string(&path).expect("settings file must be readable");
+        assert!(raw.contains("enabled"));
+        assert!(raw.contains("last_input"));
         let _ = fs::remove_file(&path);
+    }
+
+    /// 旧版 ccw-formatter-settings.json（JSON）应被自动迁移为 rules.yaml。
+    #[test]
+    fn legacy_json_settings_are_migrated() {
+        let dir = std::env::temp_dir().join(format!(
+            "ccw-settings-migrate-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&dir).unwrap();
+        let expected = UserSettings {
+            enabled: vec!["中英文之间需要增加空格".to_string()],
+            last_input: "在LeanCloud上".to_string(),
+        };
+        fs::write(
+            dir.join(LEGACY_SETTINGS_FILE_NAME),
+            serde_json::to_string(&expected).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(load_from_dir(&dir), Some(expected.clone()));
+        // 迁移后 rules.yaml 存在且内容一致；旧 JSON 不再被读取。
+        let migrated = load_from(&dir.join(SETTINGS_FILE_NAME)).expect("rules.yaml should exist");
+        assert_eq!(migrated, expected);
+        let _ = fs::remove_dir_all(&dir);
     }
 
     #[test]

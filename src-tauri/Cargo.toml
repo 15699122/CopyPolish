@@ -1,8 +1,8 @@
 [package]
 name = "chinese-copywriting-formatter"
-version = "0.1.1"
-description = "中文文案排版助手"
-authors = ["chinese-copywriting-formatter"]
+version = "0.2.0"
+description = "文案净排（CopyPolish）—— 本地桌面端中文文案排版工具"
+authors = ["CopyPolish"]
 edition = "2021"
 
 # 参考脚手架：本机尚未安装 cargo / pkg-config / libpython，需先安装工具链后再编译。
@@ -17,6 +17,7 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = [] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+serde_yaml = "0.9"
 regex = "1"
 # 保护层正则需要 lookbehind / backreference（LaTeX 转义 $、fenced code 缩进回引等），
 # regex crate 不支持，使用 fancy-regex。

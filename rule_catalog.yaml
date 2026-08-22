@@ -1,0 +1,52 @@
+rules:
+  中英文之间需要增加空格:
+    section: 空格
+    disputed: False
+    default: True
+  中文与数字之间需要增加空格:
+    section: 空格
+    disputed: False
+    default: True
+  数字与单位之间需要增加空格:
+    section: 空格
+    disputed: False
+    default: True
+  全角标点与其他字符之间不加空格:
+    section: 空格
+    disputed: False
+    default: True
+  不重复使用标点符号:
+    section: 标点符号
+    disputed: False
+    default: True
+  使用全角中文标点:
+    section: 全角和半角
+    disputed: False
+    default: True
+  数字使用半角字符:
+    section: 全角和半角
+    disputed: False
+    default: True
+  遇到完整的英文整句_特殊名词_其内容使用半角标点:
+    section: 全角和半角
+    disputed: False
+    default: True
+  专有名词使用正确的大小写:
+    section: 名词
+    disputed: False
+    default: False
+  不要使用不地道的缩写:
+    section: 名词
+    disputed: False
+    default: False
+  链接之间增加空格:
+    section: 争议
+    disputed: True
+    default: False
+  简体中文使用直角引号:
+    section: 争议
+    disputed: True
+    default: False
+settings:
+  enabled:
+  last_input: ""

@@ -235,7 +235,6 @@ pub const K_CN_EN_SPACE: &str = "中英文之间需要增加空格";
 pub const K_CN_DIGIT_SPACE: &str = "中文与数字之间需要增加空格";
 pub const K_DIGIT_UNIT_SPACE: &str = "数字与单位之间需要增加空格";
 pub const K_FW_PUNCT_NO_SPACE: &str = "全角标点与其他字符之间不加空格";
-pub const K_CSS_TEXT_SPACING: &str = "用_text_spacing_来挽救";
 pub const K_NO_REPEAT_PUNCT: &str = "不重复使用标点符号";
 pub const K_FW_CHINESE_PUNCT: &str = "使用全角中文标点";
 pub const K_HALFWIDTH_DIGITS: &str = "数字使用半角字符";
@@ -245,57 +244,86 @@ pub const K_NO_ABBR: &str = "不要使用不地道的缩写";
 pub const K_SPACE_AROUND_LINKS: &str = "链接之间增加空格";
 pub const K_CORNER_QUOTES: &str = "简体中文使用直角引号";
 
-/// 13 条规则元数据（key/section/name/disputed/default 与 ccw_engine.py
+/// 12 条规则元数据（key/section/name/disputed/default 与 ccw_engine.py
 /// _EMBEDDED_RULES 完全一致）。运行时不再需要 Python 即可返回规则表。
 pub fn default_rules() -> Vec<RuleMeta> {
-    fn rule(key: &str, section: &str, name: &str, disputed: bool) -> RuleMeta {
+    fn rule(key: &str, section: &str, name: &str, disputed: bool, default: bool) -> RuleMeta {
         RuleMeta {
             key: key.to_string(),
             section: section.to_string(),
             name: name.to_string(),
             disputed,
-            default: !disputed,
+            default,
         }
     }
     vec![
-        rule(K_CN_EN_SPACE, "空格", "中英文之间需要增加空格", false),
+        rule(K_CN_EN_SPACE, "空格", "中英文之间需要增加空格", false, true),
         rule(
             K_CN_DIGIT_SPACE,
             "空格",
             "中文与数字之间需要增加空格",
             false,
+            true,
         ),
         rule(
             K_DIGIT_UNIT_SPACE,
             "空格",
             "数字与单位之间需要增加空格",
             false,
+            true,
         ),
         rule(
             K_FW_PUNCT_NO_SPACE,
             "空格",
             "全角标点与其他字符之间不加空格",
             false,
+            true,
         ),
         rule(
-            K_CSS_TEXT_SPACING,
-            "空格",
-            "用 text-spacing 来挽救？（说明：CSS 自动排版）",
+            K_NO_REPEAT_PUNCT,
+            "标点符号",
+            "不重复使用标点符号",
             false,
+            true,
         ),
-        rule(K_NO_REPEAT_PUNCT, "标点符号", "不重复使用标点符号", false),
-        rule(K_FW_CHINESE_PUNCT, "全角和半角", "使用全角中文标点", false),
-        rule(K_HALFWIDTH_DIGITS, "全角和半角", "数字使用半角字符", false),
+        rule(
+            K_FW_CHINESE_PUNCT,
+            "全角和半角",
+            "使用全角中文标点",
+            false,
+            true,
+        ),
+        rule(
+            K_HALFWIDTH_DIGITS,
+            "全角和半角",
+            "数字使用半角字符",
+            false,
+            true,
+        ),
         rule(
             K_HALFWIDTH_IN_ENGLISH,
             "全角和半角",
             "遇到完整的英文整句、特殊名词，其内容使用半角标点",
             false,
+            true,
         ),
-        rule(K_PROPER_NOUNS, "名词", "专有名词使用正确的大小写", false),
-        rule(K_NO_ABBR, "名词", "不要使用不地道的缩写", false),
-        rule(K_SPACE_AROUND_LINKS, "争议", "链接之间增加空格", true),
-        rule(K_CORNER_QUOTES, "争议", "简体中文使用直角引号", true),
+        // 专有名词 / 缩写规则误改概率较高，默认关闭，由用户手动启用。
+        rule(
+            K_PROPER_NOUNS,
+            "名词",
+            "专有名词使用正确的大小写",
+            false,
+            false,
+        ),
+        rule(K_NO_ABBR, "名词", "不要使用不地道的缩写", false, false),
+        rule(
+            K_SPACE_AROUND_LINKS,
+            "争议",
+            "链接之间增加空格",
+            true,
+            false,
+        ),
+        rule(K_CORNER_QUOTES, "争议", "简体中文使用直角引号", true, false),
     ]
 }
 
@@ -305,13 +333,10 @@ pub fn enabled_defaults() -> Vec<String> {
         K_CN_DIGIT_SPACE,
         K_DIGIT_UNIT_SPACE,
         K_FW_PUNCT_NO_SPACE,
-        K_CSS_TEXT_SPACING,
         K_NO_REPEAT_PUNCT,
         K_FW_CHINESE_PUNCT,
         K_HALFWIDTH_DIGITS,
         K_HALFWIDTH_IN_ENGLISH,
-        K_PROPER_NOUNS,
-        K_NO_ABBR,
     ]
     .into_iter()
     .map(str::to_string)
@@ -705,19 +730,31 @@ mod tests {
     }
 
     #[test]
-    fn exposes_eleven_defaults() {
-        assert_eq!(enabled_defaults().len(), 11);
-        assert_eq!(default_rules().len(), 13);
-        // 争议规则默认关闭，其余默认开启。
+    fn exposes_eight_defaults() {
+        assert_eq!(enabled_defaults().len(), 8);
+        assert_eq!(default_rules().len(), 12);
         let rules = default_rules();
-        let disputed: Vec<_> = rules
+        // 争议规则与两个名词规则默认关闭。
+        let disabled: Vec<_> = rules
             .iter()
-            .filter(|r| r.disputed)
+            .filter(|r| !r.default)
             .map(|r| r.key.as_str())
             .collect();
-        assert_eq!(disputed, vec![K_SPACE_AROUND_LINKS, K_CORNER_QUOTES]);
-        for rule in default_rules() {
-            assert_eq!(rule.default, !rule.disputed);
+        assert_eq!(
+            disabled,
+            vec![
+                K_PROPER_NOUNS,
+                K_NO_ABBR,
+                K_SPACE_AROUND_LINKS,
+                K_CORNER_QUOTES
+            ]
+        );
+        // 已彻底移除的 CSS text-spacing 说明规则不得再出现。
+        assert!(rules.iter().all(|r| !r.key.contains("text_spacing")));
+        for rule in &rules {
+            if rule.disputed {
+                assert!(!rule.default);
+            }
         }
     }
 
@@ -756,13 +793,21 @@ mod tests {
             "德国队竟然战胜了巴西队！"
         );
         assert_eq!(
-            format_text(&req("使用 github 登录")).unwrap(),
-            "使用 GitHub 登录"
-        );
-        assert_eq!(
             format_text(&req("只卖 １０００ 元")).unwrap(),
             "只卖 1000 元"
         );
+        // 专有名词规则默认关闭：默认集不替换 github；显式启用后生效。
+        assert_eq!(
+            format_text(&req("使用 github 登录")).unwrap(),
+            "使用 github 登录"
+        );
+        let mut enabled = enabled_defaults();
+        enabled.push(K_PROPER_NOUNS.to_string());
+        let with_nouns = FormatRequest {
+            text: "使用 github 登录".to_string(),
+            enabled,
+        };
+        assert_eq!(format_text(&with_nouns).unwrap(), "使用 GitHub 登录");
     }
 
     #[test]

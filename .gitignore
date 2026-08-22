@@ -25,3 +25,6 @@ src-tauri/gen/
 
 # 用户设置（保存在当前工作目录）
 /ccw-formatter-settings.json
+
+# 运行时用户设置（exe 同目录 rules.yaml）
+/rules.yaml

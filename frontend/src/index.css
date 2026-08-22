@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /*
- * 中文文案排版助手 —— 固定浅色主题（对齐原 customtkinter 的 Light-only 决策）。
+ * 文案净排（CopyPolish）—— 固定浅色主题（对齐原 customtkinter 的 Light-only 决策）。
  * 使用 shadcn/ui CSS 变量约定；如需深色模式，可据官方 dark 变量补齐。
  */
 :root {

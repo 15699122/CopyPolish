@@ -19,7 +19,10 @@ from ccw_engine import (
     save_settings,
 )
 
-ENABLED = get_enabled_defaults()
+ENABLED = get_enabled_defaults() | {
+    "专有名词使用正确的大小写",
+    "不要使用不地道的缩写",
+}
 
 
 def _key_of(name):
@@ -126,11 +129,11 @@ class TestStability(unittest.TestCase):
         self.assertEqual(format_text(once, ENABLED), once)
 
     def test_rule_count(self):
-        self.assertEqual(len(RULES), 13)
+        self.assertEqual(len(RULES), 12)
 
     def test_sections(self):
         sections = [r["section"] for r in RULES]
-        self.assertEqual(sections.count("空格"), 5)
+        self.assertEqual(sections.count("空格"), 4)
         self.assertEqual(sections.count("标点符号"), 1)
         self.assertEqual(sections.count("全角和半角"), 3)
         self.assertEqual(sections.count("名词"), 2)
@@ -138,11 +141,11 @@ class TestStability(unittest.TestCase):
 
 
 class TestYamlRules(unittest.TestCase):
-    """rules.yaml 规则装载与设置持久化。"""
+    """rule_catalog.yaml 规则装载与设置持久化。"""
 
     def test_load_rules_count(self):
         rules = load_rules()
-        self.assertEqual(len(rules), 13)
+        self.assertEqual(len(rules), 12)
 
     def test_load_rules_has_default(self):
         rules = load_rules()
@@ -151,12 +154,17 @@ class TestYamlRules(unittest.TestCase):
         # 争议规则 default=False
         self.assertFalse(by_key["链接之间增加空格"]["default"])
         self.assertFalse(by_key["简体中文使用直角引号"]["default"])
+        # 专有名词 / 缩写规则存在但默认关闭
+        self.assertFalse(by_key["专有名词使用正确的大小写"]["default"])
+        self.assertFalse(by_key["不要使用不地道的缩写"]["default"])
         # 普通规则 default=True
         self.assertTrue(by_key["中英文之间需要增加空格"]["default"])
+        # text-spacing 说明规则已彻底移除
+        self.assertNotIn("用_text_spacing_来挽救", by_key)
 
     def test_missing_yaml_falls_back(self):
         rules = load_rules("/nonexistent/rules.yaml")
-        self.assertEqual(len(rules), 13)
+        self.assertEqual(len(rules), 12)
 
     def test_settings_roundtrip(self):
         import tempfile

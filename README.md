@@ -1,8 +1,8 @@
 # 文案净排
 
-> 项目参考名称：**文案净排**（英文：**CopyPolish**）。Windows 可执行文件名暂保持 `chinese-copywriting-formatter.exe`，以兼容现有发布流程。
+> 项目名称：**文案净排**（英文：**CopyPolish**）。
 
-中文文案排版助手（Chinese Copywriting Formatter）是一款本地桌面端中文文案排版工具，用于按照 [chinese-copywriting-guidelines](https://github.com/sparanoid/chinese-copywriting-guidelines) 的简体中文文案规范，自动整理中文、英文、数字、单位和标点之间的格式。
+文案净排（CopyPolish）是一款本地桌面端中文文案排版工具，用于按照 [chinese-copywriting-guidelines](https://github.com/sparanoid/chinese-copywriting-guidelines) 的简体中文文案规范，自动整理中文、英文、数字、单位和标点之间的格式。
 
 项目界面为 Tauri 2 + React + shadcn/ui 前端，后端为纯 Rust 排版引擎。左侧输入原文，右侧实时显示规范化结果；规则可逐条启用或关闭。
 
@@ -15,7 +15,7 @@
 - **Markdown / LaTeX 保护**：尽量避免误改代码块、行内代码、链接、图片链接、URL、邮箱和公式内容。
 - **低依赖规则引擎**：Rust 原生引擎为主路径；`ccw_engine.py` 仅作为兜底保留。
 - **现代桌面壳**：使用 Tauri 2 承载 React/shadcn/ui，前端只通过受限 Tauri commands 访问后端。
-- **用户设置持久化**：规则开关与最近输入保存在当前工作目录的 `ccw-formatter-settings.json`，启动时自动恢复。
+- **用户设置持久化**：规则开关与最近输入保存在程序（exe）相同目录的 `rules.yaml`，启动时自动恢复；旧版 `ccw-formatter-settings.json` 会在首次运行时自动迁移。
 - **浏览器预览回退**：前端在非 Tauri 浏览器环境中也可以预览界面和基础交互（设置回退到 localStorage），便于开发调试。
 
 ## 当前 Tauri 版状态
@@ -30,8 +30,8 @@
   - `.rpm`
   - `.AppImage`
 - Windows 仅提供**无边框便携版**（无安装器）：
-  - `chinese-copywriting-formatter.exe`（单文件，直接运行）
-  - `chinese-copywriting-formatter-windows-x64.7z`（压缩包）
+  - `CopyPolish.exe`（单文件，直接运行）
+  - `CopyPolish-windows-x64.7z`（压缩包）
 
 Windows 无边框便携版依赖系统的 WebView2 Evergreen Runtime（Windows 10/11 一般已内置）；如缺失，请从微软官网安装。CI 已包含 Windows hosted runner 真实启动冒烟测试（进程存活 + 主窗口出现 + 10 秒稳定性校验）。
 
@@ -47,13 +47,13 @@ CI 会构建双平台产物并自动创建 GitHub Release（资产统一使用 A
 
 ### 编码说明
 
-全链路统一使用 UTF-8：Rust `String` 原生 UTF-8，Tauri command 走 JSON（UTF-8），设置文件 `ccw-formatter-settings.json` 以 UTF-8 写入/读取；中文输入输出、emoji、CJK 扩展区字符均有自动化回归测试覆盖。
+全链路统一使用 UTF-8：Rust `String` 原生 UTF-8，Tauri command 走 JSON（UTF-8），设置文件 `rules.yaml`（YAML）以 UTF-8 写入/读取；中文输入输出、emoji、CJK 扩展区字符均有自动化回归测试覆盖。
 
 当前仍建议把 Tauri 版视为迁移中的开发版。
 
 ## 当前支持的规则
 
-当前内置 13 条规则：
+当前内置 12 条规则（「专有名词使用正确的大小写」「不要使用不地道的缩写」默认关闭）：
 
 | 分类 | 规则 |
 | --- | --- |
@@ -61,13 +61,12 @@ CI 会构建双平台产物并自动创建 GitHub Release（资产统一使用 A
 | 空格 | 中文与数字之间需要增加空格 |
 | 空格 | 数字与单位之间需要增加空格 |
 | 空格 | 全角标点与其他字符之间不加空格 |
-| 空格 | 用 `text-spacing` 来挽救 |
 | 标点符号 | 不重复使用标点符号 |
 | 全角和半角 | 使用全角中文标点 |
 | 全角和半角 | 数字使用半角字符 |
 | 全角和半角 | 遇到完整的英文整句、特殊名词，其内容使用半角标点 |
-| 名词 | 专有名词使用正确的大小写 |
-| 名词 | 不要使用不地道的缩写 |
+| 名词 | 专有名词使用正确的大小写，默认关闭 |
+| 名词 | 不要使用不地道的缩写，默认关闭 |
 | 争议 | 链接之间增加空格，默认关闭 |
 | 争议 | 简体中文使用直角引号，默认关闭 |
 
@@ -112,7 +111,7 @@ src-tauri/target/release/bundle/
 ```bash
 cd frontend
 npm run tauri build -- --no-bundle
-# 产物：src-tauri/target/release/chinese-copywriting-formatter.exe
+# 产物：src-tauri/target/release/CopyPolish.exe
 ```
 
 ## 下载与发布
@@ -122,7 +121,7 @@ npm run tauri build -- --no-bundle
 | 平台 | Artifact | 内容 |
 | --- | --- | --- |
 | Linux | `bundle-ubuntu-latest` | `.deb` / `.rpm` / `.AppImage` |
-| Windows | `windows-portable` | `chinese-copywriting-formatter.exe` + `chinese-copywriting-formatter-windows-x64.7z` |
+| Windows | `windows-portable` | `CopyPolish.exe` + `CopyPolish-windows-x64.7z` |
 
 Windows 仅提供无边框便携版 `.exe` 与 `.7z` 压缩包两种格式，不提供安装器；运行需系统已安装 WebView2 Runtime。
 
@@ -153,24 +152,25 @@ Windows 仅提供无边框便携版 `.exe` 与 `.7z` 压缩包两种格式，不
 
 ## 用户设置
 
-用户设置（已启用规则 + 最近输入）保存在**当前工作目录**下的：
+用户设置（已启用规则 + 最近输入）保存在**程序（exe）相同目录**下的：
 
 ```text
-ccw-formatter-settings.json
+rules.yaml
 ```
 
 示例：
 
-```json
-{
-  "enabled": ["中英文之间需要增加空格", "数字使用半角字符"],
-  "last_input": "在LeanCloud上，花了5000元"
-}
+```yaml
+enabled:
+  - 中英文之间需要增加空格
+  - 数字使用半角字符
+last_input: 在LeanCloud上，花了5000元
 ```
 
 - 启动时自动恢复；文件缺失或损坏时使用内置默认规则集。
 - 该文件已加入 `.gitignore`，不会进入版本库。
-- 旧版 customtkinter GUI 的 `rules.yaml` 设置已废弃，不再读取或写入。
+- 旧版 `ccw-formatter-settings.json`（JSON）会在首次运行时被自动读取并迁移为 `rules.yaml`。
+- 注意：若程序放在只读目录（如 `Program Files`），设置将无法保存；建议将便携版解压到有写权限的目录。
 
 ## 测试
 
@@ -203,4 +203,4 @@ npm run build --prefix frontend
 
 ### Windows `.7z` 内容
 
-`.7z` 压缩包的根目录直接包含 `chinese-copywriting-formatter.exe` 及构建目录中存在的旁置 DLL 依赖（如有），不会包含 `dist`、`windows` 或其他上级目录。
+`.7z` 压缩包的根目录直接包含 `CopyPolish.exe` 及构建目录中存在的旁置 DLL 依赖（如有），不会包含 `dist`、`windows` 或其他上级目录。
