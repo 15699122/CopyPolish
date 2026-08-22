@@ -13,19 +13,19 @@ Tauri 2
 │   └── src/lib/tauri.ts 受限 command 封装（前端唯一后端入口）
 └── src-tauri/
     ├── src/rust_engine.rs      Rust 原生排版引擎
-    ├── src/user_settings.rs    用户设置持久化（cwd JSON 文件）
+    ├── src/user_settings.rs    用户设置持久化（exe 同目录 rules.yaml，YAML）
     └── src/commands.rs         Tauri command 层
 ```
 
 - **应用为纯 Rust 实现**：`format_text` / `get_rules` / `get_enabled_defaults` / 设置读写全部由 Rust 提供，构建与打包不依赖 Python。
 - **双引擎一致性**：仓库根目录的 `ccw_engine.py` 是权威 Python 引擎，`test/compare_rust_parity.py` 用 71 条语料 × defaults/all 两模式 = 142 项检查对比 Rust 与 Python 输出，当前 **0 差异**。修改任一引擎后必须重跑（parity 脚本经 `src-tauri/examples/parity_dump.rs` 调用 Rust 引擎）。
-- **用户设置**：保存在当前工作目录的 `ccw-formatter-settings.json`（见下文），与旧版 `rules.yaml` 设置无关。
+- **用户设置**：保存在 exe 相同目录的 `rules.yaml`（YAML；见下文），首次运行自动迁移旧版 `ccw-formatter-settings.json`。
 
 ## 目录结构
 
 ```text
-├── ccw_engine.py                  # 权威 Python 引擎（13 条规则 + 保护层），parity 基准
-├── rules.yaml                     # 规则元数据（只读参考，不参与构建与打包）
+├── ccw_engine.py                  # 权威 Python 引擎（12 条规则 + 保护层），parity 基准
+├── rule_catalog.yaml              # 规则元数据（只读参考，不参与构建与打包）
 ├── frontend/                      # React/Vite/TS/Tailwind v4/shadcn-ui 界面
 │   └── src/App.tsx                # 主界面：双栏编辑、设置 Dialog、防抖实时排版
 ├── src-tauri/
@@ -54,14 +54,17 @@ Tauri 2
 
 ## 用户设置持久化
 
-- 文件位置：**当前工作目录**下的 `ccw-formatter-settings.json`：
-  ```json
-  { "enabled": ["..."], "last_input": "..." }
+- 文件位置：**exe 相同目录**（`std::env::current_exe()` 的父目录；无法定位时回退 cwd）下的 `rules.yaml`（YAML）：
+  ```yaml
+  enabled:
+    - 中英文之间需要增加空格
+  last_input: ...
   ```
-- 实现：`user_settings.rs` 提供 `load_from/save_to`（可注入路径）与 `load/save`（cwd）；command 层暴露 `get_user_settings`（文件缺失返回 `null`）与 `save_user_settings`。
+- 迁移：`rules.yaml` 不存在但同目录存在旧版 `ccw-formatter-settings.json` 时，自动读取旧 JSON 并转换写入新 YAML。
+- 实现：`user_settings.rs` 提供 `load_from/save_to`（可注入路径）、`load_from_dir(dir)`（可注入目录，含迁移逻辑）与 `load/save`（exe 目录）；command 层暴露 `get_user_settings`（文件缺失返回 `null`）与 `save_user_settings`（保存前过滤未知规则 key）。
 - 前端行为：启动恢复；规则开关/全选/恢复默认/清空即时保存，输入防抖（160ms）保存；浏览器预览回退 localStorage。
 - 测试约定：所有设置读写测试一律使用系统临时目录中的唯一随机文件（PID + 计数器），禁止写仓库内固定路径。
-- 该文件已加入 `.gitignore`。
+- 该文件已加入 `.gitignore`（根目录 `/rules.yaml`）。
 
 ## 开发环境
 
@@ -102,7 +105,7 @@ npm test --prefix frontend                                # vitest 组件测试�
 
 ## 后续计划
 
-1. 真实 Windows 机器人工验收：下载 CI 的 `windows-portable` artifact，运行 `.exe`，输入 `在LeanCloud上，花了5000元` → 应输出 `在 LeanCloud 上，花了 5000 元`；验证设置弹窗 13 条规则、开关即时重排、设置文件持久化、高 DPI 显示。
+1. 真实 Windows 机器人工验收：下载 CI 的 `windows-portable` artifact，运行 `.exe`，输入 `在LeanCloud上，花了5000元` → 应输出 `在 LeanCloud 上，花了 5000 元`；验证设置弹窗 12 条规则、开关即时重排、设置文件持久化、高 DPI 显示。
 2. GUI 功能迭代（空状态 / 错误态 UI 等）。
 
 ## 图标

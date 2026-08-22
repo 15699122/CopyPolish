@@ -36,8 +36,8 @@ const FALLBACK_RULES: Rule[] = [
   { key: "使用全角中文标点", section: "全角和半角", name: "使用全角中文标点", disputed: false, default: true },
   { key: "数字使用半角字符", section: "全角和半角", name: "数字使用半角字符", disputed: false, default: true },
   { key: "遇到完整的英文整句、特殊名词，其内容使用半角标点", section: "全角和半角", name: "遇到完整的英文整句、特殊名词，其内容使用半角标点", disputed: false, default: true },
-  { key: "专有名词使用正确的大小写", section: "名词", name: "专有名词使用正确的大小写", disputed: false, default: true },
-  { key: "不要使用不地道的缩写", section: "名词", name: "不要使用不地道的缩写", disputed: false, default: true },
+  { key: "专有名词使用正确的大小写", section: "名词", name: "专有名词使用正确的大小写", disputed: false, default: false },
+  { key: "不要使用不地道的缩写", section: "名词", name: "不要使用不地道的缩写", disputed: false, default: false },
   { key: "链接之间增加空格", section: "争议", name: "链接之间增加空格", disputed: true, default: false },
   { key: "简体中文使用直角引号", section: "争议", name: "简体中文使用直角引号", disputed: true, default: false },
 ];
@@ -70,8 +70,8 @@ export async function getEnabledDefaults(): Promise<string[]> {
 }
 
 // ---------------------------------------------------------------------------
-// 用户设置持久化（保存在当前工作目录的 ccw-formatter-settings.json；
-// 浏览器预览时回退到 localStorage）。与旧版 rules.yaml 设置无关。
+// 用户设置持久化（由 Rust 端保存在 exe 同目录的 rules.yaml；
+// 浏览器预览时回退到 localStorage）。
 // ---------------------------------------------------------------------------
 
 export interface UserSettings {

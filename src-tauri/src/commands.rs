@@ -19,17 +19,23 @@ pub fn format_text(text: String, enabled: Vec<String>) -> Result<String, String>
 }
 
 /// get_user_settings() -> Option<UserSettings>
-/// 读取当前工作目录设置文件；不存在时返回 None（前端使用默认规则集）。
+/// 读取 exe 同目录设置文件；不存在时返回 None（前端使用默认规则集）。
 #[tauri::command]
 pub fn get_user_settings() -> Result<Option<crate::user_settings::UserSettings>, String> {
     Ok(crate::user_settings::load())
 }
 
-/// save_user_settings(enabled, last_input)：写入当前工作目录设置文件。
+/// save_user_settings(enabled, last_input)：写入 exe 同目录设置文件。
+/// 过滤掉引擎中不存在的规则 key，避免旧设置中的已删除规则被回写。
 #[tauri::command]
 pub fn save_user_settings(enabled: Vec<String>, last_input: String) -> Result<(), String> {
+    let known: std::collections::HashSet<String> = rust_engine::default_rules()
+        .into_iter()
+        .map(|r| r.key)
+        .collect();
+    let filtered: Vec<String> = enabled.into_iter().filter(|k| known.contains(k)).collect();
     crate::user_settings::save(&crate::user_settings::UserSettings {
-        enabled,
+        enabled: filtered,
         last_input,
     })
 }

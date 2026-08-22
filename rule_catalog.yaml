@@ -15,10 +15,6 @@ rules:
     section: 空格
     disputed: False
     default: True
-  用_text_spacing_来挽救:
-    section: 空格
-    disputed: False
-    default: True
   不重复使用标点符号:
     section: 标点符号
     disputed: False
@@ -38,11 +34,11 @@ rules:
   专有名词使用正确的大小写:
     section: 名词
     disputed: False
-    default: True
+    default: False
   不要使用不地道的缩写:
     section: 名词
     disputed: False
-    default: True
+    default: False
   链接之间增加空格:
     section: 争议
     disputed: True
