@@ -31,9 +31,15 @@ pub fn format_text(text: String, enabled: Vec<String>) -> Result<String, String>
 }
 
 /// get_rules() -> Vec<RuleMeta>
+/// Rust 端内置规则元数据；仅在异常情况下回退 Python/rules.yaml。
 #[tauri::command]
 pub fn get_rules() -> Result<Vec<RuleMeta>, String> {
-    python_runtime::get_rules()
+    let rules = rust_engine::default_rules();
+    if rules.is_empty() {
+        python_runtime::get_rules()
+    } else {
+        Ok(rules)
+    }
 }
 
 /// get_enabled_defaults() -> Vec<String>
