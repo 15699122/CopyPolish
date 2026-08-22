@@ -21,21 +21,8 @@ use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 use std::path::PathBuf;
 
-/// 单次格式化请求的参数（与前端 FormatRequest 对齐）。
-pub struct FormatRequest {
-    pub text: String,
-    pub enabled: Vec<String>,
-}
-
-/// 规则元数据（与前端 Rule 类型对齐；serde 序列化给 Tauri 返回前端）。
-#[derive(serde::Serialize, serde::Deserialize, Clone)]
-pub struct RuleMeta {
-    pub key: String,
-    pub section: String,
-    pub name: String,
-    pub disputed: bool,
-    pub default: bool,
-}
+// 类型定义收敛在 rust_engine 中（Rust 主路径自包含），此处公开复用。
+pub use crate::rust_engine::{FormatRequest, RuleMeta};
 
 /// 初始化：把 src-python 加入 sys.path 并预导入桥接模块。
 /// 调用时机：应用 setup 阶段一次。

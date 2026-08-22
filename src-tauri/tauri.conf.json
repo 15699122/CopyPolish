@@ -27,7 +27,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "resources": ["src-python/main.py", "../ccw_engine.py", "../rules.yaml"],
+    "resources": ["src-python/main.py", "../ccw_engine.py"],
     "icon": ["icons/icon.png"]
   }
 }

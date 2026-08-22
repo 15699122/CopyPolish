@@ -1,15 +1,18 @@
-// 参考脚手架升级：Tauri 2 应用装配，注册经由 PyO3 内嵌 CPython 的 command。
-// 前端唯一入口是 commands.rs 中定义的受限 command；Python 规则引擎
-// 通过 python_runtime.rs 调用（见 Dev_readme「路线 B」对比）。
+// Tauri 2 应用装配。默认构建为纯 Rust（rust_engine 主路径，无 Python 依赖）；
+// 启用 `python-fallback` feature 时额外编译 PyO3 兜底层并在 setup 阶段初始化解释器。
 
 mod commands;
+#[cfg(feature = "python-fallback")]
 pub mod python_runtime;
 pub mod rust_engine;
 mod user_settings;
 
+#[cfg(feature = "python-fallback")]
 use std::path::PathBuf;
+#[cfg(feature = "python-fallback")]
 use tauri::{path::BaseDirectory, Manager};
 
+#[cfg(feature = "python-fallback")]
 fn bundled_src_python_dir(resource_main_py: PathBuf) -> Option<PathBuf> {
     resource_main_py.parent().map(PathBuf::from)
 }
@@ -18,36 +21,41 @@ fn bundled_src_python_dir(resource_main_py: PathBuf) -> Option<PathBuf> {
 pub fn run() {
     tauri::Builder::default()
         .setup(|app| {
-            let fallback_src_python_dir =
-                PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src-python");
-            let src_python_dir = match app
-                .path()
-                .resolve("src-python/main.py", BaseDirectory::Resource)
-                .ok()
-                .and_then(bundled_src_python_dir)
+            #[cfg(feature = "python-fallback")]
             {
-                Some(path) if path.join("main.py").is_file() => path,
-                Some(path) => {
-                    eprintln!(
-                        "[pyo3] bundled src-python not found at {}; fallback to {}",
-                        path.display(),
-                        fallback_src_python_dir.display()
-                    );
-                    fallback_src_python_dir
-                }
-                None => {
-                    eprintln!(
-                        "[pyo3] failed to resolve bundled src-python; fallback to {}",
-                        fallback_src_python_dir.display()
-                    );
-                    fallback_src_python_dir
-                }
-            };
+                let fallback_src_python_dir =
+                    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src-python");
+                let src_python_dir = match app
+                    .path()
+                    .resolve("src-python/main.py", BaseDirectory::Resource)
+                    .ok()
+                    .and_then(bundled_src_python_dir)
+                {
+                    Some(path) if path.join("main.py").is_file() => path,
+                    Some(path) => {
+                        eprintln!(
+                            "[pyo3] bundled src-python not found at {}; fallback to {}",
+                            path.display(),
+                            fallback_src_python_dir.display()
+                        );
+                        fallback_src_python_dir
+                    }
+                    None => {
+                        eprintln!(
+                            "[pyo3] failed to resolve bundled src-python; fallback to {}",
+                            fallback_src_python_dir.display()
+                        );
+                        fallback_src_python_dir
+                    }
+                };
 
-            // 尽早初始化解释器并暴露桥接错误
-            if let Err(e) = python_runtime::init(&src_python_dir) {
-                eprintln!("[pyo3] init warning: {e}");
+                // 尽早初始化解释器并暴露桥接错误
+                if let Err(e) = python_runtime::init(&src_python_dir) {
+                    eprintln!("[pyo3] init warning: {e}");
+                }
             }
+            #[cfg(not(feature = "python-fallback"))]
+            let _ = app;
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -62,10 +70,12 @@ pub fn run() {
 }
 
 #[cfg(test)]
+#[cfg(feature = "python-fallback")]
 mod tests {
     use super::*;
 
     #[test]
+    #[cfg(feature = "python-fallback")]
     fn derives_src_python_dir_from_bundled_main_py_path() {
         let path = PathBuf::from("/tmp/app/resources/src-python/main.py");
 
