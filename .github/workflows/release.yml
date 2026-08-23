@@ -117,7 +117,7 @@ jobs:
           npm run tauri build -- ${{ matrix.args }}
 
       # Linux：上传 Tauri bundle（deb/rpm/AppImage）。
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: matrix.os == 'ubuntu-latest'
         with:
           name: bundle-ubuntu-latest
@@ -156,7 +156,7 @@ jobs:
           Remove-Item $staging -Recurse -Force
           Get-ChildItem dist/windows
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: matrix.os == 'windows-latest'
         with:
           name: windows-portable
@@ -166,7 +166,7 @@ jobs:
           if-no-files-found: error
 
       # 构建失败时上传日志辅助排查。
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: build-log-${{ matrix.os }}
