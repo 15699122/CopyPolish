@@ -1,0 +1,31 @@
+- name: 全选模式执行全部规则
+  selection:
+    mode: all
+  input: 使用 github！！
+  expected: 使用 GitHub！
+
+- name: 全不选模式保持输入不变
+  selection:
+    mode: none
+  input: 在LeanCloud上，花了5000元！！
+  expected: 在LeanCloud上，花了5000元！！
+
+- name: 未知规则安全忽略
+  selection:
+    mode: only
+    keys:
+      - unknown.rule
+  input: 在LeanCloud上
+  expected: 在LeanCloud上
+
+- name: LF 换行保持不变
+  selection:
+    mode: defaults
+  input: "第一行LeanCloud\n第二行5000元"
+  expected: "第一行 LeanCloud\n第二行 5000 元"
+
+- name: CRLF 换行保持不变
+  selection:
+    mode: defaults
+  input: "第一行LeanCloud\r\n第二行5000元"
+  expected: "第一行 LeanCloud\r\n第二行 5000 元"

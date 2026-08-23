@@ -2,7 +2,11 @@
 
 本文档面向后续维护者，记录当前项目结构、架构边界、开发运行方式、测试命令、打包方式和已知注意事项。普通用户使用说明请参阅 [README.md](README.md)。
 
-> 历史说明：项目早期为 Python + customtkinter 桌面 GUI（入口 `chinese_copywriting_formatter.py`，设置写入 `rules.yaml`）。该路线已于 2026-08 彻底移除，相关文件（`gui/`、`python/formatter_bridge.py`、`run.sh`、`packaging/`、PyInstaller 工作流等）均不再存在，其 `rules.yaml` 设置也不再读取或写入。
+## `v0.5.0` 正式发布计划
+
+当前 `v0.5.0` 正式发布的开发、测试、Windows 验收和发布门槛统一记录在 [v0.5.0-release-plan.md](v0.5.0-release-plan.md)。后续开发应按该计划的阶段顺序执行；在黄金样例回归测试体系建立前，不新增格式化规则或大型 UI 功能。
+
+> 历史说明：项目早期为 Python + customtkinter 桌面 GUI（入口 `chinese_copywriting_formatter.py`，曾使用 `rules.yaml` 保存设置）。该路线已于 2026-08 彻底移除，相关文件（`gui/`、`python/formatter_bridge.py`、`run.sh`、`packaging/`、PyInstaller 工作流等）均不再存在。当前 Rust 应用使用新的 `rules.yaml` 设置实现，并通过同目录旧版 `ccw-formatter-settings.json` 进行一次性迁移；不复用旧 Python 的读写逻辑。
 
 ## 当前架构
 
@@ -79,7 +83,7 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
 2. 保护层正则依赖 lookbehind/backreference，必须使用 `fancy-regex`（`regex` crate 不支持）。
 3. 占位符格式为 `\u{E000}CCWPROTECTED{n}\u{E001}`；保护范围包括 fenced code block、LaTeX 环境/display/inline/command、Markdown 图片/链接/autolink、行内代码、URL、邮箱、缩进代码行及化学式。
 4. 行内占位符补空格时须过滤跨行值（fenced block 不补空格）。
-5. 规则是否执行完全由 `FormatRequest.enabled` 决定；空数组表示全部启用，非空数组只执行指定规则。
+5. 规则选择由 `FormatRequest.selection` 显式表达：`all` 执行全部规则，`defaults` 执行默认规则，`only` 执行指定 key，`none` 不执行任何规则。用户设置文件继续保存 `enabled: string[]`，其中空数组表示“全不选”，由前端转换为 `none`。
 6. 保护规则或 tokenizer 新增/调整后，必须补充 Markdown / LaTeX / URL / 邮箱 / 代码 / 化学式边界测试。
 
 ## 用户设置持久化
@@ -94,9 +98,10 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
   ```
 - 字段：`enabled`（启用规则）、`last_input`（最近输入）、`theme`（`system` / `light` / `dark`）、`font`（`system` / `microsoft-yahei` / `pingfang` / `noto-sans-cjk` / `simsun` / `simhei`）。旧版设置文件无 `theme` 或 `font` 时分别默认回落为 `system`。
 - 迁移：`rules.yaml` 不存在但同目录存在旧版 `ccw-formatter-settings.json` 时，自动读取旧 JSON 并转换写入新 YAML。
-- 保存策略：写临时文件 `rules.yaml.tmp` 后原子 rename 到 `rules.yaml`，避免中途退出产生半截文件；目标是 exe 同目录，目录不存在或无写权限时返回带完整路径的诊断错误（前端在设置弹窗中展示，提示把便携版放到可写目录）。
-- 实现：`user_settings.rs` 提供 `load_from/save_to`（可注入路径）、`load_from_dir(dir)`（可注入目录，含迁移逻辑）与 `load/save`（exe 目录）；command 层暴露 `get_user_settings`（文件缺失返回 `null`）、`save_user_settings`（保存前过滤未知规则 key）与 `get_settings_path`（返回设置文件完整路径，供界面显示）。
+- 保存策略：写临时文件 `rules.yaml.tmp` 并 `sync_all` 后原子 rename 到 `rules.yaml`；替换前将上一份有效文件轮换为 `rules.yaml.bak`，避免中途退出产生半截文件，并为主文件损坏提供恢复来源。目标是 exe 同目录，目录不存在或无写权限时返回带完整路径的诊断错误（前端在设置弹窗中展示，提示把便携版放到可写目录）。
+- 实现：`user_settings.rs` 提供 `load_from/save_to`（可注入路径）、`load_from_dir_with_status`（含备份恢复状态与迁移逻辑）、`load_from_dir`（兼容返回设置内容）与 `load/load_with_status`（exe 目录）；command 层暴露 `get_user_settings`（文件缺失返回 `null`，备份恢复状态随结果返回）、`save_user_settings`（保存前过滤未知规则 key）与 `get_settings_path`（返回设置文件完整路径，供界面显示）。
 - 前端行为：启动恢复；规则开关/全选/恢复默认/清空/主题/字体即时保存，输入防抖（160ms）保存；浏览器预览回退 localStorage。字体使用固定跨平台预设与 CSS fallback 栈，不尝试枚举系统已安装字体。
+- 长文本排版：普通文本使用 160ms 防抖，达到 50,000 字符使用 450ms，达到 200,000 字符使用 900ms；界面显示排版中、长文本和最近一次耗时提示，并通过序列号丢弃过期结果。
 - 设置 Dialog 的版本号通过 `getAppVersion()` 读取：打包环境使用 Tauri `getVersion()`，浏览器预览使用 Vite 从 `frontend/package.json` 注入的 `__APP_VERSION__` 回退值，避免重复维护版本常量。
 - 设置弹窗 Footer 保持与主界面一致的 `py-4` 纵向内边距；桌面端单行显示版本/保存状态/设置路径与操作按钮，小屏或较长保存错误时采用 flex-wrap 响应式换行。
 - 预发布版本一致性：release 工作流在测试校验后调用 `scripts/prepare_release_version.py <tag>`，把 tag 的完整版本（如 `v0.5.0-pre1` → `0.5.0-pre1`）写入 package.json / package-lock.json / tauri.conf.json / Cargo.toml / Cargo.lock，仅作用于 CI 工作区，不回写源码提交；`check_version.py` 同时接受源码基础版本与同步后的完整版本两种状态。
@@ -199,6 +204,7 @@ npm ci --prefix frontend
 npm test --prefix frontend -- --run
 npm run build --prefix frontend
 cargo fmt --manifest-path src-tauri/Cargo.toml --check
+cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 cargo test --manifest-path src-tauri/Cargo.toml
 git diff --check
 ```
@@ -214,7 +220,8 @@ git diff --check
 ## 后续计划
 
 1. 真实 Windows 机器人工验收：下载 CI 的 `windows-portable` artifact，运行 `.exe`，输入 `在LeanCloud上，花了5000元` → 应输出 `在 LeanCloud 上，花了 5000 元`；验证设置弹窗 12 条规则、开关即时重排、设置文件持久化、高 DPI 显示。
-2. GUI 功能迭代：继续完善错误态、长文本性能提示、无障碍焦点顺序与键盘操作体验。
+2. 正式发布 `v0.5.0`：人工复核 Release 资产、Release Notes、版本号和 latest 标记。
+3. 后续维护：评估格式化 hook 拆分、10 KB / 100 KB / 1 MB 性能基准、真实 Tauri E2E 测试和更多规则边界案例。
 
 ## 图标
 
@@ -225,7 +232,7 @@ git diff --check
 
 `.github/workflows/ci.yml` 与 `.github/workflows/release.yml`：
 
-- `ci.yml` 在 `dev`、`master` 与 PR 上运行快速验证：cargo fmt + 纯 Rust cargo test（16 项，含 UTF-8 多字节回归）+ 前端 vitest 组件测试 + tsc/vite 构建；
+- `ci.yml` 在 `dev`、`master` 与 PR 上运行快速验证：cargo fmt + cargo clippy（`-D warnings`）+ 纯 Rust cargo test（当前包含黄金样例、设置备份恢复和 UTF-8 多字节回归）+ `git diff --check` + 前端 vitest 组件测试 + tsc/vite 构建；
 - `release.yml` 在推送 `v*` tag 时运行完整发布流水线，也支持 workflow_dispatch 手动指定既有 tag 并可选标记 pre-release（tag 名含 `-` 时自动识别为预发布）；
 - `tauri-build` matrix（ubuntu/windows）：Linux 构建 deb/rpm/AppImage 并上传 `bundle-ubuntu-latest`；Windows 以 `--no-bundle` 构建无边框便携 `.exe`，以临时根目录打包为只含 exe/DLL 的 `.7z` 后上传 `windows-portable`（不生成任何安装器——WiX MSI 无法处理中文产品名，且产品定位为免安装便携版）。项目不支持 macOS。
 - `windows-smoke` job（windows-latest）：真实启动 GUI 冒烟测试——构建 exe → 启动进程 → 轮询等待主窗口句柄出现（最长 60 秒）→ 保持 10 秒验证稳定性 → 强制结束进程。已通过。

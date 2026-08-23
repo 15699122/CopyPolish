@@ -18,42 +18,34 @@ use std::path::{Path, PathBuf};
 
 /// 用户设置文件名（exe 同目录，YAML 格式）。
 pub const SETTINGS_FILE_NAME: &str = "rules.yaml";
+/// 设置备份文件名；主文件损坏时作为最后一次有效保存的恢复来源。
+pub const SETTINGS_BACKUP_FILE_NAME: &str = "rules.yaml.bak";
 /// 旧版设置文件名（JSON，仅用于一次性迁移读取）。
 pub const LEGACY_SETTINGS_FILE_NAME: &str = "ccw-formatter-settings.json";
 
 /// 主题模式：跟随系统 / 浅色 / 深色。
 /// `#[serde(default)]` 确保旧版设置文件（无 theme 字段）可反序列化，
 /// 默认回退为 `System`。
-#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum ThemeMode {
+    #[default]
     System,
     Light,
     Dark,
 }
 
 /// 界面字体预设；实际字体栈由前端根据 key 应用，未安装字体自动回退。
-#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 pub enum FontFamily {
+    #[default]
     System,
     MicrosoftYahei,
     Pingfang,
     NotoSansCjk,
     Simsun,
     Simhei,
-}
-
-impl Default for FontFamily {
-    fn default() -> Self {
-        Self::System
-    }
-}
-
-impl Default for ThemeMode {
-    fn default() -> Self {
-        Self::System
-    }
 }
 
 impl std::fmt::Display for ThemeMode {
@@ -66,7 +58,7 @@ impl std::fmt::Display for ThemeMode {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, Eq)]
 pub struct UserSettings {
     #[serde(default)]
     pub enabled: Vec<String>,
@@ -78,15 +70,11 @@ pub struct UserSettings {
     pub font: FontFamily,
 }
 
-impl Default for UserSettings {
-    fn default() -> Self {
-        Self {
-            enabled: Vec::new(),
-            last_input: String::new(),
-            theme: ThemeMode::default(),
-            font: FontFamily::default(),
-        }
-    }
+/// 设置加载结果。`recovered_from_backup` 用于向前端提示主文件损坏但已恢复。
+#[derive(Serialize, Clone, Debug, PartialEq, Eq)]
+pub struct LoadedUserSettings {
+    pub settings: UserSettings,
+    pub recovered_from_backup: bool,
 }
 
 /// 设置保存目录：优先使用当前可执行文件所在目录，失败时回退当前工作目录。
@@ -155,43 +143,86 @@ pub fn save_to(path: &Path, settings: &UserSettings) -> Result<(), String> {
     })?;
     drop(file);
 
-    fs::rename(&tmp_path, path).map_err(|e| {
+    // 先保留当前有效文件，再替换主文件。若备份轮换失败，主文件仍保持不变。
+    let mut backup_moved = false;
+    let backup_path = path.with_file_name(SETTINGS_BACKUP_FILE_NAME);
+    if path.exists() {
+        if backup_path.exists() {
+            fs::remove_file(&backup_path).map_err(|e| {
+                format!(
+                    "remove previous settings backup {} failed; target settings file is {}: {e}",
+                    backup_path.display(),
+                    path.display()
+                )
+            })?;
+        }
+        fs::rename(path, &backup_path).map_err(|e| {
+            format!(
+                "backup settings file {} to {} failed: {e}",
+                path.display(),
+                backup_path.display()
+            )
+        })?;
+        backup_moved = true;
+    }
+
+    if let Err(error) = fs::rename(&tmp_path, path) {
         let _ = fs::remove_file(&tmp_path);
-        format!(
-            "replace settings file {} with temporary file {} failed; directory is {}: {e}",
+        if backup_moved && !path.exists() {
+            let _ = fs::rename(&backup_path, path);
+        }
+        return Err(format!(
+            "replace settings file {} with temporary file {} failed; directory is {}: {error}",
             path.display(),
             tmp_path.display(),
             dir.display()
-        )
-    })
+        ));
+    }
+    Ok(())
 }
 
-/// 读取指定目录下的用户设置（含旧版 JSON 迁移逻辑），供测试注入目录。
-pub fn load_from_dir(dir: &Path) -> Option<UserSettings> {
+/// 读取指定目录下的设置，并在主文件损坏时尝试使用备份。
+pub fn load_from_dir_with_status(dir: &Path) -> Option<LoadedUserSettings> {
     let path = dir.join(SETTINGS_FILE_NAME);
     if let Some(settings) = load_from(&path) {
-        return Some(settings);
+        return Some(LoadedUserSettings {
+            settings,
+            recovered_from_backup: false,
+        });
     }
+
+    let backup_path = dir.join(SETTINGS_BACKUP_FILE_NAME);
+    if let Some(settings) = load_from(&backup_path) {
+        return Some(LoadedUserSettings {
+            settings,
+            recovered_from_backup: true,
+        });
+    }
+
     let legacy = dir.join(LEGACY_SETTINGS_FILE_NAME);
     if legacy.exists() {
         if let Ok(json) = fs::read_to_string(&legacy) {
             if let Ok(settings) = serde_json::from_str::<UserSettings>(&json) {
                 // 迁移成功与否不影响本次返回；失败则下次再试。
                 let _ = save_to(&path, &settings);
-                return Some(settings);
+                return Some(LoadedUserSettings {
+                    settings,
+                    recovered_from_backup: false,
+                });
             }
         }
     }
     None
 }
 
-/// 读取用户设置：
-/// 1. 优先读 exe 同目录的 rules.yaml；
-/// 2. 若不存在，尝试读取同目录旧版 ccw-formatter-settings.json（JSON）并
-///    自动迁移写入 rules.yaml；
-/// 3. 均不存在时返回 None。
-pub fn load() -> Option<UserSettings> {
-    load_from_dir(&settings_dir())
+/// 读取指定目录下的用户设置（含旧版 JSON 迁移逻辑），供测试注入目录。
+#[cfg(test)]
+pub fn load_from_dir(dir: &Path) -> Option<UserSettings> {
+    load_from_dir_with_status(dir).map(|loaded| loaded.settings)
+}
+
+pub fn load_with_status() -> Option<LoadedUserSettings> {
+    load_from_dir_with_status(&settings_dir())
 }
 
 pub fn save(settings: &UserSettings) -> Result<(), String> {
@@ -236,6 +267,52 @@ mod tests {
         assert!(raw.contains("last_input"));
         assert!(raw.contains("theme"));
         let _ = fs::remove_file(&path);
+        let _ = fs::remove_file(path.with_file_name(SETTINGS_BACKUP_FILE_NAME));
+    }
+
+    #[test]
+    fn second_save_creates_backup_of_previous_settings() {
+        let path = temp_settings_file("backup");
+        let backup = path.with_file_name(SETTINGS_BACKUP_FILE_NAME);
+        let first = UserSettings {
+            last_input: "第一次".to_string(),
+            ..UserSettings::default()
+        };
+        let second = UserSettings {
+            last_input: "第二次".to_string(),
+            ..UserSettings::default()
+        };
+
+        save_to(&path, &first).expect("first save should succeed");
+        save_to(&path, &second).expect("second save should succeed");
+
+        assert_eq!(load_from(&path), Some(second));
+        assert_eq!(load_from(&backup), Some(first));
+        let _ = fs::remove_file(&path);
+        let _ = fs::remove_file(&backup);
+    }
+
+    #[test]
+    fn corrupt_primary_recovers_from_backup_with_status() {
+        let path = temp_settings_file("recover");
+        let dir = path.parent().expect("temporary settings path has parent");
+        let backup = path.with_file_name(SETTINGS_BACKUP_FILE_NAME);
+        let expected = UserSettings {
+            last_input: "可恢复内容👍".to_string(),
+            ..UserSettings::default()
+        };
+
+        fs::create_dir_all(dir).unwrap();
+        save_to(&path, &expected).expect("first save should succeed");
+        save_to(&path, &UserSettings::default()).expect("second save should succeed");
+        fs::write(&path, "invalid: [").unwrap();
+
+        let loaded = load_from_dir_with_status(dir).expect("backup should be loaded");
+        assert_eq!(loaded.settings, expected);
+        assert!(loaded.recovered_from_backup);
+
+        let _ = fs::remove_file(&path);
+        let _ = fs::remove_file(&backup);
     }
 
     #[test]

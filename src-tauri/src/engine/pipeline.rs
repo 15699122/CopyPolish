@@ -7,12 +7,12 @@
 //   4. 逐行按 registry 注册顺序应用已启用规则；
 //   5. 行内占位符补边界空格 -> 还原全部占位符。
 //
-// `enabled` 为空表示全部启用；未知 key 安全忽略。
+// 规则选择由 `RuleSelection` 显式表达；未知 key 安全忽略。
 // =============================================================================
 
 use std::collections::HashSet;
 
-use super::model::FormatRequest;
+use super::model::{FormatRequest, RuleSelection};
 use super::protection::{
     is_placeholder_line, protect, protect_byte_spans, protect_markdown_lines, restore,
     space_around_inline_placeholders,
@@ -21,8 +21,12 @@ use super::registry::rules;
 use super::tokenizer::detect_chemical_formulas;
 
 pub fn format_text(req: &FormatRequest) -> Result<String, String> {
-    let enabled_all = req.enabled.is_empty();
-    let enabled: HashSet<&str> = req.enabled.iter().map(String::as_str).collect();
+    let enabled: HashSet<String> = match &req.selection {
+        RuleSelection::All => rules().iter().map(|rule| rule.key().to_string()).collect(),
+        RuleSelection::Defaults => super::registry::enabled_defaults().into_iter().collect(),
+        RuleSelection::Only { keys } => keys.iter().cloned().collect(),
+        RuleSelection::None => HashSet::new(),
+    };
 
     let (text, newline) = normalize_newlines(&req.text);
 
@@ -50,7 +54,7 @@ pub fn format_text(req: &FormatRequest) -> Result<String, String> {
 
         let mut current = line.to_string();
         for rule in registered {
-            if enabled_all || enabled.contains(rule.key()) {
+            if enabled.contains(rule.key()) {
                 current = (rule.apply)(&current);
             }
         }

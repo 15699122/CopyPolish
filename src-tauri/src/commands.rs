@@ -9,21 +9,21 @@
 
 use crate::engine::{self, RuleMeta};
 
-/// format_text(text, enabled) -> String
+/// format_text(text, selection) -> String
 #[tauri::command]
-pub fn format_text(text: String, enabled: Vec<String>) -> Result<String, String> {
-    let req = engine::FormatRequest { text, enabled };
+pub fn format_text(text: String, selection: engine::RuleSelection) -> Result<String, String> {
+    let req = engine::FormatRequest { text, selection };
     engine::format_text(&req)
 }
 
-/// get_user_settings() -> Option<UserSettings>
+/// get_user_settings() -> Option<LoadedUserSettings>
 /// 读取 exe 同目录设置文件；不存在时返回 None（前端使用默认规则集）。
 /// 历史中文规则 key 在读取时迁移为稳定 key。
 #[tauri::command]
-pub fn get_user_settings() -> Result<Option<crate::user_settings::UserSettings>, String> {
-    Ok(crate::user_settings::load().map(|mut s| {
-        s.enabled = engine::normalize_rule_keys(&s.enabled);
-        s
+pub fn get_user_settings() -> Result<Option<crate::user_settings::LoadedUserSettings>, String> {
+    Ok(crate::user_settings::load_with_status().map(|mut loaded| {
+        loaded.settings.enabled = engine::normalize_rule_keys(&loaded.settings.enabled);
+        loaded
     }))
 }
 

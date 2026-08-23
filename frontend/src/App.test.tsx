@@ -43,12 +43,14 @@ const mocks = vi.hoisted(() => {
   };
 });
 
+const clipboardWriteText = vi.fn();
+
 vi.mock("@/lib/tauri", () => ({
   isTauri: () => false,
   formatText: mocks.formatText,
   getRules: mocks.getRules,
   getEnabledDefaults: mocks.getEnabledDefaults,
-  getSettingsPath: () => "C:\\Users\\Tester\\AppData\\Roaming\\CopyPolish\\settings.json",
+  getSettingsPath: () => "C:\\Users\\Tester\\Desktop\\CopyPolish\\rules.yaml",
   getUserSettings: mocks.getUserSettings,
   saveUserSettings: mocks.saveUserSettings,
   getAppVersion: mocks.getAppVersion,
@@ -70,13 +72,18 @@ async function setup() {
 }
 
 beforeEach(() => {
+  Object.defineProperty(navigator, "clipboard", {
+    configurable: true,
+    value: { writeText: clipboardWriteText },
+  });
   vi.clearAllMocks();
+  clipboardWriteText.mockResolvedValue(undefined);
   window.localStorage.clear();
   mocks.getRules.mockResolvedValue(mocks.rules);
   mocks.getEnabledDefaults.mockResolvedValue(["rule-a", "rule-b"]);
   mocks.getUserSettings.mockResolvedValue(null);
   mocks.saveUserSettings.mockResolvedValue(undefined);
-  mocks.getAppVersion.mockResolvedValue("0.4.0-pre.3");
+  mocks.getAppVersion.mockResolvedValue("0.5.0-test");
 });
 
 describe("App 主流程", () => {
@@ -89,6 +96,10 @@ describe("App 主流程", () => {
       () => expect(screen.getByTestId("output-text")).toHaveTextContent("格式化(hello)"),
       { timeout: 2000 },
     );
+    expect(mocks.formatText).toHaveBeenLastCalledWith({
+      text: "hello",
+      selection: { mode: "only", keys: ["rule-a", "rule-b"] },
+    });
   });
 
   it("清除输入会清空输入框与输出区", async () => {
@@ -129,6 +140,43 @@ describe("App 主流程", () => {
     expect(screen.queryByTestId("output-empty-state")).not.toBeInTheDocument();
   });
 
+  it("长文本显示处理提示并使用长文本排版流程", async () => {
+    mockFormat((t) => t);
+    const { user } = await setup();
+    const longText = "中".repeat(50_000);
+    await user.clear(screen.getByTestId("input-textarea"));
+    await user.click(screen.getByTestId("input-textarea"));
+    await user.paste(longText);
+
+    expect(screen.getByTestId("long-text-status")).toHaveTextContent(
+      "文本较长，处理可能需要更长时间",
+    );
+    await waitFor(
+      () => expect(mocks.formatText).toHaveBeenCalledWith(expect.objectContaining({ text: longText })),
+      { timeout: 2500 },
+    );
+  });
+
+  it("键盘快捷键支持立即排版、复制和打开设置", async () => {
+    mockFormat((t) => `格式化(${t})`);
+    const { user } = await setup();
+    const input = screen.getByTestId("input-textarea");
+    await user.type(input, "hello");
+
+    await user.keyboard("{Control>}{Enter}{/Control}");
+    await waitFor(() => expect(mocks.formatText).toHaveBeenCalledWith(expect.objectContaining({ text: "hello" })));
+
+    await waitFor(() => expect(screen.getByTestId("output-text")).toHaveTextContent("格式化(hello)"));
+    await user.keyboard("{Control>}{Shift>}c{/Shift}{/Control}");
+    await waitFor(() => expect(screen.getByTestId("copy-status")).toHaveTextContent("已复制"));
+
+    document.body.focus();
+    await user.keyboard("{Control>},{/Control}");
+    expect(screen.getByTestId("settings-dialog")).toBeInTheDocument();
+    await user.click(screen.getByTestId("settings-done"));
+    await waitFor(() => expect(screen.getByTestId("open-settings")).toHaveFocus());
+  });
+
   it("设置弹窗使用稳定滚动布局并完整显示主题、规则和底部操作", async () => {
     const { user } = await setup();
     await user.click(screen.getByTestId("open-settings"));
@@ -154,17 +202,17 @@ describe("App 主流程", () => {
     const settingsPathEl = screen.getByTestId("settings-path");
     expect(settingsPathEl).toHaveAttribute(
       "title",
-      "C:\\Users\\Tester\\AppData\\Roaming\\CopyPolish\\settings.json",
+      "C:\\Users\\Tester\\Desktop\\CopyPolish\\rules.yaml",
     );
     expect(settingsPathEl).toHaveAttribute(
       "aria-label",
-      "设置文件完整路径：C:\\Users\\Tester\\AppData\\Roaming\\CopyPolish\\settings.json",
+      "设置文件完整路径：C:\\Users\\Tester\\Desktop\\CopyPolish\\rules.yaml",
     );
     expect(settingsPathEl).toContainElement(screen.getByRole("tooltip"));
     expect(screen.getByRole("tooltip")).toHaveTextContent(
-      "C:\\Users\\Tester\\AppData\\Roaming\\CopyPolish\\settings.json",
+      "C:\\Users\\Tester\\Desktop\\CopyPolish\\rules.yaml",
     );
-    expect(screen.getByTestId("settings-version")).toHaveTextContent("版本 0.4.0-pre.3");
+    expect(screen.getByTestId("settings-version")).toHaveTextContent("版本 0.5.0-test");
     expect(screen.getByTestId("settings-footer")).toHaveClass("px-4", "py-4", "sm:px-6");
     expect(screen.getByTestId("settings-actions")).toBeInTheDocument();
     // 主题选项横向网格容器。
@@ -217,7 +265,7 @@ describe("App 主流程", () => {
   });
 
   it("全不选会把启用集清空并重排", async () => {
-    mockFormat((t) => `[${mocks.formatText.mock.calls.length}]${t}`);
+    mockFormat((t) => t);
     const { user } = await setup();
     await user.click(screen.getByTestId("open-settings"));
     await user.click(screen.getByTestId("select-none"));
@@ -228,6 +276,12 @@ describe("App 主流程", () => {
         expect.objectContaining({ enabled: [] }),
       ),
     );
+    await waitFor(() =>
+      expect(mocks.formatText).toHaveBeenCalledWith({
+        text: "",
+        selection: { mode: "none" },
+      }),
+    );
   });
 
   it("启动时恢复上次保存的设置与输入内容", async () => {
@@ -236,6 +290,7 @@ describe("App 主流程", () => {
       last_input: "上次输入",
       theme: "dark",
       font: "pingfang",
+      recovered_from_backup: false,
     });
     mockFormat((t) => `格式化(${t})`);
     const { user } = await setup();
