@@ -52,9 +52,12 @@ def main() -> int:
     tag = sys.argv[1] if len(sys.argv) > 1 else ""
     if tag:
         expected = tag[1:] if tag.startswith("v") else tag
-        if not re.fullmatch(r"\d+\.\d+\.\d+", expected):
+        # 允许 semver 预发布后缀（如 0.3.3-pre.1）；版本号文件只保存数值部分。
+        m = re.fullmatch(r"(\d+\.\d+\.\d+)(?:-[0-9A-Za-z.-]+)?", expected)
+        if not m:
             print(f"ERROR: 非法 tag 版本号格式: {tag}")
             return 1
+        expected = m.group(1)
         for k, v in versions_found.items():
             if v != expected:
                 ok = False

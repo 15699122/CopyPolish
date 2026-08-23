@@ -138,7 +138,7 @@ git push origin dev
 gh pr create --base master --head dev
 ```
 
-发布仅从 `master` 创建 `v*` tag：
+发布仅从 `master` 创建 `v*` tag；如需从 `dev` 验证构建，可推送预发布 tag（`vX.Y.Z-后缀`，如 `v0.3.3-pre.1`，tag 可指向 `dev` 提交），Release 会自动标记为 pre-release、不占用 latest，且 Release Notes 由 GitHub 自动生成：
 
 ```bash
 git switch master
