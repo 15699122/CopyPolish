@@ -136,8 +136,8 @@ describe("App 主流程", () => {
       "w-[min(640px,calc(100vw-2rem))]",
       "max-h-[calc(100vh-2rem)]",
       "max-w-[calc(100vw-2rem)]",
-      "sm:min-h-[520px]",
-      "sm:min-w-[520px]",
+      "sm:min-h-130",
+      "sm:min-w-130",
     );
     expect(screen.getByText("设置 — 排版规则")).toBeVisible();
     expect(screen.getByText("主题")).toBeVisible();
