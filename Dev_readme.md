@@ -28,9 +28,9 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
 - `frontend/`：React + Vite + TypeScript + Tailwind v4 + shadcn/ui 界面已落地。
 - `src-tauri/`：纯 Rust 实现（`rust_engine.rs` + `user_settings.rs`），无 Python/PyO3 运行时依赖。
 - 仓库根目录的 `ccw_engine.py` 仅作为 parity 权威基准保留，不参与应用构建和打包。
-- 设置 Dialog 已改为稳定响应式布局：固定 header/footer + 原生 `overflow-y-auto` 内容滚动；不再模拟 Dialog 内部拖动/缩放，主 Tauri 窗口仍可拖动和 resize。
+- 设置 Dialog 使用稳定响应式布局：在视口安全边距内居中并限制最大宽高，固定 header/footer + 原生 `overflow-y-auto` 内容滚动；不再模拟 Dialog 内部拖动/缩放，主 Tauri 窗口仍可拖动和 resize。
 - 主窗口最小尺寸为 `800×600`，用于避免布局过度压缩。
-- 输入框已有示例 placeholder；输出框已有真实空状态提示。
+- 输入框已有字号更小、颜色更淡的示例 placeholder；输出框已有真实空状态提示。
 - Linux 打包目标：`.deb` / `.rpm` / `.AppImage`。
 - Windows 仅提供无边框便携版：`CopyPolish.exe` 与 `CopyPolish-windows-x64.7z`，不提供安装器。
 
@@ -116,13 +116,16 @@ npm ci --prefix frontend
 
 默认在 `dev` 分支开发，`master` 只保留已验证的稳定代码：
 
-使用 Cline Act Mode 修改本地文件时，完成实现与必要验证后应自动同步到 GitHub 远程仓库的相应分支：
+使用 Cline Act Mode 修改本地文件时，完成实现与必要验证后应自动同步本次修改结果至 Markdown 文档，并同步到 GitHub 远程仓库的相应分支：
 
 1. 先检查 `git status --short --branch`，确认当前分支、远程跟踪分支与待提交文件；
 2. 查看 diff，确保提交范围只包含本次任务相关更改；
-3. 使用清晰的 commit message 提交；
-4. 推送到当前分支对应的远程分支（通常为 `origin/<当前分支>`，例如 `dev -> origin/dev`）；
-5. 推送后再次检查 `git status --short --branch`，确认本地分支与远程分支已同步。
+3. 审阅仓库 Markdown 文档并按本次修改的影响范围同步：用户可见的功能、用法、限制、下载/运行方式或设置行为有变化时更新 `README.md`；架构、开发流程、实现约束、测试/构建命令、CI 或发布流程有变化时更新 `Dev_readme.md`；
+4. 若本次修改不改变已有文档描述，不做无意义改写，但必须在最终结果中明确说明“已审阅 Markdown 文档，确认无需更新”；文档更新应与代码修改一起纳入本次 diff、验证、提交与推送；
+5. 运行与本次修改相关的必要验证；
+6. 使用清晰的 commit message 提交；
+7. 推送到当前分支对应的远程分支（通常为 `origin/<当前分支>`，例如 `dev -> origin/dev`）；
+8. 推送后再次检查 `git status --short --branch`，确认本地分支与远程分支已同步。
 
 ```bash
 git switch dev
