@@ -32,6 +32,24 @@ pub enum ThemeMode {
     Dark,
 }
 
+/// 界面字体预设；实际字体栈由前端根据 key 应用，未安装字体自动回退。
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum FontFamily {
+    System,
+    MicrosoftYahei,
+    Pingfang,
+    NotoSansCjk,
+    Simsun,
+    Simhei,
+}
+
+impl Default for FontFamily {
+    fn default() -> Self {
+        Self::System
+    }
+}
+
 impl Default for ThemeMode {
     fn default() -> Self {
         Self::System
@@ -56,6 +74,8 @@ pub struct UserSettings {
     pub last_input: String,
     #[serde(default)]
     pub theme: ThemeMode,
+    #[serde(default)]
+    pub font: FontFamily,
 }
 
 impl Default for UserSettings {
@@ -64,6 +84,7 @@ impl Default for UserSettings {
             enabled: Vec::new(),
             last_input: String::new(),
             theme: ThemeMode::default(),
+            font: FontFamily::default(),
         }
     }
 }
@@ -205,6 +226,7 @@ mod tests {
             enabled: vec!["中英文之间需要增加空格".to_string()],
             last_input: "在LeanCloud上".to_string(),
             theme: ThemeMode::Dark,
+            font: FontFamily::Pingfang,
         };
         save_to(&path, &settings).expect("save should succeed");
         assert_eq!(load_from(&path), Some(settings));
@@ -243,6 +265,7 @@ mod tests {
             enabled: vec!["中英文之间需要增加空格".to_string()],
             last_input: "在LeanCloud上".to_string(),
             theme: ThemeMode::Light,
+            font: FontFamily::System,
         };
         fs::write(
             dir.join(LEGACY_SETTINGS_FILE_NAME),
@@ -272,6 +295,7 @@ mod tests {
         assert_eq!(loaded.enabled, vec!["a".to_string()]);
         assert_eq!(loaded.last_input, "");
         assert_eq!(loaded.theme, ThemeMode::System);
+        assert_eq!(loaded.font, FontFamily::System);
         let _ = fs::remove_file(&path);
     }
 
@@ -286,6 +310,7 @@ mod tests {
             ],
             last_input: "在LeanCloud上，花了5000元👍𠀀".to_string(),
             theme: ThemeMode::Dark,
+            font: FontFamily::NotoSansCjk,
         };
         save_to(&path, &settings).expect("save should succeed");
         // 文件字节必须是合法 UTF-8 且包含原始字符。

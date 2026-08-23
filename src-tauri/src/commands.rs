@@ -41,6 +41,7 @@ pub fn save_user_settings(
     enabled: Vec<String>,
     last_input: String,
     theme: crate::user_settings::ThemeMode,
+    font: crate::user_settings::FontFamily,
 ) -> Result<(), String> {
     let known: std::collections::HashSet<String> = rust_engine::default_rules()
         .into_iter()
@@ -51,6 +52,7 @@ pub fn save_user_settings(
         enabled: filtered,
         last_input,
         theme,
+        font,
     })
 }
 

@@ -133,11 +133,11 @@ describe("App 主流程", () => {
     expect(dialog).toBeVisible();
     expect(dialog).toHaveClass(
       "h-[min(680px,calc(100vh-2rem))]",
-      "w-[min(760px,calc(100vw-2rem))]",
+      "w-[min(640px,calc(100vw-2rem))]",
       "max-h-[calc(100vh-2rem)]",
       "max-w-[calc(100vw-2rem)]",
       "sm:min-h-[520px]",
-      "sm:min-w-[560px]",
+      "sm:min-w-[520px]",
     );
     expect(screen.getByText("设置 — 排版规则")).toBeVisible();
     expect(screen.getByText("主题")).toBeVisible();
@@ -152,6 +152,10 @@ describe("App 主流程", () => {
     expect(screen.getByTestId("theme-system")).toBeInTheDocument();
     expect(screen.getByTestId("theme-light")).toBeInTheDocument();
     expect(screen.getByTestId("theme-dark")).toBeInTheDocument();
+    expect(screen.getByTestId("theme-options")).not.toHaveClass("border");
+    expect(screen.getByTestId("font-settings")).toBeInTheDocument();
+    expect(screen.getByTestId("font-select")).toHaveValue("system");
+    expect(screen.getByTestId("reset-font")).toBeInTheDocument();
     expect(screen.getByText("中英文之间增加空格")).toBeVisible();
     expect(screen.getByText("中文与数字之间增加空格")).toBeVisible();
     expect(screen.getByText("争议规则")).toBeVisible();
@@ -181,6 +185,7 @@ describe("App 主流程", () => {
         enabled: ["rule-a", "rule-b", "rule-c"],
         last_input: "",
         theme: "system",
+        font: "system",
       }),
     );
 
@@ -209,6 +214,7 @@ describe("App 主流程", () => {
       enabled: ["rule-c"],
       last_input: "上次输入",
       theme: "dark",
+      font: "pingfang",
     });
     mockFormat((t) => `格式化(${t})`);
     const { user } = await setup();
@@ -222,6 +228,7 @@ describe("App 主流程", () => {
     expect(screen.getByTestId("rule-rule-a")).not.toBeChecked();
     // 主题被正确恢复到深色。
     expect(document.documentElement).toHaveAttribute("data-theme", "dark");
+    expect(screen.getByTestId("font-select")).toHaveValue("pingfang");
   });
 
   it("主题切换会立即应用并持久化", async () => {
@@ -245,6 +252,29 @@ describe("App 主流程", () => {
     await waitFor(() =>
       expect(mocks.saveUserSettings).toHaveBeenCalledWith(
         expect.objectContaining({ theme: "light" }),
+      ),
+    );
+  });
+
+  it("字体切换与恢复默认会立即应用并持久化", async () => {
+    const { user } = await setup();
+    await user.click(screen.getByTestId("open-settings"));
+
+    await user.selectOptions(screen.getByTestId("font-select"), "pingfang");
+    expect(screen.getByTestId("font-select")).toHaveValue("pingfang");
+    expect(document.documentElement.style.getPropertyValue("--app-font-family")).toContain("PingFang SC");
+    await waitFor(() =>
+      expect(mocks.saveUserSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ font: "pingfang" }),
+      ),
+    );
+
+    await user.click(screen.getByTestId("reset-font"));
+    expect(screen.getByTestId("font-select")).toHaveValue("system");
+    expect(document.documentElement.style.getPropertyValue("--app-font-family")).toContain("system-ui");
+    await waitFor(() =>
+      expect(mocks.saveUserSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ font: "system" }),
       ),
     );
   });
