@@ -9,6 +9,11 @@ on:
         description: Existing v* tag to release
         required: true
         type: string
+      prerelease:
+        description: Mark GitHub Release as pre-release
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   test:
@@ -262,25 +267,25 @@ jobs:
           find dist/bundle-ubuntu-latest -name '*.AppImage' -exec cp {} release-files/CopyPolish_linux_amd64.AppImage \;
           ls -la release-files
 
-      # 在自动生成的 notes 基础上补充固定说明（改名、设置迁移等）。
+      # 自动生成 Release Notes；预发布 tag（含 "-"）或手动勾选时标记为 prerelease 且不占用 latest。
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          IS_PRERELEASE: ${{ github.event_name == 'workflow_dispatch' && inputs.prerelease == true || github.event_name == 'push' && contains(github.ref_name, '-') }}
         run: |
+          FLAGS=""
+          if [ "$IS_PRERELEASE" = "true" ]; then
+            FLAGS="--prerelease"
+          else
+            FLAGS="--latest"
+          fi
           gh release create "$RELEASE_TAG" \
             --repo "$GITHUB_REPOSITORY" \
             --title "$RELEASE_TAG" \
             --generate-notes \
-            --latest \
+            $FLAGS \
             release-files/*
-          gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --notes "$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json body -q .body)
-
-          ## 重要变更说明
-
-          - Windows 便携版可执行文件更名为 \`CopyPolish.exe\`，压缩包为 \`CopyPolish-windows-x64.7z\`（压缩包根目录直接包含 exe，无嵌套目录）。
-          - 用户设置现保存在程序（exe）相同目录的 \`rules.yaml\`；首次运行会自动迁移旧版 \`ccw-formatter-settings.json\` 中的规则开关与上次输入。
-          - 「用 text-spacing 来挽救」说明性规则已彻底移除；「专有名词使用正确的大小写」与「不要使用不地道的缩写」默认关闭，可在设置中手动启用。"
 
       - name: Verify version consistency
         run: python3 scripts/check_version.py "${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}"
