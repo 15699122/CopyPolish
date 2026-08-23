@@ -77,12 +77,13 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
     - 中英文之间需要增加空格
   last_input: ...
   theme: system
+  font: system
   ```
-- 字段：`enabled`（启用规则）、`last_input`（最近输入）、`theme`（`system` / `light` / `dark`）。旧版设置文件无 `theme` 时默认回落为 `system`。
+- 字段：`enabled`（启用规则）、`last_input`（最近输入）、`theme`（`system` / `light` / `dark`）、`font`（`system` / `microsoft-yahei` / `pingfang` / `noto-sans-cjk` / `simsun` / `simhei`）。旧版设置文件无 `theme` 或 `font` 时分别默认回落为 `system`。
 - 迁移：`rules.yaml` 不存在但同目录存在旧版 `ccw-formatter-settings.json` 时，自动读取旧 JSON 并转换写入新 YAML。
 - 保存策略：写临时文件 `rules.yaml.tmp` 后原子 rename 到 `rules.yaml`，避免中途退出产生半截文件；目标是 exe 同目录，目录不存在或无写权限时返回带完整路径的诊断错误（前端在设置弹窗中展示，提示把便携版放到可写目录）。
 - 实现：`user_settings.rs` 提供 `load_from/save_to`（可注入路径）、`load_from_dir(dir)`（可注入目录，含迁移逻辑）与 `load/save`（exe 目录）；command 层暴露 `get_user_settings`（文件缺失返回 `null`）、`save_user_settings`（保存前过滤未知规则 key）与 `get_settings_path`（返回设置文件完整路径，供界面显示）。
-- 前端行为：启动恢复；规则开关/全选/恢复默认/清空/主题即时保存，输入防抖（160ms）保存；浏览器预览回退 localStorage。
+- 前端行为：启动恢复；规则开关/全选/恢复默认/清空/主题/字体即时保存，输入防抖（160ms）保存；浏览器预览回退 localStorage。字体使用固定跨平台预设与 CSS fallback 栈，不尝试枚举系统已安装字体。
 - 测试约定：所有设置读写测试一律使用系统临时目录中的唯一随机文件（PID + 计数器），禁止写仓库内固定路径。
 - 该文件已加入 `.gitignore`（根目录 `/rules.yaml`）。
 

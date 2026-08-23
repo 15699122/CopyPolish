@@ -32,6 +32,7 @@ import {
   isTauri,
   saveUserSettings,
   type Rule,
+  type FontFamily,
   type ThemeMode,
   type UserSettings,
 } from "@/lib/tauri";
@@ -72,11 +73,21 @@ export default function App() {
 
   // 主题状态：system / light / dark。
   const [theme, setTheme] = useState<ThemeMode>("system");
+  const [font, setFont] = useState<FontFamily>("system");
+
+  const fontFamilyStack: Record<FontFamily, string> = {
+    system: "system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+    "microsoft-yahei": "\"Microsoft YaHei\", \"微软雅黑\", system-ui, sans-serif",
+    pingfang: "\"PingFang SC\", \"苹方\", system-ui, sans-serif",
+    "noto-sans-cjk": "\"Noto Sans CJK SC\", \"Source Han Sans SC\", system-ui, sans-serif",
+    simsun: "SimSun, \"宋体\", serif",
+    simhei: "SimHei, \"黑体\", system-ui, sans-serif",
+  };
 
   function persistSettings(nextEnabled: string[], nextInput: string) {
     if (!hydratedRef.current) return;
     setSettingsStatus("saving");
-    saveUserSettings({ enabled: nextEnabled, last_input: nextInput, theme })
+    saveUserSettings({ enabled: nextEnabled, last_input: nextInput, theme, font })
       .then(() => {
         setSettingsStatus("saved");
         setSettingsError(null);
@@ -131,6 +142,9 @@ export default function App() {
           if (saved.theme !== undefined) {
             setTheme(saved.theme);
           }
+          if (saved.font !== undefined) {
+            setFont(saved.font);
+          }
           if (saved.last_input) {
             setInput(saved.last_input);
             scheduleFormat(saved.last_input, restoredEnabled);
@@ -169,6 +183,10 @@ export default function App() {
       mediaQuery.removeEventListener("change", applyTheme);
     };
   }, [theme]);
+
+  useEffect(() => {
+    document.documentElement.style.setProperty("--app-font-family", fontFamilyStack[font]);
+  }, [font]);
 
   // 实时排版（防抖 + 忽略乱序的旧请求）
   function scheduleFormat(nextInput: string, applyEnabled = enabled) {
@@ -265,7 +283,7 @@ export default function App() {
   function onThemeChange(nextTheme: ThemeMode) {
     setTheme(nextTheme);
     setSettingsStatus("saving");
-    saveUserSettings({ enabled, last_input: input, theme: nextTheme })
+    saveUserSettings({ enabled, last_input: input, theme: nextTheme, font })
       .then(() => {
         setSettingsStatus("saved");
         setSettingsError(null);
@@ -274,6 +292,24 @@ export default function App() {
         setSettingsStatus("error");
         setSettingsError(String(e));
       });
+  }
+
+  function onFontChange(nextFont: FontFamily) {
+    setFont(nextFont);
+    setSettingsStatus("saving");
+    saveUserSettings({ enabled, last_input: input, theme, font: nextFont })
+      .then(() => {
+        setSettingsStatus("saved");
+        setSettingsError(null);
+      })
+      .catch((e) => {
+        setSettingsStatus("error");
+        setSettingsError(String(e));
+      });
+  }
+
+  function onResetFont() {
+    onFontChange("system");
   }
 
   // 标题栏按下时显式启动窗口拖动；控制按钮区域已在容器上 stopPropagation。
@@ -379,7 +415,7 @@ return (
                 </div>
               )}
               <pre
-                className="w-full whitespace-pre-wrap wrap-break-word font-sans text-sm"
+                className="w-full whitespace-pre-wrap wrap-break-word text-sm"
                 data-testid="output-text"
               >
                 {output}
@@ -400,7 +436,7 @@ return (
           </DialogTrigger>
           <DialogContent
             data-testid="settings-dialog"
-            className="flex h-[min(680px,calc(100vh-2rem))] w-[min(760px,calc(100vw-2rem))] max-h-[calc(100vh-2rem)] max-w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0 sm:min-h-[520px] sm:min-w-[560px]"
+            className="flex h-[min(680px,calc(100vh-2rem))] w-[min(640px,calc(100vw-2rem))] max-h-[calc(100vh-2rem)] max-w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0 sm:min-h-[520px] sm:min-w-[520px]"
           >
             {/* 固定标题区 */}
             <DialogHeader className="shrink-0 border-b px-6 py-5 pr-12">
@@ -420,13 +456,13 @@ return (
                 <div className="space-y-2">
                   <h3 className="text-sm font-semibold">主题</h3>
                   <div
-                    className="grid grid-cols-1 gap-2 sm:grid-cols-3"
+                    className="grid grid-cols-1 gap-1 sm:grid-cols-3"
                     data-testid="theme-options"
                   >
                     <label
                       className={cn(
-                        "flex min-w-0 cursor-pointer items-center gap-2 rounded-md border px-3 py-2",
-                        theme === "system" && "border-primary bg-accent",
+                        "flex min-w-0 cursor-pointer items-center gap-1.5 rounded-md px-2 py-1.5 transition-colors hover:bg-accent",
+                        theme === "system" && "bg-accent text-accent-foreground",
                       )}
                     >
                       <input
@@ -442,8 +478,8 @@ return (
                     </label>
                     <label
                       className={cn(
-                        "flex min-w-0 cursor-pointer items-center gap-2 rounded-md border px-3 py-2",
-                        theme === "light" && "border-primary bg-accent",
+                        "flex min-w-0 cursor-pointer items-center gap-1.5 rounded-md px-2 py-1.5 transition-colors hover:bg-accent",
+                        theme === "light" && "bg-accent text-accent-foreground",
                       )}
                     >
                       <input
@@ -459,8 +495,8 @@ return (
                     </label>
                     <label
                       className={cn(
-                        "flex min-w-0 cursor-pointer items-center gap-2 rounded-md border px-3 py-2",
-                        theme === "dark" && "border-primary bg-accent",
+                        "flex min-w-0 cursor-pointer items-center gap-1.5 rounded-md px-2 py-1.5 transition-colors hover:bg-accent",
+                        theme === "dark" && "bg-accent text-accent-foreground",
                       )}
                     >
                       <input
@@ -474,6 +510,32 @@ return (
                       />
                       <span className="truncate text-sm">深色</span>
                     </label>
+                  </div>
+                </div>
+
+                <div className="space-y-2" data-testid="font-settings">
+                  <div>
+                    <h3 className="text-sm font-semibold">字体</h3>
+                    <p className="text-xs text-muted-foreground">选择界面显示字体；未安装的字体会自动使用系统回退字体。</p>
+                  </div>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <select
+                      value={font}
+                      onChange={(event) => onFontChange(event.target.value as FontFamily)}
+                      data-testid="font-select"
+                      aria-label="界面字体"
+                      className="h-9 min-w-0 flex-1 rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <option value="system">系统默认（推荐）</option>
+                      <option value="microsoft-yahei">微软雅黑</option>
+                      <option value="pingfang">苹方</option>
+                      <option value="noto-sans-cjk">思源黑体 / Noto Sans CJK SC</option>
+                      <option value="simsun">宋体</option>
+                      <option value="simhei">黑体</option>
+                    </select>
+                    <Button variant="ghost" size="sm" data-testid="reset-font" onClick={onResetFont}>
+                      恢复默认字体
+                    </Button>
                   </div>
                 </div>
 

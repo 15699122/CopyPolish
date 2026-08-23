@@ -75,11 +75,13 @@ export async function getEnabledDefaults(): Promise<string[]> {
 // ---------------------------------------------------------------------------
 
 export type ThemeMode = "system" | "light" | "dark";
+export type FontFamily = "system" | "microsoft-yahei" | "pingfang" | "noto-sans-cjk" | "simsun" | "simhei";
 
 export interface UserSettings {
   enabled: string[];
   last_input: string;
   theme: ThemeMode;
+  font: FontFamily;
 }
 
 const LS_SETTINGS_KEY = "ccw-formatter-settings";
@@ -100,6 +102,7 @@ export async function getUserSettings(): Promise<UserSettings | null> {
         enabled: parsed.enabled ?? [],
         last_input: parsed.last_input ?? "",
         theme: ensureThemeMode(parsed.theme),
+        font: ensureFontFamily(parsed.font),
       };
     } catch {
       return null;
@@ -111,6 +114,7 @@ export async function getUserSettings(): Promise<UserSettings | null> {
     enabled: settings.enabled ?? [],
     last_input: settings.last_input ?? "",
     theme: ensureThemeMode(settings.theme),
+    font: ensureFontFamily(settings.font),
   };
 }
 
@@ -127,10 +131,24 @@ export async function saveUserSettings(settings: UserSettings): Promise<void> {
     enabled: settings.enabled,
     lastInput: settings.last_input,
     theme: settings.theme,
+    font: settings.font,
   });
 }
 
 function ensureThemeMode(value: unknown): ThemeMode {
   if (value === "light" || value === "dark") return value;
+  return "system";
+}
+
+export function ensureFontFamily(value: unknown): FontFamily {
+  if (
+    value === "microsoft-yahei" ||
+    value === "pingfang" ||
+    value === "noto-sans-cjk" ||
+    value === "simsun" ||
+    value === "simhei"
+  ) {
+    return value;
+  }
   return "system";
 }
