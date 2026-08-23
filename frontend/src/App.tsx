@@ -614,7 +614,7 @@ return (
                         {/* 悬停或键盘聚焦时展示完整路径，不受界面宽度截断影响。 */}
                         <span
                           role="tooltip"
-                          className="pointer-events-none absolute bottom-full left-0 z-10 mb-1 hidden w-max max-w-[28rem] break-all rounded-md border bg-card px-2 py-1 text-left text-card-foreground shadow-md group-focus-within:block group-hover:block"
+                          className="pointer-events-none absolute bottom-full left-0 z-10 mb-1 hidden w-max max-w-md break-all rounded-md border bg-card px-2 py-1 text-left text-card-foreground shadow-md group-focus-within:block group-hover:block"
                         >
                           {settingsPath}
                         </span>
