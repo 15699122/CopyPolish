@@ -38,7 +38,7 @@ import {
   type UserSettings,
 } from "@/lib/tauri";
 
-const APP_NAME = "文案净排";
+export const APP_NAME = "文案净排";
 const APP_REFERENCE_NAME = "CopyPolish";
 const DEBOUNCE_MS = 160;
 
@@ -353,9 +353,9 @@ return (
         onMouseDown={onHeaderMouseDown}
         onDoubleClick={onToggleMaximize}
       >
-        <div>
-          <h1 className="text-xl font-bold leading-tight">{APP_NAME}</h1>
-          <p className="text-xs text-muted-foreground">
+        <div className="min-w-0 space-y-1.5">
+          <h1 className="text-xl font-bold leading-none">{APP_NAME}</h1>
+          <p className="text-xs leading-relaxed text-muted-foreground">
             {isTauri()
               ? `实时保护 LaTeX / Markdown 结构 · ${APP_REFERENCE_NAME}`
               : "浏览器预览模式 · 内置回退排版"}
@@ -392,7 +392,7 @@ return (
           <CardContent className="flex min-h-0 flex-1">
             <Textarea
               className="min-h-0 flex-1 resize-none placeholder:text-sm placeholder:text-muted-foreground/50"
-              placeholder="请输入或粘贴中文文案，例如：在LeanCloud上，花了5000元"
+              placeholder="请在这里粘贴或输入文字"
               aria-label="输入文字"
               data-testid="input-textarea"
               value={input}
@@ -603,8 +603,21 @@ return (
                       </span>
                     )}
                     {settingsPath && (
-                      <span className="min-w-0 truncate text-muted-foreground" title={settingsPath}>
+                      <span
+                        className="group relative min-w-0 truncate text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        tabIndex={0}
+                        title={settingsPath}
+                        aria-label={`设置文件完整路径：${settingsPath}`}
+                        data-testid="settings-path"
+                      >
                         设置文件：{settingsPath}
+                        {/* 悬停或键盘聚焦时展示完整路径，不受界面宽度截断影响。 */}
+                        <span
+                          role="tooltip"
+                          className="pointer-events-none absolute bottom-full left-0 z-10 mb-1 hidden w-max max-w-[28rem] break-all rounded-md border bg-card px-2 py-1 text-left text-card-foreground shadow-md group-focus-within:block group-hover:block"
+                        >
+                          {settingsPath}
+                        </span>
                       </span>
                     )}
                   </div>

@@ -90,6 +90,8 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
 - 前端行为：启动恢复；规则开关/全选/恢复默认/清空/主题/字体即时保存，输入防抖（160ms）保存；浏览器预览回退 localStorage。字体使用固定跨平台预设与 CSS fallback 栈，不尝试枚举系统已安装字体。
 - 设置 Dialog 的版本号通过 `getAppVersion()` 读取：打包环境使用 Tauri `getVersion()`，浏览器预览使用 Vite 从 `frontend/package.json` 注入的 `__APP_VERSION__` 回退值，避免重复维护版本常量。
 - 设置弹窗 Footer 保持与主界面一致的 `py-4` 纵向内边距；桌面端单行显示版本/保存状态/设置路径与操作按钮，小屏或较长保存错误时采用 flex-wrap 响应式换行。
+- 预发布版本一致性：release 工作流在测试校验后调用 `scripts/prepare_release_version.py <tag>`，把 tag 的完整版本（如 `v0.4.0-pre.3` → `0.4.0-pre.3`）写入 package.json / package-lock.json / tauri.conf.json / Cargo.toml / Cargo.lock，仅作用于 CI 工作区，不回写源码提交；`check_version.py` 同时接受源码基础版本与同步后的完整版本两种状态。
+- 设置文件路径在 Footer 中单行截断，悬停或键盘聚焦时通过应用内浮层显示完整路径（保留 `title` 作为兜底）。主界面标题栏标题与说明之间使用 `space-y-1.5` 间距。输入框 placeholder 固定为「请在这里粘贴或输入文字」。
 - 测试约定：所有设置读写测试一律使用系统临时目录中的唯一随机文件（PID + 计数器），禁止写仓库内固定路径。
 - 该文件已加入 `.gitignore`（根目录 `/rules.yaml`）。
 
