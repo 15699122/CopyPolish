@@ -347,7 +347,7 @@ return (
           </CardHeader>
           <CardContent className="flex min-h-0 flex-1">
             <Textarea
-              className="min-h-0 flex-1 resize-none placeholder:text-muted-foreground/75"
+              className="min-h-0 flex-1 resize-none placeholder:text-sm placeholder:text-muted-foreground/50"
               placeholder="请输入或粘贴中文文案，例如：在LeanCloud上，花了5000元"
               aria-label="输入文字"
               data-testid="input-textarea"
@@ -400,7 +400,7 @@ return (
           </DialogTrigger>
           <DialogContent
             data-testid="settings-dialog"
-            className="flex h-[min(680px,calc(100vh-2rem))] w-[min(760px,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0 sm:min-h-130 sm:min-w-140"
+            className="flex h-[min(680px,calc(100vh-2rem))] w-[min(760px,calc(100vw-2rem))] max-h-[calc(100vh-2rem)] max-w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0 sm:min-h-[520px] sm:min-w-[560px]"
           >
             {/* 固定标题区 */}
             <DialogHeader className="shrink-0 border-b px-6 py-5 pr-12">

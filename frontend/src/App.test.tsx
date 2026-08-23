@@ -105,10 +105,12 @@ describe("App 主流程", () => {
 
   it("输入框显示示例型占位符，输出框空状态显示引导提示", async () => {
     await setup();
-    expect(screen.getByTestId("input-textarea")).toHaveAttribute(
+    const input = screen.getByTestId("input-textarea");
+    expect(input).toHaveAttribute(
       "placeholder",
       "请输入或粘贴中文文案，例如：在LeanCloud上，花了5000元",
     );
+    expect(input).toHaveClass("placeholder:text-sm", "placeholder:text-muted-foreground/50");
     expect(screen.getByTestId("output-empty-state")).toHaveTextContent(
       "输入内容后，这里将实时显示规范化结果",
     );
@@ -127,7 +129,16 @@ describe("App 主流程", () => {
   it("设置弹窗使用稳定滚动布局并完整显示主题、规则和底部操作", async () => {
     const { user } = await setup();
     await user.click(screen.getByTestId("open-settings"));
-    expect(screen.getByTestId("settings-dialog")).toBeVisible();
+    const dialog = screen.getByTestId("settings-dialog");
+    expect(dialog).toBeVisible();
+    expect(dialog).toHaveClass(
+      "h-[min(680px,calc(100vh-2rem))]",
+      "w-[min(760px,calc(100vw-2rem))]",
+      "max-h-[calc(100vh-2rem)]",
+      "max-w-[calc(100vw-2rem)]",
+      "sm:min-h-[520px]",
+      "sm:min-w-[560px]",
+    );
     expect(screen.getByText("设置 — 排版规则")).toBeVisible();
     expect(screen.getByText("主题")).toBeVisible();
     expect(screen.getByTestId("settings-scroll-area")).toBeInTheDocument();
