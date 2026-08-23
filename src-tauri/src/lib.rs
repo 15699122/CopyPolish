@@ -1,8 +1,8 @@
-// Tauri 2 应用装配：纯 Rust 实现（rust_engine + user_settings），
-// 不含任何 Python / PyO3 依赖。
+// Tauri 2 应用装配：纯 Rust 实现（engine + user_settings），
+// 不依赖任何 Python / PyO3，也不受历史 12 条规则清单的架构约束。
 
 mod commands;
-pub mod rust_engine;
+pub mod engine;
 mod user_settings;
 
 pub fn run() {

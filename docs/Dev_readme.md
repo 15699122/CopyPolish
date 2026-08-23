@@ -11,23 +11,32 @@ Tauri 2
 ├── frontend/            React + TypeScript + Tailwind v4 + shadcn/ui
 │   └── 无边框标题栏：拖动、最小化、最大化、关闭
 │   └── src/lib/tauri.ts 受限 command 封装（前端唯一后端入口）
+│   └── src/lib/fonts.ts 统一字体令牌（全 UI 共享 --app-font-family）
 └── src-tauri/
-    ├── src/rust_engine.rs      Rust 原生排版引擎
-    ├── src/user_settings.rs    用户设置持久化（exe 同目录 rules.yaml，YAML）
-    └── src/commands.rs         Tauri command 层
+    ├── src/engine/            Rust 原生排版引擎
+    │   ├── registry.rs        规则注册表（稳定 key / 元数据 / 默认启用 / key 迁移）
+    │   ├── pipeline.rs        格式化主流程（保护 → 逐行规则 → 还原）
+    │   ├── protection.rs      Markdown / LaTeX / URL / 邮箱保护层
+    │   ├── tokenizer.rs       字符分类 + 化学式识别
+    │   ├── rule_impls.rs      各条规则的纯函数实现
+    │   ├── model.rs           RuleMeta / FormatRequest
+    │   └── tests.rs           引擎单元测试
+    ├── src/user_settings.rs   用户设置持久化（exe 同目录 rules.yaml，YAML）
+    └── src/commands.rs        Tauri command 层
 ```
 
 - **应用为纯 Rust 实现**：`format_text` / `get_rules` / `get_enabled_defaults` / 设置读写全部由 Rust 提供，构建与打包不依赖 Python。
-- **双引擎一致性**：`reference/ccw_engine.py` 是权威 Python 引擎，`test/compare_rust_parity.py` 用 71 条语料 × defaults/all 两模式 = 142 项检查对比 Rust 与 Python 输出，当前 **0 差异**。修改任一引擎后必须重跑（parity 脚本经 `src-tauri/examples/parity_dump.rs` 调用 Rust 引擎）。
-- **用户设置**：保存在 exe 相同目录的 `rules.yaml`（YAML；见下文），首次运行自动迁移旧版 `ccw-formatter-settings.json`。
+- **规则注册表驱动**：规则的唯一事实来源是 `src-tauri/src/engine/registry.rs`。每条规则有稳定的机器 key（如 `spacing.cjk-latin`），展示名/分组仅存于元数据；新增规则只需在注册表追加一个 `RuleDef`，command 层、pipeline 与前端均无需改动。历史 12 条规则已全部迁移为独立注册项（效果与默认开关保持不变）。
+- **用户设置**：保存在 exe 相同目录的 `rules.yaml`（YAML；见下文），首次运行自动迁移旧版 `ccw-formatter-settings.json`；读取与保存时通过 `normalize_rule_keys` 把旧版中文 key 迁移为稳定 key 并丢弃未知 key。
+- **化学式识别**：tokenizer 保守识别含 Unicode 上下标、电荷标记或水合物连接符的片段（`Fe²⁺`、`SO₄²⁻`、`FeCl₂·4H₂O` 等），在规则处理前转为占位符整体保护，为后续新规则提供可靠判定单元。
 
 ## 当前开发状态
 
 Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
 
 - `frontend/`：React + Vite + TypeScript + Tailwind v4 + shadcn/ui 界面已落地。
-- `src-tauri/`：纯 Rust 实现（`rust_engine.rs` + `user_settings.rs`），无 Python/PyO3 运行时依赖。
-- `reference/ccw_engine.py` 仅作为 parity 权威基准保留，不参与应用构建和打包。
+- `src-tauri/src/engine/`：纯 Rust 可扩展引擎（注册表 + 保护层 + 化学式识别），无 Python/PyO3 运行时依赖，也不受固定规则数量约束。
+- `reference/`：历史 Python 引擎与规则目录仅作归档保留，不参与构建、打包与测试门禁。
 - 设置 Dialog 使用稳定响应式布局：在视口安全边距内居中并限制最大宽高，固定 header/footer + 原生 `overflow-y-auto` 内容滚动；不再模拟 Dialog 内部拖动/缩放，主 Tauri 窗口仍可拖动和 resize。
 - 设置 Dialog 支持主题切换、界面字体预设（含恢复默认）、Footer 显示完整应用版本 / 保存状态 / 设置文件路径（路径截断时悬停或键盘聚焦展示完整值）。
 - 主窗口最小尺寸为 `800×600`，用于避免布局过度压缩。
@@ -45,9 +54,9 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
 ├── README.md                      # 用户文档
 ├── docs/
 │   └── Dev_readme.md              # 开发者文档（本文件）
-├── reference/                     # 只读参考资产（不参与构建与打包）
-│   ├── ccw_engine.py              # 权威 Python 引擎（12 条规则 + 保护层），parity 基准
-│   └── rule_catalog.yaml          # 规则元数据（只读参考）
+├── reference/                     # 历史参考资产（不参与构建、打包与测试门禁）
+│   ├── ccw_engine.py              # 历史 Python 实现
+│   └── rule_catalog.yaml          # 历史规则元数据
 ├── frontend/                      # React/Vite/TS/Tailwind v4/shadcn-ui 界面
 │   └── src/App.tsx                # 主界面：双栏编辑、设置 Dialog、防抖实时排版
 ├── scripts/
@@ -57,32 +66,28 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
 │   ├── Cargo.toml
 │   ├── tauri.conf.json
 │   ├── capabilities/default.json
-│   ├── examples/parity_dump.rs    # parity 语料 dump 示例（供 compare 脚本调用）
-│   ├── src/rust_engine.rs         # Rust 排版引擎（规则 + 保护层管线）
+│   ├── src/engine/                # 可扩展 Rust 排版引擎
 │   ├── src/user_settings.rs       # 设置持久化 + 单元测试（临时文件）
 │   ├── src/commands.rs            # format_text / get_rules / get_enabled_defaults
 │   │                              # / get_user_settings / save_user_settings
 │   └── src/lib.rs                 # command 注册
-└── test/
-    ├── test_ccw_engine.py         # Python 引擎单元测试（40 项，设置测试用 tempfile）
-    └── compare_rust_parity.py     # 双引擎一致性校验
 ```
 
 ## Rust 引擎要点（改动前必读）
 
-1. **规则 key 必须与 Python `_slug()` 输出一致**（如 `遇到完整的英文整句_特殊名词_其内容使用半角标点`），不能用显示名——曾导致部分规则静默失效。
+1. 规则 key 使用稳定的英文点分标识（如 `spacing.cjk-latin`）；中文展示名不参与内部寻址。旧版设置中的中文 key 由 `normalize_rule_keys` 迁移。
 2. 保护层正则依赖 lookbehind/backreference，必须使用 `fancy-regex`（`regex` crate 不支持）。
-3. 占位符格式与 Python 完全一致：`\u{E000}CCWPROTECTED{n}\u{E001}`；保护模式共 13 类（fenced code block、LaTeX 环境/display/inline/command、Markdown 图片/链接/autolink、行内代码、URL、邮箱、缩进代码行）。
-4. 行内占位符补空格时须过滤跨行值（fenced block 不补空格），与 Python `inline_ph` 过滤一致。
-5. 中英文/中文数字/数字单位/全角标点四项基础空格收尾函数始终执行，不受规则开关影响（引擎既定设计）。
-6. 保护规则新增或调整后，必须补充 Markdown / LaTeX / URL / 邮箱 / 代码边界测试，并重跑 parity。
+3. 占位符格式为 `\u{E000}CCWPROTECTED{n}\u{E001}`；保护范围包括 fenced code block、LaTeX 环境/display/inline/command、Markdown 图片/链接/autolink、行内代码、URL、邮箱、缩进代码行及化学式。
+4. 行内占位符补空格时须过滤跨行值（fenced block 不补空格）。
+5. 规则是否执行完全由 `FormatRequest.enabled` 决定；空数组表示全部启用，非空数组只执行指定规则。
+6. 保护规则或 tokenizer 新增/调整后，必须补充 Markdown / LaTeX / URL / 邮箱 / 代码 / 化学式边界测试。
 
 ## 用户设置持久化
 
 - 文件位置：**exe 相同目录**（`std::env::current_exe()` 的父目录；无法定位时回退 cwd）下的 `rules.yaml`（YAML）：
   ```yaml
   enabled:
-    - 中英文之间需要增加空格
+    - spacing.cjk-latin
   last_input: ...
   theme: system
   font: system
@@ -94,7 +99,7 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
 - 前端行为：启动恢复；规则开关/全选/恢复默认/清空/主题/字体即时保存，输入防抖（160ms）保存；浏览器预览回退 localStorage。字体使用固定跨平台预设与 CSS fallback 栈，不尝试枚举系统已安装字体。
 - 设置 Dialog 的版本号通过 `getAppVersion()` 读取：打包环境使用 Tauri `getVersion()`，浏览器预览使用 Vite 从 `frontend/package.json` 注入的 `__APP_VERSION__` 回退值，避免重复维护版本常量。
 - 设置弹窗 Footer 保持与主界面一致的 `py-4` 纵向内边距；桌面端单行显示版本/保存状态/设置路径与操作按钮，小屏或较长保存错误时采用 flex-wrap 响应式换行。
-- 预发布版本一致性：release 工作流在测试校验后调用 `scripts/prepare_release_version.py <tag>`，把 tag 的完整版本（如 `v0.4.0-pre.3` → `0.4.0-pre.3`）写入 package.json / package-lock.json / tauri.conf.json / Cargo.toml / Cargo.lock，仅作用于 CI 工作区，不回写源码提交；`check_version.py` 同时接受源码基础版本与同步后的完整版本两种状态。
+- 预发布版本一致性：release 工作流在测试校验后调用 `scripts/prepare_release_version.py <tag>`，把 tag 的完整版本（如 `v0.5.0-pre1` → `0.5.0-pre1`）写入 package.json / package-lock.json / tauri.conf.json / Cargo.toml / Cargo.lock，仅作用于 CI 工作区，不回写源码提交；`check_version.py` 同时接受源码基础版本与同步后的完整版本两种状态。
 - 设置文件路径在 Footer 中单行截断，悬停或键盘聚焦时通过应用内浮层显示完整路径（保留 `title` 作为兜底）。主界面标题栏标题与说明之间使用 `space-y-1.5` 间距。输入框 placeholder 固定为「请在这里粘贴或输入文字」。
 - 测试约定：所有设置读写测试一律使用系统临时目录中的唯一随机文件（PID + 计数器），禁止写仓库内固定路径。
 - 该文件已加入 `.gitignore`（根目录 `/rules.yaml`）。
@@ -107,7 +112,7 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
 export PATH="$HOME/.cargo/bin:$PATH"
 ```
 
-依赖：Node.js/npm、Rust 工具链、Linux 下 Tauri/WebKitGTK 系统依赖。应用构建无需 Python；仅运行 `test/` 的 Python 单测与 parity 校验需要本地 Python（当前 `.venv`）。
+依赖：Node.js/npm、Rust 工具链、Linux 下 Tauri/WebKitGTK 系统依赖。应用构建与测试无需 Python。
 
 工具链版本通过仓库文件固定：
 
@@ -151,13 +156,13 @@ git push origin dev
 gh pr create --base master --head dev
 ```
 
-发布仅从 `master` 创建 `v*` tag；如需从 `dev` 验证构建，可推送预发布 tag（`vX.Y.Z-后缀`，如 `v0.3.3-pre.1`，tag 可指向 `dev` 提交），Release 会自动标记为 pre-release、不占用 latest，且 Release Notes 由 GitHub 自动生成：
+稳定发布仅从 `master` 创建 `v*` tag；后端引擎或其他重大功能变更应先从 `dev` 推送预发布 tag（如 `v0.5.0-pre1`，tag 可指向 `dev` 提交），Release 会自动标记为 pre-release、不占用 latest，且 Release Notes 由 GitHub 自动生成：
 
 ```bash
-git switch master
-git pull --ff-only origin master
-git tag v0.3.x
-git push origin v0.3.x
+git switch dev
+git pull --ff-only origin dev
+git tag v0.5.0-pre1
+git push origin v0.5.0-pre1
 ```
 
 ## 启动 / 构建
@@ -182,11 +187,9 @@ Windows `.7z` 压缩包约定：根目录直接包含 `CopyPolish.exe` 及构建
 ```bash
 cargo fmt --manifest-path src-tauri/Cargo.toml --check
 cargo check --manifest-path src-tauri/Cargo.toml
-cargo test --manifest-path src-tauri/Cargo.toml          # 纯 Rust：16 项
+cargo test --manifest-path src-tauri/Cargo.toml          # Rust 引擎与设置测试
 npm test --prefix frontend                                # vitest 组件测试（jsdom，10 项）
 npm run build --prefix frontend                           # tsc + vite
-.venv/bin/python -m unittest discover -s test             # Python 40 项
-.venv/bin/python test/compare_rust_parity.py              # 必须 0 差异
 ```
 
 与 CI 对齐的快速验证命令：
@@ -203,8 +206,8 @@ git diff --check
 ## 重要实现约束
 
 1. 前端只能通过 `frontend/src/lib/tauri.ts` 的封装访问后端，不直接 `invoke`。
-2. `reference/ccw_engine.py` 不导入任何 GUI/UI 模块；Rust 与 Python 输出保持逐字节一致（parity 保证）。
-3. 改动规则定义时，同步更新：`reference/ccw_engine.py` RULES、`rust_engine::default_rules()`、前端 fallback 列表（如有）、parity 语料。
+2. `reference/` 仅作历史参考，不定义 Rust 引擎行为。
+3. 改动规则定义时，只需更新 `src-tauri/src/engine/registry.rs`、对应规则实现及 Rust 回归测试；前端通过 command 动态读取 metadata。
 4. 打包资源变更需同步 `tauri.conf.json` 的 `bundle.resources` 并做安装态 smoke。
 5. Tailwind 优先使用间距刻度类（如 `min-h-130` = 130 × 0.25rem），仅当数值不在刻度上时才用 `[...]` 任意值写法，避免 lint 警告。
 

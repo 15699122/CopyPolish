@@ -1,6 +1,6 @@
 [package]
 name = "chinese-copywriting-formatter"
-version = "0.4.0"
+version = "0.5.0"
 description = "文案净排（CopyPolish）—— 本地桌面端中文文案排版工具"
 authors = ["CopyPolish"]
 edition = "2021"
@@ -23,5 +23,5 @@ regex = "1"
 # regex crate 不支持，使用 fancy-regex。
 fancy-regex = "0.19"
 
-# 说明：应用为纯 Rust 实现（rust_engine）。仓库 reference/ 目录下的 ccw_engine.py 仅作为
-# test/compare_rust_parity.py 的权威基准保留，不参与构建与打包。
+# 说明：应用为纯 Rust 实现。仓库 reference/ 目录下的 Python 文件仅作历史参考，
+# 不参与构建、打包或测试门禁。

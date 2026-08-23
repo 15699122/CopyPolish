@@ -64,12 +64,28 @@
     min-height: 100%;
     margin: 0;
   }
+  html {
+    /* 统一字体令牌：由 React 按用户字体预设写入 documentElement。 */
+    font-family: var(--app-font-family, system-ui, sans-serif);
+  }
   body {
     background-color: var(--background);
     color: var(--foreground);
-    font-family: var(--app-font-family, system-ui, sans-serif);
+    font-family: inherit;
+  }
+  /*
+   * 字体统一：浏览器不会让原生表单控件自动继承 font-family，
+   * 必须显式声明，否则标题/正文与输入框、下拉框、按钮的显示字体不一致。
+   */
+  button,
+  input,
+  textarea,
+  select,
+  option {
+    font-family: inherit;
   }
 }
+
 
 @layer utilities {
   .bg-background {
