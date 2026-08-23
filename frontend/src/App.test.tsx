@@ -39,6 +39,7 @@ const mocks = vi.hoisted(() => {
     getEnabledDefaults: vi.fn(),
     getUserSettings: vi.fn(),
     saveUserSettings: vi.fn(),
+    getAppVersion: vi.fn(),
   };
 });
 
@@ -50,6 +51,7 @@ vi.mock("@/lib/tauri", () => ({
   getSettingsPath: () => "C:\\Users\\Tester\\AppData\\Roaming\\CopyPolish\\settings.json",
   getUserSettings: mocks.getUserSettings,
   saveUserSettings: mocks.saveUserSettings,
+  getAppVersion: mocks.getAppVersion,
 }));
 
 // 默认排版实现：模拟引擎输出，便于断言防抖后的结果。
@@ -74,6 +76,7 @@ beforeEach(() => {
   mocks.getEnabledDefaults.mockResolvedValue(["rule-a", "rule-b"]);
   mocks.getUserSettings.mockResolvedValue(null);
   mocks.saveUserSettings.mockResolvedValue(undefined);
+  mocks.getAppVersion.mockResolvedValue("0.4.0");
 });
 
 describe("App 主流程", () => {
@@ -133,11 +136,11 @@ describe("App 主流程", () => {
     expect(dialog).toBeVisible();
     expect(dialog).toHaveClass(
       "h-[min(680px,calc(100vh-2rem))]",
-      "w-[min(640px,calc(100vw-2rem))]",
+      "w-[min(560px,calc(100vw-2rem))]",
       "max-h-[calc(100vh-2rem)]",
       "max-w-[calc(100vw-2rem)]",
-      "sm:min-h-130",
-      "sm:min-w-130",
+      "sm:min-h-[520px]",
+      "sm:min-w-[480px]",
     );
     expect(screen.getByText("设置 — 排版规则")).toBeVisible();
     expect(screen.getByText("主题")).toBeVisible();
@@ -146,6 +149,8 @@ describe("App 主流程", () => {
     expect(screen.queryByTestId("settings-resize-handle")).not.toBeInTheDocument();
     expect(screen.getByTestId("settings-footer")).toBeInTheDocument();
     expect(screen.getByTestId("settings-file-info")).toHaveTextContent("设置文件：");
+    expect(screen.getByTestId("settings-version")).toHaveTextContent("版本 0.4.0");
+    expect(screen.getByTestId("settings-footer")).toHaveClass("px-4", "py-4", "sm:px-6");
     expect(screen.getByTestId("settings-actions")).toBeInTheDocument();
     // 主题选项横向网格容器。
     expect(screen.getByTestId("theme-options")).toBeInTheDocument();
@@ -168,6 +173,7 @@ describe("App 主流程", () => {
     const actionRow = screen.getByTestId("settings-actions").parentElement;
     expect(actionRow).not.toBeNull();
     expect(screen.getByTestId("settings-actions")).toContainElement(screen.getByTestId("settings-done"));
+    expect(screen.getByTestId("settings-actions")).toHaveClass("flex-wrap", "items-center");
   });
 
   it("设置弹窗中开关规则会立即持久化用户设置", async () => {

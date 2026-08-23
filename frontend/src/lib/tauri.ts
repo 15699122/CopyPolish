@@ -1,3 +1,4 @@
+import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
 
 /**
@@ -25,6 +26,12 @@ export interface FormatRequest {
 
 export function isTauri(): boolean {
   return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+}
+
+/** 返回当前应用版本；打包应用读取 Tauri manifest，浏览器预览回退到 Vite 注入版本。 */
+export async function getAppVersion(): Promise<string> {
+  if (!isTauri()) return __APP_VERSION__;
+  return getVersion();
 }
 
 const FALLBACK_RULES: Rule[] = [
