@@ -161,13 +161,13 @@ git push origin dev
 gh pr create --base master --head dev
 ```
 
-稳定发布仅从 `master` 创建 `v*` tag；后端引擎或其他重大功能变更应先从 `dev` 推送预发布 tag（如 `v0.5.0-pre1`，tag 可指向 `dev` 提交），Release 会自动标记为 pre-release、不占用 latest，且 Release Notes 由 GitHub 自动生成：
+稳定发布仅从 `master` 创建 `v*` tag；后端引擎或其他重大功能变更应先从 `dev` 推送预发布 tag（如 `v0.5.0-pre2`，tag 可指向 `dev` 提交），Release 会自动标记为 pre-release、不占用 latest。Release 名称应直接使用 tag 名称（例如 `v0.5.0-pre2`），不要额外添加 `CopyPolish` 前缀；Release Notes 由 GitHub 自动生成后再人工审阅：
 
 ```bash
 git switch dev
 git pull --ff-only origin dev
-git tag v0.5.0-pre1
-git push origin v0.5.0-pre1
+git tag v0.5.0-pre2
+git push origin v0.5.0-pre2
 ```
 
 ## 启动 / 构建
@@ -246,7 +246,7 @@ CI/Release 会打印 Node/npm/Rust/Cargo/系统版本，便于核对本地与 Ru
 | Linux | `bundle-ubuntu-latest` | `CopyPolish_linux_amd64.deb` / `CopyPolish-linux-x86_64.rpm` / `CopyPolish_linux_amd64.AppImage` |
 | Windows | `windows-portable` | `CopyPolish.exe` / `CopyPolish-windows-x64.7z` |
 
-Release Notes 由 GitHub 自动生成后，必须在正式发布前重新审查并按需编辑：
+Release Notes 由 GitHub 自动生成后，必须在正式发布前重新审查并按需编辑；Release 标题保持与 tag 一致，不添加产品名前缀：
 
 - 确认自动生成内容覆盖本次更新的大致范围（功能、修复、规则调整、构建/发布流程变化等），不要只保留 commit/PR 标题而遗漏用户可感知的变化；
 - 对比上一版 Release Notes，删除或改写与既有版本重复的描述，避免把旧版本已发布的内容再次列为“本次更新”；
