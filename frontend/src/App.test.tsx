@@ -139,8 +139,8 @@ describe("App 主流程", () => {
       "w-[min(560px,calc(100vw-2rem))]",
       "max-h-[calc(100vh-2rem)]",
       "max-w-[calc(100vw-2rem)]",
-      "sm:min-h-[520px]",
-      "sm:min-w-[480px]",
+      "sm:min-h-130",
+      "sm:min-w-120",
     );
         // 标题栏标题与说明之间保持明确间距。
     expect(screen.getByText(APP_NAME).parentElement).toHaveClass("space-y-1.5");
