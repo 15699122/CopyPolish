@@ -2,27 +2,29 @@
 // =============================================================================
 // Tauri command 层：前端唯一合法入口。
 //
-// 纯 Rust 实现：全部 command 由 rust_engine / user_settings 提供，
-// 不依赖 Python。与 frontend/src/lib/tauri.ts 的调用一一对应（扁平参数）：
-//   invoke("format_text", { text, enabled })
-//   invoke("get_rules")
-//   invoke("get_enabled_defaults")
+// 全部 command 由 engine / user_settings 提供。规则列表来自注册表，
+// 保存/读取设置时通过 normalize_rule_keys 把旧版中文 key 迁移为稳定 key，
+// 并安全丢弃未知规则。
 // =============================================================================
 
-use crate::rust_engine::{self, RuleMeta};
+use crate::engine::{self, RuleMeta};
 
 /// format_text(text, enabled) -> String
 #[tauri::command]
 pub fn format_text(text: String, enabled: Vec<String>) -> Result<String, String> {
-    let rust_req = rust_engine::FormatRequest { text, enabled };
-    rust_engine::format_text(&rust_req)
+    let req = engine::FormatRequest { text, enabled };
+    engine::format_text(&req)
 }
 
 /// get_user_settings() -> Option<UserSettings>
 /// 读取 exe 同目录设置文件；不存在时返回 None（前端使用默认规则集）。
+/// 历史中文规则 key 在读取时迁移为稳定 key。
 #[tauri::command]
 pub fn get_user_settings() -> Result<Option<crate::user_settings::UserSettings>, String> {
-    Ok(crate::user_settings::load())
+    Ok(crate::user_settings::load().map(|mut s| {
+        s.enabled = engine::normalize_rule_keys(&s.enabled);
+        s
+    }))
 }
 
 /// get_settings_path() -> String
@@ -34,8 +36,8 @@ pub fn get_settings_path() -> Result<String, String> {
         .into_owned())
 }
 
-/// save_user_settings(enabled, lastInput, theme)：写入 exe 同目录设置文件。
-/// 过滤掉引擎中不存在的规则 key，避免旧设置中的已删除规则被回写。
+/// save_user_settings(enabled, lastInput, theme, font)：写入 exe 同目录设置文件。
+/// 归一化规则 key：旧 key 迁移、未知 key 丢弃，避免无效数据被回写。
 #[tauri::command]
 pub fn save_user_settings(
     enabled: Vec<String>,
@@ -43,11 +45,7 @@ pub fn save_user_settings(
     theme: crate::user_settings::ThemeMode,
     font: crate::user_settings::FontFamily,
 ) -> Result<(), String> {
-    let known: std::collections::HashSet<String> = rust_engine::default_rules()
-        .into_iter()
-        .map(|r| r.key)
-        .collect();
-    let filtered: Vec<String> = enabled.into_iter().filter(|k| known.contains(k)).collect();
+    let filtered = engine::normalize_rule_keys(&enabled);
     crate::user_settings::save(&crate::user_settings::UserSettings {
         enabled: filtered,
         last_input,
@@ -57,12 +55,12 @@ pub fn save_user_settings(
 }
 
 /// get_rules() -> Vec<RuleMeta>
-/// Rust 端内置规则元数据。
+/// 注册表内置规则元数据。
 #[tauri::command]
 pub fn get_rules() -> Result<Vec<RuleMeta>, String> {
-    let rules = rust_engine::default_rules();
+    let rules = engine::default_rules();
     if rules.is_empty() {
-        return Err("rust engine rule metadata is empty".to_string());
+        return Err("engine rule registry is empty".to_string());
     }
     Ok(rules)
 }
@@ -70,9 +68,9 @@ pub fn get_rules() -> Result<Vec<RuleMeta>, String> {
 /// get_enabled_defaults() -> Vec<String>
 #[tauri::command]
 pub fn get_enabled_defaults() -> Result<Vec<String>, String> {
-    let defaults = rust_engine::enabled_defaults();
+    let defaults = engine::enabled_defaults();
     if defaults.is_empty() {
-        return Err("rust engine default rules are empty".to_string());
+        return Err("engine default rules are empty".to_string());
     }
     Ok(defaults)
 }

@@ -23,6 +23,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { FONT_FAMILY_STACKS } from "@/lib/fonts";
 import {
   formatText,
   getAppVersion,
@@ -44,7 +45,7 @@ const DEBOUNCE_MS = 160;
 
 /**
  * 主界面：左输入 / 右输出（小窗口时上下堆叠）+ 操作栏 + 规则设置对话框。
- * 排版由 Tauri 侧 Python 引擎完成；浏览器预览时走内置回退实现。
+ * 排版由 Tauri 侧 Rust 引擎完成；浏览器预览时走内置演示回退实现。
  */
 export default function App() {
   const [input, setInput] = useState("");
@@ -76,15 +77,6 @@ export default function App() {
   // 主题状态：system / light / dark。
   const [theme, setTheme] = useState<ThemeMode>("system");
   const [font, setFont] = useState<FontFamily>("system");
-
-  const fontFamilyStack: Record<FontFamily, string> = {
-    system: "system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
-    "microsoft-yahei": "\"Microsoft YaHei\", \"微软雅黑\", system-ui, sans-serif",
-    pingfang: "\"PingFang SC\", \"苹方\", system-ui, sans-serif",
-    "noto-sans-cjk": "\"Noto Sans CJK SC\", \"Source Han Sans SC\", system-ui, sans-serif",
-    simsun: "SimSun, \"宋体\", serif",
-    simhei: "SimHei, \"黑体\", system-ui, sans-serif",
-  };
 
   function persistSettings(nextEnabled: string[], nextInput: string) {
     if (!hydratedRef.current) return;
@@ -193,7 +185,7 @@ export default function App() {
   }, [theme]);
 
   useEffect(() => {
-    document.documentElement.style.setProperty("--app-font-family", fontFamilyStack[font]);
+    document.documentElement.style.setProperty("--app-font-family", FONT_FAMILY_STACKS[font]);
   }, [font]);
 
   // 实时排版（防抖 + 忽略乱序的旧请求）
