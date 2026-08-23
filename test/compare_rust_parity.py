@@ -11,7 +11,8 @@ import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
+# 让本文件无论从项目根还是直接执行都能 import 到 reference/ 下的 ccw_engine。
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "reference"))
 
 import ccw_engine  # noqa: E402
 

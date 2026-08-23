@@ -18,7 +18,7 @@ Tauri 2
 ```
 
 - **应用为纯 Rust 实现**：`format_text` / `get_rules` / `get_enabled_defaults` / 设置读写全部由 Rust 提供，构建与打包不依赖 Python。
-- **双引擎一致性**：仓库根目录的 `ccw_engine.py` 是权威 Python 引擎，`test/compare_rust_parity.py` 用 71 条语料 × defaults/all 两模式 = 142 项检查对比 Rust 与 Python 输出，当前 **0 差异**。修改任一引擎后必须重跑（parity 脚本经 `src-tauri/examples/parity_dump.rs` 调用 Rust 引擎）。
+- **双引擎一致性**：`reference/ccw_engine.py` 是权威 Python 引擎，`test/compare_rust_parity.py` 用 71 条语料 × defaults/all 两模式 = 142 项检查对比 Rust 与 Python 输出，当前 **0 差异**。修改任一引擎后必须重跑（parity 脚本经 `src-tauri/examples/parity_dump.rs` 调用 Rust 引擎）。
 - **用户设置**：保存在 exe 相同目录的 `rules.yaml`（YAML；见下文），首次运行自动迁移旧版 `ccw-formatter-settings.json`。
 
 ## 当前开发状态
@@ -27,7 +27,7 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
 
 - `frontend/`：React + Vite + TypeScript + Tailwind v4 + shadcn/ui 界面已落地。
 - `src-tauri/`：纯 Rust 实现（`rust_engine.rs` + `user_settings.rs`），无 Python/PyO3 运行时依赖。
-- 仓库根目录的 `ccw_engine.py` 仅作为 parity 权威基准保留，不参与应用构建和打包。
+- `reference/ccw_engine.py` 仅作为 parity 权威基准保留，不参与应用构建和打包。
 - 设置 Dialog 使用稳定响应式布局：在视口安全边距内居中并限制最大宽高，固定 header/footer + 原生 `overflow-y-auto` 内容滚动；不再模拟 Dialog 内部拖动/缩放，主 Tauri 窗口仍可拖动和 resize。
 - 主窗口最小尺寸为 `800×600`，用于避免布局过度压缩。
 - 输入框已有字号更小、颜色更淡的示例 placeholder；输出框已有真实空状态提示。
@@ -41,8 +41,12 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
 ## 目录结构
 
 ```text
-├── ccw_engine.py                  # 权威 Python 引擎（12 条规则 + 保护层），parity 基准
-├── rule_catalog.yaml              # 规则元数据（只读参考，不参与构建与打包）
+├── README.md                      # 用户文档
+├── docs/
+│   └── Dev_readme.md              # 开发者文档（本文件）
+├── reference/                     # 只读参考资产（不参与构建与打包）
+│   ├── ccw_engine.py              # 权威 Python 引擎（12 条规则 + 保护层），parity 基准
+│   └── rule_catalog.yaml          # 规则元数据（只读参考）
 ├── frontend/                      # React/Vite/TS/Tailwind v4/shadcn-ui 界面
 │   └── src/App.tsx                # 主界面：双栏编辑、设置 Dialog、防抖实时排版
 ├── src-tauri/
@@ -191,8 +195,8 @@ git diff --check
 ## 重要实现约束
 
 1. 前端只能通过 `frontend/src/lib/tauri.ts` 的封装访问后端，不直接 `invoke`。
-2. `ccw_engine.py` 不导入任何 GUI/UI 模块；Rust 与 Python 输出保持逐字节一致（parity 保证）。
-3. 改动规则定义时，同步更新：`ccw_engine.py` RULES、`rust_engine::default_rules()`、前端 fallback 列表（如有）、parity 语料。
+2. `reference/ccw_engine.py` 不导入任何 GUI/UI 模块；Rust 与 Python 输出保持逐字节一致（parity 保证）。
+3. 改动规则定义时，同步更新：`reference/ccw_engine.py` RULES、`rust_engine::default_rules()`、前端 fallback 列表（如有）、parity 语料。
 4. 打包资源变更需同步 `tauri.conf.json` 的 `bundle.resources` 并做安装态 smoke。
 
 ## 后续计划

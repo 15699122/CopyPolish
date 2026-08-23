@@ -103,4 +103,4 @@ rules.yaml
 
 版本管理、开发环境、测试方法、CI / Release、打包细节和实现约束请参阅：
 
-- [Dev_readme.md](Dev_readme.md)
+- [docs/Dev_readme.md](docs/Dev_readme.md)

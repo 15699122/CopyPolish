@@ -3,8 +3,8 @@
 import os
 import sys
 
-# 让本文件无论从项目根还是直接执行都能 import 到父目录的 ccw_engine（/ccw_engine.py）。
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# 让本文件无论从项目根还是直接执行都能 import 到 reference/ 下的 ccw_engine（reference/ccw_engine.py）。
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "reference"))
 
 import unittest
 
