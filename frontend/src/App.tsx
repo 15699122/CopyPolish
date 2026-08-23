@@ -25,6 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
   formatText,
+  getAppVersion,
   getEnabledDefaults,
   getRules,
   getSettingsPath,
@@ -70,6 +71,7 @@ export default function App() {
   >("idle");
   const [settingsError, setSettingsError] = useState<string | null>(null);
   const [settingsPath, setSettingsPath] = useState<string | null>(null);
+  const [appVersion, setAppVersion] = useState(__APP_VERSION__);
 
   // 主题状态：system / light / dark。
   const [theme, setTheme] = useState<ThemeMode>("system");
@@ -131,6 +133,12 @@ export default function App() {
           if (!cancelled && path) setSettingsPath(path);
         } catch {
           // 路径获取失败不影响主流程；保存错误会在保存时展示。
+        }
+        try {
+          const version = await getAppVersion();
+          if (!cancelled) setAppVersion(version);
+        } catch {
+          // 读取版本失败时保留构建时注入的浏览器回退版本。
         }
         if (cancelled) return;
 
@@ -436,7 +444,7 @@ return (
           </DialogTrigger>
           <DialogContent
             data-testid="settings-dialog"
-            className="flex h-[min(680px,calc(100vh-2rem))] w-[min(640px,calc(100vw-2rem))] max-h-[calc(100vh-2rem)] max-w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0 sm:min-h-130 sm:min-w-130"
+            className="flex h-[min(680px,calc(100vh-2rem))] w-[min(560px,calc(100vw-2rem))] max-h-[calc(100vh-2rem)] max-w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0 sm:min-h-[520px] sm:min-w-[480px]"
           >
             {/* 固定标题区 */}
             <DialogHeader className="shrink-0 border-b px-6 py-5 pr-12">
@@ -571,47 +579,47 @@ return (
               </div>
             </div>
 
-            {/* 固定底部操作区：设置文件贴近左下角，操作按钮靠右下角。 */}
+            {/* 紧凑底部操作区：桌面端单行对齐；小屏或错误信息较长时自动换行。 */}
             <DialogFooter
-              className="shrink-0 border-t px-6 py-4"
+              className="shrink-0 border-t px-4 py-4 sm:px-6"
               data-testid="settings-footer"
             >
-              <div className="flex w-full min-w-0 flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div className="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div
-                  className="min-w-0 flex-1 space-y-1 text-left text-xs"
+                  className="min-w-0 flex-1 text-left text-xs leading-5"
                   data-testid="settings-file-info"
                 >
-                  {settingsStatus === "saving" && (
-                    <div className="text-muted-foreground" data-testid="settings-status">正在保存…</div>
-                  )}
-                  {settingsStatus === "saved" && (
-                    <div className="text-green-600" data-testid="settings-status">设置已保存</div>
-                  )}
-                  {settingsStatus === "error" && (
-                    <div className="break-all text-destructive" data-testid="settings-status">
-                      设置保存失败：{settingsError}
-                    </div>
-                  )}
-                  {settingsPath && (
-                    <div className="break-all text-muted-foreground" title={settingsPath}>
-                      设置文件：{settingsPath}
-                    </div>
-                  )}
+                  <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0">
+                    <span className="shrink-0 text-muted-foreground" data-testid="settings-version">版本 {appVersion}</span>
+                    {settingsStatus === "saving" && (
+                      <span className="shrink-0 text-muted-foreground" data-testid="settings-status">正在保存…</span>
+                    )}
+                    {settingsStatus === "saved" && (
+                      <span className="shrink-0 text-green-600" data-testid="settings-status">设置已保存</span>
+                    )}
+                    {settingsStatus === "error" && (
+                      <span className="break-all text-destructive" data-testid="settings-status">
+                        设置保存失败：{settingsError}
+                      </span>
+                    )}
+                    {settingsPath && (
+                      <span className="min-w-0 truncate text-muted-foreground" title={settingsPath}>
+                        设置文件：{settingsPath}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
-                <div className="flex shrink-0 flex-col items-end gap-3" data-testid="settings-actions">
-                  <div className="flex flex-wrap justify-end gap-2">
-                    <Button variant="outline" size="sm" data-testid="select-all" onClick={() => onSetAll(true)}>
-                      全选
-                    </Button>
-                    <Button variant="outline" size="sm" data-testid="select-none" onClick={() => onSetAll(false)}>
-                      全不选
-                    </Button>
-                    <Button variant="secondary" size="sm" data-testid="reset-defaults" onClick={onResetDefaults}>
-                      恢复默认
-                    </Button>
-                  </div>
-
+                <div className="flex shrink-0 flex-wrap items-center justify-end gap-2" data-testid="settings-actions">
+                  <Button variant="outline" size="sm" data-testid="select-all" onClick={() => onSetAll(true)}>
+                    全选
+                  </Button>
+                  <Button variant="outline" size="sm" data-testid="select-none" onClick={() => onSetAll(false)}>
+                    全不选
+                  </Button>
+                  <Button variant="secondary" size="sm" data-testid="reset-defaults" onClick={onResetDefaults}>
+                    恢复默认
+                  </Button>
                   <Button size="sm" data-testid="settings-done" onClick={() => setSettingsOpen(false)}>
                     完成
                   </Button>
