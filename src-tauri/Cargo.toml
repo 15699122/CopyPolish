@@ -21,7 +21,7 @@ serde_yaml = "0.9"
 regex = "1"
 # 保护层正则需要 lookbehind / backreference（LaTeX 转义 $、fenced code 缩进回引等），
 # regex crate 不支持，使用 fancy-regex。
-fancy-regex = "0.14"
+fancy-regex = "0.19"
 
 # 说明：应用为纯 Rust 实现（rust_engine）。仓库 reference/ 目录下的 ccw_engine.py 仅作为
 # test/compare_rust_parity.py 的权威基准保留，不参与构建与打包。
