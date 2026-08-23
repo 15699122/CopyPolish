@@ -7,7 +7,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import App from "./App";
+import App, { APP_NAME } from "./App";
 
 // jsdom 不实现 window.matchMedia，需 mock 以支持主题 effect。
 beforeEach(() => {
@@ -76,7 +76,7 @@ beforeEach(() => {
   mocks.getEnabledDefaults.mockResolvedValue(["rule-a", "rule-b"]);
   mocks.getUserSettings.mockResolvedValue(null);
   mocks.saveUserSettings.mockResolvedValue(undefined);
-  mocks.getAppVersion.mockResolvedValue("0.4.0");
+  mocks.getAppVersion.mockResolvedValue("0.4.0-pre.3");
 });
 
 describe("App 主流程", () => {
@@ -111,7 +111,7 @@ describe("App 主流程", () => {
     const input = screen.getByTestId("input-textarea");
     expect(input).toHaveAttribute(
       "placeholder",
-      "请输入或粘贴中文文案，例如：在LeanCloud上，花了5000元",
+      "请在这里粘贴或输入文字",
     );
     expect(input).toHaveClass("placeholder:text-sm", "placeholder:text-muted-foreground/50");
     expect(screen.getByTestId("output-empty-state")).toHaveTextContent(
@@ -142,6 +142,8 @@ describe("App 主流程", () => {
       "sm:min-h-[520px]",
       "sm:min-w-[480px]",
     );
+        // 标题栏标题与说明之间保持明确间距。
+    expect(screen.getByText(APP_NAME).parentElement).toHaveClass("space-y-1.5");
     expect(screen.getByText("设置 — 排版规则")).toBeVisible();
     expect(screen.getByText("主题")).toBeVisible();
     expect(screen.getByTestId("settings-scroll-area")).toBeInTheDocument();
@@ -149,7 +151,20 @@ describe("App 主流程", () => {
     expect(screen.queryByTestId("settings-resize-handle")).not.toBeInTheDocument();
     expect(screen.getByTestId("settings-footer")).toBeInTheDocument();
     expect(screen.getByTestId("settings-file-info")).toHaveTextContent("设置文件：");
-    expect(screen.getByTestId("settings-version")).toHaveTextContent("版本 0.4.0");
+    const settingsPathEl = screen.getByTestId("settings-path");
+    expect(settingsPathEl).toHaveAttribute(
+      "title",
+      "C:\\Users\\Tester\\AppData\\Roaming\\CopyPolish\\settings.json",
+    );
+    expect(settingsPathEl).toHaveAttribute(
+      "aria-label",
+      "设置文件完整路径：C:\\Users\\Tester\\AppData\\Roaming\\CopyPolish\\settings.json",
+    );
+    expect(settingsPathEl).toContainElement(screen.getByRole("tooltip"));
+    expect(screen.getByRole("tooltip")).toHaveTextContent(
+      "C:\\Users\\Tester\\AppData\\Roaming\\CopyPolish\\settings.json",
+    );
+    expect(screen.getByTestId("settings-version")).toHaveTextContent("版本 0.4.0-pre.3");
     expect(screen.getByTestId("settings-footer")).toHaveClass("px-4", "py-4", "sm:px-6");
     expect(screen.getByTestId("settings-actions")).toBeInTheDocument();
     // 主题选项横向网格容器。

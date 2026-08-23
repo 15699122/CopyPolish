@@ -26,6 +26,11 @@ jobs:
       - name: Verify version consistency
         run: python3 scripts/check_version.py "${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}"
 
+      # 把 tag 的完整版本（含预发布后缀）写入构建配置，
+      # 使打包产物的 getVersion() 与 GitHub tag 一致。
+      - name: Sync full release version from tag
+        run: python3 scripts/prepare_release_version.py "${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}"
+
       - name: Install dependencies (Linux)
         run: |
           sudo apt-get update
@@ -82,6 +87,10 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+
+      # 打包前同步 tag 的完整版本（含预发布后缀）到构建配置。
+      - name: Sync full release version from tag
+        run: python3 scripts/prepare_release_version.py "${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}"
 
       - name: Install dependencies (Linux)
         if: matrix.os == 'ubuntu-latest'
@@ -183,6 +192,11 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+
+      # 冒烟测试构建同样使用 tag 的完整版本，保证与发布产物一致。
+      - name: Sync full release version from tag
+        shell: bash
+        run: python3 scripts/prepare_release_version.py "${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}"
 
       - name: Rust toolchain
         uses: dtolnay/rust-toolchain@master

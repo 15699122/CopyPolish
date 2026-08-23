@@ -52,16 +52,19 @@ def main() -> int:
     tag = sys.argv[1] if len(sys.argv) > 1 else ""
     if tag:
         expected = tag[1:] if tag.startswith("v") else tag
-        # 允许 semver 预发布后缀（如 0.3.3-pre.1）；版本号文件只保存数值部分。
-        m = re.fullmatch(r"(\d+\.\d+\.\d+)(?:-[0-9A-Za-z.-]+)?", expected)
+        # 允许 semver 预发布后缀（如 0.4.0-pre.3）；版本号文件只保存数值部分。
+        m = re.fullmatch(r"(\d+\.\d+\.\d+)(-[0-9A-Za-z.-]+)?", expected)
         if not m:
             print(f"ERROR: 非法 tag 版本号格式: {tag}")
             return 1
-        expected = m.group(1)
+        base, suffix = m.group(1), m.group(2) or ""
+        full = base + suffix
         for k, v in versions_found.items():
-            if v != expected:
+            # 源码状态允许为基础版本；release 工作流执行
+            # prepare_release_version.py 后允许为完整预发布版本。
+            if v != base and v != full:
                 ok = False
-                print(f"ERROR: {k} 版本 {v} != tag 版本 {expected}")
+                print(f"ERROR: {k} 版本 {v} 既不等于基础版本 {base} 也不等于完整版本 {full}")
 
     if ok:
         print(f"OK: 所有版本号一致 ({next(iter(distinct))})")
