@@ -69,7 +69,12 @@ def main() -> int:
         if n:
             cargo_lock_path.write_text(updated, encoding="utf-8")
 
-    print(f"OK: 已同步发布版本 {version}")
+    # Windows runner 的 stdout 可能是 cp1252 等非 UTF-8 编码，输出保持纯 ASCII。
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except AttributeError:
+        pass
+    print(f"OK: synced release version {version}")
     return 0
 
 
