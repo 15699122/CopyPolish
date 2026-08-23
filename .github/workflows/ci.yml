@@ -43,7 +43,10 @@ jobs:
 
       - name: Rust tests (default, pure-Rust build)
         working-directory: src-tauri
-        run: cargo fmt --check && cargo test
+        run: cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test
+
+      - name: Patch formatting check
+        run: git diff --check
 
       - name: Frontend typecheck, tests & build
         working-directory: frontend

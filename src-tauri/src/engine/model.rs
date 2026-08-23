@@ -11,9 +11,22 @@ pub struct RuleMeta {
     pub default: bool,
 }
 
-/// 格式化请求。约定：`enabled` 为空数组表示全部启用；
-/// 含未知 key 时安全忽略（不报错），便于旧设置平滑迁移。
+/// 规则选择模式，避免用空数组同时表达“全部启用”和“全部关闭”。
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq)]
+#[serde(tag = "mode", rename_all = "snake_case")]
+pub enum RuleSelection {
+    /// 执行全部已注册规则。
+    All,
+    /// 执行注册表中标记为默认启用的规则。
+    Defaults,
+    /// 仅执行指定规则；未知 key 会被安全忽略。
+    Only { keys: Vec<String> },
+    /// 不执行任何规则。
+    None,
+}
+
+/// 格式化请求。规则选择必须通过显式的 `selection` 表达。
 pub struct FormatRequest {
     pub text: String,
-    pub enabled: Vec<String>,
+    pub selection: RuleSelection,
 }

@@ -1,0 +1,33 @@
+- name: 行内 LaTeX 保持完整
+  selection:
+    mode: defaults
+  input: 公式$E=mc^2$很重要
+  expected: 公式 $E=mc^2$ 很重要
+
+- name: Markdown 链接地址保持完整
+  selection:
+    mode: defaults
+  input: 请看[GitHub链接](https://example.com/a;b?x=$1|y)然后继续
+  expected: 请看 [GitHub链接](https://example.com/a;b?x=$1|y) 然后继续
+
+- name: fenced code block 保持完整
+  selection:
+    mode: defaults
+  input: |-
+    示例：
+    ```python
+    print('github; $x | y')
+    ```
+    结束
+  expected: |-
+    示例：
+    ```python
+    print('github; $x | y')
+    ```
+    结束
+
+- name: 化学式保持完整
+  selection:
+    mode: defaults
+  input: 样品为FeCl₂·4H₂O，纯度99%
+  expected: 样品为 FeCl₂·4H₂O，纯度 99%

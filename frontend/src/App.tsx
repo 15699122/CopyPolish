@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
-import { Check, Copy, Eraser, Maximize2, Minus, Settings, X } from "lucide-react";
+import { Check, Copy, Eraser } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
 import { Button } from "@/components/ui/button";
@@ -10,19 +10,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
+import { AppTitleBar } from "@/components/AppTitleBar";
+import { SettingsDialog } from "@/components/SettingsDialog";
 import { FONT_FAMILY_STACKS } from "@/lib/fonts";
 import {
   formatText,
@@ -34,14 +24,20 @@ import {
   isTauri,
   saveUserSettings,
   type Rule,
+  type RuleSelection,
   type FontFamily,
+  type LoadedUserSettings,
   type ThemeMode,
-  type UserSettings,
 } from "@/lib/tauri";
 
 export const APP_NAME = "文案净排";
 const APP_REFERENCE_NAME = "CopyPolish";
-const DEBOUNCE_MS = 160;
+const NORMAL_DEBOUNCE_MS = 160;
+const LONG_TEXT_DEBOUNCE_MS = 450;
+const VERY_LONG_TEXT_DEBOUNCE_MS = 900;
+const LONG_TEXT_THRESHOLD = 50_000;
+const VERY_LONG_TEXT_THRESHOLD = 200_000;
+const SLOW_FORMAT_THRESHOLD_MS = 100;
 
 /**
  * 主界面：左输入 / 右输出（小窗口时上下堆叠）+ 操作栏 + 规则设置对话框。
@@ -53,9 +49,12 @@ export default function App() {
   const [rules, setRules] = useState<Rule[]>([]);
   const [enabled, setEnabled] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [isFormatting, setIsFormatting] = useState(false);
+  const [lastFormatDuration, setLastFormatDuration] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
   const [cleared, setCleared] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const settingsTriggerRef = useRef<HTMLButtonElement | null>(null);
 
   const debounceRef = useRef<number | null>(null);
   const settingsDebounceRef = useRef<number | null>(null);
@@ -97,7 +96,7 @@ export default function App() {
     if (settingsDebounceRef.current !== null) window.clearTimeout(settingsDebounceRef.current);
     settingsDebounceRef.current = window.setTimeout(() => {
       persistSettings(nextEnabled, nextInput);
-    }, DEBOUNCE_MS);
+    }, NORMAL_DEBOUNCE_MS);
   }
 
   // 初始化：加载规则与默认启用集；随后恢复上次保存的用户设置（若有）。
@@ -112,7 +111,7 @@ export default function App() {
         if (cancelled) return;
         setRules(ruleList);
 
-        let saved: UserSettings | null = null;
+        let saved: LoadedUserSettings | null = null;
         try {
           saved = await getUserSettings();
         } catch {
@@ -144,6 +143,10 @@ export default function App() {
           }
           if (saved.font !== undefined) {
             setFont(saved.font);
+          }
+          if (saved.recovered_from_backup) {
+            setSettingsStatus("error");
+            setSettingsError("主设置文件损坏，已从 rules.yaml.bak 恢复；下次保存后会生成新的主文件。");
           }
           if (saved.last_input) {
             setInput(saved.last_input);
@@ -188,20 +191,63 @@ export default function App() {
     document.documentElement.style.setProperty("--app-font-family", FONT_FAMILY_STACKS[font]);
   }, [font]);
 
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      const modifier = event.ctrlKey || event.metaKey;
+      if (!modifier || event.altKey) return;
+
+      if (event.key === "Enter") {
+        event.preventDefault();
+        scheduleFormat(input, enabled, 0);
+      } else if (event.shiftKey && event.key.toLowerCase() === "c") {
+        event.preventDefault();
+        void onCopy();
+      } else if (!event.shiftKey && event.key === ",") {
+        event.preventDefault();
+        setSettingsOpen(true);
+      }
+    }
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [enabled, input, output]);
+
   // 实时排版（防抖 + 忽略乱序的旧请求）
-  function scheduleFormat(nextInput: string, applyEnabled = enabled) {
+  function scheduleFormat(nextInput: string, applyEnabled = enabled, delayOverride?: number) {
     if (debounceRef.current !== null) window.clearTimeout(debounceRef.current);
+    const debounceMs = getFormatDebounceMs(nextInput);
     debounceRef.current = window.setTimeout(async () => {
       const seq = ++seqRef.current;
+      const startedAt = performance.now();
+      setIsFormatting(true);
       try {
-        const result = await formatText({ text: nextInput, enabled: applyEnabled });
-        if (seqRef.current === seq) setOutput(result);
+        const result = await formatText({
+          text: nextInput,
+          selection: getRuleSelection(applyEnabled),
+        });
+        if (seqRef.current === seq) {
+          setOutput(result);
+          setLastFormatDuration(Math.round(performance.now() - startedAt));
+          setError(null);
+        }
       } catch (e) {
         if (seqRef.current === seq) setError(String(e));
       } finally {
-        if (seqRef.current === seq) setError((prev) => (prev ? prev : null));
+        if (seqRef.current === seq) setIsFormatting(false);
       }
-    }, DEBOUNCE_MS);
+    }, delayOverride ?? debounceMs);
+  }
+
+  function getFormatDebounceMs(text: string): number {
+    if (text.length >= VERY_LONG_TEXT_THRESHOLD) return VERY_LONG_TEXT_DEBOUNCE_MS;
+    if (text.length >= LONG_TEXT_THRESHOLD) return LONG_TEXT_DEBOUNCE_MS;
+    return NORMAL_DEBOUNCE_MS;
+  }
+
+  function getRuleSelection(selected: string[]): RuleSelection {
+    if (selected.length === 0) return { mode: "none" };
+    if (selected.length === rules.length && rules.length > 0) return { mode: "all" };
+    return { mode: "only", keys: selected };
   }
 
   function onInputChange(value: string) {
@@ -246,6 +292,13 @@ export default function App() {
     }
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1200);
+  }
+
+  function onSettingsOpenChange(open: boolean) {
+    setSettingsOpen(open);
+    if (!open) {
+      window.setTimeout(() => settingsTriggerRef.current?.focus(), 0);
+    }
   }
 
   function onClear() {
@@ -326,51 +379,18 @@ export default function App() {
     });
   }
 
-  // 按 section 分组规则
-  const groups = useMemo(() => {
-    const map = new Map<string, Rule[]>();
-    for (const r of rules) {
-      const list = map.get(r.section) ?? [];
-      list.push(r);
-      map.set(r.section, list);
-    }
-    return Array.from(map.entries());
-  }, [rules]);
 return (
     <div className="flex h-full min-h-0 flex-col bg-background text-foreground">
-      {/* 无边框窗口标题栏：按下空白处显式调用 startDragging；右侧为窗口控制。 */}
-      <header
-        className="flex select-none items-center justify-between border-b px-6 py-3"
-        data-testid="title-bar"
+      <AppTitleBar
+        appName={APP_NAME}
+        referenceName={APP_REFERENCE_NAME}
+        tauri={isTauri()}
         onMouseDown={onHeaderMouseDown}
         onDoubleClick={onToggleMaximize}
-      >
-        <div className="min-w-0 space-y-1.5">
-          <h1 className="text-xl font-bold leading-none">{APP_NAME}</h1>
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            {isTauri()
-              ? `实时保护 LaTeX / Markdown 结构 · ${APP_REFERENCE_NAME}`
-              : "浏览器预览模式 · 内置回退排版"}
-          </p>
-        </div>
-        {isTauri() && (
-          <div
-            className="flex items-center gap-1"
-            data-window-control
-            onMouseDown={(event) => event.stopPropagation()}
-          >
-            <Button variant="ghost" size="icon" onClick={onMinimize} aria-label="最小化" data-window-control>
-              <Minus className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={onToggleMaximize} aria-label="最大化或还原" data-window-control>
-              <Maximize2 className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={onClose} aria-label="关闭" data-window-control>
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        )}
-      </header>
+        onMinimize={onMinimize}
+        onToggleMaximize={onToggleMaximize}
+        onClose={onClose}
+      />
 
       {/* 主体：左右双栏，小窗口上下堆叠 */}
       <main className="grid min-h-0 flex-1 gap-4 p-4 lg:grid-cols-2">
@@ -398,7 +418,20 @@ return (
             <CardTitle className="text-sm">规范化结果（实时）</CardTitle>
             <CardDescription className="text-xs">
               {error ? (
-                <span className="text-destructive">排版出错：{error}</span>
+                <span className="text-destructive" aria-live="assertive">排版出错：{error}</span>
+              ) : isFormatting ? (
+                <span data-testid="formatting-status" aria-live="polite">正在排版…</span>
+              ) : input.length >= LONG_TEXT_THRESHOLD ? (
+                <span data-testid="long-text-status" aria-live="polite">
+                  文本较长，处理可能需要更长时间
+                  {lastFormatDuration !== null && lastFormatDuration >= SLOW_FORMAT_THRESHOLD_MS
+                    ? ` · 最近一次耗时 ${lastFormatDuration} ms`
+                    : ""}
+                </span>
+              ) : lastFormatDuration !== null && lastFormatDuration >= SLOW_FORMAT_THRESHOLD_MS ? (
+                <span data-testid="format-duration" aria-live="polite">
+                  最近一次排版耗时 {lastFormatDuration} ms
+                </span>
               ) : (
                 "由规则引擎生成"
               )}
@@ -427,212 +460,26 @@ return (
 
       {/* 操作栏 */}
       <footer className="flex items-center gap-2 border-t px-6 py-4">
-        <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-          <DialogTrigger asChild>
-            <Button variant="outline" size="sm" data-testid="open-settings" aria-label="打开设置">
-              <Settings className="h-4 w-4" />
-              设置
-            </Button>
-          </DialogTrigger>
-          <DialogContent
-            data-testid="settings-dialog"
-            className="flex h-[min(680px,calc(100vh-2rem))] w-[min(560px,calc(100vw-2rem))] max-h-[calc(100vh-2rem)] max-w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0 sm:min-h-130 sm:min-w-120"
-          >
-            {/* 固定标题区 */}
-            <DialogHeader className="shrink-0 border-b px-6 py-5 pr-12">
-              <DialogTitle>设置 — 排版规则</DialogTitle>
-              <DialogDescription>
-                逐条启用/停用规则。已启用 {enabled.length}/{rules.length} 条
-              </DialogDescription>
-            </DialogHeader>
-
-            {/* 规则与主题滚动区：仅此区域滚动 */}
-            <div
-              className="min-h-0 flex-1 overflow-y-auto px-6 py-4"
-              data-testid="settings-scroll-area"
-            >
-              <div className="space-y-6 pb-4">
-                {/* 主题设置 */}
-                <div className="space-y-2">
-                  <h3 className="text-sm font-semibold">主题</h3>
-                  <div
-                    className="grid grid-cols-1 gap-1 sm:grid-cols-3"
-                    data-testid="theme-options"
-                  >
-                    <label
-                      className={cn(
-                        "flex min-w-0 cursor-pointer items-center gap-1.5 rounded-md px-2 py-1.5 transition-colors hover:bg-accent",
-                        theme === "system" && "bg-accent text-accent-foreground",
-                      )}
-                    >
-                      <input
-                        type="radio"
-                        name="theme"
-                        value="system"
-                        checked={theme === "system"}
-                        onChange={() => onThemeChange("system")}
-                        data-testid="theme-system"
-                        className="h-4 w-4 shrink-0"
-                      />
-                      <span className="truncate text-sm">跟随系统</span>
-                    </label>
-                    <label
-                      className={cn(
-                        "flex min-w-0 cursor-pointer items-center gap-1.5 rounded-md px-2 py-1.5 transition-colors hover:bg-accent",
-                        theme === "light" && "bg-accent text-accent-foreground",
-                      )}
-                    >
-                      <input
-                        type="radio"
-                        name="theme"
-                        value="light"
-                        checked={theme === "light"}
-                        onChange={() => onThemeChange("light")}
-                        data-testid="theme-light"
-                        className="h-4 w-4 shrink-0"
-                      />
-                      <span className="truncate text-sm">浅色</span>
-                    </label>
-                    <label
-                      className={cn(
-                        "flex min-w-0 cursor-pointer items-center gap-1.5 rounded-md px-2 py-1.5 transition-colors hover:bg-accent",
-                        theme === "dark" && "bg-accent text-accent-foreground",
-                      )}
-                    >
-                      <input
-                        type="radio"
-                        name="theme"
-                        value="dark"
-                        checked={theme === "dark"}
-                        onChange={() => onThemeChange("dark")}
-                        data-testid="theme-dark"
-                        className="h-4 w-4 shrink-0"
-                      />
-                      <span className="truncate text-sm">深色</span>
-                    </label>
-                  </div>
-                </div>
-
-                <div className="space-y-2" data-testid="font-settings">
-                  <div>
-                    <h3 className="text-sm font-semibold">字体</h3>
-                    <p className="text-xs text-muted-foreground">选择界面显示字体；未安装的字体会自动使用系统回退字体。</p>
-                  </div>
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                    <select
-                      value={font}
-                      onChange={(event) => onFontChange(event.target.value as FontFamily)}
-                      data-testid="font-select"
-                      aria-label="界面字体"
-                      className="h-9 min-w-0 flex-1 rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      <option value="system">系统默认（推荐）</option>
-                      <option value="microsoft-yahei">微软雅黑</option>
-                      <option value="pingfang">苹方</option>
-                      <option value="noto-sans-cjk">思源黑体 / Noto Sans CJK SC</option>
-                      <option value="simsun">宋体</option>
-                      <option value="simhei">黑体</option>
-                    </select>
-                    <Button variant="ghost" size="sm" data-testid="reset-font" onClick={onResetFont}>
-                      恢复默认字体
-                    </Button>
-                  </div>
-                </div>
-
-                {groups.map(([section, items]) => (
-                  <section key={section}>
-                    <h3 className="mb-2 text-sm font-semibold">{section}</h3>
-                    <div className="space-y-2">
-                      {items.map((r) => (
-                        <div key={r.key} className="flex items-start gap-3 rounded-md border p-3">
-                          <Checkbox
-                            id={`rule-${r.key}`}
-                            checked={enabledSet.has(r.key)}
-                            onCheckedChange={() => onToggleRule(r.key)}
-                            data-testid={`rule-${r.key}`}
-                            aria-label={r.name}
-                          />
-                          <Label
-                            htmlFor={`rule-${r.key}`}
-                            className="min-w-0 flex-1 text-sm leading-5"
-                          >
-                            {r.name}
-                            {r.disputed && (
-                              <span className="ml-1 text-xs text-muted-foreground">
-                                （争议，默认关闭）
-                              </span>
-                            )}
-                          </Label>
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-                ))}
-              </div>
-            </div>
-
-            {/* 紧凑底部操作区：桌面端单行对齐；小屏或错误信息较长时自动换行。 */}
-            <DialogFooter
-              className="shrink-0 border-t px-4 py-4 sm:px-6"
-              data-testid="settings-footer"
-            >
-              <div className="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div
-                  className="min-w-0 flex-1 text-left text-xs leading-5"
-                  data-testid="settings-file-info"
-                >
-                  <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0">
-                    <span className="shrink-0 text-muted-foreground" data-testid="settings-version">版本 {appVersion}</span>
-                    {settingsStatus === "saving" && (
-                      <span className="shrink-0 text-muted-foreground" data-testid="settings-status">正在保存…</span>
-                    )}
-                    {settingsStatus === "saved" && (
-                      <span className="shrink-0 text-green-600" data-testid="settings-status">设置已保存</span>
-                    )}
-                    {settingsStatus === "error" && (
-                      <span className="break-all text-destructive" data-testid="settings-status">
-                        设置保存失败：{settingsError}
-                      </span>
-                    )}
-                    {settingsPath && (
-                      <span
-                        className="group relative min-w-0 truncate text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        tabIndex={0}
-                        title={settingsPath}
-                        aria-label={`设置文件完整路径：${settingsPath}`}
-                        data-testid="settings-path"
-                      >
-                        设置文件：{settingsPath}
-                        {/* 悬停或键盘聚焦时展示完整路径，不受界面宽度截断影响。 */}
-                        <span
-                          role="tooltip"
-                          className="pointer-events-none absolute bottom-full left-0 z-10 mb-1 hidden w-max max-w-md break-all rounded-md border bg-card px-2 py-1 text-left text-card-foreground shadow-md group-focus-within:block group-hover:block"
-                        >
-                          {settingsPath}
-                        </span>
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex shrink-0 flex-wrap items-center justify-end gap-2" data-testid="settings-actions">
-                  <Button variant="outline" size="sm" data-testid="select-all" onClick={() => onSetAll(true)}>
-                    全选
-                  </Button>
-                  <Button variant="outline" size="sm" data-testid="select-none" onClick={() => onSetAll(false)}>
-                    全不选
-                  </Button>
-                  <Button variant="secondary" size="sm" data-testid="reset-defaults" onClick={onResetDefaults}>
-                    恢复默认
-                  </Button>
-                  <Button size="sm" data-testid="settings-done" onClick={() => setSettingsOpen(false)}>
-                    完成
-                  </Button>
-                </div>
-              </div>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <SettingsDialog
+          open={settingsOpen}
+          onOpenChange={onSettingsOpenChange}
+          triggerRef={settingsTriggerRef}
+          rules={rules}
+          enabled={enabled}
+          enabledSet={enabledSet}
+          theme={theme}
+          font={font}
+          appVersion={appVersion}
+          settingsStatus={settingsStatus}
+          settingsError={settingsError}
+          settingsPath={settingsPath}
+          onToggleRule={onToggleRule}
+          onSetAll={onSetAll}
+          onResetDefaults={onResetDefaults}
+          onThemeChange={onThemeChange}
+          onFontChange={onFontChange}
+          onResetFont={onResetFont}
+        />
 
         <Button variant="outline" size="sm" data-testid="clear-input" onClick={onClear}>
           {cleared ? (
@@ -655,6 +502,9 @@ return (
             )}
             复制结果
           </Button>
+          <span className="sr-only" aria-live="polite" data-testid="copy-status">
+            {copied ? "已复制" : ""}
+          </span>
         </div>
       </footer>
     </div>

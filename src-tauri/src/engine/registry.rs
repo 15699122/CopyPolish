@@ -219,7 +219,7 @@ pub fn normalize_rule_keys(keys: &[String]) -> Vec<String> {
         } else {
             RULES
                 .iter()
-                .find(|r| r.legacy.iter().any(|l| *l == k.as_str()))
+                .find(|r| r.legacy.contains(&k.as_str()))
                 .map(|r| r.meta.key.clone())
         };
         if let Some(n) = normalized {

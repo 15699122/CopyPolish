@@ -23,7 +23,7 @@ pub mod registry;
 mod rule_impls;
 pub mod tokenizer;
 
-pub use model::{FormatRequest, RuleMeta};
+pub use model::{FormatRequest, RuleMeta, RuleSelection};
 pub use pipeline::format_text;
 pub use registry::{default_rules, enabled_defaults, normalize_rule_keys, rules, RuleDef};
 pub use tokenizer::detect_chemical_formulas;

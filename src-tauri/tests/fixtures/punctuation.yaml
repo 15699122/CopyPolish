@@ -1,0 +1,39 @@
+- name: 不重复使用标点符号
+  selection:
+    mode: only
+    keys:
+      - punctuation.no-repetition
+  input: 德国队！！真的？？
+  expected: 德国队！真的？
+
+- name: 使用全角中文标点
+  selection:
+    mode: only
+    keys:
+      - punctuation.fullwidth-cjk
+  input: 你好,世界!
+  expected: 你好，世界！
+
+- name: 数字使用半角字符
+  selection:
+    mode: only
+    keys:
+      - text.halfwidth-digits
+  input: 只卖１０００元
+  expected: 只卖1000元
+
+- name: 英文整句使用半角标点
+  selection:
+    mode: only
+    keys:
+      - text.ascii-punct-in-latin
+  input: Hello，world！
+  expected: Hello, world！
+
+- name: 简体中文使用直角引号
+  selection:
+    mode: only
+    keys:
+      - punctuation.corner-quotes
+  input: 他说“你好”
+  expected: 他说「你好」

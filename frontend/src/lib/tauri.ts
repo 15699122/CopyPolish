@@ -21,8 +21,14 @@ export interface Rule {
 
 export interface FormatRequest {
   text: string;
-  enabled: string[];
+  selection: RuleSelection;
 }
+
+export type RuleSelection =
+  | { mode: "all" }
+  | { mode: "defaults" }
+  | { mode: "only"; keys: string[] }
+  | { mode: "none" };
 
 export function isTauri(): boolean {
   return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
@@ -49,7 +55,10 @@ function fallbackFormat(text: string): string {
 }
 
 export async function formatText(request: FormatRequest): Promise<string> {
-  if (!isTauri()) return fallbackFormat(request.text);
+  if (!isTauri()) {
+    if (request.selection.mode === "none") return request.text;
+    return fallbackFormat(request.text);
+  }
   return invoke<string>("format_text", { ...request });
 }
 
@@ -80,6 +89,10 @@ export interface UserSettings {
   font: FontFamily;
 }
 
+export interface LoadedUserSettings extends UserSettings {
+  recovered_from_backup: boolean;
+}
+
 const LS_SETTINGS_KEY = "ccw-formatter-settings";
 
 /** 返回设置文件（rules.yaml）的完整路径；浏览器预览返回 null。 */
@@ -88,7 +101,7 @@ export async function getSettingsPath(): Promise<string | null> {
   return invoke<string>("get_settings_path");
 }
 
-export async function getUserSettings(): Promise<UserSettings | null> {
+export async function getUserSettings(): Promise<LoadedUserSettings | null> {
   if (!isTauri()) {
     try {
       const raw = window.localStorage.getItem(LS_SETTINGS_KEY);
@@ -99,18 +112,24 @@ export async function getUserSettings(): Promise<UserSettings | null> {
         last_input: parsed.last_input ?? "",
         theme: ensureThemeMode(parsed.theme),
         font: ensureFontFamily(parsed.font),
+        recovered_from_backup: false,
       };
     } catch {
       return null;
     }
   }
-  const settings = await invoke<UserSettings | null>("get_user_settings");
-  if (!settings) return null;
+  const loaded = await invoke<{
+    settings: UserSettings;
+    recovered_from_backup: boolean;
+  } | null>("get_user_settings");
+  if (!loaded) return null;
+  const settings = loaded.settings;
   return {
     enabled: settings.enabled ?? [],
     last_input: settings.last_input ?? "",
     theme: ensureThemeMode(settings.theme),
     font: ensureFontFamily(settings.font),
+    recovered_from_backup: loaded.recovered_from_backup,
   };
 }
 

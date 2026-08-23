@@ -1,0 +1,37 @@
+- name: 默认规则处理基本中文文案
+  selection:
+    mode: defaults
+  input: 在LeanCloud上，花了5000元
+  expected: 在 LeanCloud 上，花了 5000 元
+
+- name: 中英文之间增加空格
+  selection:
+    mode: only
+    keys:
+      - spacing.cjk-latin
+  input: 在LeanCloud上
+  expected: 在 LeanCloud 上
+
+- name: 中文与数字之间增加空格
+  selection:
+    mode: only
+    keys:
+      - spacing.cjk-number
+  input: 花了5000元
+  expected: 花了 5000 元
+
+- name: 数字与单位之间增加空格
+  selection:
+    mode: only
+    keys:
+      - spacing.number-unit
+  input: 宽带有10Gbps
+  expected: 宽带有10 Gbps
+
+- name: 全角标点与其他字符之间不加空格
+  selection:
+    mode: only
+    keys:
+      - spacing.no-space-around-fw-punct
+  input: 你好 ， 世界 ！
+  expected: 你好，世界！

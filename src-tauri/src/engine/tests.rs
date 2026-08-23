@@ -3,14 +3,96 @@
 
 use super::*;
 
+#[derive(serde::Deserialize)]
+struct GoldenCase {
+    name: String,
+    selection: RuleSelection,
+    input: String,
+    expected: String,
+}
+
 fn req(text: &str) -> FormatRequest {
     FormatRequest {
         text: text.to_string(),
-        enabled: enabled_defaults(),
+        selection: RuleSelection::Defaults,
     }
 }
 
 use crate::engine::registry::keys;
+
+fn load_golden_cases() -> Vec<(String, GoldenCase)> {
+    [
+        (
+            "spacing.yaml",
+            include_str!("../../tests/fixtures/spacing.yaml"),
+        ),
+        (
+            "punctuation.yaml",
+            include_str!("../../tests/fixtures/punctuation.yaml"),
+        ),
+        (
+            "naming-and-links.yaml",
+            include_str!("../../tests/fixtures/naming-and-links.yaml"),
+        ),
+        (
+            "protection.yaml",
+            include_str!("../../tests/fixtures/protection.yaml"),
+        ),
+        (
+            "selection-and-regressions.yaml",
+            include_str!("../../tests/fixtures/selection-and-regressions.yaml"),
+        ),
+    ]
+    .into_iter()
+    .flat_map(|(file, yaml)| {
+        serde_yaml::from_str::<Vec<GoldenCase>>(yaml)
+            .unwrap_or_else(|error| panic!("failed to parse fixture {file}: {error}"))
+            .into_iter()
+            .map(move |case| (file.to_string(), case))
+    })
+    .collect()
+}
+
+#[test]
+fn golden_fixtures_match_expected_output() {
+    let cases = load_golden_cases();
+    assert!(!cases.is_empty(), "golden fixture suite must not be empty");
+
+    for (file, case) in &cases {
+        let request = FormatRequest {
+            text: case.input.clone(),
+            selection: case.selection.clone(),
+        };
+        let actual = format_text(&request).unwrap_or_else(|error| {
+            panic!("fixture {file} / {} failed to format: {error}", case.name)
+        });
+        assert_eq!(
+            actual, case.expected,
+            "fixture {file} / {} produced unexpected output",
+            case.name
+        );
+    }
+}
+
+#[test]
+fn golden_fixtures_cover_every_registered_rule() {
+    let cases = load_golden_cases();
+    let covered: std::collections::HashSet<&str> = cases
+        .iter()
+        .flat_map(|(_, case)| match &case.selection {
+            RuleSelection::Only { keys } => keys.iter().map(String::as_str).collect(),
+            _ => Vec::new(),
+        })
+        .collect();
+
+    for rule in rules() {
+        assert!(
+            covered.contains(rule.key()),
+            "no golden fixture covers registered rule {}",
+            rule.key()
+        );
+    }
+}
 
 #[test]
 fn registry_contains_migrated_rules_with_defaults() {
@@ -91,7 +173,7 @@ fn formats_punctuation_and_proper_nouns() {
     enabled.push(keys::NAMING_PROPER_NOUNS.to_string());
     let with_nouns = FormatRequest {
         text: "使用 github 登录".to_string(),
-        enabled,
+        selection: RuleSelection::Only { keys: enabled },
     };
     assert_eq!(format_text(&with_nouns).unwrap(), "使用 GitHub 登录");
 }
@@ -101,7 +183,9 @@ fn disabled_rules_are_not_applied() {
     // 新架构：未启用的规则不执行（旧实现中基础空格规则始终强制执行）。
     let none = FormatRequest {
         text: "在LeanCloud上".to_string(),
-        enabled: vec![keys::PUNCT_NO_REPETITION.to_string()],
+        selection: RuleSelection::Only {
+            keys: vec![keys::PUNCT_NO_REPETITION.to_string()],
+        },
     };
     assert_eq!(format_text(&none).unwrap(), "在LeanCloud上");
 }
@@ -110,12 +194,51 @@ fn disabled_rules_are_not_applied() {
 fn unknown_keys_are_safely_ignored() {
     let mixed = FormatRequest {
         text: "花了5000元".to_string(),
-        enabled: vec![
-            "不存在的规则".to_string(),
-            keys::SPACING_CJK_NUMBER.to_string(),
-        ],
+        selection: RuleSelection::Only {
+            keys: vec![
+                "不存在的规则".to_string(),
+                keys::SPACING_CJK_NUMBER.to_string(),
+            ],
+        },
     };
     assert_eq!(format_text(&mixed).unwrap(), "花了 5000 元");
+}
+
+#[test]
+fn explicit_rule_selection_modes_are_unambiguous() {
+    let text = "在LeanCloud上，花了5000元！！";
+
+    let all = FormatRequest {
+        text: text.to_string(),
+        selection: RuleSelection::All,
+    };
+    assert_eq!(
+        format_text(&all).unwrap(),
+        "在 LeanCloud 上，花了 5000 元！"
+    );
+
+    let defaults = FormatRequest {
+        text: text.to_string(),
+        selection: RuleSelection::Defaults,
+    };
+    assert_eq!(
+        format_text(&defaults).unwrap(),
+        "在 LeanCloud 上，花了 5000 元！"
+    );
+
+    let only = FormatRequest {
+        text: text.to_string(),
+        selection: RuleSelection::Only {
+            keys: vec![keys::PUNCT_NO_REPETITION.to_string()],
+        },
+    };
+    assert_eq!(format_text(&only).unwrap(), "在LeanCloud上，花了5000元！");
+
+    let none = FormatRequest {
+        text: text.to_string(),
+        selection: RuleSelection::None,
+    };
+    assert_eq!(format_text(&none).unwrap(), text);
 }
 
 #[test]

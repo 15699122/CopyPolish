@@ -1,0 +1,23 @@
+- name: 专有名词使用正确的大小写
+  selection:
+    mode: only
+    keys:
+      - naming.proper-nouns
+  input: 使用 github 登录
+  expected: 使用 GitHub 登录
+
+- name: 不要使用不地道的缩写
+  selection:
+    mode: only
+    keys:
+      - naming.expand-abbreviations
+  input: 使用 ts 开发
+  expected: 使用 TypeScript 开发
+
+- name: 链接之间增加空格
+  selection:
+    mode: only
+    keys:
+      - spacing.around-links
+  input: 查看[官网](https://example.com)然后继续
+  expected: 查看 [官网](https://example.com) 然后继续
