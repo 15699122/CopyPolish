@@ -19,7 +19,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
 
@@ -38,7 +38,7 @@ jobs:
           components: rustfmt, clippy
 
       - name: Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -79,7 +79,7 @@ jobs:
             args: "--no-bundle"
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
 
@@ -95,7 +95,7 @@ jobs:
           toolchain: 1.98.0
 
       - name: Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -117,7 +117,7 @@ jobs:
           npm run tauri build -- ${{ matrix.args }}
 
       # Linux：上传 Tauri bundle（deb/rpm/AppImage）。
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: matrix.os == 'ubuntu-latest'
         with:
           name: bundle-ubuntu-latest
@@ -156,7 +156,7 @@ jobs:
           Remove-Item $staging -Recurse -Force
           Get-ChildItem dist/windows
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: matrix.os == 'windows-latest'
         with:
           name: windows-portable
@@ -166,7 +166,7 @@ jobs:
           if-no-files-found: error
 
       # 构建失败时上传日志辅助排查。
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: build-log-${{ matrix.os }}
@@ -180,7 +180,7 @@ jobs:
     needs: test
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
 
@@ -190,7 +190,7 @@ jobs:
           toolchain: 1.98.0
 
       - name: Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -248,12 +248,12 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: dist
 
