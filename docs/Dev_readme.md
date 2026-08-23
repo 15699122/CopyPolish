@@ -29,8 +29,9 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
 - `src-tauri/`：纯 Rust 实现（`rust_engine.rs` + `user_settings.rs`），无 Python/PyO3 运行时依赖。
 - `reference/ccw_engine.py` 仅作为 parity 权威基准保留，不参与应用构建和打包。
 - 设置 Dialog 使用稳定响应式布局：在视口安全边距内居中并限制最大宽高，固定 header/footer + 原生 `overflow-y-auto` 内容滚动；不再模拟 Dialog 内部拖动/缩放，主 Tauri 窗口仍可拖动和 resize。
+- 设置 Dialog 支持主题切换、界面字体预设（含恢复默认）、Footer 显示完整应用版本 / 保存状态 / 设置文件路径（路径截断时悬停或键盘聚焦展示完整值）。
 - 主窗口最小尺寸为 `800×600`，用于避免布局过度压缩。
-- 输入框已有字号更小、颜色更淡的示例 placeholder；输出框已有真实空状态提示。
+- 输入框 placeholder 固定为「请在这里粘贴或输入文字」（字号更小、颜色更淡）；输出框已有真实空状态提示。
 - Linux 打包目标：`.deb` / `.rpm` / `.AppImage`。
 - Windows 仅提供无边框便携版：`CopyPolish.exe` 与 `CopyPolish-windows-x64.7z`，不提供安装器。
 
@@ -49,6 +50,9 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
 │   └── rule_catalog.yaml          # 规则元数据（只读参考）
 ├── frontend/                      # React/Vite/TS/Tailwind v4/shadcn-ui 界面
 │   └── src/App.tsx                # 主界面：双栏编辑、设置 Dialog、防抖实时排版
+├── scripts/
+│   ├── check_version.py           # 版本一致性校验（CI 与本地共用）
+│   └── prepare_release_version.py # 发布时把 tag 完整版本写入构建配置
 ├── src-tauri/
 │   ├── Cargo.toml
 │   ├── tauri.conf.json
@@ -179,7 +183,7 @@ Windows `.7z` 压缩包约定：根目录直接包含 `CopyPolish.exe` 及构建
 cargo fmt --manifest-path src-tauri/Cargo.toml --check
 cargo check --manifest-path src-tauri/Cargo.toml
 cargo test --manifest-path src-tauri/Cargo.toml          # 纯 Rust：16 项
-npm test --prefix frontend                                # vitest 组件测试（jsdom，9 项）
+npm test --prefix frontend                                # vitest 组件测试（jsdom，10 项）
 npm run build --prefix frontend                           # tsc + vite
 .venv/bin/python -m unittest discover -s test             # Python 40 项
 .venv/bin/python test/compare_rust_parity.py              # 必须 0 差异
@@ -202,6 +206,7 @@ git diff --check
 2. `reference/ccw_engine.py` 不导入任何 GUI/UI 模块；Rust 与 Python 输出保持逐字节一致（parity 保证）。
 3. 改动规则定义时，同步更新：`reference/ccw_engine.py` RULES、`rust_engine::default_rules()`、前端 fallback 列表（如有）、parity 语料。
 4. 打包资源变更需同步 `tauri.conf.json` 的 `bundle.resources` 并做安装态 smoke。
+5. Tailwind 优先使用间距刻度类（如 `min-h-130` = 130 × 0.25rem），仅当数值不在刻度上时才用 `[...]` 任意值写法，避免 lint 警告。
 
 ## 后续计划
 
@@ -218,7 +223,7 @@ git diff --check
 `.github/workflows/ci.yml` 与 `.github/workflows/release.yml`：
 
 - `ci.yml` 在 `dev`、`master` 与 PR 上运行快速验证：cargo fmt + 纯 Rust cargo test（16 项，含 UTF-8 多字节回归）+ 前端 vitest 组件测试 + tsc/vite 构建；
-- `release.yml` 仅在 `v*` tag 或手动指定既有 `v*` tag 时运行完整发布流水线；
+- `release.yml` 在推送 `v*` tag 时运行完整发布流水线，也支持 workflow_dispatch 手动指定既有 tag 并可选标记 pre-release（tag 名含 `-` 时自动识别为预发布）；
 - `tauri-build` matrix（ubuntu/windows）：Linux 构建 deb/rpm/AppImage 并上传 `bundle-ubuntu-latest`；Windows 以 `--no-bundle` 构建无边框便携 `.exe`，以临时根目录打包为只含 exe/DLL 的 `.7z` 后上传 `windows-portable`（不生成任何安装器——WiX MSI 无法处理中文产品名，且产品定位为免安装便携版）。项目不支持 macOS。
 - `windows-smoke` job（windows-latest）：真实启动 GUI 冒烟测试——构建 exe → 启动进程 → 轮询等待主窗口句柄出现（最长 60 秒）→ 保持 10 秒验证稳定性 → 强制结束进程。已通过。
 
