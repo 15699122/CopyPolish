@@ -100,7 +100,147 @@ CopyPolish-windows-x64.7z
 
 不生成任何安装器（WiX MSI 无法处理中文产品名，且产品定位为免安装便携版）。
 
-## 7. Linux 安装包构建与资产整理
+## 7. WSL + Windows 主机编译器构建 Windows Release
+
+### 7.1 方案边界
+
+本方案适用于开发者主要在 WSL 中工作，但希望使用 Windows 主机上的原生 MSVC 工具链、Node.js、Tauri CLI 和 7-Zip 构建 Windows 便携版的场景。
+
+```text
+WSL
+├── Git worktree / 版本同步 / Rust 与前端测试
+├── 调用 Windows PowerShell 或 .exe 工具
+└── 访问 /mnt/c/... 下的 Windows 工作区
+        │
+        ▼
+Windows 主机
+├── Windows Node.js/npm
+├── Visual Studio Build Tools / MSVC
+├── Windows Rust toolchain（stable-x86_64-pc-windows-msvc）
+├── Windows Tauri CLI
+├── WebView2 Runtime
+└── 7-Zip
+```
+
+这里的“Windows 主机编译器”指 Windows 环境中的 MSVC Rust target 与其链接器，不是 WSL 中的 Linux `rustc`。WSL 本身不直接生成可发布的 Windows Tauri 二进制；它负责准备工作区、执行检查，并通过 `powershell.exe` / `cmd.exe` 调度 Windows 侧构建。
+
+### 7.2 推荐前置条件
+
+- 已安装并可从 WSL 调用的 WSL 发行版；
+- Windows 主机已安装 Node.js/npm，版本与仓库 `.nvmrc` 一致；
+- Windows 主机已安装 Visual Studio Build Tools 的 **Desktop development with C++** 工作负载；
+- Windows 主机已安装 Rust MSVC toolchain，并确认 `rustup default` 或项目 toolchain 可使用 `stable-x86_64-pc-windows-msvc`；
+- Windows 主机已安装 WebView2 Runtime；
+- Windows 主机已安装 7-Zip，并可通过 `7z.exe` 调用；
+- WSL 中可执行 `powershell.exe` 或 `pwsh.exe`，且 Windows 工具能访问同一份源码目录；
+- 源码位于 Windows 文件系统（例如 `C:\src\chinese_copywriting_formatter`，WSL 中对应 `/mnt/c/src/chinese_copywriting_formatter`）。
+
+不建议将发布工作区放在 WSL 的 ext4 文件系统中后再让 Windows 工具通过网络或特殊路径访问。Node、Cargo、Tauri 和 Windows 文件监视器在 `/mnt/c/...` 下的行为更容易与 Windows 原生构建保持一致；如果性能明显不足，可在 Windows 文件系统中准备独立发布 worktree。
+
+### 7.3 从 WSL 准备隔离发布工作区
+
+在 WSL 中执行 Git 操作和版本同步。以下路径仅为示例，请替换为实际 Windows 路径：
+
+```bash
+export WIN_REPO='C:\src\chinese_copywriting_formatter'
+export WSL_REPO='/mnt/c/src/chinese_copywriting_formatter'
+
+cd "$WSL_REPO"
+git fetch origin --tags
+git worktree add "$WSL_REPO-release" <tag-or-commit>
+cd "$WSL_REPO-release"
+
+python3 scripts/prepare_release_version.py vX.Y.Z[-suffix]
+python3 scripts/check_version.py vX.Y.Z[-suffix]
+```
+
+`prepare_release_version.py` 会修改版本文件，因此仍然必须在隔离 worktree 中执行。WSL 与 Windows PowerShell 后续必须使用同一个发布 worktree，不能一个使用 `/mnt/c/...`、另一个使用另一个 clone。
+
+### 7.4 WSL 中执行纯 Rust 与前端验证
+
+WSL 可以执行不依赖 Windows GUI 的验证：
+
+```bash
+cd "$WSL_REPO-release"
+
+npm ci --prefix frontend
+npm test --prefix frontend -- --run
+npm run build --prefix frontend
+
+cargo fmt --manifest-path src-tauri/Cargo.toml --check
+cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+cargo test --manifest-path src-tauri/Cargo.toml
+
+git diff --check
+python3 scripts/check_version.py vX.Y.Z[-suffix]
+```
+
+这些命令验证前端、纯 Rust 引擎、设置测试和版本一致性；它们**不等于** Windows Tauri Release 构建。最终 Windows 产物仍必须由 Windows 主机工具链生成并在 Windows 上启动验收。
+
+### 7.5 从 WSL 调用 Windows 主机构建
+
+推荐让 Windows PowerShell 完成 `npm ci`、Tauri build 和资产打包。先在 WSL 中把 Linux 路径转换为 Windows 路径：
+
+```bash
+WIN_RELEASE_REPO="$(wslpath -w "$WSL_REPO-release")"
+echo "$WIN_RELEASE_REPO"
+
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \
+  "Set-Location -LiteralPath '$WIN_RELEASE_REPO'; \
+   npm ci --prefix frontend; \
+   npm run tauri --prefix frontend -- build -- --no-bundle"
+```
+
+如果主机使用 PowerShell 7，也可以将 `powershell.exe` 替换为 `pwsh.exe`。路径中包含空格时，优先使用 `-LiteralPath`；复杂路径或复杂参数建议写入一个 Windows `.ps1` 脚本后由 WSL 调用，避免 Bash、PowerShell 和 JSON 字符串多重转义。
+
+构建完成后，Windows 输出仍应位于发布 worktree 的：
+
+```text
+src-tauri\target\release\chinese-copywriting-formatter.exe
+```
+
+### 7.6 Windows 侧打包 `.exe` 与 `.7z`
+
+可以继续从 WSL 调度 Windows PowerShell 完成与 GitHub Actions 等价的 staging 和压缩流程：
+
+```bash
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \
+  "Set-Location -LiteralPath '$WIN_RELEASE_REPO'; \
+   \$exe = 'src-tauri/target/release/chinese-copywriting-formatter.exe'; \
+   if (-not (Test-Path -LiteralPath \$exe)) { throw 'Executable not found' }; \
+   \$staging = Join-Path \$PWD 'windows-portable-staging'; \
+   New-Item -ItemType Directory -Force -Path \$staging | Out-Null; \
+   Copy-Item -LiteralPath \$exe -Destination (Join-Path \$staging 'CopyPolish.exe'); \
+   Get-ChildItem (Split-Path \$exe) -Filter '*.dll' -File -ErrorAction SilentlyContinue | Copy-Item -Destination \$staging; \
+   \$sevenZip = (Get-Command 7z -ErrorAction SilentlyContinue).Source; \
+   if (-not \$sevenZip) { \$sevenZip = 'C:\\Program Files\\7-Zip\\7z.exe' }; \
+   \$dist = Join-Path \$PWD 'dist/windows'; \
+   New-Item -ItemType Directory -Force -Path \$dist | Out-Null; \
+   Push-Location \$staging; \
+   try { & \$sevenZip a -t7z -mx=9 (Join-Path \$dist 'CopyPolish-windows-x64.7z') (Get-ChildItem -File | ForEach-Object { \$_.Name }) } finally { Pop-Location }; \
+   if (\$LASTEXITCODE -ne 0) { throw '7z failed' }; \
+   Copy-Item -LiteralPath (Join-Path \$staging 'CopyPolish.exe') -Destination (Join-Path \$dist 'CopyPolish.exe'); \
+   Remove-Item -Recurse -Force -Path \$staging"
+```
+
+也可以直接打开 Windows PowerShell，在同一发布 worktree 中执行本指南第 6 节的打包步骤。无论从 WSL 调度还是在 Windows 终端直接执行，最终必须确认：
+
+- `dist/windows/CopyPolish.exe` 存在；
+- `dist/windows/CopyPolish-windows-x64.7z` 存在；
+- `.7z` 根目录直接包含 `CopyPolish.exe`，没有额外父目录；
+- 不把 WSL 构建出的 Linux ELF 文件误命名为 Windows `.exe`；
+- 用 Windows 终端或资源管理器启动最终 exe，而不是只检查文件存在。
+
+### 7.7 WSL + Windows 构建的限制
+
+- WSL 中的 Linux `cargo test` 与 Windows MSVC Release 构建使用的 target 不同；必须分别验证；
+- 不要在 WSL 中运行 `npm run tauri build` 后把结果当作 Windows 资产，除非命令明确由 Windows `npm`/Tauri CLI 执行；
+- Windows 主机构建依赖 MSVC、Windows SDK、WebView2 和 Windows Node.js，WSL 安装的 Linux 依赖不能替代它们；
+- Windows 与 WSL 共同访问 `/mnt/c` 时可能较慢，发布构建建议使用独立、干净的 Windows 文件系统 worktree；
+- 构建过程中不要同时从 WSL 和 Windows 运行两个 npm/Cargo 进程，避免 `node_modules`、`target` 或 staging 文件锁冲突；
+- 发布前仍需在真实 Windows 10/11 环境完成 GUI、DPI、窗口控制、设置持久化和格式化人工验收。
+
+## 8. Linux 安装包构建与资产整理
 
 在满足系统依赖的 Linux 环境、版本同步之后执行：
 
@@ -117,7 +257,7 @@ CopyPolish-linux-x86_64.rpm
 CopyPolish_linux_amd64.AppImage
 ```
 
-## 8. Windows 真机人工验收
+## 9. Windows 真机人工验收
 
 正式发布前，在真实 Windows 10/11 环境运行本地构建的 `CopyPolish.exe` 完成 [v0.5.0-release-plan.md](v0.5.0-release-plan.md) 第 12 节的全部人工验收项，至少包括：
 
@@ -127,7 +267,7 @@ CopyPolish_linux_amd64.AppImage
 - 规则全选/恢复默认/自定义/全不选语义；Markdown、URL、LaTeX、代码块、化学式保护；
 - 设置保存、重启恢复、不可写目录错误提示、快捷键可用。
 
-## 9. 创建与上传 GitHub Release
+## 10. 创建与上传 GitHub Release
 
 确认 tag 已存在（或先推送 tag）：
 
@@ -161,7 +301,7 @@ gh release create vX.Y.Z-preN \
 
 也可在 GitHub Releases 页面手动 "Draft a new release"，选择已有 tag 后逐一上传资产。
 
-## 10. 发布后复核与回滚原则
+## 11. 发布后复核与回滚原则
 
 - [ ] tag、Release 标题、应用内"关于"版本三者一致（预发布带 pre 后缀）；
 - [ ] 五个资产齐全且命名正确；
@@ -172,7 +312,7 @@ gh release create vX.Y.Z-preN \
 
 回滚原则：GitHub Release 可编辑资产列表与 Notes，但**不要删除已发布的 tag**；发现严重问题时优先发预发布修复版，而不是撤回历史 Release。
 
-## 11. 常见失败与排查
+## 12. 常见失败与排查
 
 | 现象 | 原因 | 处理 |
 | --- | --- | --- |
@@ -181,8 +321,12 @@ gh release create vX.Y.Z-preN \
 | exe 无法启动 | 缺少旁置 DLL 或 WebView2 Runtime | 对照构建输出目录补齐 DLL；安装 WebView2 Evergreen Runtime |
 | 应用内版本与 tag 不符 | 构建发生在版本同步之前 | 重新执行版本同步后重建 |
 | AppImage 无法运行 | 构建环境缺 WebKitGTK 系统依赖 | 安装第 2 节列出的 Linux 依赖后重建 |
+| WSL 中产物不是 Windows exe | 实际调用了 WSL 的 Linux `npm`/Tauri/Cargo，而不是 Windows 主机工具链 | 检查 PowerShell 中的 `node --version`、`rustc -vV` 的 host/target，并从 Windows PowerShell 重新构建 |
+| `powershell.exe` 找不到仓库路径 | WSL 路径没有通过 `wslpath -w` 转换，或路径指向另一个 clone | 使用同一个 Windows 文件系统 worktree，并用 `wslpath -w` 生成 `-LiteralPath` |
+| Windows 构建被文件占用 | WSL 与 Windows 同时运行 npm/Cargo，或旧 exe 仍在运行 | 关闭应用和构建进程，清理 staging 后只保留一个构建进程 |
+| 找不到 MSVC linker / Windows SDK | Windows 主机缺少 C++ Build Tools 或 MSVC Rust target | 在 Windows 主机安装/修复 **Desktop development with C++**，并检查 `rustup target list --installed` |
 
-## 12. 发布记录模板
+## 13. 发布记录模板
 
 每次手动发布后在对应版本计划文档（或 PR 描述）追加：
 
