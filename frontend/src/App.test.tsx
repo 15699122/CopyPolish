@@ -3,7 +3,7 @@
  * mock 掉 @/lib/tauri，专注 UI 行为：
  * 输入→实时排版、设置弹窗规则开关与持久化、清除输入、启动时恢复用户设置。
  */
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -54,6 +54,14 @@ vi.mock("@/lib/tauri", () => ({
   getUserSettings: mocks.getUserSettings,
   saveUserSettings: mocks.saveUserSettings,
   getAppVersion: mocks.getAppVersion,
+  DEFAULT_SHORTCUT_SETTINGS: {
+    enabled: true,
+    bindings: {
+      format_now: "CtrlOrCmd+Enter",
+      copy_output: "CtrlOrCmd+Shift+KeyC",
+      open_settings: "CtrlOrCmd+Comma",
+    },
+  },
 }));
 
 // 默认排版实现：模拟引擎输出，便于断言防抖后的结果。
@@ -265,6 +273,14 @@ describe("App 主流程", () => {
         font: "system",
         editor_font_size: "normal",
         ui_scale: "normal",
+        shortcuts: {
+          enabled: true,
+          bindings: {
+            format_now: "CtrlOrCmd+Enter",
+            copy_output: "CtrlOrCmd+Shift+KeyC",
+            open_settings: "CtrlOrCmd+Comma",
+          },
+        },
       }),
     );
 
@@ -458,5 +474,152 @@ describe("App 主流程", () => {
     );
     await user.click(screen.getByTestId("open-settings"));
     expect(screen.getByTestId("settings-load-notice-primary_settings_corrupt_recovered_from_backup")).toBeInTheDocument();
+  });
+});
+
+describe("快捷键配置", () => {
+  it("默认启用时组合键生效，关闭总开关后全部失效并持久化", async () => {
+    mockFormat((t) => `格式化(${t})`);
+    const { user } = await setup();
+    const input = screen.getByTestId("input-textarea");
+    await user.type(input, "hello");
+
+    // 默认启用：Ctrl+Enter 触发排版。
+    await user.keyboard("{Control>}{Enter}{/Control}");
+    await waitFor(() =>
+      expect(mocks.formatText).toHaveBeenCalledWith(
+        expect.objectContaining({ text: "hello" }),
+      ),
+    );
+
+    // 打开设置并关闭总开关。
+    await user.click(screen.getByTestId("open-settings"));
+    const toggle = screen.getByTestId("shortcuts-toggle");
+    expect(toggle).toBeChecked();
+    await user.click(toggle);
+    expect(toggle).not.toBeChecked();
+    await waitFor(() =>
+      expect(mocks.saveUserSettings).toHaveBeenCalledWith(
+        expect.objectContaining({
+          shortcuts: expect.objectContaining({ enabled: false }),
+        }),
+      ),
+    );
+
+    // 关闭后：先关掉设置弹窗，再验证组合键全部失效。
+    await user.click(screen.getByTestId("settings-done"));
+    await waitFor(() => expect(screen.getByTestId("open-settings")).toHaveFocus());
+    mocks.formatText.mockClear();
+    clipboardWriteText.mockClear();
+    await user.keyboard("{Control>}{Enter}{/Control}");
+    fireEvent.keyDown(input, { code: "KeyC", ctrlKey: true, shiftKey: true, key: "C" });
+    fireEvent.keyDown(document.body, { code: "Comma", ctrlKey: true, key: "," });
+    expect(mocks.formatText).not.toHaveBeenCalled();
+    expect(clipboardWriteText).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("settings-dialog")).toBeNull();
+
+    // 重新开启后恢复监听。
+    await user.click(toggle);
+    await waitFor(() =>
+      expect(mocks.saveUserSettings).toHaveBeenCalledWith(
+        expect.objectContaining({
+          shortcuts: expect.objectContaining({ enabled: true }),
+        }),
+      ),
+    );
+  });
+
+  it("IME 组合态按键不触发快捷键", async () => {
+    mockFormat((t) => `格式化(${t})`);
+    const { user } = await setup();
+    const input = screen.getByTestId("input-textarea");
+    await user.type(input, "n");
+
+    fireEvent.keyDown(input, {
+      code: "Enter",
+      ctrlKey: true,
+      key: "Enter",
+      isComposing: true,
+      keyCode: 229,
+    });
+    expect(mocks.formatText).not.toHaveBeenCalled();
+    expect(input).toHaveValue("n");
+  });
+
+  it("修改绑定后新组合键生效；重复绑定被拒绝", async () => {
+    mockFormat((t) => `格式化(${t})`);
+    const { user } = await setup();
+    const input = screen.getByTestId("input-textarea");
+    await user.type(input, "abc");
+
+    await user.click(screen.getByTestId("open-settings"));
+    const editButton = screen.getByTestId("shortcut-edit-format_now");
+    expect(screen.getByTestId("shortcut-value-format_now")).toHaveTextContent("Ctrl/Cmd + Enter");
+    await user.click(editButton);
+    fireEvent.keyDown(editButton, { code: "KeyR", ctrlKey: true, key: "r" });
+    await waitFor(() =>
+      expect(mocks.saveUserSettings).toHaveBeenCalledWith(
+        expect.objectContaining({
+          shortcuts: expect.objectContaining({
+            bindings: expect.objectContaining({ format_now: "CtrlOrCmd+KeyR" }),
+          }),
+        }),
+      ),
+    );
+    await user.click(screen.getByTestId("settings-done"));
+    await waitFor(() => expect(screen.getByTestId("open-settings")).toHaveFocus());
+
+    // 新绑定生效，旧绑定失效。
+    fireEvent.keyDown(input, { code: "Enter", ctrlKey: true, key: "Enter" });
+    expect(mocks.formatText).not.toHaveBeenCalled();
+    fireEvent.keyDown(input, { code: "KeyR", ctrlKey: true, key: "r" });
+    await waitFor(() =>
+      expect(mocks.formatText).toHaveBeenCalledWith(
+        expect.objectContaining({ text: "abc" }),
+      ),
+    );
+
+    // 重复绑定被拒绝：copy_output 尝试占用 Ctrl/Cmd+R。
+    await user.click(screen.getByTestId("open-settings"));
+    const copyEdit = screen.getByTestId("shortcut-edit-copy_output");
+    await user.click(copyEdit);
+    fireEvent.keyDown(copyEdit, { code: "KeyR", ctrlKey: true, key: "r" });
+    expect(screen.getByTestId("shortcut-status")).toHaveTextContent("已被「立即排版」占用");
+    expect(screen.getByTestId("shortcut-value-copy_output")).toHaveTextContent("Ctrl/Cmd + Shift + C");
+  });
+
+  it("恢复默认快捷键会持久化默认值并重启恢复关闭的总开关", async () => {
+    mockFormat((t) => t);
+    mocks.getUserSettings.mockResolvedValue({
+      enabled: [],
+      last_input: "",
+      theme: "system",
+      font: "system",
+      editor_font_size: "normal",
+      ui_scale: "normal",
+      notices: [],
+      shortcuts: {
+        enabled: true,
+        bindings: {
+          format_now: "CtrlOrCmd+KeyR",
+          copy_output: "CtrlOrCmd+Shift+KeyC",
+          open_settings: "CtrlOrCmd+Comma",
+        },
+      },
+    });
+    const { user } = await setup();
+    await user.click(screen.getByTestId("open-settings"));
+    await user.click(screen.getByTestId("reset-shortcuts"));
+    await waitFor(() =>
+      expect(mocks.saveUserSettings).toHaveBeenCalledWith(
+        expect.objectContaining({
+          shortcuts: expect.objectContaining({
+            enabled: true,
+            bindings: expect.objectContaining({ format_now: "CtrlOrCmd+Enter" }),
+          }),
+        }),
+      ),
+    );
+    expect(screen.getByTestId("shortcut-value-format_now")).toHaveTextContent("Ctrl/Cmd + Enter");
   });
 });
