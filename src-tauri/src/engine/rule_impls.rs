@@ -124,6 +124,18 @@ pub fn digit_unit_space(text: &str) -> String {
         .to_string()
 }
 
+/// spacing.temperature-cjk：摄氏度/华氏度符号与紧随的中文之间加空格。
+/// 不调整数字与温标符号之间的写法，例如保留 `4℃` 或 `-20 ℃`。
+pub fn temperature_cjk_space(text: &str) -> String {
+    static TEMPERATURE_BEFORE_CJK: OnceLock<Regex> = OnceLock::new();
+    TEMPERATURE_BEFORE_CJK
+        .get_or_init(|| {
+            Regex::new(r"([℃℉])([\u{3400}-\u{4dbf}\u{4e00}-\u{9fff}\u{f900}-\u{faff}])").unwrap()
+        })
+        .replace_all(text, "$1 $2")
+        .to_string()
+}
+
 /// spacing.no-space-around-fw-punct：全角标点与其他字符之间不加空格。
 pub fn fw_punct_no_space(text: &str) -> String {
     static BEFORE: OnceLock<Regex> = OnceLock::new();

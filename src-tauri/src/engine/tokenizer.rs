@@ -112,6 +112,16 @@ pub fn detect_chemical_formulas(text: &str) -> Vec<(usize, usize)> {
     for matched in formula.find_iter(text) {
         let start = matched.start();
         let end = matched.end();
+        // 逐候选校验：片段自身必须含有化学式特征（上/下标或连接符）。
+        // 全文预筛只说明“文本某处存在特征”，不能证明当前候选是化学式；
+        // 否则同文出现 Fe²⁺ 时，DA、PEG 这类普通大写缩写会被误保护，
+        // 进而在占位符补空格阶段产生 `DA-PEG- DA` 这类错误输出。
+        if !text[start..end]
+            .chars()
+            .any(|ch| is_subscript(ch) || is_superscript(ch) || is_middot(ch))
+        {
+            continue;
+        }
         let before = text[..start].chars().next_back();
         let after = text[end..].chars().next();
         if before.is_some_and(|c| c.is_ascii_alphanumeric())

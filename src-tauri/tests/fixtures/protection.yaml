@@ -31,3 +31,13 @@
     mode: defaults
   input: 样品为FeCl₂·4H₂O，纯度99%
   expected: 样品为 FeCl₂·4H₂O，纯度 99%
+
+- name: 同文含化学式时普通缩写连字符复合词不被拆开
+  selection:
+    mode: defaults
+  input: |-
+    - 不与MIONPs、Fe²⁺或多巴胺端基直接接触的常规清洁
+    - 20 mmol/L Tris缓冲液和DA-PEG-DA/PEG 6000配体溶液的配制。
+  expected: |-
+    - 不与 MIONPs、 Fe²⁺ 或多巴胺端基直接接触的常规清洁
+    - 20 mmol/L Tris 缓冲液和 DA-PEG-DA/PEG 6000 配体溶液的配制。

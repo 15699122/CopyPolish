@@ -97,9 +97,9 @@ fn golden_fixtures_cover_every_registered_rule() {
 #[test]
 fn registry_contains_migrated_rules_with_defaults() {
     let all = rules();
-    // 历史 12 条规则全部迁移为独立注册项。
-    assert_eq!(all.len(), 12);
-    assert_eq!(enabled_defaults().len(), 8);
+    // 历史 12 条规则及温标空格规则均已注册。
+    assert_eq!(all.len(), 13);
+    assert_eq!(enabled_defaults().len(), 9);
     let disabled: Vec<_> = all
         .iter()
         .filter(|r| !r.meta.default)
@@ -151,6 +151,10 @@ fn formats_digit_units_and_percentages() {
     assert_eq!(
         format_text(&req("有 15 % 的 CPU")).unwrap(),
         "有 15% 的 CPU"
+    );
+    assert_eq!(
+        format_text(&req("-20 ℃保存，32℉解冻")).unwrap(),
+        "-20 ℃ 保存，32℉ 解冻"
     );
 }
 
@@ -329,6 +333,15 @@ fn chemical_formulas_are_recognized_as_whole_units() {
     // 普通单词与不含特征的简单式子不被吞并（保守策略）。
     assert!(detect("GitHub TypeScript").is_empty());
     assert!(detect("H2O and CO2").is_empty());
+
+    // 同文存在真实化学式（Fe²⁺）时，普通大写缩写不得被误判为化学式；
+    // 否则 DA-PEG-DA 末尾的 DA 会被保护并在补空格阶段产生 `DA-PEG- DA`。
+    let spans = detect("MIONPs、Fe²⁺或DA-PEG-DA/PEG");
+    assert_eq!(spans.len(), 1);
+    assert_eq!(
+        &"MIONPs、Fe²⁺或DA-PEG-DA/PEG"[spans[0].0..spans[0].1],
+        "Fe²⁺"
+    );
 }
 
 #[test]
@@ -357,6 +370,7 @@ fn protected_cases_are_idempotent() {
         r"路径是 C:\Users\Test，价格是\$100",
         "样品为FeCl₂·4H₂O，纯度99%",
         "铁离子Fe²⁺用于反应",
+        "不与MIONPs、Fe²⁺或DA-PEG-DA/PEG接触",
     ];
     for src in cases {
         let once = format_text(&req(src)).unwrap();

@@ -18,6 +18,7 @@ pub mod keys {
     pub const SPACING_CJK_LATIN: &str = "spacing.cjk-latin";
     pub const SPACING_CJK_NUMBER: &str = "spacing.cjk-number";
     pub const SPACING_NUMBER_UNIT: &str = "spacing.number-unit";
+    pub const SPACING_TEMPERATURE_CJK: &str = "spacing.temperature-cjk";
     pub const SPACING_NO_SPACE_AROUND_FW_PUNCT: &str = "spacing.no-space-around-fw-punct";
     pub const PUNCT_NO_REPETITION: &str = "punctuation.no-repetition";
     pub const PUNCT_FULLWIDTH_CJK: &str = "punctuation.fullwidth-cjk";
@@ -170,6 +171,15 @@ static RULES: std::sync::LazyLock<Vec<RuleDef>> = std::sync::LazyLock::new(|| {
             true,
             &["数字与单位之间需要增加空格"],
             rule_impls::digit_unit_space,
+        ),
+        def(
+            SPACING_TEMPERATURE_CJK,
+            "空格",
+            "摄氏度/华氏度符号与中文之间加空格",
+            false,
+            true,
+            &[],
+            rule_impls::temperature_cjk_space,
         ),
         def(
             SPACING_NO_SPACE_AROUND_FW_PUNCT,
