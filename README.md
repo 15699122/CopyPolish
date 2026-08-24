@@ -52,7 +52,7 @@ Windows 版依赖系统的 WebView2 Evergreen Runtime。Windows 10/11 通常已�
 
 ## 当前支持的规则
 
-规则由后端注册表统一管理，当前内置 12 条（「专有名词使用正确的大小写」「不要使用不地道的缩写」默认关闭）。每条规则有稳定的机器 key（如 `spacing.cjk-latin`），展示名仅用于界面：
+规则由后端注册表统一管理，当前内置 13 条（「专有名词使用正确的大小写」「不要使用不地道的缩写」默认关闭）。每条规则有稳定的机器 key（如 `spacing.cjk-latin`），展示名仅用于界面：
 
 | 分类 | 规则 | 稳定 key |
 | --- | --- | --- |
@@ -67,6 +67,7 @@ Windows 版依赖系统的 WebView2 Evergreen Runtime。Windows 10/11 通常已�
 | 空格 | 中英文之间需要增加空格 | `spacing.cjk-latin` |
 | 空格 | 中文与数字之间需要增加空格 | `spacing.cjk-number` |
 | 空格 | 数字与单位之间需要增加空格 | `spacing.number-unit` |
+| 空格 | 摄氏度/华氏度符号与中文之间加空格 | `spacing.temperature-cjk` |
 | 空格 | 全角标点与其他字符之间不加空格 | `spacing.no-space-around-fw-punct` |
 
 > 说明：排版规则尽量贴近规范，但自然语言文本存在上下文差异。建议在重要文案发布前人工复核一次。

@@ -35,3 +35,19 @@
       - spacing.no-space-around-fw-punct
   input: 你好 ， 世界 ！
   expected: 你好，世界！
+
+- name: 摄氏度符号与中文之间增加空格
+  selection:
+    mode: only
+    keys:
+      - spacing.temperature-cjk
+  input: -20 ℃保存，4℃冷藏
+  expected: -20 ℃ 保存，4℃ 冷藏
+
+- name: 华氏度符号与中文之间增加空格
+  selection:
+    mode: only
+    keys:
+      - spacing.temperature-cjk
+  input: 32℉解冻
+  expected: 32℉ 解冻
