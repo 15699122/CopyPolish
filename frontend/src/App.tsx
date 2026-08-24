@@ -26,8 +26,11 @@ import {
   type Rule,
   type RuleSelection,
   type FontFamily,
+  type EditorFontSize,
   type LoadedUserSettings,
+  type SettingsLoadNotice,
   type ThemeMode,
+  type UiScale,
 } from "@/lib/tauri";
 
 export const APP_NAME = "文案净排";
@@ -70,17 +73,39 @@ export default function App() {
     "idle" | "saving" | "saved" | "error"
   >("idle");
   const [settingsError, setSettingsError] = useState<string | null>(null);
+  const [settingsLoadNotices, setSettingsLoadNotices] = useState<SettingsLoadNotice[]>([]);
   const [settingsPath, setSettingsPath] = useState<string | null>(null);
   const [appVersion, setAppVersion] = useState(__APP_VERSION__);
 
   // 主题状态：system / light / dark。
   const [theme, setTheme] = useState<ThemeMode>("system");
   const [font, setFont] = useState<FontFamily>("system");
+  const [editorFontSize, setEditorFontSize] = useState<EditorFontSize>("normal");
+  const [uiScale, setUiScale] = useState<UiScale>("normal");
+
+  function currentSettings(next: Partial<{
+    enabled: string[];
+    last_input: string;
+    theme: ThemeMode;
+    font: FontFamily;
+    editor_font_size: EditorFontSize;
+    ui_scale: UiScale;
+  }> = {}) {
+    return {
+      enabled,
+      last_input: input,
+      theme,
+      font,
+      editor_font_size: editorFontSize,
+      ui_scale: uiScale,
+      ...next,
+    };
+  }
 
   function persistSettings(nextEnabled: string[], nextInput: string) {
     if (!hydratedRef.current) return;
     setSettingsStatus("saving");
-    saveUserSettings({ enabled: nextEnabled, last_input: nextInput, theme, font })
+    saveUserSettings(currentSettings({ enabled: nextEnabled, last_input: nextInput }))
       .then(() => {
         setSettingsStatus("saved");
         setSettingsError(null);
@@ -144,10 +169,9 @@ export default function App() {
           if (saved.font !== undefined) {
             setFont(saved.font);
           }
-          if (saved.recovered_from_backup) {
-            setSettingsStatus("error");
-            setSettingsError("主设置文件损坏，已从 rules.yaml.bak 恢复；下次保存后会生成新的主文件。");
-          }
+          setEditorFontSize(saved.editor_font_size ?? "normal");
+          setUiScale(saved.ui_scale ?? "normal");
+          setSettingsLoadNotices(saved.notices ?? []);
           if (saved.last_input) {
             setInput(saved.last_input);
             scheduleFormat(saved.last_input, restoredEnabled);
@@ -190,6 +214,29 @@ export default function App() {
   useEffect(() => {
     document.documentElement.style.setProperty("--app-font-family", FONT_FAMILY_STACKS[font]);
   }, [font]);
+
+  useEffect(() => {
+    const sizes: Record<EditorFontSize, [string, string]> = {
+      small: ["13px", "1.65"],
+      normal: ["14px", "1.7"],
+      large: ["16px", "1.75"],
+      "x-large": ["18px", "1.8"],
+    };
+    const [size, lineHeight] = sizes[editorFontSize];
+    document.documentElement.style.setProperty("--editor-font-size", size);
+    document.documentElement.style.setProperty("--editor-line-height", lineHeight);
+  }, [editorFontSize]);
+
+  useEffect(() => {
+    const scales: Record<UiScale, string> = {
+      compact: "0.8",
+      small: "0.9",
+      normal: "1",
+      large: "1.1",
+      "x-large": "1.25",
+    };
+    document.documentElement.style.setProperty("--app-ui-scale", scales[uiScale]);
+  }, [uiScale]);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -336,7 +383,7 @@ export default function App() {
   function onThemeChange(nextTheme: ThemeMode) {
     setTheme(nextTheme);
     setSettingsStatus("saving");
-    saveUserSettings({ enabled, last_input: input, theme: nextTheme, font })
+    saveUserSettings(currentSettings({ theme: nextTheme }))
       .then(() => {
         setSettingsStatus("saved");
         setSettingsError(null);
@@ -350,7 +397,7 @@ export default function App() {
   function onFontChange(nextFont: FontFamily) {
     setFont(nextFont);
     setSettingsStatus("saving");
-    saveUserSettings({ enabled, last_input: input, theme, font: nextFont })
+    saveUserSettings(currentSettings({ font: nextFont }))
       .then(() => {
         setSettingsStatus("saved");
         setSettingsError(null);
@@ -363,6 +410,45 @@ export default function App() {
 
   function onResetFont() {
     onFontChange("system");
+  }
+
+  function onEditorFontSizeChange(nextSize: EditorFontSize) {
+    setEditorFontSize(nextSize);
+    setSettingsStatus("saving");
+    saveUserSettings(currentSettings({ editor_font_size: nextSize }))
+      .then(() => {
+        setSettingsStatus("saved");
+        setSettingsError(null);
+      })
+      .catch((e) => {
+        setSettingsStatus("error");
+        setSettingsError(String(e));
+      });
+  }
+
+  function onUiScaleChange(nextScale: UiScale) {
+    setUiScale(nextScale);
+    setSettingsStatus("saving");
+    saveUserSettings(currentSettings({ ui_scale: nextScale }))
+      .then(() => {
+        setSettingsStatus("saved");
+        setSettingsError(null);
+      })
+      .catch((e) => {
+        setSettingsStatus("error");
+        setSettingsError(String(e));
+      });
+  }
+
+  function settingsNoticeText(notice: SettingsLoadNotice): string {
+    const messages: Record<SettingsLoadNotice, string> = {
+      legacy_settings_detected: "检测到旧版本设置文件，已迁移至 rules.yaml。",
+      legacy_settings_corrupt: "检测到旧版本设置文件，但内容无法读取，已使用默认设置。",
+      primary_settings_corrupt_recovered_from_backup: "设置文件损坏，已从 rules.yaml.bak 恢复。",
+      primary_settings_corrupt_no_usable_backup: "设置文件损坏，且备份文件也无法读取，已使用默认设置。",
+      backup_settings_corrupt: "备份文件损坏，当前 rules.yaml 仍可正常使用。",
+    };
+    return messages[notice];
   }
 
   // 标题栏按下时显式启动窗口拖动；控制按钮区域已在容器上 stopPropagation。
@@ -392,8 +478,26 @@ return (
         onClose={onClose}
       />
 
+      {settingsLoadNotices.length > 0 && (
+        <div
+          className="border-b border-amber-200 bg-amber-50 px-6 py-2 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100"
+          role={settingsLoadNotices.some((notice) =>
+            notice === "primary_settings_corrupt_no_usable_backup" || notice === "legacy_settings_corrupt"
+          ) ? "alert" : "status"}
+          aria-live="polite"
+          data-testid="settings-load-notices"
+        >
+          {settingsLoadNotices.map(settingsNoticeText).join(" ")}
+        </div>
+      )}
+
       {/* 主体：左右双栏，小窗口上下堆叠 */}
-      <main className="grid min-h-0 flex-1 gap-4 p-4 lg:grid-cols-2">
+      <main
+        className="min-h-0 flex-1"
+        style={{ zoom: "var(--app-ui-scale, 1)" }}
+        data-testid="scaled-app-content"
+      >
+        <div className="grid h-full min-h-0 gap-4 p-4 lg:grid-cols-2">
         <Card className="flex min-h-0 flex-col">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">原始文案</CardTitle>
@@ -403,7 +507,7 @@ return (
           </CardHeader>
           <CardContent className="flex min-h-0 flex-1">
             <Textarea
-              className="min-h-0 flex-1 resize-none placeholder:text-sm placeholder:text-muted-foreground/50"
+              className="editor-text min-h-0 flex-1 resize-none placeholder:text-muted-foreground/50"
               placeholder="请在这里粘贴或输入文字"
               aria-label="输入文字"
               data-testid="input-textarea"
@@ -448,7 +552,7 @@ return (
                 </div>
               )}
               <pre
-                className="w-full whitespace-pre-wrap wrap-break-word text-sm"
+                className="editor-text w-full whitespace-pre-wrap wrap-break-word"
                 data-testid="output-text"
               >
                 {output}
@@ -456,6 +560,7 @@ return (
             </div>
           </CardContent>
         </Card>
+        </div>
       </main>
 
       {/* 操作栏 */}
@@ -469,6 +574,9 @@ return (
           enabledSet={enabledSet}
           theme={theme}
           font={font}
+          editorFontSize={editorFontSize}
+          uiScale={uiScale}
+          settingsLoadNotices={settingsLoadNotices}
           appVersion={appVersion}
           settingsStatus={settingsStatus}
           settingsError={settingsError}
@@ -479,6 +587,8 @@ return (
           onThemeChange={onThemeChange}
           onFontChange={onFontChange}
           onResetFont={onResetFont}
+          onEditorFontSizeChange={onEditorFontSizeChange}
+          onUiScaleChange={onUiScaleChange}
         />
 
         <Button variant="outline" size="sm" data-testid="clear-input" onClick={onClear}>

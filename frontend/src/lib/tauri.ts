@@ -81,16 +81,26 @@ export async function getEnabledDefaults(): Promise<string[]> {
 
 export type ThemeMode = "system" | "light" | "dark";
 export type FontFamily = "system" | "microsoft-yahei" | "pingfang" | "noto-sans-cjk" | "simsun" | "simhei";
+export type EditorFontSize = "small" | "normal" | "large" | "x-large";
+export type UiScale = "compact" | "small" | "normal" | "large" | "x-large";
+export type SettingsLoadNotice =
+  | "legacy_settings_detected"
+  | "legacy_settings_corrupt"
+  | "primary_settings_corrupt_recovered_from_backup"
+  | "primary_settings_corrupt_no_usable_backup"
+  | "backup_settings_corrupt";
 
 export interface UserSettings {
   enabled: string[];
   last_input: string;
   theme: ThemeMode;
   font: FontFamily;
+  editor_font_size: EditorFontSize;
+  ui_scale: UiScale;
 }
 
 export interface LoadedUserSettings extends UserSettings {
-  recovered_from_backup: boolean;
+  notices: SettingsLoadNotice[];
 }
 
 const LS_SETTINGS_KEY = "ccw-formatter-settings";
@@ -112,7 +122,9 @@ export async function getUserSettings(): Promise<LoadedUserSettings | null> {
         last_input: parsed.last_input ?? "",
         theme: ensureThemeMode(parsed.theme),
         font: ensureFontFamily(parsed.font),
-        recovered_from_backup: false,
+        editor_font_size: ensureEditorFontSize(parsed.editor_font_size),
+        ui_scale: ensureUiScale(parsed.ui_scale),
+        notices: [],
       };
     } catch {
       return null;
@@ -120,7 +132,7 @@ export async function getUserSettings(): Promise<LoadedUserSettings | null> {
   }
   const loaded = await invoke<{
     settings: UserSettings;
-    recovered_from_backup: boolean;
+    notices: SettingsLoadNotice[];
   } | null>("get_user_settings");
   if (!loaded) return null;
   const settings = loaded.settings;
@@ -129,7 +141,9 @@ export async function getUserSettings(): Promise<LoadedUserSettings | null> {
     last_input: settings.last_input ?? "",
     theme: ensureThemeMode(settings.theme),
     font: ensureFontFamily(settings.font),
-    recovered_from_backup: loaded.recovered_from_backup,
+    editor_font_size: ensureEditorFontSize(settings.editor_font_size),
+    ui_scale: ensureUiScale(settings.ui_scale),
+    notices: loaded.notices ?? [],
   };
 }
 
@@ -147,6 +161,8 @@ export async function saveUserSettings(settings: UserSettings): Promise<void> {
     lastInput: settings.last_input,
     theme: settings.theme,
     font: settings.font,
+    editorFontSize: settings.editor_font_size,
+    uiScale: settings.ui_scale,
   });
 }
 
@@ -166,4 +182,16 @@ export function ensureFontFamily(value: unknown): FontFamily {
     return value;
   }
   return "system";
+}
+
+function ensureEditorFontSize(value: unknown): EditorFontSize {
+  if (value === "small" || value === "large" || value === "x-large") return value;
+  return "normal";
+}
+
+function ensureUiScale(value: unknown): UiScale {
+  if (value === "compact" || value === "small" || value === "large" || value === "x-large") {
+    return value;
+  }
+  return "normal";
 }

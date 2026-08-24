@@ -36,7 +36,7 @@ pub fn get_settings_path() -> Result<String, String> {
         .into_owned())
 }
 
-/// save_user_settings(enabled, lastInput, theme, font)：写入 exe 同目录设置文件。
+/// save_user_settings(enabled, lastInput, theme, font, editorFontSize, uiScale)：写入 exe 同目录设置文件。
 /// 归一化规则 key：旧 key 迁移、未知 key 丢弃，避免无效数据被回写。
 #[tauri::command]
 pub fn save_user_settings(
@@ -44,6 +44,8 @@ pub fn save_user_settings(
     last_input: String,
     theme: crate::user_settings::ThemeMode,
     font: crate::user_settings::FontFamily,
+    editor_font_size: crate::user_settings::EditorFontSize,
+    ui_scale: crate::user_settings::UiScale,
 ) -> Result<(), String> {
     let filtered = engine::normalize_rule_keys(&enabled);
     crate::user_settings::save(&crate::user_settings::UserSettings {
@@ -51,6 +53,8 @@ pub fn save_user_settings(
         last_input,
         theme,
         font,
+        editor_font_size,
+        ui_scale,
     })
 }
 

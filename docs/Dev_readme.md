@@ -95,17 +95,21 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
   last_input: ...
   theme: system
   font: system
+  editor_font_size: normal
+  ui_scale: normal
   ```
-- 字段：`enabled`（启用规则）、`last_input`（最近输入）、`theme`（`system` / `light` / `dark`）、`font`（`system` / `microsoft-yahei` / `pingfang` / `noto-sans-cjk` / `simsun` / `simhei`）。旧版设置文件无 `theme` 或 `font` 时分别默认回落为 `system`。
+- 字段：`enabled`（启用规则）、`last_input`（最近输入）、`theme`（`system` / `light` / `dark`）、`font`（字体预设）、`editor_font_size`（`small` / `normal` / `large` / `x-large`）、`ui_scale`（`compact` / `small` / `normal` / `large` / `x-large`）。旧版设置文件缺少新增字段时分别回落为 `normal`。
 - 迁移：`rules.yaml` 不存在但同目录存在旧版 `ccw-formatter-settings.json` 时，自动读取旧 JSON 并转换写入新 YAML。
 - 保存策略：写临时文件 `rules.yaml.tmp` 并 `sync_all` 后原子 rename 到 `rules.yaml`；替换前将上一份有效文件轮换为 `rules.yaml.bak`，避免中途退出产生半截文件，并为主文件损坏提供恢复来源。目标是 exe 同目录，目录不存在或无写权限时返回带完整路径的诊断错误（前端在设置弹窗中展示，提示把便携版放到可写目录）。
-- 实现：`user_settings.rs` 提供 `load_from/save_to`（可注入路径）、`load_from_dir_with_status`（含备份恢复状态与迁移逻辑）、`load_from_dir`（兼容返回设置内容）与 `load/load_with_status`（exe 目录）；command 层暴露 `get_user_settings`（文件缺失返回 `null`，备份恢复状态随结果返回）、`save_user_settings`（保存前过滤未知规则 key）与 `get_settings_path`（返回设置文件完整路径，供界面显示）。
+- 实现：`user_settings.rs` 提供 `load_from/save_to`（可注入路径）、`load_from_dir_with_status`（区分旧版本迁移、主设置损坏、备份损坏和恢复状态）、`load_from_dir`（兼容返回设置内容）与 `load_with_status`（exe 目录）；command 层暴露 `get_user_settings`（返回 `notices` 提醒列表）、`save_user_settings`（保存前过滤未知规则 key并保存字号/缩放）与 `get_settings_path`（返回设置文件完整路径，供界面显示）。
 - 前端行为：启动恢复；规则开关/全选/恢复默认/清空/主题/字体即时保存，输入防抖（160ms）保存；浏览器预览回退 localStorage。字体使用固定跨平台预设与 CSS fallback 栈，不尝试枚举系统已安装字体。
 - 长文本排版：普通文本使用 160ms 防抖，达到 50,000 字符使用 450ms，达到 200,000 字符使用 900ms；界面显示排版中、长文本和最近一次耗时提示，并通过序列号丢弃过期结果。
 - 设置 Dialog 的版本号通过 `getAppVersion()` 读取：打包环境使用 Tauri `getVersion()`，浏览器预览使用 Vite 从 `frontend/package.json` 注入的 `__APP_VERSION__` 回退值，避免重复维护版本常量。
 - 设置弹窗 Footer 保持与主界面一致的 `py-4` 纵向内边距；桌面端单行显示版本/保存状态/设置路径与操作按钮，小屏或较长保存错误时采用 flex-wrap 响应式换行。
 - 预发布版本一致性：release 工作流在测试校验后调用 `scripts/prepare_release_version.py <tag>`，把 tag 的完整版本（如 `v0.5.0-pre1` → `0.5.0-pre1`）写入 package.json / package-lock.json / tauri.conf.json / Cargo.toml / Cargo.lock，仅作用于 CI 工作区，不回写源码提交；`check_version.py` 同时接受源码基础版本与同步后的完整版本两种状态。
-- 设置文件路径在 Footer 中单行截断，悬停或键盘聚焦时通过应用内浮层显示完整路径（保留 `title` 作为兜底）。主界面标题栏标题与说明之间使用 `space-y-1.5` 间距。输入框 placeholder 固定为「请在这里粘贴或输入文字」。
+- 主界面输入框与输出框共享 `--app-font-family`、`--editor-font-size` 和 `--editor-line-height`；主界面内容通过 `--app-ui-scale` 缩放。设置文件路径在 Footer 中单行截断，保留 `title` 和 `aria-label`，不再显示自定义悬停浮层，改用灰色点状下划线。输入框 placeholder 固定为「请在这里粘贴或输入文字」。
+- 设置窗口的“字体”部分支持字号预设（13/14/16/18px），“主题”部分支持主界面缩放预设（80/90/100/110/125%）。旧 `rules.yaml` 缺少新字段时回退为标准字号与 100% 缩放。
+- 设置加载提醒包括旧版本设置迁移、旧设置损坏、主设置损坏后的备份恢复、主/备份均损坏以及备份损坏但主设置可用等状态；提醒会显示在主界面提示条和设置文件区域。
 - 测试约定：所有设置读写测试一律使用系统临时目录中的唯一随机文件（PID + 计数器），禁止写仓库内固定路径。
 - 该文件已加入 `.gitignore`（根目录 `/rules.yaml`）。
 

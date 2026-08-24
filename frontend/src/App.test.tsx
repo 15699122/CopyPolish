@@ -124,7 +124,7 @@ describe("App 主流程", () => {
       "placeholder",
       "请在这里粘贴或输入文字",
     );
-    expect(input).toHaveClass("placeholder:text-sm", "placeholder:text-muted-foreground/50");
+    expect(input).toHaveClass("editor-text", "placeholder:text-muted-foreground/50");
     expect(screen.getByTestId("output-empty-state")).toHaveTextContent(
       "输入内容后，这里将实时显示规范化结果",
     );
@@ -208,10 +208,8 @@ describe("App 主流程", () => {
       "aria-label",
       "设置文件完整路径：C:\\Users\\Tester\\Desktop\\CopyPolish\\rules.yaml",
     );
-    expect(settingsPathEl).toContainElement(screen.getByRole("tooltip"));
-    expect(screen.getByRole("tooltip")).toHaveTextContent(
-      "C:\\Users\\Tester\\Desktop\\CopyPolish\\rules.yaml",
-    );
+    expect(settingsPathEl).toHaveClass("underline", "decoration-dotted", "underline-offset-4");
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
     expect(screen.getByTestId("settings-version")).toHaveTextContent("版本 0.5.0-test");
     expect(screen.getByTestId("settings-footer")).toHaveClass("px-4", "py-4", "sm:px-6");
     expect(screen.getByTestId("settings-actions")).toBeInTheDocument();
@@ -224,6 +222,8 @@ describe("App 主流程", () => {
     expect(screen.getByTestId("font-settings")).toBeInTheDocument();
     expect(screen.getByTestId("font-select")).toHaveValue("system");
     expect(screen.getByTestId("reset-font")).toBeInTheDocument();
+    expect(screen.getByTestId("editor-font-size-normal")).toBeChecked();
+    expect(screen.getByTestId("ui-scale-normal")).toBeChecked();
     expect(screen.getByText("中英文之间增加空格")).toBeVisible();
     expect(screen.getByText("中文与数字之间增加空格")).toBeVisible();
     expect(screen.getByText("争议规则")).toBeVisible();
@@ -255,6 +255,8 @@ describe("App 主流程", () => {
         last_input: "",
         theme: "system",
         font: "system",
+        editor_font_size: "normal",
+        ui_scale: "normal",
       }),
     );
 
@@ -290,7 +292,9 @@ describe("App 主流程", () => {
       last_input: "上次输入",
       theme: "dark",
       font: "pingfang",
-      recovered_from_backup: false,
+      editor_font_size: "large",
+      ui_scale: "small",
+      notices: [],
     });
     mockFormat((t) => `格式化(${t})`);
     const { user } = await setup();
@@ -305,6 +309,8 @@ describe("App 主流程", () => {
     // 主题被正确恢复到深色。
     expect(document.documentElement).toHaveAttribute("data-theme", "dark");
     expect(screen.getByTestId("font-select")).toHaveValue("pingfang");
+    expect(screen.getByTestId("editor-font-size-large")).toBeChecked();
+    expect(screen.getByTestId("ui-scale-small")).toBeChecked();
   });
 
   it("主题切换会立即应用并持久化", async () => {
@@ -353,5 +359,44 @@ describe("App 主流程", () => {
         expect.objectContaining({ font: "system" }),
       ),
     );
+  });
+
+  it("字号和缩放切换会立即应用并持久化", async () => {
+    const { user } = await setup();
+    await user.click(screen.getByTestId("open-settings"));
+
+    await user.click(screen.getByTestId("editor-font-size-large"));
+    expect(document.documentElement.style.getPropertyValue("--editor-font-size")).toBe("16px");
+    await waitFor(() =>
+      expect(mocks.saveUserSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ editor_font_size: "large" }),
+      ),
+    );
+
+    await user.click(screen.getByTestId("ui-scale-small"));
+    expect(document.documentElement.style.getPropertyValue("--app-ui-scale")).toBe("0.9");
+    await waitFor(() =>
+      expect(mocks.saveUserSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ ui_scale: "small" }),
+      ),
+    );
+  });
+
+  it("设置加载提醒会显示在主界面和设置窗口", async () => {
+    mocks.getUserSettings.mockResolvedValue({
+      enabled: ["rule-a", "rule-b"],
+      last_input: "",
+      theme: "system",
+      font: "system",
+      editor_font_size: "normal",
+      ui_scale: "normal",
+      notices: ["primary_settings_corrupt_recovered_from_backup"],
+    });
+    const { user } = await setup();
+    expect(screen.getByTestId("settings-load-notices")).toHaveTextContent(
+      "设置文件损坏，已从 rules.yaml.bak 恢复。",
+    );
+    await user.click(screen.getByTestId("open-settings"));
+    expect(screen.getByTestId("settings-load-notice-primary_settings_corrupt_recovered_from_backup")).toBeInTheDocument();
   });
 });

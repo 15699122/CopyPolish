@@ -48,6 +48,29 @@ pub enum FontFamily {
     Simhei,
 }
 
+/// 主界面编辑器字号预设。
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum EditorFontSize {
+    Small,
+    #[default]
+    Normal,
+    Large,
+    XLarge,
+}
+
+/// 主界面整体缩放预设。
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum UiScale {
+    Compact,
+    Small,
+    #[default]
+    Normal,
+    Large,
+    XLarge,
+}
+
 impl std::fmt::Display for ThemeMode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -68,13 +91,28 @@ pub struct UserSettings {
     pub theme: ThemeMode,
     #[serde(default)]
     pub font: FontFamily,
+    #[serde(default)]
+    pub editor_font_size: EditorFontSize,
+    #[serde(default)]
+    pub ui_scale: UiScale,
 }
 
-/// 设置加载结果。`recovered_from_backup` 用于向前端提示主文件损坏但已恢复。
+/// 设置加载提醒类型。
+#[derive(Serialize, Clone, Copy, Debug, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum SettingsLoadNotice {
+    LegacySettingsDetected,
+    LegacySettingsCorrupt,
+    PrimarySettingsCorruptRecoveredFromBackup,
+    PrimarySettingsCorruptNoUsableBackup,
+    BackupSettingsCorrupt,
+}
+
+/// 设置加载结果及加载阶段产生的提醒。
 #[derive(Serialize, Clone, Debug, PartialEq, Eq)]
 pub struct LoadedUserSettings {
     pub settings: UserSettings,
-    pub recovered_from_backup: bool,
+    pub notices: Vec<SettingsLoadNotice>,
 }
 
 /// 设置保存目录：优先使用当前可执行文件所在目录，失败时回退当前工作目录。
@@ -184,22 +222,26 @@ pub fn save_to(path: &Path, settings: &UserSettings) -> Result<(), String> {
 /// 读取指定目录下的设置，并在主文件损坏时尝试使用备份。
 pub fn load_from_dir_with_status(dir: &Path) -> Option<LoadedUserSettings> {
     let path = dir.join(SETTINGS_FILE_NAME);
+    let backup_path = dir.join(SETTINGS_BACKUP_FILE_NAME);
+    let legacy = dir.join(LEGACY_SETTINGS_FILE_NAME);
+    let primary_exists = path.exists();
+    let backup_exists = backup_path.exists();
+
     if let Some(settings) = load_from(&path) {
-        return Some(LoadedUserSettings {
-            settings,
-            recovered_from_backup: false,
-        });
+        let mut notices = Vec::new();
+        if backup_exists && load_from(&backup_path).is_none() {
+            notices.push(SettingsLoadNotice::BackupSettingsCorrupt);
+        }
+        return Some(LoadedUserSettings { settings, notices });
     }
 
-    let backup_path = dir.join(SETTINGS_BACKUP_FILE_NAME);
     if let Some(settings) = load_from(&backup_path) {
         return Some(LoadedUserSettings {
             settings,
-            recovered_from_backup: true,
+            notices: vec![SettingsLoadNotice::PrimarySettingsCorruptRecoveredFromBackup],
         });
     }
 
-    let legacy = dir.join(LEGACY_SETTINGS_FILE_NAME);
     if legacy.exists() {
         if let Ok(json) = fs::read_to_string(&legacy) {
             if let Ok(settings) = serde_json::from_str::<UserSettings>(&json) {
@@ -207,10 +249,25 @@ pub fn load_from_dir_with_status(dir: &Path) -> Option<LoadedUserSettings> {
                 let _ = save_to(&path, &settings);
                 return Some(LoadedUserSettings {
                     settings,
-                    recovered_from_backup: false,
+                    notices: vec![SettingsLoadNotice::LegacySettingsDetected],
                 });
             }
         }
+        return Some(LoadedUserSettings {
+            settings: UserSettings::default(),
+            notices: vec![SettingsLoadNotice::LegacySettingsCorrupt],
+        });
+    }
+
+    if primary_exists || backup_exists {
+        let mut notices = vec![SettingsLoadNotice::PrimarySettingsCorruptNoUsableBackup];
+        if backup_exists {
+            notices.push(SettingsLoadNotice::BackupSettingsCorrupt);
+        }
+        return Some(LoadedUserSettings {
+            settings: UserSettings::default(),
+            notices,
+        });
     }
     None
 }
@@ -258,6 +315,8 @@ mod tests {
             last_input: "在LeanCloud上".to_string(),
             theme: ThemeMode::Dark,
             font: FontFamily::Pingfang,
+            editor_font_size: EditorFontSize::Large,
+            ui_scale: UiScale::Small,
         };
         save_to(&path, &settings).expect("save should succeed");
         assert_eq!(load_from(&path), Some(settings));
@@ -266,6 +325,8 @@ mod tests {
         assert!(raw.contains("enabled"));
         assert!(raw.contains("last_input"));
         assert!(raw.contains("theme"));
+        assert!(raw.contains("editor_font_size"));
+        assert!(raw.contains("ui_scale"));
         let _ = fs::remove_file(&path);
         let _ = fs::remove_file(path.with_file_name(SETTINGS_BACKUP_FILE_NAME));
     }
@@ -309,7 +370,10 @@ mod tests {
 
         let loaded = load_from_dir_with_status(dir).expect("backup should be loaded");
         assert_eq!(loaded.settings, expected);
-        assert!(loaded.recovered_from_backup);
+        assert_eq!(
+            loaded.notices,
+            vec![SettingsLoadNotice::PrimarySettingsCorruptRecoveredFromBackup]
+        );
 
         let _ = fs::remove_file(&path);
         let _ = fs::remove_file(&backup);
@@ -343,6 +407,8 @@ mod tests {
             last_input: "在LeanCloud上".to_string(),
             theme: ThemeMode::Light,
             font: FontFamily::System,
+            editor_font_size: EditorFontSize::Normal,
+            ui_scale: UiScale::Normal,
         };
         fs::write(
             dir.join(LEGACY_SETTINGS_FILE_NAME),
@@ -354,6 +420,58 @@ mod tests {
         let migrated = load_from(&dir.join(SETTINGS_FILE_NAME)).expect("rules.yaml should exist");
         assert_eq!(migrated, expected);
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn legacy_settings_report_migration_notice() {
+        let dir = std::env::temp_dir().join(format!(
+            "ccw-settings-notice-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(
+            dir.join(LEGACY_SETTINGS_FILE_NAME),
+            serde_json::to_string(&UserSettings::default()).unwrap(),
+        )
+        .unwrap();
+        let loaded = load_from_dir_with_status(&dir).expect("legacy settings should load");
+        assert_eq!(
+            loaded.notices,
+            vec![SettingsLoadNotice::LegacySettingsDetected]
+        );
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn corrupt_primary_and_backup_report_both_notices() {
+        let dir =
+            std::env::temp_dir().join(format!("ccw-settings-corrupt-both-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join(SETTINGS_FILE_NAME), "invalid: [").unwrap();
+        fs::write(dir.join(SETTINGS_BACKUP_FILE_NAME), "invalid: [").unwrap();
+        let loaded = load_from_dir_with_status(&dir).expect("corrupt files should report status");
+        assert_eq!(
+            loaded.notices,
+            vec![
+                SettingsLoadNotice::PrimarySettingsCorruptNoUsableBackup,
+                SettingsLoadNotice::BackupSettingsCorrupt
+            ]
+        );
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn old_yaml_defaults_new_display_settings() {
+        let path = temp_settings_file("display-defaults");
+        fs::write(&path, "enabled: []\nlast_input: ''\n").unwrap();
+        let loaded = load_from(&path).expect("old yaml should parse");
+        assert_eq!(loaded.editor_font_size, EditorFontSize::Normal);
+        assert_eq!(loaded.ui_scale, UiScale::Normal);
+        let _ = fs::remove_file(&path);
     }
 
     #[test]
@@ -388,6 +506,8 @@ mod tests {
             last_input: "在LeanCloud上，花了5000元👍𠀀".to_string(),
             theme: ThemeMode::Dark,
             font: FontFamily::NotoSansCjk,
+            editor_font_size: EditorFontSize::Normal,
+            ui_scale: UiScale::Normal,
         };
         save_to(&path, &settings).expect("save should succeed");
         // 文件字节必须是合法 UTF-8 且包含原始字符。
