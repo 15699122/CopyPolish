@@ -425,6 +425,20 @@ describe("App 主流程", () => {
     expect(screen.getByTestId("input-textarea")).toHaveClass("editor-text");
     expect(screen.getByTestId("output-text")).toHaveClass("editor-text");
 
+    // 输入卡片与输出卡片使用一致的等高布局约束。
+    const cards = screen.getByTestId("input-textarea").closest(".bg-card");
+    const outputCard = screen.getByTestId("output-text").closest(".bg-card");
+    expect(cards).not.toBeNull();
+    expect(outputCard).not.toBeNull();
+    for (const cls of ["h-full", "min-h-0", "min-w-0", "flex-col"]) {
+      expect(cards).toHaveClass(cls);
+      expect(outputCard).toHaveClass(cls);
+    }
+
+    // 输出滚动容器与输入 textarea 的内容内边距保持一致（px-3 py-2）。
+    const outputScroller = screen.getByTestId("output-text").parentElement!;
+    expect(outputScroller).toHaveClass("px-3", "py-2");
+
     await user.selectOptions(screen.getByTestId("editor-font-size-select"), "large");
     expect(document.documentElement.style.getPropertyValue("--editor-font-size")).toBe("16px");
     await waitFor(() =>
