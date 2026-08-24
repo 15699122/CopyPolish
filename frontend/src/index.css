@@ -80,6 +80,8 @@
     font-family: var(--app-font-family, system-ui, sans-serif);
     font-size: var(--editor-font-size, 14px);
     line-height: var(--editor-line-height, 1.7);
+    /* 重置 pre 等元素的默认 margin，保证输入/输出文本行距与位置一致。 */
+    margin: 0;
   }
   /*
    * 字体统一：浏览器不会让原生表单控件自动继承 font-family，
