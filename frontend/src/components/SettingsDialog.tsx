@@ -45,6 +45,7 @@ interface SettingsDialogProps {
   onSetAll: (on: boolean) => void;
   onResetDefaults: () => void;
   onThemeChange: (theme: ThemeMode) => void;
+  onFollowSystemChange: (follow: boolean) => void;
   onFontChange: (font: FontFamily) => void;
   onResetFont: () => void;
   onEditorFontSizeChange: (size: EditorFontSize) => void;
@@ -72,6 +73,7 @@ export function SettingsDialog({
   onSetAll,
   onResetDefaults,
   onThemeChange,
+  onFollowSystemChange,
   onFontChange,
   onResetFont,
   onEditorFontSizeChange,
@@ -79,13 +81,18 @@ export function SettingsDialog({
 }: SettingsDialogProps) {
   const groups = useMemo(() => {
     const map = new Map<string, Rule[]>();
-    for (const rule of rules) {
+    // 仅影响设置窗口的展示顺序：默认开启的规则在上，默认关闭的在下；
+    // 同类内部保持后端返回顺序，不影响 Rust pipeline 的实际执行顺序。
+    const sorted = [...rules].sort((a, b) => Number(b.default) - Number(a.default));
+    for (const rule of sorted) {
       const list = map.get(rule.section) ?? [];
       list.push(rule);
       map.set(rule.section, list);
     }
     return Array.from(map.entries());
   }, [rules]);
+
+  const followingSystem = theme === "system";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -110,59 +117,61 @@ export function SettingsDialog({
           <div className="space-y-6 pb-4">
             <div className="space-y-2">
               <h3 className="text-sm font-semibold">主题</h3>
-              <div className="grid grid-cols-1 gap-1 sm:grid-cols-3" data-testid="theme-options">
-                {([
-                  ["system", "跟随系统"],
-                  ["light", "浅色"],
-                  ["dark", "深色"],
-                ] as const).map(([value, label]) => (
-                  <label
-                    key={value}
-                    className={cn(
-                      "flex min-w-0 cursor-pointer items-center gap-1.5 rounded-md px-2 py-1.5 transition-colors hover:bg-accent",
-                      theme === value && "bg-accent text-accent-foreground",
-                    )}
-                  >
-                    <input
-                      type="radio"
-                      name="theme"
-                      value={value}
-                      checked={theme === value}
-                      onChange={() => onThemeChange(value)}
-                      data-testid={`theme-${value}`}
-                      className="h-4 w-4 shrink-0"
-                    />
-                    <span className="truncate text-sm">{label}</span>
-                  </label>
-                ))}
-              </div>
-              <div className="space-y-1.5" data-testid="ui-scale-settings">
-                <h4 className="text-xs font-medium text-muted-foreground">缩放</h4>
-                <div className="grid grid-cols-2 gap-1 sm:grid-cols-5" data-testid="ui-scale-options">
+              <div className="space-y-1.5" data-testid="theme-options">
+                <label className="flex w-fit min-w-0 cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-accent">
+                  <input
+                    type="checkbox"
+                    checked={followingSystem}
+                    onChange={(event) => onFollowSystemChange(event.target.checked)}
+                    data-testid="theme-system"
+                    className="h-4 w-4 shrink-0"
+                  />
+                  <span className="text-sm">跟随系统</span>
+                </label>
+                <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
                   {([
-                    ["compact", "80%"],
-                    ["small", "90%"],
-                    ["normal", "100%"],
-                    ["large", "110%"],
-                    ["x-large", "125%"],
+                    ["light", "浅色"],
+                    ["dark", "深色"],
                   ] as const).map(([value, label]) => (
-                    <label key={value} className={cn(
-                      "flex cursor-pointer items-center justify-center gap-1 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-accent",
-                      uiScale === value && "bg-accent text-accent-foreground",
-                    )}>
+                    <label
+                      key={value}
+                      className={cn(
+                        "flex min-w-0 items-center gap-1.5 rounded-md px-2 py-1.5 transition-colors",
+                        !followingSystem && "cursor-pointer hover:bg-accent",
+                        !followingSystem && theme === value && "bg-accent text-accent-foreground",
+                        followingSystem && "cursor-not-allowed opacity-50",
+                      )}
+                    >
                       <input
                         type="radio"
-                        name="ui-scale"
+                        name="theme"
                         value={value}
-                        checked={uiScale === value}
-                        onChange={() => onUiScaleChange(value)}
-                        data-testid={`ui-scale-${value}`}
+                        checked={theme === value}
+                        disabled={followingSystem}
+                        onChange={() => onThemeChange(value)}
+                        data-testid={`theme-${value}`}
                         className="h-4 w-4 shrink-0"
                       />
-                      <span>{label}</span>
+                      <span className="truncate text-sm">{label}</span>
                     </label>
                   ))}
                 </div>
+              </div>
+              <div className="space-y-1.5" data-testid="ui-scale-settings">
+                <h4 className="text-xs font-medium text-muted-foreground">缩放</h4>
+                <select
+                  value={uiScale}
+                  onChange={(event) => onUiScaleChange(event.target.value as UiScale)}
+                  data-testid="ui-scale-select"
+                  aria-label="主界面缩放"
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring sm:max-w-60"
+                >
+                  <option value="compact">80%</option>
+                  <option value="small">90%</option>
+                  <option value="normal">100%</option>
+                  <option value="large">110%</option>
+                  <option value="x-large">125%</option>
+                </select>
               </div>
             </div>
 
@@ -192,30 +201,18 @@ export function SettingsDialog({
               </div>
               <div className="space-y-1.5" data-testid="editor-font-size-settings">
                 <h4 className="text-xs font-medium text-muted-foreground">字号</h4>
-                <div className="grid grid-cols-2 gap-1 sm:grid-cols-4" data-testid="editor-font-size-options">
-                  {([
-                    ["small", "小"],
-                    ["normal", "标准"],
-                    ["large", "大"],
-                    ["x-large", "特大"],
-                  ] as const).map(([value, label]) => (
-                    <label key={value} className={cn(
-                      "flex cursor-pointer items-center justify-center gap-1 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-accent",
-                      editorFontSize === value && "bg-accent text-accent-foreground",
-                    )}>
-                      <input
-                        type="radio"
-                        name="editor-font-size"
-                        value={value}
-                        checked={editorFontSize === value}
-                        onChange={() => onEditorFontSizeChange(value)}
-                        data-testid={`editor-font-size-${value}`}
-                        className="h-4 w-4 shrink-0"
-                      />
-                      <span>{label}</span>
-                    </label>
-                  ))}
-                </div>
+                <select
+                  value={editorFontSize}
+                  onChange={(event) => onEditorFontSizeChange(event.target.value as EditorFontSize)}
+                  data-testid="editor-font-size-select"
+                  aria-label="编辑器字号"
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring sm:max-w-60"
+                >
+                  <option value="small">小</option>
+                  <option value="normal">标准</option>
+                  <option value="large">大</option>
+                  <option value="x-large">特大</option>
+                </select>
               </div>
             </div>
 
@@ -273,13 +270,19 @@ export function SettingsDialog({
                 ))}
                 {settingsPath && (
                   <span
-                    className="relative min-w-0 truncate text-muted-foreground underline decoration-dotted decoration-muted-foreground/60 underline-offset-4 outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    tabIndex={0}
-                    title={settingsPath}
-                    aria-label={`设置文件完整路径：${settingsPath}`}
-                    data-testid="settings-path"
+                    className="min-w-0 text-muted-foreground"
+                    data-testid="settings-path-label"
                   >
-                    设置文件：{settingsPath}
+                    设置文件：
+                    <span
+                      className="relative inline max-w-full truncate align-bottom underline decoration-dotted decoration-muted-foreground/60 underline-offset-4 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      tabIndex={0}
+                      title={settingsPath}
+                      aria-label={`设置文件完整路径：${settingsPath}`}
+                      data-testid="settings-path"
+                    >
+                      {settingsPath}
+                    </span>
                   </span>
                 )}
               </div>
