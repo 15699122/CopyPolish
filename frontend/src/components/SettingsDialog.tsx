@@ -14,7 +14,14 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import type { FontFamily, Rule, ThemeMode } from "@/lib/tauri";
+import type {
+  EditorFontSize,
+  FontFamily,
+  Rule,
+  SettingsLoadNotice,
+  ThemeMode,
+  UiScale,
+} from "@/lib/tauri";
 
 type SettingsStatus = "idle" | "saving" | "saved" | "error";
 
@@ -27,6 +34,9 @@ interface SettingsDialogProps {
   enabledSet: Set<string>;
   theme: ThemeMode;
   font: FontFamily;
+  editorFontSize: EditorFontSize;
+  uiScale: UiScale;
+  settingsLoadNotices: SettingsLoadNotice[];
   appVersion: string;
   settingsStatus: SettingsStatus;
   settingsError: string | null;
@@ -37,6 +47,8 @@ interface SettingsDialogProps {
   onThemeChange: (theme: ThemeMode) => void;
   onFontChange: (font: FontFamily) => void;
   onResetFont: () => void;
+  onEditorFontSizeChange: (size: EditorFontSize) => void;
+  onUiScaleChange: (scale: UiScale) => void;
 }
 
 /** 设置弹窗及规则列表；状态和持久化行为由 App 注入。 */
@@ -49,6 +61,9 @@ export function SettingsDialog({
   enabledSet,
   theme,
   font,
+  editorFontSize,
+  uiScale,
+  settingsLoadNotices,
   appVersion,
   settingsStatus,
   settingsError,
@@ -59,6 +74,8 @@ export function SettingsDialog({
   onThemeChange,
   onFontChange,
   onResetFont,
+  onEditorFontSizeChange,
+  onUiScaleChange,
 }: SettingsDialogProps) {
   const groups = useMemo(() => {
     const map = new Map<string, Rule[]>();
@@ -119,6 +136,34 @@ export function SettingsDialog({
                   </label>
                 ))}
               </div>
+              <div className="space-y-1.5" data-testid="ui-scale-settings">
+                <h4 className="text-xs font-medium text-muted-foreground">缩放</h4>
+                <div className="grid grid-cols-2 gap-1 sm:grid-cols-5" data-testid="ui-scale-options">
+                  {([
+                    ["compact", "80%"],
+                    ["small", "90%"],
+                    ["normal", "100%"],
+                    ["large", "110%"],
+                    ["x-large", "125%"],
+                  ] as const).map(([value, label]) => (
+                    <label key={value} className={cn(
+                      "flex cursor-pointer items-center justify-center gap-1 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-accent",
+                      uiScale === value && "bg-accent text-accent-foreground",
+                    )}>
+                      <input
+                        type="radio"
+                        name="ui-scale"
+                        value={value}
+                        checked={uiScale === value}
+                        onChange={() => onUiScaleChange(value)}
+                        data-testid={`ui-scale-${value}`}
+                        className="h-4 w-4 shrink-0"
+                      />
+                      <span>{label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
             </div>
 
             <div className="space-y-2" data-testid="font-settings">
@@ -144,6 +189,33 @@ export function SettingsDialog({
                 <Button variant="ghost" size="sm" data-testid="reset-font" onClick={onResetFont}>
                   恢复默认字体
                 </Button>
+              </div>
+              <div className="space-y-1.5" data-testid="editor-font-size-settings">
+                <h4 className="text-xs font-medium text-muted-foreground">字号</h4>
+                <div className="grid grid-cols-2 gap-1 sm:grid-cols-4" data-testid="editor-font-size-options">
+                  {([
+                    ["small", "小"],
+                    ["normal", "标准"],
+                    ["large", "大"],
+                    ["x-large", "特大"],
+                  ] as const).map(([value, label]) => (
+                    <label key={value} className={cn(
+                      "flex cursor-pointer items-center justify-center gap-1 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-accent",
+                      editorFontSize === value && "bg-accent text-accent-foreground",
+                    )}>
+                      <input
+                        type="radio"
+                        name="editor-font-size"
+                        value={value}
+                        checked={editorFontSize === value}
+                        onChange={() => onEditorFontSizeChange(value)}
+                        data-testid={`editor-font-size-${value}`}
+                        className="h-4 w-4 shrink-0"
+                      />
+                      <span>{label}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -184,18 +256,30 @@ export function SettingsDialog({
                 {settingsStatus === "error" && (
                   <span className="break-all text-destructive" data-testid="settings-status" aria-live="assertive">设置保存失败：{settingsError}</span>
                 )}
+                {settingsLoadNotices.map((notice) => (
+                  <span
+                    key={notice}
+                    className="break-all text-amber-700 dark:text-amber-300"
+                    data-testid={`settings-load-notice-${notice}`}
+                    role={notice === "primary_settings_corrupt_no_usable_backup" || notice === "legacy_settings_corrupt" ? "alert" : "status"}
+                    aria-live={notice === "primary_settings_corrupt_no_usable_backup" || notice === "legacy_settings_corrupt" ? "assertive" : "polite"}
+                  >
+                    {notice === "legacy_settings_detected" && "检测到旧版本设置文件，已迁移至 rules.yaml。"}
+                    {notice === "legacy_settings_corrupt" && "检测到旧版本设置文件，但内容无法读取，已使用默认设置。"}
+                    {notice === "primary_settings_corrupt_recovered_from_backup" && "设置文件损坏，已从 rules.yaml.bak 恢复。"}
+                    {notice === "primary_settings_corrupt_no_usable_backup" && "设置文件损坏，且备份文件也无法读取，已使用默认设置。"}
+                    {notice === "backup_settings_corrupt" && "备份文件损坏，当前 rules.yaml 仍可正常使用。"}
+                  </span>
+                ))}
                 {settingsPath && (
                   <span
-                    className="group relative min-w-0 truncate text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="relative min-w-0 truncate text-muted-foreground underline decoration-dotted decoration-muted-foreground/60 underline-offset-4 outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     tabIndex={0}
                     title={settingsPath}
                     aria-label={`设置文件完整路径：${settingsPath}`}
                     data-testid="settings-path"
                   >
                     设置文件：{settingsPath}
-                    <span role="tooltip" className="pointer-events-none absolute bottom-full left-0 z-10 mb-1 hidden w-max max-w-md break-all rounded-md border bg-card px-2 py-1 text-left text-card-foreground shadow-md group-focus-within:block group-hover:block">
-                      {settingsPath}
-                    </span>
                   </span>
                 )}
               </div>
