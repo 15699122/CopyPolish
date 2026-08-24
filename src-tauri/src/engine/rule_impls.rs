@@ -7,7 +7,8 @@
 use regex::{Captures, Regex};
 use std::sync::OnceLock;
 
-use super::tokenizer::{contains_cjk, tokenize, CharKind, Token};
+use super::tokenizer::{contains_cjk, spacing_units};
+use super::unicode_boundaries::{BoundaryStrategy, ScriptClass, TextUnit};
 
 // ---------------------------------------------------------------------------
 // 基础工具
@@ -47,20 +48,6 @@ fn collapse_repeated_runs(text: &str, set: &[char]) -> String {
     out
 }
 
-fn insert_space_between<F>(tokens: &[Token], should_insert: F) -> String
-where
-    F: Fn(&Token, &Token) -> bool,
-{
-    let mut out = String::new();
-    for (idx, token) in tokens.iter().enumerate() {
-        if idx > 0 && should_insert(&tokens[idx - 1], token) {
-            out.push(' ');
-        }
-        out.push(token.ch);
-    }
-    out
-}
-
 fn replace_word_case_insensitive(text: &str, wrong: &str, right: &str) -> String {
     let pattern = Regex::new(&format!(
         r"(?i)(^|[^A-Za-z0-9]){}([^A-Za-z0-9]|$)",
@@ -92,24 +79,49 @@ fn straight_corner_quotes(text: &str) -> String {
 // 规则实现
 // ---------------------------------------------------------------------------
 
+/// 按判定单位在相邻类别之间插空；单位以完整 &str 输出，
+/// 保证 emoji ZWJ / 组合附加符等 grapheme 不会被拆开。
+fn insert_space_between_units<F>(unit_list: &[TextUnit<'_>], should_insert: F) -> String
+where
+    F: Fn(&TextUnit<'_>, &TextUnit<'_>) -> bool,
+{
+    let mut out = String::new();
+    for (idx, unit) in unit_list.iter().enumerate() {
+        if idx > 0 && should_insert(&unit_list[idx - 1], unit) {
+            out.push(' ');
+        }
+        out.push_str(unit.text);
+    }
+    out
+}
+
 /// spacing.cjk-latin：中英文之间增加空格。
-pub fn cn_en_space(text: &str) -> String {
-    insert_space_between(&tokenize(text), |a, b| {
+/// 生产路径使用 Graphemes 策略；`_with` 变体仅供新旧策略对比测试。
+pub(crate) fn cn_en_space_with(text: &str, strategy: BoundaryStrategy) -> String {
+    insert_space_between_units(&spacing_units(text, strategy), |a, b| {
         matches!(
-            (a.kind, b.kind),
-            (CharKind::Cjk, CharKind::Latin) | (CharKind::Latin, CharKind::Cjk)
+            (a.script, b.script),
+            (ScriptClass::Han, ScriptClass::Latin) | (ScriptClass::Latin, ScriptClass::Han)
         )
     })
 }
 
+pub fn cn_en_space(text: &str) -> String {
+    cn_en_space_with(text, BoundaryStrategy::Graphemes)
+}
+
 /// spacing.cjk-number：中文与数字之间增加空格。
-pub fn cn_digit_space(text: &str) -> String {
-    insert_space_between(&tokenize(text), |a, b| {
+pub(crate) fn cn_digit_space_with(text: &str, strategy: BoundaryStrategy) -> String {
+    insert_space_between_units(&spacing_units(text, strategy), |a, b| {
         matches!(
-            (a.kind, b.kind),
-            (CharKind::Cjk, CharKind::Digit) | (CharKind::Digit, CharKind::Cjk)
+            (a.script, b.script),
+            (ScriptClass::Han, ScriptClass::Digit) | (ScriptClass::Digit, ScriptClass::Han)
         )
     })
+}
+
+pub fn cn_digit_space(text: &str) -> String {
+    cn_digit_space_with(text, BoundaryStrategy::Graphemes)
 }
 
 /// spacing.number-unit：数字与单位之间增加空格。
