@@ -18,6 +18,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
         with:
@@ -31,11 +32,7 @@ jobs:
       - name: Sync full release version from tag
         run: python3 scripts/prepare_release_version.py "${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}"
 
-      - name: Install dependencies (Linux)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev
-
+      # 纯 Rust 测试不链接 GTK/WebKitGTK，无需安装 Tauri Linux 系统依赖。
       - name: Rust toolchain
         uses: dtolnay/rust-toolchain@master
         with:
@@ -73,19 +70,12 @@ jobs:
           npm test -- --run
           npm run build
 
-  tauri-build:
+  # Linux：构建 deb/rpm/AppImage 并上传 bundle。
+  # 与 Windows 拆分为独立 job，使两条构建流水线互不阻塞。
+  linux-build:
     needs: test
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-latest
-            args: ""
-          # Windows 仅提供便携版：不生成安装器，直接产出 release .exe，
-          # 由后续步骤打包为 .7z。
-          - os: windows-latest
-            args: "--no-bundle"
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v7
         with:
@@ -96,10 +86,61 @@ jobs:
         run: python3 scripts/prepare_release_version.py "${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}"
 
       - name: Install dependencies (Linux)
-        if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.98.0
+
+      - name: Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Print tool versions
+        run: |
+          node --version
+          npm --version
+          rustc --version
+          cargo --version
+
+      - name: Build bundles
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run tauri build
+
+      # 上传 Tauri bundle（deb/rpm/AppImage）。产物为已压缩格式，关闭二次压缩；
+      # 仅在同一次 workflow 内供 release job 使用，保留 3 天即可。
+      - uses: actions/upload-artifact@v7
+        with:
+          name: bundle-ubuntu-latest
+          path: |
+            src-tauri/target/release/bundle/**
+          if-no-files-found: error
+          retention-days: 3
+          compression-level: 0
+
+  # Windows：仅构建便携版 exe 并打包 .7z，上传后由 windows-smoke 复用同一份产物做 GUI 冒烟，
+  # 不再像旧流程那样在 smoke job 里完整重新编译一次 Tauri。
+  windows-build:
+    needs: test
+    runs-on: windows-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+
+      # 打包前同步 tag 的完整版本（含预发布后缀）到构建配置。
+      - name: Sync full release version from tag
+        shell: bash
+        run: python3 scripts/prepare_release_version.py "${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}"
 
       - name: Rust toolchain
         uses: dtolnay/rust-toolchain@master
@@ -120,26 +161,14 @@ jobs:
           npm --version
           rustc --version
           cargo --version
-          if command -v uname >/dev/null 2>&1; then uname -a; fi
 
-      - name: Build bundles
+      - name: Build app (skip bundling)
         working-directory: frontend
         run: |
           npm ci
-          npm run tauri build -- ${{ matrix.args }}
+          npm run tauri build -- --no-bundle
 
-      # Linux：上传 Tauri bundle（deb/rpm/AppImage）。
-      - uses: actions/upload-artifact@v7
-        if: matrix.os == 'ubuntu-latest'
-        with:
-          name: bundle-ubuntu-latest
-          path: |
-            src-tauri/target/release/bundle/**
-          if-no-files-found: error
-
-      # Windows：便携版发布 —— 仅 .exe 与 .7z 压缩包，无安装器。
       - name: Package Windows portable (exe + 7z)
-        if: matrix.os == 'windows-latest'
         shell: pwsh
         run: |
           $exe = "src-tauri/target/release/chinese-copywriting-formatter.exe"
@@ -168,70 +197,45 @@ jobs:
           Remove-Item $staging -Recurse -Force
           Get-ChildItem dist/windows
 
+      # exe/.7z 为已压缩内容，关闭二次压缩；除 job 传递外还用于短期人工验收，保留 7 天。
       - uses: actions/upload-artifact@v7
-        if: matrix.os == 'windows-latest'
         with:
           name: windows-portable
           path: |
             dist/windows/CopyPolish.exe
             dist/windows/CopyPolish-windows-x64.7z
           if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
 
       # 构建失败时上传日志辅助排查。
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
-          name: build-log-${{ matrix.os }}
+          name: build-log-windows-latest
           path: |
             src-tauri/target/release/**/*.log
             frontend/npm-debug.log*
           if-no-files-found: ignore
+          retention-days: 7
 
-  # Windows hosted runner 冒烟测试：真实启动 GUI，校验进程存活且主窗口出现。
+  # Windows GUI 冒烟测试：直接复用 windows-build 上传的同一份便携版产物，
+  # 不再重复安装工具链与完整编译 Tauri，显著节省 Windows runner minutes。
   windows-smoke:
-    needs: test
+    needs: windows-build
     runs-on: windows-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v7
+      - name: Download windows-portable artifact
+        uses: actions/download-artifact@v8
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
-
-      # 冒烟测试构建同样使用 tag 的完整版本，保证与发布产物一致。
-      - name: Sync full release version from tag
-        shell: bash
-        run: python3 scripts/prepare_release_version.py "${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}"
-
-      - name: Rust toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: 1.98.0
-
-      - name: Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Print tool versions
-        shell: pwsh
-        run: |
-          node --version
-          npm --version
-          rustc --version
-          cargo --version
-          Get-ComputerInfo | Select-Object WindowsProductName, WindowsVersion, OsHardwareAbstractionLayer
-
-      - name: Build app (skip bundling)
-        working-directory: frontend
-        run: |
-          npm ci
-          npm run tauri build -- --no-bundle
+          name: windows-portable
+          path: dist/windows
 
       - name: Launch and verify main window
         shell: pwsh
         run: |
-          $exe = "src-tauri/target/release/chinese-copywriting-formatter.exe"
+          $exe = "dist/windows/CopyPolish.exe"
           if (-not (Test-Path $exe)) { Write-Error "Executable not found: $exe"; exit 1 }
           $p = Start-Process -FilePath $exe -PassThru
           try {
@@ -260,8 +264,9 @@ jobs:
           }
 
   release:
-    needs: [test, tauri-build]
+    needs: [test, linux-build, windows-build, windows-smoke]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: write
     steps:

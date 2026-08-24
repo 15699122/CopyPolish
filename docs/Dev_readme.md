@@ -126,7 +126,7 @@ export PATH="$HOME/.cargo/bin:$PATH"
 
 工具链版本通过仓库文件固定：
 
-- Node.js：`.nvmrc`（当前 22，与 GitHub Actions 一致）；
+- Node.js：`.nvmrc`（当前 24.19.0，与 GitHub Actions 一致）；
 - Rust：`rust-toolchain.toml`（当前 1.98.0，包含 rustfmt / clippy）；
 - 前端依赖：`frontend/package-lock.json` + `npm ci`；
 - Rust 依赖：`src-tauri/Cargo.lock`。
@@ -237,10 +237,10 @@ git diff --check
 
 `.github/workflows/ci.yml` 与 `.github/workflows/release.yml`：
 
-- `ci.yml` 在 `dev`、`master` 与 PR 上运行快速验证：cargo fmt + cargo clippy（`-D warnings`）+ 纯 Rust cargo test（当前包含黄金样例、设置备份恢复和 UTF-8 多字节回归）+ `git diff --check` + 前端 vitest 组件测试 + tsc/vite 构建；
-- `release.yml` 在推送 `v*` tag 时运行完整发布流水线，也支持 workflow_dispatch 手动指定既有 tag 并可选标记 pre-release（tag 名含 `-` 时自动识别为预发布）；
-- `tauri-build` matrix（ubuntu/windows）：Linux 构建 deb/rpm/AppImage 并上传 `bundle-ubuntu-latest`；Windows 以 `--no-bundle` 构建无边框便携 `.exe`，以临时根目录打包为只含 exe/DLL 的 `.7z` 后上传 `windows-portable`（不生成任何安装器——WiX MSI 无法处理中文产品名，且产品定位为免安装便携版）。项目不支持 macOS。
-- `windows-smoke` job（windows-latest）：真实启动 GUI 冒烟测试——构建 exe → 启动进程 → 轮询等待主窗口句柄出现（最长 60 秒）→ 保持 10 秒验证稳定性 → 强制结束进程。已通过。
+- `ci.yml` 在 `dev`、`master` 与 PR 上运行快速验证：cargo fmt + cargo clippy（`-D warnings`）+ 纯 Rust cargo test（当前包含黄金样例、设置备份恢复和 UTF-8 多字节回归）+ `git diff --check` + 前端 vitest 组件测试 + tsc/vite 构建；配置了 concurrency（同一 PR / 分支新 commit 自动取消过时 run）与 `timeout-minutes: 20`；纯 Rust 测试不安装 GTK/WebKitGTK 系统依赖；
+- `release.yml` 在推送 `v*` tag 时运行完整发布流水线，也支持 workflow_dispatch 手动指定既有 tag 并可选标记 pre-release（tag 名含 `-` 时自动识别为预发布）；各 job 均设置 timeout 上限；
+- 构建阶段拆分为 `linux-build` 与 `windows-build` 两个独立 job 并行执行：Linux 构建 deb/rpm/AppImage 并上传 `bundle-ubuntu-latest`；Windows 以 `--no-bundle` 构建无边框便携 `.exe`，以临时根目录打包为只含 exe/DLL 的 `.7z` 后上传 `windows-portable`（不生成任何安装器——WiX MSI 无法处理中文产品名，且产品定位为免安装便携版）。项目不支持 macOS。发布类 artifact 设置了短保留期（Linux bundle 3 天、Windows portable 及失败日志 7 天）并关闭二次压缩（`compression-level: 0`），长期下载一律以 GitHub Release assets 为准；
+- `windows-smoke` job（windows-latest）：直接下载 `windows-build` 上传的同一份 `CopyPolish.exe` 做 GUI 冒烟——启动进程 → 轮询等待主窗口句柄出现（最长 60 秒）→ 保持 10 秒验证稳定性 → 强制结束进程；不再重复安装工具链或重新编译 Tauri。
 
 CI/Release 会打印 Node/npm/Rust/Cargo/系统版本，便于核对本地与 Runner 环境差异。
 

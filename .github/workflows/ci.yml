@@ -7,17 +7,20 @@ on:
     branches: [dev, master]
   workflow_dispatch: {}
 
+# 同一 PR / 分支只保留最新一次 CI：新 commit 到达时自动取消过时 run，节省 minutes。
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    # 正常 run 约 5–10 分钟；超时上限用于防止网络/构建挂起长期占用 runner。
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
 
-      - name: Install dependencies (Linux)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev
-
+      # 纯 Rust 测试不链接 GTK/WebKitGTK，无需安装 Tauri Linux 系统依赖。
       - name: Rust toolchain
         uses: dtolnay/rust-toolchain@master
         with:
