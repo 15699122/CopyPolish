@@ -394,6 +394,17 @@ export default function App() {
       });
   }
 
+  // “跟随系统”勾选框：勾选时进入 system 模式；取消勾选时
+  // 立即按当前系统偏好（prefers-color-scheme）切换到显式的 light/dark。
+  function onFollowSystemChange(follow: boolean) {
+    if (follow) {
+      onThemeChange("system");
+      return;
+    }
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    onThemeChange(prefersDark ? "dark" : "light");
+  }
+
   function onFontChange(nextFont: FontFamily) {
     setFont(nextFont);
     setSettingsStatus("saving");
@@ -585,6 +596,7 @@ return (
           onSetAll={onSetAll}
           onResetDefaults={onResetDefaults}
           onThemeChange={onThemeChange}
+          onFollowSystemChange={onFollowSystemChange}
           onFontChange={onFontChange}
           onResetFont={onResetFont}
           onEditorFontSizeChange={onEditorFontSizeChange}

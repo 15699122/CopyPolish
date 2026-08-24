@@ -42,7 +42,7 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
 - `src-tauri/src/engine/`：纯 Rust 可扩展引擎（注册表 + 保护层 + 化学式识别），无 Python/PyO3 运行时依赖，也不受固定规则数量约束。
 - `reference/`：历史 Python 引擎与规则目录仅作归档保留，不参与构建、打包与测试门禁。
 - 设置 Dialog 使用稳定响应式布局：在视口安全边距内居中并限制最大宽高，固定 header/footer + 原生 `overflow-y-auto` 内容滚动；不再模拟 Dialog 内部拖动/缩放，主 Tauri 窗口仍可拖动和 resize。
-- 设置 Dialog 支持主题切换、界面字体预设（含恢复默认）、Footer 显示完整应用版本 / 保存状态 / 设置文件路径（路径截断时悬停或键盘聚焦展示完整值）。
+- 设置 Dialog 支持主题切换（“跟随系统”为勾选框：勾选时浅色/深色单选项禁用，取消勾选时按 `prefers-color-scheme` 立即回退到显式 light/dark）、主界面缩放与编辑器字号下拉框、界面字体预设（含恢复默认）、Footer 显示完整应用版本 / 保存状态 / 设置文件路径（点状下划线仅作用于路径文本，“设置文件：”标签无下划线；路径截断时悬停或键盘聚焦展示完整值）。
 - 主窗口最小尺寸为 `800×600`，用于避免布局过度压缩。
 - 输入框 placeholder 固定为「请在这里粘贴或输入文字」（字号更小、颜色更淡）；输出框已有真实空状态提示。
 - Linux 打包目标：`.deb` / `.rpm` / `.AppImage`。
@@ -107,8 +107,9 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
 - 设置 Dialog 的版本号通过 `getAppVersion()` 读取：打包环境使用 Tauri `getVersion()`，浏览器预览使用 Vite 从 `frontend/package.json` 注入的 `__APP_VERSION__` 回退值，避免重复维护版本常量。
 - 设置弹窗 Footer 保持与主界面一致的 `py-4` 纵向内边距；桌面端单行显示版本/保存状态/设置路径与操作按钮，小屏或较长保存错误时采用 flex-wrap 响应式换行。
 - 预发布版本一致性：release 工作流在测试校验后调用 `scripts/prepare_release_version.py <tag>`，把 tag 的完整版本（如 `v0.5.0-pre1` → `0.5.0-pre1`）写入 package.json / package-lock.json / tauri.conf.json / Cargo.toml / Cargo.lock，仅作用于 CI 工作区，不回写源码提交；`check_version.py` 同时接受源码基础版本与同步后的完整版本两种状态。
-- 主界面输入框与输出框共享 `--app-font-family`、`--editor-font-size` 和 `--editor-line-height`；主界面内容通过 `--app-ui-scale` 缩放。设置文件路径在 Footer 中单行截断，保留 `title` 和 `aria-label`，不再显示自定义悬停浮层，改用灰色点状下划线。输入框 placeholder 固定为「请在这里粘贴或输入文字」。
-- 设置窗口的“字体”部分支持字号预设（13/14/16/18px），“主题”部分支持主界面缩放预设（80/90/100/110/125%）。旧 `rules.yaml` 缺少新字段时回退为标准字号与 100% 缩放。
+- 主界面输入框与输出框共享 `--app-font-family`、`--editor-font-size` 和 `--editor-line-height`；textarea 基础组件不再自带 `text-base`/`md:text-sm` 字号工具类，保证 `.editor-text` 的字号变量对输入框与输出框同时生效。主界面内容通过 `--app-ui-scale` 缩放。设置文件路径在 Footer 中单行截断，保留 `title` 和 `aria-label`，不再显示自定义悬停浮层；灰色点状下划线仅作用于路径文本。输入框 placeholder 固定为「请在这里粘贴或输入文字」。
+- 设置窗口的“字体”部分通过下拉框支持字号预设（13/14/16/18px），“主题”部分通过下拉框支持主界面缩放预设（80/90/100/110/125%）。旧 `rules.yaml` 缺少新字段时回退为标准字号与 100% 缩放。
+- 设置窗口中的规则列表仅做展示排序（默认开启在上、默认关闭在下，组内保持注册表顺序），不改变 Rust 注册表数组顺序与 pipeline 执行顺序。
 - 设置加载提醒包括旧版本设置迁移、旧设置损坏、主设置损坏后的备份恢复、主/备份均损坏以及备份损坏但主设置可用等状态；提醒会显示在主界面提示条和设置文件区域。
 - 测试约定：所有设置读写测试一律使用系统临时目录中的唯一随机文件（PID + 计数器），禁止写仓库内固定路径。
 - 该文件已加入 `.gitignore`（根目录 `/rules.yaml`）。

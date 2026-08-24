@@ -209,24 +209,32 @@ describe("App 主流程", () => {
       "设置文件完整路径：C:\\Users\\Tester\\Desktop\\CopyPolish\\rules.yaml",
     );
     expect(settingsPathEl).toHaveClass("underline", "decoration-dotted", "underline-offset-4");
+    // 下划线只作用于路径本身，“设置文件：”标签不带下划线。
+    expect(screen.getByTestId("settings-path-label")).not.toHaveClass("underline");
+    expect(settingsPathEl).toHaveTextContent("C:\\Users\\Tester\\Desktop\\CopyPolish\\rules.yaml");
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
     expect(screen.getByTestId("settings-version")).toHaveTextContent("版本 0.5.0-test");
     expect(screen.getByTestId("settings-footer")).toHaveClass("px-4", "py-4", "sm:px-6");
     expect(screen.getByTestId("settings-actions")).toBeInTheDocument();
-    // 主题选项横向网格容器。
+    // 主题：跟随系统为勾选框，浅色/深色为单选项（默认勾选跟随时禁用）。
     expect(screen.getByTestId("theme-options")).toBeInTheDocument();
     expect(screen.getByTestId("theme-system")).toBeInTheDocument();
-    expect(screen.getByTestId("theme-light")).toBeInTheDocument();
-    expect(screen.getByTestId("theme-dark")).toBeInTheDocument();
-    expect(screen.getByTestId("theme-options")).not.toHaveClass("border");
+    expect(screen.getByTestId("theme-system")).toHaveAttribute("type", "checkbox");
+    expect(screen.getByTestId("theme-system")).toBeChecked();
+    expect(screen.getByTestId("theme-light")).toBeDisabled();
+    expect(screen.getByTestId("theme-dark")).toBeDisabled();
     expect(screen.getByTestId("font-settings")).toBeInTheDocument();
     expect(screen.getByTestId("font-select")).toHaveValue("system");
     expect(screen.getByTestId("reset-font")).toBeInTheDocument();
-    expect(screen.getByTestId("editor-font-size-normal")).toBeChecked();
-    expect(screen.getByTestId("ui-scale-normal")).toBeChecked();
+    expect(screen.getByTestId("editor-font-size-select")).toHaveValue("normal");
+    expect(screen.getByTestId("ui-scale-select")).toHaveValue("normal");
     expect(screen.getByText("中英文之间增加空格")).toBeVisible();
     expect(screen.getByText("中文与数字之间增加空格")).toBeVisible();
     expect(screen.getByText("争议规则")).toBeVisible();
+    // 默认开启的规则展示在默认关闭的规则之前（仅展示顺序，不影响执行顺序）。
+    const defaultRule = screen.getByTestId("rule-rule-a");
+    const disputedRule = screen.getByTestId("rule-rule-c");
+    expect(defaultRule.compareDocumentPosition(disputedRule) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     // 辅助按钮与完成按钮均存在。
     expect(screen.getByTestId("select-all")).toBeInTheDocument();
     expect(screen.getByTestId("select-none")).toBeInTheDocument();
@@ -309,8 +317,8 @@ describe("App 主流程", () => {
     // 主题被正确恢复到深色。
     expect(document.documentElement).toHaveAttribute("data-theme", "dark");
     expect(screen.getByTestId("font-select")).toHaveValue("pingfang");
-    expect(screen.getByTestId("editor-font-size-large")).toBeChecked();
-    expect(screen.getByTestId("ui-scale-small")).toBeChecked();
+    expect(screen.getByTestId("editor-font-size-select")).toHaveValue("large");
+    expect(screen.getByTestId("ui-scale-select")).toHaveValue("small");
   });
 
   it("主题切换会立即应用并持久化", async () => {
@@ -318,7 +326,17 @@ describe("App 主流程", () => {
     const { user } = await setup();
     await user.click(screen.getByTestId("open-settings"));
 
-    // 默认 theme=system；切换到 dark。
+    // 默认勾选“跟随系统”，浅色/深色被禁用；先取消跟随时自动按系统偏好（mock 为浅色）切换。
+    await user.click(screen.getByTestId("theme-system"));
+    expect(screen.getByTestId("theme-system")).not.toBeChecked();
+    expect(document.documentElement).toHaveAttribute("data-theme", "light");
+    await waitFor(() =>
+      expect(mocks.saveUserSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ theme: "light" }),
+      ),
+    );
+
+    // 取消跟随后可切换到 dark。
     await user.click(screen.getByTestId("theme-dark"));
     expect(document.documentElement).toHaveAttribute("data-theme", "dark");
 
@@ -334,6 +352,44 @@ describe("App 主流程", () => {
     await waitFor(() =>
       expect(mocks.saveUserSettings).toHaveBeenCalledWith(
         expect.objectContaining({ theme: "light" }),
+      ),
+    );
+  });
+
+  it("取消跟随系统时按系统深色偏好切换到深色，重新勾选恢复跟随", async () => {
+    mockFormat((t) => t);
+    // 系统偏好为深色。
+    Object.defineProperty(window, "matchMedia", {
+      writable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: query === "(prefers-color-scheme: dark)",
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
+    const { user } = await setup();
+    await user.click(screen.getByTestId("open-settings"));
+
+    await user.click(screen.getByTestId("theme-system"));
+    expect(document.documentElement).toHaveAttribute("data-theme", "dark");
+    await waitFor(() =>
+      expect(mocks.saveUserSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ theme: "dark" }),
+      ),
+    );
+
+    // 重新勾选跟随系统。
+    await user.click(screen.getByTestId("theme-system"));
+    expect(screen.getByTestId("theme-system")).toBeChecked();
+    expect(screen.getByTestId("theme-light")).toBeDisabled();
+    await waitFor(() =>
+      expect(mocks.saveUserSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ theme: "system" }),
       ),
     );
   });
@@ -361,11 +417,15 @@ describe("App 主流程", () => {
     );
   });
 
-  it("字号和缩放切换会立即应用并持久化", async () => {
+  it("字号和缩放下拉框切换会立即应用并持久化", async () => {
     const { user } = await setup();
     await user.click(screen.getByTestId("open-settings"));
 
-    await user.click(screen.getByTestId("editor-font-size-large"));
+    // 输入框与输出框共享同一字号入口。
+    expect(screen.getByTestId("input-textarea")).toHaveClass("editor-text");
+    expect(screen.getByTestId("output-text")).toHaveClass("editor-text");
+
+    await user.selectOptions(screen.getByTestId("editor-font-size-select"), "large");
     expect(document.documentElement.style.getPropertyValue("--editor-font-size")).toBe("16px");
     await waitFor(() =>
       expect(mocks.saveUserSettings).toHaveBeenCalledWith(
@@ -373,7 +433,7 @@ describe("App 主流程", () => {
       ),
     );
 
-    await user.click(screen.getByTestId("ui-scale-small"));
+    await user.selectOptions(screen.getByTestId("ui-scale-select"), "small");
     expect(document.documentElement.style.getPropertyValue("--app-ui-scale")).toBe("0.9");
     await waitFor(() =>
       expect(mocks.saveUserSettings).toHaveBeenCalledWith(
