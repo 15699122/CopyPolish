@@ -6,6 +6,11 @@
 
 当前 `v0.5.0` 正式发布的开发、测试、Windows 验收和发布门槛统一记录在 [v0.5.0-release-plan.md](v0.5.0-release-plan.md)。后续开发应按该计划的阶段顺序执行；在黄金样例回归测试体系建立前，不新增格式化规则或大型 UI 功能。
 
+其他文档入口：
+
+- [roadmap.md](roadmap.md)：`v0.5.0` 发布后的中长期开发路线图（快捷键配置、Unicode 引擎升级、ICU4X 评估、E2E、性能基准、hooks 拆分等）；
+- [manual-release.md](manual-release.md)：本地构建与手动上传 GitHub Release 的操作 Runbook（备用发布路径）。
+
 > 历史说明：项目早期为 Python + customtkinter 桌面 GUI（入口 `chinese_copywriting_formatter.py`，曾使用 `rules.yaml` 保存设置）。该路线已于 2026-08 彻底移除，相关文件（`gui/`、`python/formatter_bridge.py`、`run.sh`、`packaging/`、PyInstaller 工作流等）均不再存在。当前 Rust 应用使用新的 `rules.yaml` 设置实现，并通过同目录旧版 `ccw-formatter-settings.json` 进行一次性迁移；不复用旧 Python 的读写逻辑。
 
 ## 当前架构
@@ -57,7 +62,10 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
 ```text
 ├── README.md                      # 用户文档
 ├── docs/
-│   └── Dev_readme.md              # 开发者文档（本文件）
+│   ├── Dev_readme.md              # 开发者文档（本文件）
+│   ├── v0.5.0-release-plan.md     # v0.5.0 发布计划与验收门槛
+│   ├── roadmap.md                 # v0.5.0 后的中长期开发路线图
+│   └── manual-release.md          # 本地构建与手动上传 Release Runbook
 ├── reference/                     # 历史参考资产（不参与构建、打包与测试门禁）
 │   ├── ccw_engine.py              # 历史 Python 实现
 │   └── rule_catalog.yaml          # 历史规则元数据
@@ -106,7 +114,7 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
 - 长文本排版：普通文本使用 160ms 防抖，达到 50,000 字符使用 450ms，达到 200,000 字符使用 900ms；界面显示排版中、长文本和最近一次耗时提示，并通过序列号丢弃过期结果。
 - 设置 Dialog 的版本号通过 `getAppVersion()` 读取：打包环境使用 Tauri `getVersion()`，浏览器预览使用 Vite 从 `frontend/package.json` 注入的 `__APP_VERSION__` 回退值，避免重复维护版本常量。
 - 设置弹窗 Footer 保持与主界面一致的 `py-4` 纵向内边距；桌面端单行显示版本/保存状态/设置路径与操作按钮，小屏或较长保存错误时采用 flex-wrap 响应式换行。
-- 预发布版本一致性：release 工作流在测试校验后调用 `scripts/prepare_release_version.py <tag>`，把 tag 的完整版本（如 `v0.5.0-pre1` → `0.5.0-pre1`）写入 package.json / package-lock.json / tauri.conf.json / Cargo.toml / Cargo.lock，仅作用于 CI 工作区，不回写源码提交；`check_version.py` 同时接受源码基础版本与同步后的完整版本两种状态。
+- 预发布版本一致性：release 工作流在测试校验后调用 `scripts/prepare_release_version.py <tag>`，把 tag 的完整版本（如 `v0.5.0-pre1` → `0.5.0-pre1`）写入 package.json / package-lock.json / tauri.conf.json / Cargo.toml / Cargo.lock，仅作用于构建工作区（CI runner 或本地隔离发布 worktree），不回写源码提交；`check_version.py` 同时接受源码基础版本与同步后的完整版本两种状态。
 - 主界面输入框与输出框共享 `--app-font-family`、`--editor-font-size` 和 `--editor-line-height`；textarea 基础组件不再自带 `text-base`/`md:text-sm` 字号工具类，保证 `.editor-text` 的字号变量对输入框与输出框同时生效。主界面内容通过 `--app-ui-scale` 缩放。设置文件路径在 Footer 中单行截断，保留 `title` 和 `aria-label`，不再显示自定义悬停浮层；灰色点状下划线仅作用于路径文本。输入框 placeholder 固定为「请在这里粘贴或输入文字」。
 - 设置窗口的“字体”部分通过下拉框支持字号预设（13/14/16/18px），“主题”部分通过下拉框支持主界面缩放预设（80/90/100/110/125%）。旧 `rules.yaml` 缺少新字段时回退为标准字号与 100% 缩放。
 - 设置窗口中的规则列表仅做展示排序（默认开启在上、默认关闭在下，组内保持注册表顺序），不改变 Rust 注册表数组顺序与 pipeline 执行顺序。
@@ -226,7 +234,7 @@ git diff --check
 
 1. 真实 Windows 机器人工验收：下载 CI 的 `windows-portable` artifact，运行 `.exe`，输入 `在LeanCloud上，花了5000元` → 应输出 `在 LeanCloud 上，花了 5000 元`；验证设置弹窗 12 条规则、开关即时重排、设置文件持久化、高 DPI 显示。
 2. 正式发布 `v0.5.0`：人工复核 Release 资产、Release Notes、版本号和 latest 标记。
-3. 后续维护：评估格式化 hook 拆分、10 KB / 100 KB / 1 MB 性能基准、真实 Tauri E2E 测试和更多规则边界案例。
+3. `v0.5.0` 发布后的中长期工作（本地构建/手动发布自动化脚本、快捷键开关与自定义、Unicode 引擎升级、ICU4X 评估、E2E、性能基准、hooks 拆分等）统一在 [roadmap.md](roadmap.md) 跟踪。
 
 ## 图标
 
@@ -241,6 +249,8 @@ git diff --check
 - `release.yml` 在推送 `v*` tag 时运行完整发布流水线，也支持 workflow_dispatch 手动指定既有 tag 并可选标记 pre-release（tag 名含 `-` 时自动识别为预发布）；各 job 均设置 timeout 上限；
 - 构建阶段拆分为 `linux-build` 与 `windows-build` 两个独立 job 并行执行：Linux 构建 deb/rpm/AppImage 并上传 `bundle-ubuntu-latest`；Windows 以 `--no-bundle` 构建无边框便携 `.exe`，以临时根目录打包为只含 exe/DLL 的 `.7z` 后上传 `windows-portable`（不生成任何安装器——WiX MSI 无法处理中文产品名，且产品定位为免安装便携版）。项目不支持 macOS。发布类 artifact 设置了短保留期（Linux bundle 3 天、Windows portable 及失败日志 7 天）并关闭二次压缩（`compression-level: 0`），长期下载一律以 GitHub Release assets 为准；
 - `windows-smoke` job（windows-latest）：直接下载 `windows-build` 上传的同一份 `CopyPolish.exe` 做 GUI 冒烟——启动进程 → 轮询等待主窗口句柄出现（最长 60 秒）→ 保持 10 秒验证稳定性 → 强制结束进程；不再重复安装工具链或重新编译 Tauri。
+
+除 GitHub Actions 自动构建外，项目同样支持**本地构建 + 手动上传 GitHub Release** 的备用发布路径；两种模式共享相同的验证门槛、版本脚本、资产命名与人工验收标准，操作步骤见 [manual-release.md](manual-release.md)。`prepare_release_version.py` 可在 CI runner 或隔离的本地发布工作区（独立 clone / Git worktree）执行，禁止在待提交的日常开发工作区直接运行。
 
 CI/Release 会打印 Node/npm/Rust/Cargo/系统版本，便于核对本地与 Runner 环境差异。
 
