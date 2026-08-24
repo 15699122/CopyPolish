@@ -81,6 +81,43 @@ impl std::fmt::Display for ThemeMode {
     }
 }
 
+/// 快捷键设置：总开关与各动作的绑定。
+/// `#[serde(default)]` 确保旧版设置文件（无 shortcuts 字段）可反序列化，
+/// 默认启用并使用内置默认组合键，行为与旧版本一致。
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub struct ShortcutSettings {
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    #[serde(default = "default_shortcut_bindings")]
+    pub bindings: std::collections::BTreeMap<String, String>,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+/// 与前端 `frontend/src/lib/shortcuts.ts` 的 DEFAULT_SHORTCUT_BINDINGS 保持一致；
+/// 组合键使用语义修饰键 CtrlOrCmd + KeyboardEvent.code 序列化。
+pub fn default_shortcut_bindings() -> std::collections::BTreeMap<String, String> {
+    std::collections::BTreeMap::from([
+        ("format_now".to_string(), "CtrlOrCmd+Enter".to_string()),
+        (
+            "copy_output".to_string(),
+            "CtrlOrCmd+Shift+KeyC".to_string(),
+        ),
+        ("open_settings".to_string(), "CtrlOrCmd+Comma".to_string()),
+    ])
+}
+
+impl Default for ShortcutSettings {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            bindings: default_shortcut_bindings(),
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, Eq)]
 pub struct UserSettings {
     #[serde(default)]
@@ -95,6 +132,8 @@ pub struct UserSettings {
     pub editor_font_size: EditorFontSize,
     #[serde(default)]
     pub ui_scale: UiScale,
+    #[serde(default)]
+    pub shortcuts: ShortcutSettings,
 }
 
 /// 设置加载提醒类型。
@@ -317,6 +356,10 @@ mod tests {
             font: FontFamily::Pingfang,
             editor_font_size: EditorFontSize::Large,
             ui_scale: UiScale::Small,
+            shortcuts: ShortcutSettings {
+                enabled: false,
+                bindings: default_shortcut_bindings(),
+            },
         };
         save_to(&path, &settings).expect("save should succeed");
         assert_eq!(load_from(&path), Some(settings));
@@ -409,6 +452,7 @@ mod tests {
             font: FontFamily::System,
             editor_font_size: EditorFontSize::Normal,
             ui_scale: UiScale::Normal,
+            shortcuts: ShortcutSettings::default(),
         };
         fs::write(
             dir.join(LEGACY_SETTINGS_FILE_NAME),
@@ -508,6 +552,10 @@ mod tests {
             font: FontFamily::NotoSansCjk,
             editor_font_size: EditorFontSize::Normal,
             ui_scale: UiScale::Normal,
+            shortcuts: ShortcutSettings {
+                enabled: true,
+                bindings: default_shortcut_bindings(),
+            },
         };
         save_to(&path, &settings).expect("save should succeed");
         // 文件字节必须是合法 UTF-8 且包含原始字符。
@@ -524,6 +572,52 @@ mod tests {
         fs::write(&path, "enabled: ['rule-a']\nlast_input: 'test'\n").unwrap();
         let loaded = load_from(&path).expect("should parse");
         assert_eq!(loaded.theme, ThemeMode::System);
+        let _ = fs::remove_file(&path);
+    }
+
+    /// 缺少 shortcuts 字段的旧 YAML 应默认启用并使用内置绑定。
+    #[test]
+    fn old_yaml_defaults_shortcuts_enabled() {
+        let path = temp_settings_file("shortcuts-default");
+        fs::write(&path, "enabled: []\nlast_input: ''\n").unwrap();
+        let loaded = load_from(&path).expect("old yaml should parse");
+        assert!(loaded.shortcuts.enabled);
+        assert_eq!(loaded.shortcuts.bindings, default_shortcut_bindings());
+        let _ = fs::remove_file(&path);
+    }
+
+    /// 总开关与自定义绑定必须完整 round-trip。
+    #[test]
+    fn shortcut_settings_roundtrip() {
+        let path = temp_settings_file("shortcuts-roundtrip");
+        let mut settings = UserSettings::default();
+        settings.shortcuts.enabled = false;
+        settings
+            .shortcuts
+            .bindings
+            .insert("format_now".to_string(), "CtrlOrCmd+Shift+KeyF".to_string());
+        save_to(&path, &settings).expect("save should succeed");
+        let loaded = load_from(&path).expect("should parse");
+        assert_eq!(loaded.shortcuts, settings.shortcuts);
+        let raw = fs::read_to_string(&path).expect("settings file must be readable");
+        assert!(raw.contains("shortcuts"));
+        assert!(raw.contains("CtrlOrCmd+Shift+KeyF"));
+        let _ = fs::remove_file(&path);
+        let _ = fs::remove_file(path.with_file_name(SETTINGS_BACKUP_FILE_NAME));
+    }
+
+    /// 仅有 enabled、缺失 bindings 的 shortcuts 字段应补齐默认绑定。
+    #[test]
+    fn partial_shortcuts_fill_default_bindings() {
+        let path = temp_settings_file("shortcuts-partial");
+        fs::write(
+            &path,
+            "enabled: []\nlast_input: ''\nshortcuts:\n  enabled: false\n",
+        )
+        .unwrap();
+        let loaded = load_from(&path).expect("should parse");
+        assert!(!loaded.shortcuts.enabled);
+        assert_eq!(loaded.shortcuts.bindings, default_shortcut_bindings());
         let _ = fs::remove_file(&path);
     }
 }
