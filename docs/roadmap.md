@@ -67,7 +67,7 @@ frontend/src/hooks/useShortcuts.ts # 监听、启停、IME 防护、动作分发
 
 现状限制：`tokenizer.rs` 使用手写 Unicode 区间判定 CJK/Latin/Digit，规则实现大量基于逐 `char` 遍历与 ASCII 判断，对 emoji ZWJ 序列、组合附加符、CJK 扩展区的处理不够健壮。
 
-### 第一步：引入 `unicode-segmentation`
+### 第一步：引入 `unicode-segmentation` ✅ 已完成（边界层封装 + 中英/中数插空规则迁移）
 
 - 轻量 Rust crate（UAX #29 Grapheme / Word / Sentence 边界，MIT/Apache-2.0）；
 - 先建独立封装层 `src-tauri/src/engine/unicode_boundaries.rs`，不立即全面替换 tokenizer；

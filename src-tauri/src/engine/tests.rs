@@ -42,6 +42,10 @@ fn load_golden_cases() -> Vec<(String, GoldenCase)> {
             "selection-and-regressions.yaml",
             include_str!("../../tests/fixtures/selection-and-regressions.yaml"),
         ),
+        (
+            "unicode-boundaries.yaml",
+            include_str!("../../tests/fixtures/unicode-boundaries.yaml"),
+        ),
     ]
     .into_iter()
     .flat_map(|(file, yaml)| {
@@ -371,6 +375,8 @@ fn protected_cases_are_idempotent() {
         "样品为FeCl₂·4H₂O，纯度99%",
         "铁离子Fe²⁺用于反应",
         "不与MIONPs、Fe²⁺或DA-PEG-DA/PEG接触",
+        "𠀀Fe²⁺用于反应",
+        "中文👨‍👩‍👧‍👦GitHub",
     ];
     for src in cases {
         let once = format_text(&req(src)).unwrap();
@@ -405,4 +411,38 @@ fn handles_utf8_multibyte_and_emoji() {
         format_text(&req("第一行LeanCloud\n第二行5000元\n第三行👍")).unwrap(),
         "第一行 LeanCloud\n第二行 5000 元\n第三行👍"
     );
+}
+
+/// roadmap §5：新旧边界策略在既有黄金样例输入上输出必须一致；
+/// grapheme 策略的新行为只体现在 unicode-boundaries.yaml 中。
+#[test]
+fn spacing_rules_grapheme_strategy_matches_legacy_on_golden_inputs() {
+    use super::rule_impls::{cn_digit_space_with, cn_en_space_with};
+    use super::unicode_boundaries::BoundaryStrategy;
+
+    for (file, case) in load_golden_cases() {
+        assert_eq!(
+            cn_en_space_with(&case.input, BoundaryStrategy::LegacyChars),
+            cn_en_space_with(&case.input, BoundaryStrategy::Graphemes),
+            "cn_en_space diverged on {file} / {}",
+            case.name
+        );
+        assert_eq!(
+            cn_digit_space_with(&case.input, BoundaryStrategy::LegacyChars),
+            cn_digit_space_with(&case.input, BoundaryStrategy::Graphemes),
+            "cn_digit_space diverged on {file} / {}",
+            case.name
+        );
+    }
+}
+
+/// 化学式检测不经过 Unicode 边界层：扩展区 B 文本中的化学式 span 保持不变。
+#[test]
+fn chemical_detection_unaffected_by_boundary_layer() {
+    use super::tokenizer::detect_chemical_formulas as detect;
+
+    let sample = "𠀀Fe²⁺用于反应";
+    let spans = detect(sample);
+    assert_eq!(spans.len(), 1);
+    assert_eq!(&sample[spans[0].0..spans[0].1], "Fe²⁺");
 }

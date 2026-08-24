@@ -1,6 +1,8 @@
 use regex::Regex;
 use std::sync::OnceLock;
 
+use super::unicode_boundaries::{units, BoundaryStrategy, TextUnit};
+
 // engine/tokenizer.rs
 // =============================================================================
 // 字符分类与语义片段识别。
@@ -80,6 +82,19 @@ pub fn tokenize(text: &str) -> Vec<Token> {
 
 pub fn contains_cjk(text: &str) -> bool {
     text.chars().any(|ch| classify(ch) == CharKind::Cjk)
+}
+
+// ---------------------------------------------------------------------------
+// 插空规则专用：基于 Unicode 边界层的判定单位（roadmap §5）。
+//
+// 生产路径固定使用 Graphemes 策略，避免 emoji ZWJ / 组合附加符被切断；
+// LegacyChars 仅供测试对比新旧实现。化学式检测不经过这里，
+// 继续沿用保守正则 + 字节区间（见 detect_chemical_formulas）。
+// ---------------------------------------------------------------------------
+
+/// 插空类规则的判定单位序列。
+pub(crate) fn spacing_units(text: &str, strategy: BoundaryStrategy) -> Vec<TextUnit<'_>> {
+    units(text, strategy)
 }
 
 // ---------------------------------------------------------------------------
