@@ -79,8 +79,78 @@ fn link_patterns() -> &'static Vec<FancyRegex> {
 pub fn protect(text: &str, placeholders: &mut Vec<(String, String)>) -> Result<String, String> {
     let linked = protect_markdown_links(text, placeholders);
     let table_protected = protect_markdown_table_lines(&linked, placeholders);
-    let protected = protect_with(protect_patterns(), &table_protected, placeholders)?;
+    let html_protected = protect_html_blocks(&table_protected, placeholders);
+    let protected = protect_with(protect_patterns(), &html_protected, placeholders)?;
     Ok(protect_inline_code(&protected, placeholders))
+}
+
+/// 保护常见 Markdown HTML block，避免 block 内部文本被普通规则改写。
+///
+/// 仅从行首（允许最多 3 个空格）识别块级标签；行内标签如
+/// `<span>GitHub</span>` 不会进入此保护路径。未闭合 block 保持普通文本，
+/// 避免把后续文档内容整体吞入占位符。
+fn protect_html_blocks(text: &str, placeholders: &mut Vec<(String, String)>) -> String {
+    let lines: Vec<&str> = text.split('\n').collect();
+    let mut output = Vec::with_capacity(lines.len());
+    let mut index = 0;
+
+    while index < lines.len() {
+        let Some(tag) = html_block_opening_tag(lines[index]) else {
+            output.push(lines[index].to_string());
+            index += 1;
+            continue;
+        };
+
+        let Some(end) = find_html_block_end(&lines, index, tag) else {
+            output.push(lines[index].to_string());
+            index += 1;
+            continue;
+        };
+
+        let block = lines[index..=end].join("\n");
+        let ph = placeholder(placeholders.len());
+        placeholders.push((ph.clone(), block));
+        output.push(ph);
+        index = end + 1;
+    }
+
+    output.join("\n")
+}
+
+fn html_block_opening_tag(line: &str) -> Option<&'static str> {
+    let trimmed = line.trim_start_matches([' ', '\t']);
+    if line.len() - trimmed.len() > 3 || !trimmed.starts_with('<') {
+        return None;
+    }
+
+    const TAGS: [&str; 18] = [
+        "div", "section", "article", "aside", "header", "footer", "nav", "main", "table", "thead",
+        "tbody", "tr", "ul", "ol", "li", "pre", "script", "style",
+    ];
+    TAGS.into_iter().find(|tag| {
+        let prefix_len = 1 + tag.len();
+        let Some(prefix) = trimmed.get(..prefix_len) else {
+            return false;
+        };
+        let Some(rest) = trimmed.get(prefix_len..) else {
+            return false;
+        };
+        prefix.eq_ignore_ascii_case(&format!("<{tag}"))
+            && rest
+                .chars()
+                .next()
+                .is_some_and(|ch| ch.is_ascii_whitespace() || ch == '>' || ch == '/')
+    })
+}
+
+fn find_html_block_end(lines: &[&str], start: usize, tag: &str) -> Option<usize> {
+    let closing = format!("</{tag}");
+    for (index, line) in lines.iter().enumerate().skip(start) {
+        if line.to_ascii_lowercase().contains(&closing) {
+            return Some(index);
+        }
+    }
+    None
 }
 
 /// 保护 Markdown 表格分隔行，避免分隔符中的短横线被标点规则改写。

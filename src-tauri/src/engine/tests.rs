@@ -476,6 +476,12 @@ fn formats_protected_content() {
         r#"图片 ![alt text](image/path.png "title") 很好"#
     );
 
+    let html_block = "<div class=\"notice\">\n在GitHub上发布5000元\n</div>\n正文在GitHub上发布";
+    assert_eq!(
+        format_text(&req(html_block)).unwrap(),
+        "<div class=\"notice\">\n在GitHub上发布5000元\n</div>\n正文在 GitHub 上发布"
+    );
+
     let html_comment = "文本\n<!-- 注释GitHub 5000元\n第二行10cm -->\n结束";
     assert_eq!(format_text(&req(html_comment)).unwrap(), html_comment);
 
