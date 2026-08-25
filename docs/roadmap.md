@@ -87,6 +87,8 @@ frontend/src/hooks/useShortcuts.ts # 监听、启停、IME 防护、动作分发
 | E | P2 | Unicode 等价识别与输出规范化（默认关闭） | 规划 |
 | F | P2 | 性能基准与边界回归纳入 CI | 规划 |
 
+当前开发主线为 `dev`。阶段 A–B 已完成，阶段 C–D 的第一批功能已落地；R2/R3 是在不改变现有用户输出的前提下，为后续 Span/Edit 迁移建立调度和编辑基础设施。
+
 ### 5.3 阶段 A：测试先行（P0，先行于任何新规则/保护层改动）
 
 不引入新依赖，先沉淀行为基线：
@@ -118,6 +120,13 @@ frontend/src/hooks/useShortcuts.ts # 监听、启停、IME 防护、动作分发
 - 阶段 A 已完成：上述 fixture 已补齐，稳定黄金样例与 pending 基线已在 `src-tauri/src/engine/tests.rs` 中分离，并已加入稳定样例幂等性测试；Rust、前端和 diff 检查均已纳入验证流程。
 - 阶段 A 后续维护已新增复杂组合、规则交互、结构优先级及换行/幂等性 fixture；其中结构优先级样例暂作为 pending 基线，已记录“行内代码应优先于单位/数学扫描”的当前差异，待 span/edit 重构后迁移到稳定黄金回归集。
 
+#### 阶段 A 当前验收结果
+
+- 稳定黄金 fixture 与 pending baseline 已在 `engine/tests.rs` 分离；
+- 已增加 `complex-compositions.yaml`、`rule-interactions.yaml`、`structure-precedence.yaml`、`newline-and-idempotence.yaml`；
+- 已覆盖默认规则、单规则、复杂规则组合、换行风格、幂等性和结构优先级差异；
+- 当前 Rust 全量测试为 66 项，pending 基线不阻断 CI，但必须持续保留可观测差异。
+
 ### 5.4 阶段 B：`unicode-segmentation` 与统一字符边界层（P1）✅ 已在 `unicode-boundaries` 分支实现
 
 - 轻量 Rust crate（UAX #29 Grapheme / Word / Sentence 边界，MIT/Apache-2.0）；
@@ -145,6 +154,13 @@ frontend/src/hooks/useShortcuts.ts # 监听、启停、IME 防护、动作分发
 - 待完成：继续扩充完整单位词典、评估是否需要独立的温度规则 stable key；当前已支持有限范围的 `/` 复合单位（如 `mg/mL`、`m/s`、`kg/m³`），已将第一批 `measurements.yaml` 与 `mathematical-symbols.yaml` 案例迁移到稳定黄金回归集，并完成明确数学表达式的首批保守识别。
 - 约束：继续禁止使用 `\p{L}+` 作为通用单位识别；不默认做 Unicode 等价字符规范化；不改变化学式保护层优先级。
 
+#### 阶段 C 未完成项
+
+- 完整单位词典和更完整复合单位语法；
+- 温度表示的独立 stable key 评估及与 `spacing.temperature-cjk` 的最终兼容方案；
+- `MathExpression` 的更完整语法边界；
+- 将语义边界从当前规则函数迁移到统一 TextEdit 计划，并补充旧/新路径输出对照。
+
 - 不使用「任意 Unicode 字母都可当单位」的宽泛 regex，改用**有限词典 + 复合语法**：
   - 基础单位：`m` / `g` / `s` / `L` / `mol` / `K` / `Pa` / `Hz` / `N` / `J` / `W` / `V` / `A` / `Ω` / `dB` / `rad` / `rpm` / `px` 等；显式常用项包括 `cm` / `cL` / `hPa`；
   - 常用前缀：`k` / `M` / `G` / `m` / `μ` / `µ` / `n` / `p`；
@@ -167,7 +183,7 @@ frontend/src/hooks/useShortcuts.ts # 监听、启停、IME 防护、动作分发
 ### 5.6 阶段 D：Markdown 块级扫描器与行内保护扩展（P2）
 
 - 在保留占位符机制前提下，将管线从「所有非空行均规则处理」调整为「只格式化可编辑文本区间」；
-- 块级扫描器首批识别：YAML front matter、fenced / indented code block、HTML 注释与 HTML block、表格分隔行、引用式链接定义；当前已完成 YAML front matter、HTML 注释、HTML block、表格分隔行与引用式链接定义保护，其他案例仍保留在 pending 基线；
+- 块级扫描器首批识别：YAML front matter、fenced / indented code block、HTML 注释与 HTML block、表格分隔行、引用式链接定义；生产 placeholder 保护已覆盖这些首批结构，Span 层也已完成对应只读扫描，统一迁移仍待 R3 后续阶段；
 - 行内保护扩展：
   - 任意长度反引号 delimiter（`` ` `` / `` `` ` `` / `` ``` `` 等）；当前已完成同长度 delimiter 的行内代码保护；
   - Markdown 链接的平衡括号与引用式链接；当前已完成嵌套括号链接/图片保护；
@@ -178,20 +194,53 @@ frontend/src/hooks/useShortcuts.ts # 监听、启停、IME 防护、动作分发
   - 检测到明显 Markdown 标记时默认启用「Markdown 安全模式」（宁漏格式化、不破坏结构）；
   - 把「识别等价性」与「输出改写」分离：识别可视为等价，改写默认关闭。
 
-### 5.7 阶段 E：Unicode 等价识别与输出规范化（P2）
+#### 阶段 D 当前限制
+
+- 当前保护实现仍是手写扫描器、有限 `fancy-regex` 与 placeholder 的混合模式；
+- `spans.rs` 已能扫描首批块级/行内结构并与语义 span 仲裁，但尚未接管 `protection.rs` 或 `pipeline.rs`；
+- `edit_plan.rs` 已能规划并应用测试用 TextEdit，但尚未替换现有逐行规则管线；
+- 行内代码优先于单位/数学扫描的目标行为仍由 `structure-precedence.yaml` 作为 pending 基线冻结；
+- 不将当前能力宣称为完整 CommonMark/HTML 解析器。
+
+### 5.7 R2/R3：规则调度与 Span/Edit 迁移基础（P1/P2，进行中）
+
+#### 已完成
+
+- `RulePhase`：标点规范化、名词规范化、结构边界、文本边界、最终清理；
+- `RuleDef.before/after` 依赖元数据；
+- 稳定拓扑排序，同 phase 使用注册表顺序作为 tie-break；
+- 未知依赖、重复 key、循环依赖测试；
+- `SpanKind` / `SpanPriority` / `TextSpan`；
+- 语义 span：化学式、Measurement、Temperature、ScientificUnit、MathExpression；
+- 结构 span：fenced code、front matter、HTML block/comment、引用式链接定义、缩进代码、表格分隔行、行内代码、Markdown 链接、美元数学；
+- span 重叠仲裁：结构 > 语义原子 > 可编辑文本；
+- `TextEdit` UTF-8 边界校验、编辑冲突仲裁、逆序应用；
+- 单位和数学边界的测试用编辑计划。
+
+#### 未完成
+
+- 将结构/语义 span 正式接入现有保护层；
+- 将 `TextEdit` 正式接入 `format_text`；
+- 将 `spacing.number-unit`、温标、数学边界和全角标点清理迁移为 span-aware edits；
+- 移除普通/数学多套 placeholder 编号约定；
+- 解决所有结构优先级 pending 案例并迁移为稳定黄金 fixture；
+- 增加编辑计划与旧 placeholder 路径的逐例 diff 对照；
+- 建立 10 KB/100 KB/1 MB 性能和内存基线。
+
+### 5.8 阶段 E：Unicode 等价识别与输出规范化（P2）
 
 - 识别阶段可把 `µ/μ`、`Å/Å` 视为等价语义；
 - 输出阶段不擅自用 NFKC 改写用户原文（如 `µm` → `μm`、`Å` → `Å`）；
 - 若需统一表示，须作为独立、默认关闭的 Unicode 规范化规则，并评估对数学字母、全角符号的影响（与 §6 ICU4X 规范化评估对齐）。
 
-### 5.8 阶段 F：性能基准与边界回归（P2）
+### 5.9 阶段 F：性能基准与边界回归（P2）
 
 - 基准输入：10 KB / 100 KB / 1 MB × {纯中文、中英数混排、Markdown / URL / LaTeX 密集、emoji 与组合字符密集、CJK 扩展区密集}；
 - 记录耗时、峰值内存、保护层正则占比与规则数增长退化趋势；
 - 重点剖析 `protection.rs` fancy-regex 调用次数、占位符替换复杂度；
 - 目标：1 MB 文本不阻塞 UI，无旧结果覆盖，有明确处理反馈（与 §8 对齐）。
 
-### 5.9 不建议直接采用的做法
+### 5.10 不建议直接采用的做法
 
 1. 不把单位正则直接扩展为 `\p{L}+`——会把自然语言英文、变量名、产品名误判为单位；
 2. 不对全文默认做 NFKC——可能改变 `Å`、兼容字符、数学字母、全角符号等原文语义；
