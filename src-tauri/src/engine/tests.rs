@@ -505,6 +505,18 @@ fn formats_protected_content() {
         format_text(&req("未闭合<span>GitHub继续")).unwrap(),
         "未闭合 <span> GitHub 继续"
     );
+    assert_eq!(
+        format_text(&req("在\\*此处\\*粗体GitHub发布")).unwrap(),
+        "在\\*此处\\*粗体 GitHub 发布"
+    );
+    assert_eq!(
+        format_text(&req("转义\\*标记\\*和\\_强调\\_继续GitHub")).unwrap(),
+        "转义\\*标记\\*和\\_强调\\_继续 GitHub"
+    );
+    assert_eq!(
+        format_text(&req(r"路径是 <windows-user-home>，价格是\$100")).unwrap(),
+        r"路径是 <windows-user-home>，价格是\$100"
+    );
 
     let html_comment = "文本\n<!-- 注释GitHub 5000元\n第二行10cm -->\n结束";
     assert_eq!(format_text(&req(html_comment)).unwrap(), html_comment);

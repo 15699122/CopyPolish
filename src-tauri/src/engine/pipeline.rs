@@ -15,8 +15,8 @@ use std::collections::HashSet;
 use super::model::{FormatRequest, RuleSelection};
 use super::protection::{
     is_placeholder_line, protect, protect_byte_spans, protect_byte_spans_with_offset,
-    protect_markdown_lines, restore, space_around_inline_placeholders,
-    space_around_math_placeholders,
+    protect_markdown_lines, restore, restore_escaped_markdown_adjacency,
+    space_around_inline_placeholders, space_around_math_placeholders,
 };
 use super::registry::rules;
 use super::semantic_tokens::scan_math_expressions;
@@ -75,6 +75,7 @@ pub fn format_text(req: &FormatRequest) -> Result<String, String> {
     let formatted = space_around_math_placeholders(&formatted, &math_placeholders);
     let restored = restore(&formatted, &placeholders);
     let restored = restore(&restored, &math_placeholders);
+    let restored = restore_escaped_markdown_adjacency(&restored, &placeholders);
     Ok(restore_newlines(&restored, newline))
 }
 

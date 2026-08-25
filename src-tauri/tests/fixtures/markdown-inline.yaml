@@ -1,8 +1,2 @@
 # Markdown 行内保护 pending 基线。
 # 目标是保护结构，同时继续格式化结构外的普通文本。
-
-- name: 转义 Markdown 标记保持完整
-  selection:
-    mode: defaults
-  input: 在\*此处\*粗体GitHub发布
-  expected: 在\*此处\*粗体 GitHub 发布

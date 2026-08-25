@@ -94,6 +94,12 @@
   input: 未闭合<span>GitHub继续
   expected: 未闭合 <span> GitHub 继续
 
+- name: 转义 Markdown 标记保持完整而普通正文继续格式化
+  selection:
+    mode: defaults
+  input: 转义\*标记\*和\_强调\_继续GitHub
+  expected: 转义\*标记\*和\_强调\_继续 GitHub
+
 - name: YAML front matter 保持完整而正文继续格式化
   selection:
     mode: defaults
