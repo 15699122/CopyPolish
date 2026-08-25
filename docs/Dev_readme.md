@@ -95,6 +95,12 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
 4. 行内占位符补空格时须过滤跨行值（fenced block 不补空格）。
 5. 规则选择由 `FormatRequest.selection` 显式表达：`all` 执行全部规则，`defaults` 执行默认规则，`only` 执行指定 key，`none` 不执行任何规则。用户设置文件继续保存 `enabled: string[]`，其中空数组表示“全不选”，由前端转换为 `none`。
 6. 保护规则或 tokenizer 新增/调整后，必须补充 Markdown / LaTeX / URL / 邮箱 / 代码 / 化学式边界测试。
+7. `spacing.cjk-latin` 除直接中英相邻外，还处理 Markdown 单星强调片段 `*word*`（word 仅含 ASCII 字母）与 CJK 或比较运算符 `<`/`>`/`=` 相邻的边界；与英文字母/数字相邻（如 `a*b*c`）及 `**粗体**` 不受影响。调整边界字符集时须同步更新 spacing.yaml 黄金样例与幂等用例。
+8. `spacing.cjk-latin` 另处理以 Unicode 上标结尾的科学单位片段（如 `mg·mL⁻¹`：字母开头、可含 `·` 连接段、以上标字符结尾）与相邻中文之间的空格；片段内部不改写，化学式在保护层已转为占位符不会进入该规则。浏览器预览的 `fallbackFormat` 须同步对应边界行为。
+9. 复杂排版增强（多行文本、特殊单位 `μm/µm`、`Å/Å`、`Ω`、数学符号 `∂/±/≤`、Markdown 结构、Unicode 边界）按 `docs/roadmap.md` §5 的阶段推进，遵循「测试先行、保守保护、能力分层、不默认改写原文」；阶段 A（测试先行）优先于任何新规则或保护层改动落地。
+10. 单位识别采用有限词典 + 复合语法（`unit_lexicon.rs` / `semantic_tokens.rs`），不把正则直接扩展为 `\p{L}+`，避免把自然语言英文、变量名、产品名误判为单位。
+11. Markdown 安全处理：检测到明显 Markdown 标记时默认启用安全模式（宁漏格式化、不破坏结构）；块级（front matter / fenced、缩进代码 / HTML 注释 / 表格分隔行 / 引用式链接定义）与行内（任意长度反引号 / 链接平衡括号 / HTML 标签 / 行内数学 / 转义字符）保护通过状态机实现，并保持「保护 → 仅格式化可编辑区间 → 还原」的管线。
+12. Unicode 等价识别与输出规范化分离：识别层把 `µ/μ`、`Å/Å` 视为等价语义，输出层默认不改写用户原文；如提供统一表示，须作为独立、默认关闭的规范化规则并评估 NFKC 影响。
 
 ## 用户设置持久化
 
@@ -236,7 +242,7 @@ git diff --check
 
 1. 真实 Windows 机器人工验收：下载 CI 的 `windows-portable` artifact，运行 `.exe`，输入 `在LeanCloud上，花了5000元` → 应输出 `在 LeanCloud 上，花了 5000 元`；验证设置弹窗 12 条规则、开关即时重排、设置文件持久化、高 DPI 显示。
 2. 正式发布 `v0.5.0`：人工复核 Release 资产、Release Notes、版本号和 latest 标记。
-3. `v0.5.0` 发布后的中长期工作（本地构建/手动发布自动化脚本、快捷键开关与自定义、Unicode 引擎升级、ICU4X 评估、E2E、性能基准、hooks 拆分等）统一在 [roadmap.md](roadmap.md) 跟踪。
+3. `v0.5.0` 发布后的中长期工作（本地构建/手动发布自动化脚本、快捷键开关与自定义、复杂排版与 Unicode 基础能力增强（多行/Markdown/特殊单位/数学符号）、Unicode 引擎升级、ICU4X 评估、E2E、性能基准、hooks 拆分等）统一在 [roadmap.md](roadmap.md) 跟踪，其中复杂排版增强的详细阶段计划见其 §5。
 
 ## 图标
 

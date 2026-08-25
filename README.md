@@ -87,6 +87,7 @@ Windows 版依赖系统的 WebView2 Evergreen Runtime。Windows 10/11 通常已�
 
 例如 `$E=mc^2$`、代码块中的符号、链接地址、化学式通常不会被规则拆开或替换。
 
+> 规划中：对复杂 Markdown 结构（表格、引用式链接、多反引号行内代码、YAML front matter 等）、更多特殊单位（`μm/µm`、`Å/Å`、`Ω` 等）与数学符号（`∂/±/≤` 等）、以及更细粒度的 Unicode 边界（emoji ZWJ、CJK 扩展区）的识别与处理能力，正在按开发路线图分阶段增强。详见 [docs/roadmap.md](docs/roadmap.md) §5。当前版本以「宁漏格式化、不破坏结构」为保护原则。
 
 ## 用户设置
 
