@@ -49,6 +49,12 @@
   input: 压力760mmHg，能量5eV，转速1200rpm，音量30dB
   expected: 压力 760 mmHg，能量 5 eV，转速 1200 rpm，音量 30 dB
 
+- name: 常见公制与气压单位整体保留并插空
+  selection:
+    mode: defaults
+  input: 长度10cm，容量20cL，气压1013hPa
+  expected: 长度 10 cm，容量 20 cL，气压 1013 hPa
+
 - name: 千分号与中文边界保持
   selection:
     mode: defaults
