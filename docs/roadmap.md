@@ -79,7 +79,7 @@ frontend/src/hooks/useShortcuts.ts # 监听、启停、IME 防护、动作分发
 
 | 阶段 | 优先级 | 内容 | 状态 |
 | --- | --- | --- | --- |
-| A | P0 | 测试先行：补齐失败型黄金样例与测试矩阵（本次分析已产出样例清单） | 规划 |
+| A | P0 | 测试先行：补齐复杂排版 fixture，并区分稳定回归与待实现基线 | 🚧 进行中 |
 | B | P1 | `unicode-segmentation` 与统一字符边界层 | ✅ 已完成（见 5.4） |
 | C | P1 | 单位词典与语义 token（特殊单位 / 温度 / 数学符号分类） | 规划 |
 | D | P2 | Markdown 块级扫描器与行内保护扩展 | 规划 |
@@ -107,6 +107,22 @@ frontend/src/hooks/useShortcuts.ts # 监听、启停、IME 防护、动作分发
    └── regressions.yaml
    ```
 3. 每个样例同时覆盖：单规则、默认规则组合、Markdown 保护组合、幂等性、LF / CRLF / CR 保留、长文本性能回归。
+
+阶段 A 的测试分层约束：
+
+- 当前已实现的行为进入稳定黄金回归集，必须通过 `cargo test` 与 CI；
+- 阶段 C/D 尚未实现但已经确认目标的行为进入 pending 基线，只要求 fixture 可解析并记录当前差异，不得让 CI 长期失败；
+- 数学表达式与中文之间的精确空格、HTML block 内可见文本是否完全冻结等尚未完成产品决策的行为，不在决策前作为唯一正确输出；
+- 阶段 C/D 完成对应实现后，pending 案例必须迁移到稳定黄金回归集，并补充幂等性断言；
+- 阶段 A 本轮只修改 fixture、测试 loader、测试辅助逻辑和文档，不修改引擎规则实现。
+
+阶段 A 当前收尾任务：
+
+1. 补齐 `measurements.yaml`、`mathematical-symbols.yaml`、`markdown-inline.yaml`、`markdown-blocks.yaml`、`punctuation-contexts.yaml`；
+2. 在 `src-tauri/src/engine/tests.rs` 中分离稳定黄金样例与 pending 基线；
+3. 为稳定黄金样例增加数据驱动幂等性测试；
+4. 使用 pending 基线锁定阶段 C/D 的目标差异；
+5. 通过 Rust 格式、Clippy、测试、前端测试/构建和 `git diff --check` 验证。
 
 ### 5.4 阶段 B：`unicode-segmentation` 与统一字符边界层（P1）✅ 已在 `unicode-boundaries` 分支实现
 

@@ -20,7 +20,15 @@ fn req(text: &str) -> FormatRequest {
 
 use crate::engine::registry::keys;
 
-fn load_golden_cases() -> Vec<(String, GoldenCase)> {
+fn parse_fixture(file: &str, yaml: &str) -> Vec<(String, GoldenCase)> {
+    serde_yaml::from_str::<Vec<GoldenCase>>(yaml)
+        .unwrap_or_else(|error| panic!("failed to parse fixture {file}: {error}"))
+        .into_iter()
+        .map(|case| (file.to_string(), case))
+        .collect()
+}
+
+fn load_passing_golden_cases() -> Vec<(String, GoldenCase)> {
     [
         (
             "spacing.yaml",
@@ -48,18 +56,41 @@ fn load_golden_cases() -> Vec<(String, GoldenCase)> {
         ),
     ]
     .into_iter()
-    .flat_map(|(file, yaml)| {
-        serde_yaml::from_str::<Vec<GoldenCase>>(yaml)
-            .unwrap_or_else(|error| panic!("failed to parse fixture {file}: {error}"))
-            .into_iter()
-            .map(move |case| (file.to_string(), case))
-    })
+    .flat_map(|(file, yaml)| parse_fixture(file, yaml))
+    .collect()
+}
+
+fn load_pending_baseline_cases() -> Vec<(String, GoldenCase)> {
+    [
+        (
+            "measurements.yaml",
+            include_str!("../../tests/fixtures/measurements.yaml"),
+        ),
+        (
+            "mathematical-symbols.yaml",
+            include_str!("../../tests/fixtures/mathematical-symbols.yaml"),
+        ),
+        (
+            "markdown-inline.yaml",
+            include_str!("../../tests/fixtures/markdown-inline.yaml"),
+        ),
+        (
+            "markdown-blocks.yaml",
+            include_str!("../../tests/fixtures/markdown-blocks.yaml"),
+        ),
+        (
+            "punctuation-contexts.yaml",
+            include_str!("../../tests/fixtures/punctuation-contexts.yaml"),
+        ),
+    ]
+    .into_iter()
+    .flat_map(|(file, yaml)| parse_fixture(file, yaml))
     .collect()
 }
 
 #[test]
 fn golden_fixtures_match_expected_output() {
-    let cases = load_golden_cases();
+    let cases = load_passing_golden_cases();
     assert!(!cases.is_empty(), "golden fixture suite must not be empty");
 
     for (file, case) in &cases {
@@ -80,7 +111,7 @@ fn golden_fixtures_match_expected_output() {
 
 #[test]
 fn golden_fixtures_cover_every_registered_rule() {
-    let cases = load_golden_cases();
+    let cases = load_passing_golden_cases();
     let covered: std::collections::HashSet<&str> = cases
         .iter()
         .flat_map(|(_, case)| match &case.selection {
@@ -94,6 +125,61 @@ fn golden_fixtures_cover_every_registered_rule() {
             covered.contains(rule.key()),
             "no golden fixture covers registered rule {}",
             rule.key()
+        );
+    }
+}
+
+#[test]
+fn pending_baselines_are_loadable_and_expose_unimplemented_behavior() {
+    let cases = load_pending_baseline_cases();
+    assert!(
+        !cases.is_empty(),
+        "pending baseline suite must not be empty"
+    );
+
+    let mismatches: Vec<String> = cases
+        .iter()
+        .filter_map(|(file, case)| {
+            let request = FormatRequest {
+                text: case.input.clone(),
+                selection: case.selection.clone(),
+            };
+            let actual = format_text(&request).unwrap_or_else(|error| {
+                panic!("fixture {file} / {} failed to format: {error}", case.name)
+            });
+            (actual != case.expected).then(|| {
+                format!(
+                    "{file} / {}\n  expected: {:?}\n  actual:   {:?}",
+                    case.name, case.expected, actual
+                )
+            })
+        })
+        .collect();
+
+    assert!(
+        !mismatches.is_empty(),
+        "pending baseline unexpectedly has no current gaps; review and promote it to passing fixtures"
+    );
+}
+
+#[test]
+fn passing_golden_fixtures_are_idempotent() {
+    for (file, case) in load_passing_golden_cases() {
+        let request = FormatRequest {
+            text: case.input,
+            selection: case.selection,
+        };
+        let once = format_text(&request)
+            .unwrap_or_else(|error| panic!("fixture {file} / {} failed: {error}", case.name));
+        let twice = format_text(&FormatRequest {
+            text: once.clone(),
+            selection: request.selection,
+        })
+        .unwrap_or_else(|error| panic!("fixture {file} / {} failed twice: {error}", case.name));
+        assert_eq!(
+            once, twice,
+            "fixture {file} / {} is not idempotent",
+            case.name
         );
     }
 }
@@ -432,7 +518,7 @@ fn spacing_rules_grapheme_strategy_matches_legacy_on_golden_inputs() {
     use super::rule_impls::{cn_digit_space_with, cn_en_space_with};
     use super::unicode_boundaries::BoundaryStrategy;
 
-    for (file, case) in load_golden_cases() {
+    for (file, case) in load_passing_golden_cases() {
         assert_eq!(
             cn_en_space_with(&case.input, BoundaryStrategy::LegacyChars),
             cn_en_space_with(&case.input, BoundaryStrategy::Graphemes),

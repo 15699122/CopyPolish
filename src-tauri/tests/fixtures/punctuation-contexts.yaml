@@ -1,0 +1,50 @@
+# 标点上下文阶段 A 基线。
+# 重点冻结 URL、代码、HTML、LaTeX 与表格上下文中的标点安全边界。
+
+- name: 表格分隔竖线保持完整
+  selection:
+    mode: defaults
+  input: |
+    | a | b |
+    | --- | --- |
+    | x,y | z |
+  expected: |
+    | a | b |
+    | --- | --- |
+    | x，y | z |
+
+- name: 链接 URL 中的标点保持半角
+  selection:
+    mode: defaults
+  input: 见[官网](https://example.com/a,b;c?x=1&y=2)结束
+  expected: 见 [官网](https://example.com/a,b;c?x=1&y=2) 结束
+
+- name: 代码块内标点保持完整
+  selection:
+    mode: defaults
+  input: |
+    ```text
+    Hello, World! ; :
+    ```
+  expected: |
+    ```text
+    Hello, World! ; :
+    ```
+
+- name: HTML 属性中的标点保持完整
+  selection:
+    mode: defaults
+  input: '<a href="https://example.com/x,y;z">GitHub</a>'
+  expected: '<a href="https://example.com/x,y;z">GitHub</a>'
+
+- name: LaTeX 行内表达式中的逗号保持半角
+  selection:
+    mode: defaults
+  input: 公式$E=mc^2,F=ma$很重要
+  expected: 公式 $E=mc^2,F=ma$ 很重要
+
+- name: 英文整句中的半角标点保持
+  selection:
+    mode: defaults
+  input: Hello，world！
+  expected: Hello, world！

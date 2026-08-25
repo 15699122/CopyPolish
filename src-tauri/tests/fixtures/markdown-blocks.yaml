@@ -1,0 +1,71 @@
+# Markdown 块级保护阶段 A 基线。
+
+- name: YAML front matter 保持完整
+  selection:
+    mode: defaults
+  input: |
+    ---
+    title: 在GitHub上发布
+    ---
+    正文在GitHub上发布
+  expected: |
+    ---
+    title: 在GitHub上发布
+    ---
+    正文在 GitHub 上发布
+
+- name: fenced code block 保持完整
+  selection:
+    mode: defaults
+  input: |
+    示例：
+    ```python
+    print('github; $x | y')
+    ```
+    结束GitHub
+  expected: |
+    示例：
+    ```python
+    print('github; $x | y')
+    ```
+    结束 GitHub
+
+- name: 缩进代码块保持完整
+  selection:
+    mode: defaults
+  input: |
+    命令：
+        npm install foo/bar; echo '$x|y'
+    完成GitHub
+  expected: |
+    命令：
+        npm install foo/bar; echo '$x|y'
+    完成 GitHub
+
+- name: HTML 注释保持完整
+  selection:
+    mode: defaults
+  input: |
+    文本
+    <!-- 注释GitHub 5000元 -->
+    结束
+  expected: |
+    文本
+    <!-- 注释GitHub 5000元 -->
+    结束
+
+- name: blockquote 内部文字继续格式化
+  selection:
+    mode: defaults
+  input: '> LeanCloud发布GitHub项目'
+  expected: '> LeanCloud 发布 GitHub 项目'
+
+- name: 任务列表标记保持完整
+  selection:
+    mode: defaults
+  input: |
+    - [x] 完成GitHub发布
+    - [ ] 编写文档5000字
+  expected: |
+    - [x] 完成 GitHub 发布
+    - [ ] 编写文档 5000 字
