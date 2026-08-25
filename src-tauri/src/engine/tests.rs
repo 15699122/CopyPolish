@@ -267,6 +267,10 @@ fn formats_unicode_and_compound_measurements_without_word_false_positives() {
         "浓度 30 mg·mL⁻¹，密度 2 kg·m⁻³"
     );
     assert_eq!(
+        format_text(&req("浓度30mg/mL，流速2m/s，密度2kg/m³，浓度4mol/L")).unwrap(),
+        "浓度 30 mg/mL，流速 2 m/s，密度 2 kg/m³，浓度 4 mol/L"
+    );
+    assert_eq!(
         format_text(&req("25°C保存，68°F运输")).unwrap(),
         "25°C 保存，68°F 运输"
     );

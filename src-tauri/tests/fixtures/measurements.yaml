@@ -37,6 +37,12 @@
   input: 浓度30mg·mL⁻¹，密度2kg·m⁻³
   expected: 浓度 30 mg·mL⁻¹，密度 2 kg·m⁻³
 
+- name: 斜线复合单位整体保留并插空
+  selection:
+    mode: defaults
+  input: 浓度30mg/mL，流速2m/s，密度2kg/m³，浓度4mol/L
+  expected: 浓度 30 mg/mL，流速 2 m/s，密度 2 kg/m³，浓度 4 mol/L
+
 - name: ASCII 温标表记（°C / °F）与中文之间插空
   selection:
     mode: defaults

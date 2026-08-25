@@ -25,6 +25,8 @@ fn measurement_re() -> &'static Regex {
             r"(?:",
             r"(?:mg|kg|mol)\s*(?:[·⋅])\s*[A-Za-z]+[⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎]+",
             r"|",
+            r"(?:mg|kg|mol|mL|m|g|s|L|Pa|Hz|N|J|W|V|A|rad|rpm|px|eV|mmHg)\s*[/／]\s*(?:mg|kg|mol|mL|m|g|s|L|Pa|Hz|N|J|W|V|A|rad|rpm|px|eV|mmHg)(?:[⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎]+)?",
+            r"|",
             r"(?:mmHg|dB|rpm|Hz|Pa|mol|rad|px|eV|TB|GB|Gbps|Mbps|kΩ|MΩ|GΩ|Ω)",
             r"|",
             r"(?:k|M|G|T|m|μ|µ|n|p)?(?:m|g|s|L|K|Pa|Hz|N|J|W|V|A|B)",
@@ -72,8 +74,9 @@ mod tests {
 
     #[test]
     fn recognizes_finite_unicode_and_compound_units() {
-        let spans = scan_measurements("10μm 10µm 10Å 10Å 20kΩ 3mg·mL⁻¹ 2kg·m⁻³ 25°C");
-        assert_eq!(spans.len(), 8);
+        let spans =
+            scan_measurements("10μm 10µm 10Å 10Å 20kΩ 3mg·mL⁻¹ 2kg·m⁻³ 3mg/mL 2kg/m³ 4mol/L 25°C");
+        assert_eq!(spans.len(), 11);
     }
 
     #[test]

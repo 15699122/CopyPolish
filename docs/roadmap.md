@@ -148,7 +148,7 @@ frontend/src/hooks/useShortcuts.ts # 监听、启停、IME 防护、动作分发
 - 已实现：`src-tauri/src/engine/unit_lexicon.rs`、`semantic_tokens.rs`；
 - 已迁移：`spacing.number-unit` stable key 继续保留，内部改用有限词典扫描；
 - 已覆盖：`μm/µm`、`Å/Å`、`Ω/kΩ`、`°C/°F`、`mg·mL⁻¹`、`kg·m⁻³` 及普通英文/化学式反例；
-- 待完成：补齐 `/` 复合单位和完整单位词典、迁移对应 pending fixture、实现 MathExpression 的保守识别、评估是否需要独立的温度规则 stable key；
+- 待完成：继续扩充完整单位词典、迁移对应 pending fixture、实现 MathExpression 的保守识别、评估是否需要独立的温度规则 stable key；当前已支持有限范围的 `/` 复合单位（如 `mg/mL`、`m/s`、`kg/m³`）。
 - 约束：继续禁止使用 `\p{L}+` 作为通用单位识别；不默认做 Unicode 等价字符规范化；不改变化学式保护层优先级。
 
 - 不使用「任意 Unicode 字母都可当单位」的宽泛 regex，改用**有限词典 + 复合语法**：
