@@ -1,0 +1,41 @@
+# 规则交互稳定回归。
+# 重点验证高风险规则组合，而非单条规则的基础行为。
+
+- name: 专有名词与中英文边界共同处理
+  selection:
+    mode: only
+    keys:
+      - naming.proper-nouns
+      - spacing.cjk-latin
+  input: 使用github登录
+  expected: 使用 GitHub 登录
+
+- name: 全角数字与数字单位共同处理
+  selection:
+    mode: only
+    keys:
+      - text.halfwidth-digits
+      - spacing.number-unit
+      - spacing.cjk-number
+  input: 数量为１０μm
+  expected: 数量为 10 μm
+
+- name: 中英文数字单位和温标共同处理
+  selection:
+    mode: only
+    keys:
+      - spacing.cjk-latin
+      - spacing.cjk-number
+      - spacing.number-unit
+      - spacing.temperature-cjk
+  input: 样品10μm在25°C保存
+  expected: 样品 10 μm 在 25°C 保存
+
+- name: 链接周边空格与中英文边界共同处理
+  selection:
+    mode: only
+    keys:
+      - spacing.around-links
+      - spacing.cjk-latin
+  input: 请看[GitHub](https://example.com)然后继续
+  expected: 请看 [GitHub](https://example.com) 然后继续

@@ -1,0 +1,24 @@
+# 复杂输入组合稳定回归。
+# 覆盖普通文本、Markdown 链接、单位、化学式、数学和行内代码的共存。
+
+- name: 中文英文链接单位化学式与数学共同处理
+  selection:
+    mode: defaults
+  input: |-
+    在GitHub查看[实验文档](https://example.com/a,b?x=1)，薄膜厚度10μm，Fe²⁺浓度为3mg/mL；公式$E=mc^2,F=ma$很重要。
+  expected: |-
+    在 GitHub 查看 [实验文档](https://example.com/a,b?x=1)，薄膜厚度 10 μm， Fe²⁺ 浓度为 3 mg/mL；公式 $E=mc^2,F=ma$ 很重要。
+
+- name: 代码链接单位和普通正文彼此隔离
+  selection:
+    mode: defaults
+  input: |-
+    示例`10μm/$x`请看[GitHub](https://example.com/foo_(bar))然后继续5000元。
+  expected: |-
+    示例 `10μm/$x` 请看 [GitHub](https://example.com/foo_(bar)) 然后继续 5000 元。
+
+- name: 复合科学单位与数学表达式共同处理
+  selection:
+    mode: defaults
+  input: 实验在25°C保存，浓度30mg·mL⁻¹，且计算∂f/∂x后得到3±0.5结果。
+  expected: 实验在 25°C 保存，浓度 30 mg·mL⁻¹，且计算 ∂f/∂x 后得到 3±0.5 结果。

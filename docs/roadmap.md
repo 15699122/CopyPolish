@@ -69,11 +69,11 @@ frontend/src/hooks/useShortcuts.ts # 监听、启停、IME 防护、动作分发
 
 ### 5.1 现状限制
 
-- `tokenizer.rs` 使用手写 Unicode 区间判定 CJK/Latin/Digit，规则实现大量基于逐 `char` 遍历与 ASCII 判断，对 emoji ZWJ 序列、组合附加符、CJK 扩展区（Extension B 及后续）的处理不够稳健（此项已由阶段 B 解决，见下）；
-- 单位识别仅支持 1–4 个 ASCII 字母（`[A-Za-z]{1,4}`），无法可靠处理 `μm/µm`、`Å/Å`、`Ω/kΩ`、`mg·mL⁻¹`、`kg·m⁻³` 等；
-- `μ`、`µ`、`Å`、`Å`、`Ω`、`∂`、`±`、`×`、`≤`、`≥` 等均落入 `Other`，无统一语义策略；
-- Markdown 保护是「正则集合」而非语法级识别，对多反引号行内代码、引用式链接、嵌套括号 URL、表格分隔行、YAML front matter、HTML 注释等有边界缺口；
-- 管线按行逐行应用规则，无法表达跨行的 Markdown 块语义。
+- 阶段 B 已解决 grapheme cluster 边界问题；当前剩余限制是语义分类仍分散在 tokenizer、unit lexicon 和规则实现中；
+- 单位词典已覆盖首批 Unicode、SI、温标和复合单位，但仍是有限词典，不是完整计量单位语法；
+- Markdown 保护已覆盖路线图首批结构，但仍是“扫描器 + 有限正则 + 占位符”的保守子集，不等同于完整 Markdown/HTML 语法解析；
+- pipeline 仍按注册表数组顺序逐行执行 `fn(&str) -> String` 规则，规则依赖、span 优先级和 edit 冲突尚未显式建模；
+- 复杂输入的组合 fixture、规则容斥矩阵和长文本性能基线仍需继续补齐。
 
 ### 5.2 阶段总览
 
@@ -82,7 +82,7 @@ frontend/src/hooks/useShortcuts.ts # 监听、启停、IME 防护、动作分发
 | A | P0 | 测试先行：补齐复杂排版 fixture，并区分稳定回归与待实现基线 | ✅ 已完成（稳定/待实现基线已分离） |
 | B | P1 | `unicode-segmentation` 与统一字符边界层 | ✅ 已完成（见 5.4） |
 | C | P1 | 单位词典与语义 token（特殊单位 / 温度 / 数学符号分类） | 🚧 进行中 |
-| D | P2 | Markdown 块级扫描器与行内保护扩展 | 🚧 进行中（已完成 YAML/front matter、HTML block/注释、表格分隔行、引用式链接、反引号和嵌套括号链接保护） |
+| D | P2 | Markdown 块级扫描器与行内保护扩展 | 🚧 进行中（已完成 YAML/front matter、HTML block/注释、表格分隔行、引用式链接、反引号、嵌套括号链接、行内 HTML、转义标记、硬换行和美元数学保护） |
 | E | P2 | Unicode 等价识别与输出规范化（默认关闭） | 规划 |
 | F | P2 | 性能基准与边界回归纳入 CI | 规划 |
 
@@ -115,6 +115,7 @@ frontend/src/hooks/useShortcuts.ts # 监听、启停、IME 防护、动作分发
 - 数学表达式与中文之间的精确空格、HTML block 内可见文本是否完全冻结等尚未完成产品决策的行为，不在决策前作为唯一正确输出；
 - 阶段 C/D 完成对应实现后，pending 案例必须迁移到稳定黄金回归集，并补充幂等性断言；
 - 阶段 A 已完成：上述 fixture 已补齐，稳定黄金样例与 pending 基线已在 `src-tauri/src/engine/tests.rs` 中分离，并已加入稳定样例幂等性测试；Rust、前端和 diff 检查均已纳入验证流程。
+- 阶段 A 后续维护已新增复杂组合、规则交互、结构优先级及换行/幂等性 fixture；其中结构优先级样例暂作为 pending 基线，已记录“行内代码应优先于单位/数学扫描”的当前差异，待 span/edit 重构后迁移到稳定黄金回归集。
 
 ### 5.4 阶段 B：`unicode-segmentation` 与统一字符边界层（P1）✅ 已在 `unicode-boundaries` 分支实现
 
