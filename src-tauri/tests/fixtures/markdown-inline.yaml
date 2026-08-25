@@ -1,11 +1,5 @@
-# Markdown 行内保护阶段 A 基线。
+# Markdown 行内保护 pending 基线。
 # 目标是保护结构，同时继续格式化结构外的普通文本。
-
-- name: 多反引号行内代码保持完整
-  selection:
-    mode: defaults
-  input: 中文``a ` b``后续GitHub
-  expected: 中文 ``a ` b`` 后续 GitHub
 
 - name: 嵌套括号链接保持完整
   selection:

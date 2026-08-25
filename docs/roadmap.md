@@ -167,7 +167,7 @@ frontend/src/hooks/useShortcuts.ts # 监听、启停、IME 防护、动作分发
 - 在保留占位符机制前提下，将管线从「所有非空行均规则处理」调整为「只格式化可编辑文本区间」；
 - 块级扫描器首批识别：YAML front matter、fenced / indented code block、HTML 注释与 HTML block、表格分隔行、引用式链接定义；当前已完成 YAML front matter、HTML 注释与引用式链接定义保护，其他案例仍保留在 pending 基线；
 - 行内保护扩展：
-  - 任意长度反引号 delimiter（`` ` `` / `` `` ` `` / `` ``` `` 等）；
+  - 任意长度反引号 delimiter（`` ` `` / `` `` ` `` / `` ``` `` 等）；当前已完成同长度 delimiter 的行内代码保护；
   - Markdown 链接的平衡括号与引用式链接；
   - HTML inline tag；
   - 行内数学与转义字符；

@@ -1,4 +1,22 @@
-# 阶段 D 第一批稳定回归：HTML 注释保护。
+# 阶段 D 稳定回归：Markdown 块级与行内保护。
+
+- name: 双反引号行内代码保持完整
+  selection:
+    mode: defaults
+  input: 中文``a ` b``后续GitHub
+  expected: 中文 ``a ` b`` 后续 GitHub
+
+- name: 三反引号行内代码保持完整
+  selection:
+    mode: defaults
+  input: 中文```a `` b```后续GitHub
+  expected: 中文 ```a `` b``` 后续 GitHub
+
+- name: 未闭合反引号不吞掉后续正文
+  selection:
+    mode: defaults
+  input: 中文``未闭合GitHub
+  expected: 中文 `` 未闭合 GitHub
 
 - name: HTML 注释保持完整
   selection:

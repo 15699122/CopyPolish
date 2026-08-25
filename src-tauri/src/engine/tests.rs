@@ -438,6 +438,18 @@ fn formats_protected_content() {
         "使用 `a;b|c/$x` 安装"
     );
     assert_eq!(
+        format_text(&req("中文``a ` b``后续GitHub")).unwrap(),
+        "中文 ``a ` b`` 后续 GitHub"
+    );
+    assert_eq!(
+        format_text(&req("中文```a `` b```后续GitHub")).unwrap(),
+        "中文 ```a `` b``` 后续 GitHub"
+    );
+    assert_eq!(
+        format_text(&req("中文``未闭合GitHub")).unwrap(),
+        "中文 `` 未闭合 GitHub"
+    );
+    assert_eq!(
         format_text(&req(
             "请看[GitHub链接](https://example.com/a;b?x=$1|y)然后继续"
         ))
