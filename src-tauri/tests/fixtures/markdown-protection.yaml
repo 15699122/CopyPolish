@@ -106,6 +106,28 @@
   input: "第一行GitHub  \n第二行5000元继续"
   expected: "第一行 GitHub  \n第二行 5000 元继续"
 
+- name: 长行内数学与转义美元保持完整
+  selection:
+    mode: defaults
+  input: "公式$a\\$b+c$很重要，金额是$100，继续GitHub"
+  expected: "公式 $a\\$b+c$ 很重要，金额是$100，继续 GitHub"
+
+- name: 展示数学跨行保持完整
+  selection:
+    mode: defaults
+  input: |-
+    上文GitHub
+    $$
+    E=mc^2; github
+    $$
+    下文5000元
+  expected: |-
+    上文 GitHub
+    $$
+    E=mc^2; github
+    $$
+    下文 5000 元
+
 - name: YAML front matter 保持完整而正文继续格式化
   selection:
     mode: defaults

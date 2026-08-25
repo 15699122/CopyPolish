@@ -415,6 +415,23 @@ fn formats_protected_content() {
         format_text(&req(r"公式\( E=mc^2 \)很重要")).unwrap(),
         r"公式 \( E=mc^2 \) 很重要"
     );
+    let long_inline_math = format!("长公式${}$后续GitHub", "x".repeat(301));
+    assert_eq!(
+        format_text(&req(&long_inline_math)).unwrap(),
+        format!("长公式 ${}$ 后续 GitHub", "x".repeat(301))
+    );
+    assert_eq!(
+        format_text(&req(r"公式$a\$b+c$很重要")).unwrap(),
+        r"公式 $a\$b+c$ 很重要"
+    );
+    assert_eq!(
+        format_text(&req(r"偶数\\$x$继续GitHub")).unwrap(),
+        r"偶数\\$x$ 继续 GitHub"
+    );
+    assert_eq!(
+        format_text(&req(r"奇数\$x$继续GitHub")).unwrap(),
+        r"奇数\$x$继续 GitHub"
+    );
     assert_eq!(
         format_text(&req(r"使用\frac{a}{b}计算")).unwrap(),
         r"使用 \frac{a}{b} 计算"
