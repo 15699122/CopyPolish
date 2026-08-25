@@ -81,7 +81,7 @@ frontend/src/hooks/useShortcuts.ts # 监听、启停、IME 防护、动作分发
 | --- | --- | --- | --- |
 | A | P0 | 测试先行：补齐复杂排版 fixture，并区分稳定回归与待实现基线 | 🚧 进行中 |
 | B | P1 | `unicode-segmentation` 与统一字符边界层 | ✅ 已完成（见 5.4） |
-| C | P1 | 单位词典与语义 token（特殊单位 / 温度 / 数学符号分类） | 规划 |
+| C | P1 | 单位词典与语义 token（特殊单位 / 温度 / 数学符号分类） | 🚧 进行中 |
 | D | P2 | Markdown 块级扫描器与行内保护扩展 | 规划 |
 | E | P2 | Unicode 等价识别与输出规范化（默认关闭） | 规划 |
 | F | P2 | 性能基准与边界回归纳入 CI | 规划 |
@@ -142,6 +142,14 @@ frontend/src/hooks/useShortcuts.ts # 监听、启停、IME 防护、动作分发
 范围说明：UAX #29 是通用边界规则，不等于中文语义分词，不替代现有格式化规则系统。
 
 ### 5.5 阶段 C：单位词典与语义 token（P1）
+
+当前进度：已完成第一批有限单位词典与语义 token 基础设施，并将既有 `spacing.number-unit` 迁移到该层。当前实现覆盖 Unicode 微米/埃/欧姆、常见 ASCII/SI 单位、温标与复合科学单位，且保留 `μ/µ`、`Å/Å` 的原始输出写法；普通英文单词、变量名和已由保护层处理的化学式不会被当作计量单位。数学表达式目前只保留 token 类型接口，尚未扩大扫描或保护范围。
+
+- 已实现：`src-tauri/src/engine/unit_lexicon.rs`、`semantic_tokens.rs`；
+- 已迁移：`spacing.number-unit` stable key 继续保留，内部改用有限词典扫描；
+- 已覆盖：`μm/µm`、`Å/Å`、`Ω/kΩ`、`°C/°F`、`mg·mL⁻¹`、`kg·m⁻³` 及普通英文/化学式反例；
+- 待完成：补齐 `/` 复合单位和完整单位词典、迁移对应 pending fixture、实现 MathExpression 的保守识别、评估是否需要独立的温度规则 stable key；
+- 约束：继续禁止使用 `\p{L}+` 作为通用单位识别；不默认做 Unicode 等价字符规范化；不改变化学式保护层优先级。
 
 - 不使用「任意 Unicode 字母都可当单位」的宽泛 regex，改用**有限词典 + 复合语法**：
   - 基础单位：`m` / `g` / `s` / `L` / `mol` / `K` / `Pa` / `Hz` / `N` / `J` / `W` / `V` / `A` / `Ω` / `dB` / `rad` / `rpm` / `px` 等；
