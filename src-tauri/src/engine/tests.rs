@@ -62,6 +62,10 @@ fn load_passing_golden_cases() -> Vec<(String, GoldenCase)> {
             "mathematical-symbols.yaml",
             include_str!("../../tests/fixtures/mathematical-symbols.yaml"),
         ),
+        (
+            "markdown-protection.yaml",
+            include_str!("../../tests/fixtures/markdown-protection.yaml"),
+        ),
     ]
     .into_iter()
     .flat_map(|(file, yaml)| parse_fixture(file, yaml))
@@ -444,6 +448,9 @@ fn formats_protected_content() {
         format_text(&req(r#"图片![alt text](image/path.png "title")很好"#)).unwrap(),
         r#"图片 ![alt text](image/path.png "title") 很好"#
     );
+
+    let html_comment = "文本\n<!-- 注释GitHub 5000元\n第二行10cm -->\n结束";
+    assert_eq!(format_text(&req(html_comment)).unwrap(), html_comment);
 }
 
 #[test]

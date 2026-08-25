@@ -1,0 +1,15 @@
+# 阶段 D 第一批稳定回归：HTML 注释保护。
+
+- name: HTML 注释保持完整
+  selection:
+    mode: defaults
+  input: |-
+    文本
+    <!-- 注释GitHub 5000元
+    第二行10cm -->
+    结束
+  expected: |-
+    文本
+    <!-- 注释GitHub 5000元
+    第二行10cm -->
+    结束

@@ -27,6 +27,8 @@ fn protect_patterns() -> &'static Vec<FancyRegex> {
         [
             // fenced code block（``` 或 ~~~，支持缩进闭合）
             r"(?s)(^|\n)([ \t]*)(`{3,}|~{3,})[^\n]*\n.*?\n\2\3[ \t]*(?=\n|$)",
+            // HTML 注释（支持跨行，注释内部完全保持原样）
+            r"(?s)<!--.*?-->",
             // LaTeX environment
             r"(?s)\\begin\{(equation\*?|align\*?|gather\*?|multline\*?|matrix|pmatrix|bmatrix|cases)\}.*?\\end\{\1\}",
             // LaTeX display \[...\]
