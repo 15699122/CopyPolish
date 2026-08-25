@@ -54,6 +54,10 @@ fn load_passing_golden_cases() -> Vec<(String, GoldenCase)> {
             "unicode-boundaries.yaml",
             include_str!("../../tests/fixtures/unicode-boundaries.yaml"),
         ),
+        (
+            "measurements.yaml",
+            include_str!("../../tests/fixtures/measurements.yaml"),
+        ),
     ]
     .into_iter()
     .flat_map(|(file, yaml)| parse_fixture(file, yaml))
@@ -62,10 +66,6 @@ fn load_passing_golden_cases() -> Vec<(String, GoldenCase)> {
 
 fn load_pending_baseline_cases() -> Vec<(String, GoldenCase)> {
     [
-        (
-            "measurements.yaml",
-            include_str!("../../tests/fixtures/measurements.yaml"),
-        ),
         (
             "mathematical-symbols.yaml",
             include_str!("../../tests/fixtures/mathematical-symbols.yaml"),

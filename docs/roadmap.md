@@ -110,7 +110,7 @@ frontend/src/hooks/useShortcuts.ts # 监听、启停、IME 防护、动作分发
 
 阶段 A 的测试分层约束：
 
-- 当前已实现的行为进入稳定黄金回归集，必须通过 `cargo test` 与 CI；
+- 当前已实现的行为进入稳定黄金回归集，必须通过 `cargo test` 与 CI；阶段 C 第一批计量单位案例已从 pending 基线迁移到稳定集；
 - 阶段 C/D 尚未实现但已经确认目标的行为进入 pending 基线，只要求 fixture 可解析并记录当前差异，不得让 CI 长期失败；
 - 数学表达式与中文之间的精确空格、HTML block 内可见文本是否完全冻结等尚未完成产品决策的行为，不在决策前作为唯一正确输出；
 - 阶段 C/D 完成对应实现后，pending 案例必须迁移到稳定黄金回归集，并补充幂等性断言；
@@ -148,7 +148,7 @@ frontend/src/hooks/useShortcuts.ts # 监听、启停、IME 防护、动作分发
 - 已实现：`src-tauri/src/engine/unit_lexicon.rs`、`semantic_tokens.rs`；
 - 已迁移：`spacing.number-unit` stable key 继续保留，内部改用有限词典扫描；
 - 已覆盖：`μm/µm`、`Å/Å`、`Ω/kΩ`、`°C/°F`、`mg·mL⁻¹`、`kg·m⁻³` 及普通英文/化学式反例；
-- 待完成：继续扩充完整单位词典、迁移对应 pending fixture、实现 MathExpression 的保守识别、评估是否需要独立的温度规则 stable key；当前已支持有限范围的 `/` 复合单位（如 `mg/mL`、`m/s`、`kg/m³`）。
+- 待完成：继续扩充完整单位词典、实现 MathExpression 的保守识别、评估是否需要独立的温度规则 stable key；当前已支持有限范围的 `/` 复合单位（如 `mg/mL`、`m/s`、`kg/m³`），并已将第一批 `measurements.yaml` 案例迁移到稳定黄金回归集。
 - 约束：继续禁止使用 `\p{L}+` 作为通用单位识别；不默认做 Unicode 等价字符规范化；不改变化学式保护层优先级。
 
 - 不使用「任意 Unicode 字母都可当单位」的宽泛 regex，改用**有限词典 + 复合语法**：

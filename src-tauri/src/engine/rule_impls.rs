@@ -190,7 +190,8 @@ pub fn digit_unit_space(text: &str) -> String {
             .chars()
             .any(char::is_whitespace);
 
-        if !is_temperature && !has_space {
+        let is_percent_like = matches!(unit, "%" | "％" | "‰");
+        if !is_temperature && !is_percent_like && !has_space {
             out.push(' ');
         }
         out.push_str(unit);
@@ -201,9 +202,15 @@ pub fn digit_unit_space(text: &str) -> String {
 
     // 兼容历史规则：角度/百分号在数字前的空格会被移除，百分号包括全角写法。
     static DEG_PERCENT: OnceLock<Regex> = OnceLock::new();
-    DEG_PERCENT
-        .get_or_init(|| Regex::new(r"(\d)\s+([°%％])").unwrap())
-        .replace_all(&out, "$1$2")
+    static PERMILLE_CJK: OnceLock<Regex> = OnceLock::new();
+    let out = DEG_PERCENT
+        .get_or_init(|| Regex::new(r"(\d)\s+([°%％‰])").unwrap())
+        .replace_all(&out, "$1$2");
+    PERMILLE_CJK
+        .get_or_init(|| {
+            Regex::new(r"(‰)([\u{3400}-\u{4dbf}\u{4e00}-\u{9fff}\u{f900}-\u{faff}])").unwrap()
+        })
+        .replace_all(&out, "$1 $2")
         .to_string()
 }
 
