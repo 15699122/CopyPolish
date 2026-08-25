@@ -39,10 +39,6 @@ fn protect_patterns() -> &'static Vec<FancyRegex> {
             r"(?s)\\\[.*?\\\]",
             // LaTeX inline \(...\)
             r"(?s)\\\(.*?\\\)",
-            // LaTeX display $$...$$（排除转义 \$）
-            r"(?s)(?<!\\)\$\$(?!\$).*?(?<!\\)\$\$",
-            // LaTeX inline $...$（排除转义与空白起始）
-            r#"(?<!\\)\$(?!\s|\$)(?:\\.|[^$\n\\]){1,300}?(?<!\\)\$(?!\$)"#,
             // Markdown reference-style link usage
             r"\[[^\]\n]+\]\[[^\]\n]*\]",
             // autolink <https://...> / <mail@...>
@@ -81,10 +77,97 @@ pub fn protect(text: &str, placeholders: &mut Vec<(String, String)>) -> Result<S
     let table_protected = protect_markdown_table_lines(&linked, placeholders);
     let html_protected = protect_html_blocks(&table_protected, placeholders);
     let inline_html_protected = protect_inline_html_tags(&html_protected, placeholders);
-    let protected = protect_with(protect_patterns(), &inline_html_protected, placeholders)?;
+    let math_protected = protect_dollar_math(&inline_html_protected, placeholders);
+    let protected = protect_with(protect_patterns(), &math_protected, placeholders)?;
     let hard_breaks = protect_markdown_hard_breaks(&protected, placeholders);
     let escaped = protect_escaped_markdown(&hard_breaks, placeholders);
     Ok(protect_inline_code(&escaped, placeholders))
+}
+
+/// 保护美元定界的 LaTeX 数学表达式。
+///
+/// 展示数学使用 `$$...$$`，可跨行；行内数学使用 `$...$`，不跨行。
+/// 扫描器显式处理反斜杠奇偶性，避免把 `\$` 误当作定界符，同时不限制
+/// 行内表达式长度。对金额等缺少闭合定界符的普通文本保持原样。
+fn protect_dollar_math(text: &str, placeholders: &mut Vec<(String, String)>) -> String {
+    let bytes = text.as_bytes();
+    let mut output = String::with_capacity(text.len());
+    let mut cursor = 0;
+
+    while cursor < bytes.len() {
+        let Some(relative) = text[cursor..].find('$') else {
+            output.push_str(&text[cursor..]);
+            break;
+        };
+        let open = cursor + relative;
+        if is_escaped_dollar(bytes, open) {
+            output.push_str(&text[cursor..open + 1]);
+            cursor = open + 1;
+            continue;
+        }
+
+        let is_display = bytes.get(open + 1) == Some(&b'$');
+        let delimiter_len = if is_display { 2 } else { 1 };
+        if !is_display
+            && (bytes
+                .get(open + 1)
+                .is_none_or(|byte| byte.is_ascii_whitespace())
+                || bytes.get(open + 1) == Some(&b'$'))
+        {
+            output.push_str(&text[cursor..open + 1]);
+            cursor = open + 1;
+            continue;
+        }
+
+        let content_start = open + delimiter_len;
+        let Some(close_start) = find_dollar_math_close(bytes, content_start, delimiter_len) else {
+            output.push_str(&text[cursor..open + delimiter_len]);
+            cursor = open + delimiter_len;
+            continue;
+        };
+        if !is_display && bytes[content_start..close_start].contains(&b'\n') {
+            output.push_str(&text[cursor..open + 1]);
+            cursor = open + 1;
+            continue;
+        }
+
+        let close_end = close_start + delimiter_len;
+        let ph = placeholder(placeholders.len());
+        placeholders.push((ph.clone(), text[open..close_end].to_string()));
+        output.push_str(&text[cursor..open]);
+        output.push_str(&ph);
+        cursor = close_end;
+    }
+
+    output
+}
+
+fn find_dollar_math_close(bytes: &[u8], start: usize, delimiter_len: usize) -> Option<usize> {
+    let mut cursor = start;
+    while cursor < bytes.len() {
+        if bytes[cursor] == b'$'
+            && !is_escaped_dollar(bytes, cursor)
+            && (delimiter_len == 1 || bytes.get(cursor + 1) == Some(&b'$'))
+        {
+            if delimiter_len == 1 && bytes.get(cursor + 1) == Some(&b'$') {
+                cursor += 2;
+                continue;
+            }
+            return Some(cursor);
+        }
+        cursor += 1;
+    }
+    None
+}
+
+fn is_escaped_dollar(bytes: &[u8], index: usize) -> bool {
+    let mut backslashes = 0;
+    let mut cursor = index;
+    while cursor > 0 && bytes[cursor - 1] == b'\\' {
+        backslashes += 1;
+        cursor -= 1;
+    }
+    backslashes % 2 == 1
 }
 
 /// 保护 Markdown 硬换行标记：行尾两个以上空格或行尾反斜杠。
