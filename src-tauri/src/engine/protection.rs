@@ -51,8 +51,6 @@ fn protect_patterns() -> &'static Vec<FancyRegex> {
             r"\[[^\]\n]+\]\[[^\]\n]*\]",
             // autolink <https://...> / <mail@...>
             r"(?i)<(?:(?:https?://[^>\s]+)|(?:[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}))>",
-            // inline code
-            r"`[^`\n]*`",
             // LaTeX command（\frac{a}{b} 等）
             r"\\[A-Za-z]+\*?(?:\[[^\]\n]*\])?(?:\{[^{}\n]*(?:\{[^{}\n]*\}[^{}\n]*)*\})+",
             // URL
@@ -85,7 +83,78 @@ fn link_patterns() -> &'static Vec<FancyRegex> {
 
 /// 把受保护片段替换为占位符；placeholders 按创建顺序保存 (占位符, 原文)。
 pub fn protect(text: &str, placeholders: &mut Vec<(String, String)>) -> Result<String, String> {
-    protect_with(protect_patterns(), text, placeholders)
+    let protected = protect_with(protect_patterns(), text, placeholders)?;
+    Ok(protect_inline_code(&protected, placeholders))
+}
+
+/// 保护任意长度反引号 delimiter 的行内代码。
+///
+/// 只在同一行找到长度完全相同的闭合 delimiter 时保护完整代码；较短的
+/// 反引号可以出现在代码内容中。未闭合 delimiter 仅保护反引号串本身，
+/// 避免吞掉后续普通正文。
+fn protect_inline_code(text: &str, placeholders: &mut Vec<(String, String)>) -> String {
+    let bytes = text.as_bytes();
+    let mut out = String::with_capacity(text.len());
+    let mut cursor = 0;
+
+    while cursor < bytes.len() {
+        if bytes[cursor] != b'`' {
+            let next = text[cursor..]
+                .find('`')
+                .map(|offset| cursor + offset)
+                .unwrap_or(bytes.len());
+            out.push_str(&text[cursor..next]);
+            cursor = next;
+            continue;
+        }
+
+        let opening_start = cursor;
+        let opening_end = run_end(bytes, opening_start);
+        let delimiter_len = opening_end - opening_start;
+        let mut search = opening_end;
+        let mut closing = None;
+
+        while search < bytes.len() {
+            let line_end = text[search..]
+                .find('\n')
+                .map(|offset| search + offset)
+                .unwrap_or(bytes.len());
+            let Some(relative_tick) = text[search..line_end].find('`') else {
+                break;
+            };
+            let candidate_start = search + relative_tick;
+            let candidate_end = run_end(bytes, candidate_start);
+            if candidate_end - candidate_start == delimiter_len {
+                closing = Some((candidate_start, candidate_end));
+                break;
+            }
+            search = candidate_end;
+        }
+
+        let Some((closing_start, closing_end)) = closing else {
+            let ph = placeholder(placeholders.len());
+            placeholders.push((ph.clone(), text[opening_start..opening_end].to_string()));
+            out.push_str(&ph);
+            cursor = opening_end;
+            continue;
+        };
+
+        let ph = placeholder(placeholders.len());
+        placeholders.push((ph.clone(), text[opening_start..closing_end].to_string()));
+        out.push_str(&ph);
+        cursor = closing_end;
+        let _ = closing_start;
+    }
+
+    out
+}
+
+fn run_end(bytes: &[u8], start: usize) -> usize {
+    let mut end = start;
+    while end < bytes.len() && bytes[end] == b'`' {
+        end += 1;
+    }
+    end
 }
 
 /// 与 `protect` 相同，但使用调用方提供的模式集合。
