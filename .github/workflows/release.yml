@@ -197,7 +197,8 @@ jobs:
           Remove-Item $staging -Recurse -Force
           Get-ChildItem dist/windows
 
-      # exe/.7z 为已压缩内容，关闭二次压缩；除 job 传递外还用于短期人工验收，保留 7 天。
+      # exe/.7z 为已压缩内容，关闭二次压缩；除 job 传递外还用于短期人工验收，保留 3 天，
+      # 长期下载一律以 GitHub Release assets 为准。
       - uses: actions/upload-artifact@v7
         with:
           name: windows-portable
@@ -205,10 +206,10 @@ jobs:
             dist/windows/CopyPolish.exe
             dist/windows/CopyPolish-windows-x64.7z
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 3
           compression-level: 0
 
-      # 构建失败时上传日志辅助排查。
+      # 构建失败时上传日志辅助排查；时效短，仅保留 1 天。
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
@@ -217,7 +218,7 @@ jobs:
             src-tauri/target/release/**/*.log
             frontend/npm-debug.log*
           if-no-files-found: ignore
-          retention-days: 7
+          retention-days: 1
 
   # Windows GUI 冒烟测试：直接复用 windows-build 上传的同一份便携版产物，
   # 不再重复安装工具链与完整编译 Tauri，显著节省 Windows runner minutes。
