@@ -63,28 +63,123 @@ frontend/src/hooks/useShortcuts.ts # 监听、启停、IME 防护、动作分发
 
 总开关关闭后全部失效；默认/自定义组合键触发；重复绑定拒绝；单键拒绝；IME 组合中不触发；未匹配组合键不阻止文本输入；配置重启恢复；恢复默认持久化。
 
-## 5. P1：Unicode 文本引擎基础升级
+## 5. P1/P2：复杂排版与 Unicode 基础能力增强
 
-现状限制：`tokenizer.rs` 使用手写 Unicode 区间判定 CJK/Latin/Digit，规则实现大量基于逐 `char` 遍历与 ASCII 判断，对 emoji ZWJ 序列、组合附加符、CJK 扩展区的处理不够健壮。
+复杂排版增强分多个阶段推进，涵盖多行文本、Markdown 结构、特殊单位（`μm` / `Å` / `Ω` 等）、数学符号（`∂` / `±` / `≤` 等）、标点与 Unicode 边界。整体遵循「测试先行、保守保护、能力分层、不默认改写原文」原则，新增规则须符合 §10 准入流程，且保护层改动须同步 §7 的 fixture 覆盖要求。
 
-### 第一步：引入 `unicode-segmentation`
+### 5.1 现状限制
+
+- `tokenizer.rs` 使用手写 Unicode 区间判定 CJK/Latin/Digit，规则实现大量基于逐 `char` 遍历与 ASCII 判断，对 emoji ZWJ 序列、组合附加符、CJK 扩展区（Extension B 及后续）的处理不够稳健；
+- 单位识别仅支持 1–4 个 ASCII 字母（`[A-Za-z]{1,4}`），无法可靠处理 `μm/µm`、`Å/Å`、`Ω/kΩ`、`mg·mL⁻¹`、`kg·m⁻³` 等；
+- `μ`、`µ`、`Å`、`Å`、`Ω`、`∂`、`±`、`×`、`≤`、`≥` 等均落入 `Other`，无统一语义策略；
+- Markdown 保护是「正则集合」而非语法级识别，对多反引号行内代码、引用式链接、嵌套括号 URL、表格分隔行、YAML front matter、HTML 注释等有边界缺口；
+- 管线按行逐行应用规则，无法表达跨行的 Markdown 块语义。
+
+### 5.2 阶段总览
+
+| 阶段 | 优先级 | 内容 |
+| --- | --- | --- |
+| A | P0 | 测试先行：补齐失败型黄金样例与测试矩阵（本次分析已产出样例清单） |
+| B | P1 | `unicode-segmentation` 与统一字符边界层 |
+| C | P1 | 单位词典与语义 token（特殊单位 / 温度 / 数学符号分类） |
+| D | P2 | Markdown 块级扫描器与行内保护扩展 |
+| E | P2 | Unicode 等价识别与输出规范化（默认关闭） |
+| F | P2 | 性能基准与边界回归纳入 CI |
+
+### 5.3 阶段 A：测试先行（P0，先行于任何新规则/保护层改动）
+
+不引入新依赖，先沉淀行为基线：
+
+1. 新增失败型黄金样例，覆盖以下场景并明确「应保护」还是「应格式化」：
+   - Markdown：多反引号行内代码、表格分隔行、引用式链接定义、YAML front matter、HTML 注释、硬换行（行尾两空格 / 反斜杠）；
+   - 特殊单位：`μm/µm`、`Å/Å`、`Ω/kΩ`、`°C/°F`、`‰`、`mg·mL⁻¹`、`kg·m⁻³`；
+   - 数学符号：`∂f/∂x`、`x≤y`、`±`、`×`、`≈`；
+   - Unicode 边界：CJK Extension B 及后续、ZWJ emoji、组合附加符、`U+00A0` / `U+202F` 空白、`U+2028` / `U+2029` 分隔符。
+2. 建议将现有混合 fixture 拆分为独立文件并新增：
+   ```text
+   src-tauri/tests/fixtures/
+   ├── markdown-blocks.yaml
+   ├── markdown-inline.yaml
+   ├── unicode-boundaries.yaml
+   ├── measurements.yaml
+   ├── mathematical-symbols.yaml
+   ├── punctuation-contexts.yaml
+   └── regressions.yaml
+   ```
+3. 每个样例同时覆盖：单规则、默认规则组合、Markdown 保护组合、幂等性、LF / CRLF / CR 保留、长文本性能回归。
+
+### 5.4 阶段 B：`unicode-segmentation` 与统一字符边界层（P1）
 
 - 轻量 Rust crate（UAX #29 Grapheme / Word / Sentence 边界，MIT/Apache-2.0）；
-- 先建独立封装层 `src-tauri/src/engine/unicode_boundaries.rs`，不立即全面替换 tokenizer；
+- 新建独立封装层 `src-tauri/src/engine/unicode_boundaries.rs`，不立即全面替换 tokenizer；
+- 提供语义 API（`is_han_grapheme`、`script_of`、`is_latin_or_greek_letter`、`is_numeric`），规则不各自引入边界判断；
 - 适用场景：
   - 按 grapheme cluster 遍历，避免切断 emoji 组合序列与组合字符；
   - 为选区格式化、光标映射提供稳定边界；
-  - 补充 Unicode 边界回归样例（emoji ZWJ、CJK Extension B、Kana/Hangul 混排等）。
-
-### 改造原则
-
-1. 保护层优先顺序不变：化学式 → Markdown/LaTeX/URL/邮箱 → Unicode 边界 → 规则管线 → 还原；
-2. 既有黄金 fixture 必须全部通过，新行为只新增样例不改旧预期；
-3. Unicode 能力统一封装在 tokenizer 层（提供 `is_han_grapheme` / `script_of` 等语义 API），规则不各自引入边界判断；
-4. 通过内部策略开关保留新旧实现对比期；
-5. 引入前后记录编译时间、二进制体积与 10 KB/100 KB/1 MB 性能基线。
+  - 补充 Unicode 边界回归样例（emoji ZWJ、CJK Extension B、Kana/Hangul 混排、组合附加符等）。
+- 改造原则：
+  1. 保护层优先顺序不变：化学式 → Markdown/LaTeX/URL/邮箱 → Unicode 边界 → 规则管线 → 还原；
+  2. 既有黄金 fixture 必须全部通过，新行为只新增样例不改旧预期；
+  3. 通过内部策略开关保留新旧实现对比期；
+  4. 引入前后记录编译时间、二进制体积与 10 KB / 100 KB / 1 MB 性能基线。
 
 范围说明：UAX #29 是通用边界规则，不等于中文语义分词，不替代现有格式化规则系统。
+
+### 5.5 阶段 C：单位词典与语义 token（P1）
+
+- 不使用「任意 Unicode 字母都可当单位」的宽泛 regex，改用**有限词典 + 复合语法**：
+  - 基础单位：`m` / `g` / `s` / `L` / `mol` / `K` / `Pa` / `Hz` / `N` / `J` / `W` / `V` / `A` / `Ω` / `dB` / `rad` / `rpm` / `px` 等；
+  - 常用前缀：`k` / `M` / `G` / `m` / `μ` / `µ` / `n` / `p`；
+  - 非 SI 单位：`℃` / `℉` / `°C` / `°F` / `Å` / `Å` / `mmHg` / `eV`；
+  - 复合连接：`/`、`·`、`⋅`、Unicode 上下标。
+- 新增 `src-tauri/src/engine/semantic_tokens.rs` 与 `unit_lexicon.rs`，识别不可拆的语义片段：
+  - `Measurement`：`10 μm`、`20 kΩ`、`5 Å`；
+  - `Temperature`：`4℃`、`4 °C`、`32℉`；
+  - `ScientificUnit`：`mg·mL⁻¹`、`mol·L⁻¹`、`kg·m⁻³`；
+  - `MathExpression`：保守识别 `∂f/∂x`、`x≤y`，避免一般文本被过量保护。
+- 新规则建议（默认开关须按 §10 流程评估）：
+  | 规则 key | 名称 | 建议默认 |
+  | --- | --- | --- |
+  | `spacing.measurement-boundaries` | 数值、计量单位与中文之间使用正确空格 | 开启 |
+  | `spacing.scientific-unit-boundaries` | 科学复合单位与中文之间使用正确空格 | 开启 |
+  | `spacing.temperature-notation` | 温度表示与中文之间使用正确空格 | 开启 |
+  | `text.unicode-unit-equivalence` | 统一等价单位字符表示 | 关闭 |
+- 兼容既有 `spacing.temperature-cjk`（`℃`/`℉`）：新规则纳入 `°C`/`°F` 时，通过 legacy key 映射或稳定 key 保持用户设置兼容。
+
+### 5.6 阶段 D：Markdown 块级扫描器与行内保护扩展（P2）
+
+- 在保留占位符机制前提下，将管线从「所有非空行均规则处理」调整为「只格式化可编辑文本区间」；
+- 块级扫描器首批识别：YAML front matter、fenced / indented code block、HTML 注释与 HTML block、表格分隔行、引用式链接定义；
+- 行内保护扩展：
+  - 任意长度反引号 delimiter（`` ` `` / `` `` ` `` / `` ``` `` 等）；
+  - Markdown 链接的平衡括号与引用式链接；
+  - HTML inline tag；
+  - 行内数学与转义字符；
+- 用小型状态机替代堆叠 `fancy-regex`（尤其反引号与括号嵌套）；
+- 产品策略：
+  - 检测到明显 Markdown 标记时默认启用「Markdown 安全模式」（宁漏格式化、不破坏结构）；
+  - 把「识别等价性」与「输出改写」分离：识别可视为等价，改写默认关闭。
+
+### 5.7 阶段 E：Unicode 等价识别与输出规范化（P2）
+
+- 识别阶段可把 `µ/μ`、`Å/Å` 视为等价语义；
+- 输出阶段不擅自用 NFKC 改写用户原文（如 `µm` → `μm`、`Å` → `Å`）；
+- 若需统一表示，须作为独立、默认关闭的 Unicode 规范化规则，并评估对数学字母、全角符号的影响（与 §6 ICU4X 规范化评估对齐）。
+
+### 5.8 阶段 F：性能基准与边界回归（P2）
+
+- 基准输入：10 KB / 100 KB / 1 MB × {纯中文、中英数混排、Markdown / URL / LaTeX 密集、emoji 与组合字符密集、CJK 扩展区密集}；
+- 记录耗时、峰值内存、保护层正则占比与规则数增长退化趋势；
+- 重点剖析 `protection.rs` fancy-regex 调用次数、占位符替换复杂度；
+- 目标：1 MB 文本不阻塞 UI，无旧结果覆盖，有明确处理反馈（与 §8 对齐）。
+
+### 5.9 不建议直接采用的做法
+
+1. 不把单位正则直接扩展为 `\p{L}+`——会把自然语言英文、变量名、产品名误判为单位；
+2. 不对全文默认做 NFKC——可能改变 `Å`、兼容字符、数学字母、全角符号等原文语义；
+3. 不通过继续堆叠 `fancy-regex` 解析完整 Markdown——嵌套 / 跨行 / 表格 / HTML 适合状态机或 AST；
+4. 不把所有特殊符号都当作「中英文之间加空格」依据——`∂` / `±` / `≤` / `×` 等数学符号间距规范与计量单位不同；
+5. 不为「Markdown 安全」而保护整篇文档——只保护确定的语法块与行内不可改写区域，让普通叙述文本继续接受排版。
 
 ## 6. P2：ICU4X 技术验证
 
@@ -152,9 +247,15 @@ P0  §2 发布闭环
  ↓
 P1  §3 本地构建脚本（可选） → §4 快捷键开关 → §4 自定义快捷键
  ↓
-P1  §5 unicode-segmentation 封装与小范围替换
+P1  §5
+     阶段 A（测试先行：复杂排版/Markdown/单位/数学/Unicode 边界样例）
+     → 阶段 B（unicode-segmentation 封装与小范围替换）
+     → 阶段 C（单位词典与语义 token / 温度 / 数学符号分类）
  ↓
-P2  §8 性能基准 ⇄ §7 E2E → §6 ICU4X Spike → §9 hooks 重构 → §10/§11 持续维护
+P2  §5 阶段 D（Markdown 块级扫描器）→ 阶段 E（Unicode 等价规范化，默认关）
+ → §8 性能基准 ⇄ §7 E2E → §6 ICU4X Spike → §9 hooks 重构 → §10/§11 持续维护
 ```
+
+> 注：§5 阶段 A（测试先行）优先于任何新规则或保护层改动落地，以守住既有的黄金样例回归体系。
 
 每完成一项，更新本文档对应章节的状态标记，并按 `Dev_readme.md` 的文档同步约定更新 README / Dev_readme。
