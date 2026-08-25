@@ -12,6 +12,7 @@
 
 use super::model::RuleMeta;
 use super::rule_impls;
+use std::collections::{HashMap, HashSet};
 
 /// 稳定规则 key 常量。
 pub mod keys {
@@ -48,6 +49,10 @@ pub enum RulePhase {
 pub struct RuleDef {
     pub meta: RuleMeta,
     pub phase: RulePhase,
+    /// 当前规则必须排在这些规则之前。
+    pub before: &'static [&'static str],
+    /// 当前规则必须排在这些规则之后。
+    pub after: &'static [&'static str],
     /// 旧版设置文件中的等价 key（中文名）；为空表示无历史别名。
     pub legacy: &'static [&'static str],
     #[allow(clippy::type_complexity)]
@@ -68,6 +73,22 @@ fn phase_for_key(key: &str) -> RulePhase {
         }
         SPACING_NO_SPACE_AROUND_FW_PUNCT => RulePhase::FinalCleanup,
         _ => RulePhase::FinalCleanup,
+    }
+}
+
+fn dependencies_for_key(key: &str) -> (&'static [&'static str], &'static [&'static str]) {
+    use keys::*;
+    match key {
+        PUNCT_FULLWIDTH_CJK => (&[], &[PUNCT_NO_REPETITION][..]),
+        TEXT_HALFWIDTH_DIGITS => (&[], &[PUNCT_FULLWIDTH_CJK][..]),
+        TEXT_ASCII_PUNCT_IN_LATIN => (&[], &[TEXT_HALFWIDTH_DIGITS][..]),
+        NAMING_EXPAND_ABBREVIATIONS => (&[], &[NAMING_PROPER_NOUNS][..]),
+        PUNCT_CORNER_QUOTES => (&[], &[SPACING_AROUND_LINKS][..]),
+        SPACING_CJK_NUMBER => (&[], &[SPACING_CJK_LATIN][..]),
+        SPACING_NUMBER_UNIT => (&[], &[SPACING_CJK_NUMBER][..]),
+        SPACING_TEMPERATURE_CJK => (&[], &[SPACING_NUMBER_UNIT][..]),
+        SPACING_NO_SPACE_AROUND_FW_PUNCT => (&[], &[SPACING_TEMPERATURE_CJK][..]),
+        _ => (&[], &[]),
     }
 }
 
@@ -95,6 +116,8 @@ fn def(
             default,
         },
         phase: phase_for_key(key),
+        before: dependencies_for_key(key).0,
+        after: dependencies_for_key(key).1,
         legacy,
         apply,
     }
@@ -235,9 +258,58 @@ pub fn rules() -> &'static [RuleDef] {
 /// 排序是稳定的：相同阶段保留注册表顺序，从而在引入 phase 元数据时
 /// 不改变已有规则组合的输出。
 pub fn execution_rules() -> Vec<&'static RuleDef> {
-    let mut ordered: Vec<_> = RULES.iter().collect();
-    ordered.sort_by_key(|rule| rule.phase);
-    ordered
+    resolve_execution_order(&RULES).expect("invalid rule dependency graph")
+}
+
+/// 按 phase 与注册表顺序做稳定拓扑排序，并校验依赖图完整性。
+pub fn resolve_execution_order(defs: &[RuleDef]) -> Result<Vec<&RuleDef>, String> {
+    let mut indices = HashMap::with_capacity(defs.len());
+    for (index, rule) in defs.iter().enumerate() {
+        if indices.insert(rule.key(), index).is_some() {
+            return Err(format!("duplicate rule key: {}", rule.key()));
+        }
+    }
+
+    let mut edges: Vec<HashSet<usize>> = vec![HashSet::new(); defs.len()];
+    let mut indegree = vec![0usize; defs.len()];
+    for (index, rule) in defs.iter().enumerate() {
+        for dependency in rule.before.iter().chain(rule.after.iter()) {
+            let Some(&target) = indices.get(dependency) else {
+                return Err(format!("unknown rule dependency: {dependency}"));
+            };
+            let (from, to) = if rule.before.contains(dependency) {
+                (index, target)
+            } else {
+                (target, index)
+            };
+            if edges[from].insert(to) {
+                indegree[to] += 1;
+            }
+        }
+    }
+
+    let mut available: Vec<usize> = indegree
+        .iter()
+        .enumerate()
+        .filter_map(|(index, degree)| (*degree == 0).then_some(index))
+        .collect();
+    let mut ordered = Vec::with_capacity(defs.len());
+    while !available.is_empty() {
+        available.sort_by_key(|&index| (defs[index].phase, index));
+        let index = available.remove(0);
+        ordered.push(index);
+        for target in edges[index].clone() {
+            indegree[target] -= 1;
+            if indegree[target] == 0 {
+                available.push(target);
+            }
+        }
+    }
+
+    if ordered.len() != defs.len() {
+        return Err("cyclic rule dependency graph".to_string());
+    }
+    Ok(ordered.into_iter().map(|index| &defs[index]).collect())
 }
 
 /// 返回全部规则元数据（供 Tauri command 序列化给前端）。
