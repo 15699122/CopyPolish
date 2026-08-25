@@ -2,7 +2,7 @@
 #
 # 目标：固定「数字 + 单位」与「单位 + 中文」的边界预期，并明确「识别等价」不等于
 # 「输出规范化」——`µm` 保持 `µm`、`Å` 保持 `Å`，不擅自改写成 `μm`/`Å`。
-# 当前阶段（阶段 A 测试先行）这些样例用于记录失败基线；阶段 C 实现单位词典后须通过。
+# 阶段 C 第一批单位词典已覆盖这些样例；该 fixture 进入稳定黄金回归集。
 #
 # 采用 mode: defaults（组合规则）与 mode: only（单规则 spacing.number-unit）两种，
 # 便于区分「主因规则」。
@@ -43,6 +43,18 @@
   input: 浓度30mg/mL，流速2m/s，密度2kg/m³，浓度4mol/L
   expected: 浓度 30 mg/mL，流速 2 m/s，密度 2 kg/m³，浓度 4 mol/L
 
+- name: 常见非 SI 单位与缩写整体保留并插空
+  selection:
+    mode: defaults
+  input: 压力760mmHg，能量5eV，转速1200rpm，音量30dB
+  expected: 压力 760 mmHg，能量 5 eV，转速 1200 rpm，音量 30 dB
+
+- name: 千分号与中文边界保持
+  selection:
+    mode: defaults
+  input: 误差率5‰以内
+  expected: 误差率 5‰ 以内
+
 - name: ASCII 温标表记（°C / °F）与中文之间插空
   selection:
     mode: defaults
@@ -61,7 +73,7 @@
     keys:
       - spacing.number-unit
   input: 深10μm，阻20kΩ
-  expected: 深 10 μm，阻 20 kΩ
+  expected: 深10 μm，阻20 kΩ
 
 # —— 反例：普通英文单词/缩写不得被误判为单位 ——
 
@@ -69,7 +81,7 @@
   selection:
     mode: defaults
   input: 第10chapter开始
-  expected: 第 10 chapter 开始
+  expected: 第 10chapter 开始
 
 - name: 希腊字母/变量不触发单位插空（保守）
   selection:
