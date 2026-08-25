@@ -234,7 +234,7 @@ git diff --check
 
 ## 后续计划
 
-1. 真实 Windows 机器人工验收：下载 CI 的 `windows-portable` artifact，运行 `.exe`，输入 `在LeanCloud上，花了5000元` → 应输出 `在 LeanCloud 上，花了 5000 元`；验证设置弹窗 12 条规则、开关即时重排、设置文件持久化、高 DPI 显示。
+1. 真实 Windows 机器人工验收：下载 CI 的 `windows-portable` artifact，运行 `.exe`，输入 `在LeanCloud上，花了5000元` → 应输出 `在 LeanCloud 上，花了 5000 元`；验证设置弹窗 13 条规则、开关即时重排、设置文件持久化、高 DPI 显示。
 2. 正式发布 `v0.5.0`：人工复核 Release 资产、Release Notes、版本号和 latest 标记。
 3. `v0.5.0` 发布后的中长期工作（本地构建/手动发布自动化脚本、快捷键开关与自定义、Unicode 引擎升级、ICU4X 评估、E2E、性能基准、hooks 拆分等）统一在 [roadmap.md](roadmap.md) 跟踪。
 
@@ -249,8 +249,10 @@ git diff --check
 
 - `ci.yml` 在 `dev`、`master` 与 PR 上运行快速验证：cargo fmt + cargo clippy（`-D warnings`）+ 纯 Rust cargo test（当前包含黄金样例、设置备份恢复和 UTF-8 多字节回归）+ `git diff --check` + 前端 vitest 组件测试 + tsc/vite 构建；配置了 concurrency（同一 PR / 分支新 commit 自动取消过时 run）与 `timeout-minutes: 20`；纯 Rust 测试不安装 GTK/WebKitGTK 系统依赖；
 - `release.yml` 在推送 `v*` tag 时运行完整发布流水线，也支持 workflow_dispatch 手动指定既有 tag 并可选标记 pre-release（tag 名含 `-` 时自动识别为预发布）；各 job 均设置 timeout 上限；
-- 构建阶段拆分为 `linux-build` 与 `windows-build` 两个独立 job 并行执行：Linux 构建 deb/rpm/AppImage 并上传 `bundle-ubuntu-latest`；Windows 以 `--no-bundle` 构建无边框便携 `.exe`，以临时根目录打包为只含 exe/DLL 的 `.7z` 后上传 `windows-portable`（不生成任何安装器——WiX MSI 无法处理中文产品名，且产品定位为免安装便携版）。项目不支持 macOS。发布类 artifact 设置了短保留期（Linux bundle 3 天、Windows portable 及失败日志 7 天）并关闭二次压缩（`compression-level: 0`），长期下载一律以 GitHub Release assets 为准；
+- 构建阶段拆分为 `linux-build` 与 `windows-build` 两个独立 job 并行执行：Linux 构建 deb/rpm/AppImage 并上传 `bundle-ubuntu-latest`；Windows 以 `--no-bundle` 构建无边框便携 `.exe`，以临时根目录打包为只含 exe/DLL 的 `.7z` 后上传 `windows-portable`（不生成任何安装器——WiX MSI 无法处理中文产品名，且产品定位为免安装便携版）。项目不支持 macOS。发布类 artifact 设置了短保留期（Linux bundle 与 Windows portable 均为 3 天、Windows 失败日志 1 天）并关闭二次压缩（`compression-level: 0`），长期下载一律以 GitHub Release assets 为准；
 - `windows-smoke` job（windows-latest）：直接下载 `windows-build` 上传的同一份 `CopyPolish.exe` 做 GUI 冒烟——启动进程 → 轮询等待主窗口句柄出现（最长 60 秒）→ 保持 10 秒验证稳定性 → 强制结束进程；不再重复安装工具链或重新编译 Tauri。
+
+- 存储治理：GitHub Actions artifacts 仅作为 job 间传递与短期人工验收的临时副本（保留 1–3 天），长期可下载来源一律以 GitHub Release assets 为准；本地 `src-tauri/target/` 是可随时删除的可再生构建缓存（受 `.gitignore` 覆盖），不提交、不视为源码。系统保留各 workflow 最近一次成功与失败 run 用于诊断，其余已完成的旧 run 可安全删除。
 
 除 GitHub Actions 自动构建外，项目同样支持**本地构建 + 手动上传 GitHub Release** 的备用发布路径；两种模式共享相同的验证门槛、版本脚本、资产命名与人工验收标准，操作步骤见 [manual-release.md](manual-release.md)。`prepare_release_version.py` 可在 CI runner 或隔离的本地发布工作区（独立 clone / Git worktree）执行，禁止在待提交的日常开发工作区直接运行。
 
