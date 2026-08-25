@@ -264,6 +264,69 @@ fn registry_execution_order_is_phase_explicit_and_stable() {
 }
 
 #[test]
+fn registry_dependency_graph_is_valid() {
+    let ordered = execution_rules();
+    for (index, rule) in ordered.iter().enumerate() {
+        for dependency in rule.before {
+            let target = ordered
+                .iter()
+                .position(|candidate| candidate.key() == *dependency);
+            assert!(target.is_some_and(|target| index < target));
+        }
+        for dependency in rule.after {
+            let target = ordered
+                .iter()
+                .position(|candidate| candidate.key() == *dependency);
+            assert!(target.is_some_and(|target| target < index));
+        }
+    }
+}
+
+#[test]
+fn registry_dependency_graph_rejects_unknown_and_cyclic_edges() {
+    use super::registry::{resolve_execution_order, RuleDef, RulePhase};
+
+    fn test_rule(
+        key: &'static str,
+        before: &'static [&'static str],
+        after: &'static [&'static str],
+    ) -> RuleDef {
+        RuleDef {
+            meta: RuleMeta {
+                key: key.to_string(),
+                section: "test".to_string(),
+                name: key.to_string(),
+                disputed: false,
+                default: false,
+            },
+            phase: RulePhase::TextBoundary,
+            before,
+            after,
+            legacy: &[],
+            apply: super::rule_impls::cn_en_space,
+        }
+    }
+
+    let unknown = [test_rule("a", &["missing"], &[])];
+    let unknown_error = resolve_execution_order(&unknown)
+        .err()
+        .expect("unknown dependency must fail");
+    assert!(unknown_error.contains("unknown rule dependency"));
+
+    let cyclic = [test_rule("a", &["b"], &[]), test_rule("b", &["a"], &[])];
+    let cycle_error = resolve_execution_order(&cyclic)
+        .err()
+        .expect("cycle must fail");
+    assert!(cycle_error.contains("cyclic rule dependency"));
+
+    let duplicate = [test_rule("a", &[], &[]), test_rule("a", &[], &[])];
+    let duplicate_error = resolve_execution_order(&duplicate)
+        .err()
+        .expect("duplicate key must fail");
+    assert!(duplicate_error.contains("duplicate rule key"));
+}
+
+#[test]
 fn formats_basic_copywriting_sample() {
     assert_eq!(
         format_text(&req("在LeanCloud上，花了5000元")).unwrap(),
