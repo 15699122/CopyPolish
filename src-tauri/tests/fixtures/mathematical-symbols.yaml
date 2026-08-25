@@ -1,6 +1,7 @@
-# 数学符号阶段 A 基线。
+# 数学符号阶段 C 稳定回归。
 # 当前只冻结保守目标：表达式内部不被拆分，且不做默认 Unicode 规范化。
-# 与中文/数字之间的精确空格策略留待阶段 C 的 MathExpression token 确认。
+# 数学表达式与紧邻单位（如 `2×3cm²`）的细粒度分隔留待后续语义 token 设计。
+# 与中文直接相邻时按数学 token 边界插空；表达式内部保持完整。
 
 - name: 偏导表达式内部保持完整
   selection:
@@ -12,7 +13,7 @@
   selection:
     mode: defaults
   input: 结果为3±0.5，面积约为2×3cm²
-  expected: 结果为 3±0.5，面积约为 2×3 cm²
+  expected: 结果为 3±0.5，面积约为 2×3cm²
 
 - name: 数学模式中的半角逗号保持不变
   selection:

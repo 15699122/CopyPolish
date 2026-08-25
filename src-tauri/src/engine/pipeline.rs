@@ -14,10 +14,12 @@ use std::collections::HashSet;
 
 use super::model::{FormatRequest, RuleSelection};
 use super::protection::{
-    is_placeholder_line, protect, protect_byte_spans, protect_markdown_lines, restore,
-    space_around_inline_placeholders,
+    is_placeholder_line, protect, protect_byte_spans, protect_byte_spans_with_offset,
+    protect_markdown_lines, restore, space_around_inline_placeholders,
+    space_around_math_placeholders,
 };
 use super::registry::rules;
+use super::semantic_tokens::scan_math_expressions;
 use super::tokenizer::detect_chemical_formulas;
 
 pub fn format_text(req: &FormatRequest) -> Result<String, String> {
@@ -35,6 +37,13 @@ pub fn format_text(req: &FormatRequest) -> Result<String, String> {
     // 化学式保护必须最先执行：识别基于原始文本的字节区间。
     let chem_spans = detect_chemical_formulas(&text);
     let text = protect_byte_spans(&text, &chem_spans, &mut placeholders);
+
+    // 数学 token 单独保存：表达式内部需要保护，但不应参与 Markdown/链接占位符
+    // 的通用边界补空格，否则会在全角逗号后产生非预期空格。
+    let math_spans = scan_math_expressions(&text);
+    let mut math_placeholders: Vec<(String, String)> = Vec::new();
+    let text =
+        protect_byte_spans_with_offset(&text, &math_spans, &mut math_placeholders, 1_000_000);
 
     let protected = protect(&text, &mut placeholders)?;
     let line_protected = protect_markdown_lines(&protected, &mut placeholders);
@@ -63,7 +72,9 @@ pub fn format_text(req: &FormatRequest) -> Result<String, String> {
 
     let formatted = out.join("\n");
     let formatted = space_around_inline_placeholders(&formatted, &placeholders);
+    let formatted = space_around_math_placeholders(&formatted, &math_placeholders);
     let restored = restore(&formatted, &placeholders);
+    let restored = restore(&restored, &math_placeholders);
     Ok(restore_newlines(&restored, newline))
 }
 

@@ -3,6 +3,8 @@
 //! 阶段 C 首先落地计量单位；数学表达式只保留类型接口，暂不扩大保护范围。
 
 use super::unit_lexicon::{scan_measurements, MeasurementSpan};
+use regex::Regex;
+use std::sync::OnceLock;
 
 #[allow(dead_code)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -59,9 +61,49 @@ pub(crate) fn scan_semantic_tokens(text: &str) -> Vec<SemanticToken> {
         .collect()
 }
 
+/// 扫描明确的数学表达式片段。
+///
+/// 首期只接受带有明确数学运算符的短表达式，避免把普通英文、URL 或自然语言
+/// 中的单个符号误判为数学 token。表达式内部由保护层整体保留，外部边界仍交给
+/// 现有占位符边界逻辑处理。
+pub(crate) fn scan_math_expressions(text: &str) -> Vec<(usize, usize)> {
+    static PATTERNS: OnceLock<Vec<Regex>> = OnceLock::new();
+    let patterns = PATTERNS.get_or_init(|| {
+        [
+            r"∂[A-Za-z]+/[∂A-Za-z]+",
+            r"[A-Za-z0-9]+(?:≤|≥|≈)[A-Za-z0-9]+",
+            r"\d+(?:\.\d+)?(?:±|×)\d+(?:\.\d+)?",
+        ]
+        .into_iter()
+        .map(|pattern| Regex::new(pattern).expect("invalid math expression pattern"))
+        .collect()
+    });
+
+    let mut spans: Vec<(usize, usize)> = patterns
+        .iter()
+        .flat_map(|pattern| {
+            pattern
+                .find_iter(text)
+                .map(|matched| (matched.start(), matched.end()))
+        })
+        .collect();
+    spans.sort_unstable_by_key(|(start, _)| *start);
+    spans.dedup();
+
+    let mut non_overlapping = Vec::with_capacity(spans.len());
+    let mut last_end = 0;
+    for (start, end) in spans {
+        if start >= last_end {
+            non_overlapping.push((start, end));
+            last_end = end;
+        }
+    }
+    non_overlapping
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{scan_semantic_tokens, SemanticTokenKind};
+    use super::{scan_math_expressions, scan_semantic_tokens, SemanticTokenKind};
 
     #[test]
     fn classifies_measurement_temperature_and_scientific_units() {
@@ -70,5 +112,16 @@ mod tests {
         assert_eq!(tokens[0].kind, SemanticTokenKind::Measurement);
         assert_eq!(tokens[1].kind, SemanticTokenKind::Temperature);
         assert_eq!(tokens[2].kind, SemanticTokenKind::ScientificUnit);
+    }
+
+    #[test]
+    fn scans_only_explicit_math_expression_shapes() {
+        let text = "∂f/∂x x≤y a≥1 a≈b 3±0.5 2×3 chapter";
+        let spans = scan_math_expressions(text);
+        let values: Vec<&str> = spans
+            .iter()
+            .map(|(start, end)| &text[*start..*end])
+            .collect();
+        assert_eq!(values, vec!["∂f/∂x", "x≤y", "a≥1", "a≈b", "3±0.5", "2×3"]);
     }
 }
