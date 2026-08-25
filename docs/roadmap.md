@@ -79,7 +79,7 @@ frontend/src/hooks/useShortcuts.ts # 监听、启停、IME 防护、动作分发
 
 | 阶段 | 优先级 | 内容 | 状态 |
 | --- | --- | --- | --- |
-| A | P0 | 测试先行：补齐复杂排版 fixture，并区分稳定回归与待实现基线 | 🚧 进行中 |
+| A | P0 | 测试先行：补齐复杂排版 fixture，并区分稳定回归与待实现基线 | ✅ 已完成（稳定/待实现基线已分离） |
 | B | P1 | `unicode-segmentation` 与统一字符边界层 | ✅ 已完成（见 5.4） |
 | C | P1 | 单位词典与语义 token（特殊单位 / 温度 / 数学符号分类） | 🚧 进行中 |
 | D | P2 | Markdown 块级扫描器与行内保护扩展 | 规划 |
@@ -114,15 +114,7 @@ frontend/src/hooks/useShortcuts.ts # 监听、启停、IME 防护、动作分发
 - 阶段 C/D 尚未实现但已经确认目标的行为进入 pending 基线，只要求 fixture 可解析并记录当前差异，不得让 CI 长期失败；阶段 C 第一批数学表达式案例已迁移到稳定黄金集；
 - 数学表达式与中文之间的精确空格、HTML block 内可见文本是否完全冻结等尚未完成产品决策的行为，不在决策前作为唯一正确输出；
 - 阶段 C/D 完成对应实现后，pending 案例必须迁移到稳定黄金回归集，并补充幂等性断言；
-- 阶段 A 本轮只修改 fixture、测试 loader、测试辅助逻辑和文档，不修改引擎规则实现。
-
-阶段 A 当前收尾任务：
-
-1. 补齐 `measurements.yaml`、`mathematical-symbols.yaml`、`markdown-inline.yaml`、`markdown-blocks.yaml`、`punctuation-contexts.yaml`；
-2. 在 `src-tauri/src/engine/tests.rs` 中分离稳定黄金样例与 pending 基线；
-3. 为稳定黄金样例增加数据驱动幂等性测试；
-4. 使用 pending 基线锁定阶段 C/D 的目标差异；
-5. 通过 Rust 格式、Clippy、测试、前端测试/构建和 `git diff --check` 验证。
+- 阶段 A 已完成：上述 fixture 已补齐，稳定黄金样例与 pending 基线已在 `src-tauri/src/engine/tests.rs` 中分离，并已加入稳定样例幂等性测试；Rust、前端和 diff 检查均已纳入验证流程。
 
 ### 5.4 阶段 B：`unicode-segmentation` 与统一字符边界层（P1）✅ 已在 `unicode-boundaries` 分支实现
 
@@ -143,16 +135,16 @@ frontend/src/hooks/useShortcuts.ts # 监听、启停、IME 防护、动作分发
 
 ### 5.5 阶段 C：单位词典与语义 token（P1）
 
-当前进度：已完成第一批有限单位词典与语义 token 基础设施，并将既有 `spacing.number-unit` 迁移到该层。当前实现覆盖 Unicode 微米/埃/欧姆、常见 ASCII/SI 单位、温标与复合科学单位，且保留 `μ/µ`、`Å/Å` 的原始输出写法；普通英文单词、变量名和已由保护层处理的化学式不会被当作计量单位。数学表达式目前只保留 token 类型接口，尚未扩大扫描或保护范围。
+当前进度：已完成第一批有限单位词典与语义 token 基础设施，并将既有 `spacing.number-unit` 迁移到该层。当前实现覆盖 Unicode 微米/埃/欧姆、常见 ASCII/SI 单位、厘米/厘升/百帕、温标与复合科学单位，且保留 `μ/µ`、`Å/Å` 的原始输出写法；普通英文单词、变量名和已由保护层处理的化学式不会被当作计量单位。数学表达式已完成首批保守扫描与保护。
 
 - 已实现：`src-tauri/src/engine/unit_lexicon.rs`、`semantic_tokens.rs`；
 - 已迁移：`spacing.number-unit` stable key 继续保留，内部改用有限词典扫描；
-- 已覆盖：`μm/µm`、`Å/Å`、`Ω/kΩ`、`°C/°F`、`mg·mL⁻¹`、`kg·m⁻³` 及普通英文/化学式反例；
+- 已覆盖：`μm/µm`、`Å/Å`、`Ω/kΩ`、`cm/cL/hPa`、`°C/°F`、`mg·mL⁻¹`、`kg·m⁻³` 及普通英文/化学式反例；
 - 待完成：继续扩充完整单位词典、评估是否需要独立的温度规则 stable key；当前已支持有限范围的 `/` 复合单位（如 `mg/mL`、`m/s`、`kg/m³`），已将第一批 `measurements.yaml` 与 `mathematical-symbols.yaml` 案例迁移到稳定黄金回归集，并完成明确数学表达式的首批保守识别。
 - 约束：继续禁止使用 `\p{L}+` 作为通用单位识别；不默认做 Unicode 等价字符规范化；不改变化学式保护层优先级。
 
 - 不使用「任意 Unicode 字母都可当单位」的宽泛 regex，改用**有限词典 + 复合语法**：
-  - 基础单位：`m` / `g` / `s` / `L` / `mol` / `K` / `Pa` / `Hz` / `N` / `J` / `W` / `V` / `A` / `Ω` / `dB` / `rad` / `rpm` / `px` 等；
+  - 基础单位：`m` / `g` / `s` / `L` / `mol` / `K` / `Pa` / `Hz` / `N` / `J` / `W` / `V` / `A` / `Ω` / `dB` / `rad` / `rpm` / `px` 等；显式常用项包括 `cm` / `cL` / `hPa`；
   - 常用前缀：`k` / `M` / `G` / `m` / `μ` / `µ` / `n` / `p`；
   - 非 SI 单位：`℃` / `℉` / `°C` / `°F` / `Å` / `Å` / `mmHg` / `eV`；
   - 复合连接：`/`、`·`、`⋅`、Unicode 上下标。
@@ -160,7 +152,7 @@ frontend/src/hooks/useShortcuts.ts # 监听、启停、IME 防护、动作分发
   - `Measurement`：`10 μm`、`20 kΩ`、`5 Å`；
   - `Temperature`：`4℃`、`4 °C`、`32℉`；
   - `ScientificUnit`：`mg·mL⁻¹`、`mol·L⁻¹`、`kg·m⁻³`；
-  - `MathExpression`：保守识别 `∂f/∂x`、`x≤y`，避免一般文本被过量保护。
+  - `MathExpression`：保守识别 `∂f/∂x`、`x≤y`、`a≈b`、`3±0.5`、`2×3`，避免一般文本被过量保护。
 - 新规则建议（默认开关须按 §10 流程评估）：
   | 规则 key | 名称 | 建议默认 |
   | --- | --- | --- |
