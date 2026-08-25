@@ -42,6 +42,10 @@ fn load_golden_cases() -> Vec<(String, GoldenCase)> {
             "selection-and-regressions.yaml",
             include_str!("../../tests/fixtures/selection-and-regressions.yaml"),
         ),
+        (
+            "unicode-boundaries.yaml",
+            include_str!("../../tests/fixtures/unicode-boundaries.yaml"),
+        ),
     ]
     .into_iter()
     .flat_map(|(file, yaml)| {
@@ -374,6 +378,8 @@ fn protected_cases_are_idempotent() {
         "采用双尾非配对 Student’s *t*检验，以*p*<0.05为显著差异。",
         "结果a*b*c保持不变",
         "AC磁场，且30 mg·mL⁻¹比10 mg·mL⁻¹作用更强，旋转DC磁场下。",
+        "𠀀Fe²⁺用于反应",
+        "中文👨‍👩‍👧‍👦GitHub",
     ];
     for src in cases {
         let once = format_text(&req(src)).unwrap();
@@ -418,4 +424,37 @@ fn formats_superscript_unit_and_acronym_boundaries() {
         format_text(&req(src)).unwrap(),
         "AC 磁场，且 30 mg\u{b7}mL\u{207b}\u{b9} 比 10 mg\u{b7}mL\u{207b}\u{b9} 作用更强，旋转 DC 磁场下。"
     );
+}
+/// roadmap §5：新旧边界策略在既有黄金样例输入上输出必须一致；
+/// grapheme 策略的新行为只体现在 unicode-boundaries.yaml 中。
+#[test]
+fn spacing_rules_grapheme_strategy_matches_legacy_on_golden_inputs() {
+    use super::rule_impls::{cn_digit_space_with, cn_en_space_with};
+    use super::unicode_boundaries::BoundaryStrategy;
+
+    for (file, case) in load_golden_cases() {
+        assert_eq!(
+            cn_en_space_with(&case.input, BoundaryStrategy::LegacyChars),
+            cn_en_space_with(&case.input, BoundaryStrategy::Graphemes),
+            "cn_en_space diverged on {file} / {}",
+            case.name
+        );
+        assert_eq!(
+            cn_digit_space_with(&case.input, BoundaryStrategy::LegacyChars),
+            cn_digit_space_with(&case.input, BoundaryStrategy::Graphemes),
+            "cn_digit_space diverged on {file} / {}",
+            case.name
+        );
+    }
+}
+
+/// 化学式检测不经过 Unicode 边界层：扩展区 B 文本中的化学式 span 保持不变。
+#[test]
+fn chemical_detection_unaffected_by_boundary_layer() {
+    use super::tokenizer::detect_chemical_formulas as detect;
+
+    let sample = "𠀀Fe²⁺用于反应";
+    let spans = detect(sample);
+    assert_eq!(spans.len(), 1);
+    assert_eq!(&sample[spans[0].0..spans[0].1], "Fe²⁺");
 }
