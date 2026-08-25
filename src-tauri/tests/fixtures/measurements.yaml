@@ -1,0 +1,72 @@
+# 特殊单位边界黄金样例（roadmap §5 阶段 A→C）。
+#
+# 目标：固定「数字 + 单位」与「单位 + 中文」的边界预期，并明确「识别等价」不等于
+# 「输出规范化」——`µm` 保持 `µm`、`Å` 保持 `Å`，不擅自改写成 `μm`/`Å`。
+# 当前阶段（阶段 A 测试先行）这些样例用于记录失败基线；阶段 C 实现单位词典后须通过。
+#
+# 采用 mode: defaults（组合规则）与 mode: only（单规则 spacing.number-unit）两种，
+# 便于区分「主因规则」。
+
+- name: 微米单位 μm 与中文之间插空（默认组合）
+  selection:
+    mode: defaults
+  input: 薄膜厚度10μm，孔径5μm
+  expected: 薄膜厚度 10 μm，孔径 5 μm
+
+- name: 微米单位 µm 保留原始字符并插空
+  selection:
+    mode: defaults
+  input: 薄膜厚度10µm
+  expected: 薄膜厚度 10 µm
+
+- name: 埃单位保留原始 Unicode 写法并插空
+  selection:
+    mode: defaults
+  input: 晶格常数3Å，间距2Å
+  expected: 晶格常数 3 Å，间距 2 Å
+
+- name: 欧姆与 SI 前缀插空
+  selection:
+    mode: defaults
+  input: 电阻10kΩ，阻抗50Ω
+  expected: 电阻 10 kΩ，阻抗 50 Ω
+
+- name: 复合科学单位整体保留并插空
+  selection:
+    mode: defaults
+  input: 浓度30mg·mL⁻¹，密度2kg·m⁻³
+  expected: 浓度 30 mg·mL⁻¹，密度 2 kg·m⁻³
+
+- name: ASCII 温标表记（°C / °F）与中文之间插空
+  selection:
+    mode: defaults
+  input: 25°C保存，68°F运输
+  expected: 25°C 保存，68°F 运输
+
+- name: Unicode 温标符号（℃ / ℉）既有行为保持
+  selection:
+    mode: defaults
+  input: 4℃冷藏，32℉解冻
+  expected: 4℃ 冷藏，32℉ 解冻
+
+- name: 单规则 number-unit 覆盖微米与欧姆
+  selection:
+    mode: only
+    keys:
+      - spacing.number-unit
+  input: 深10μm，阻20kΩ
+  expected: 深 10 μm，阻 20 kΩ
+
+# —— 反例：普通英文单词/缩写不得被误判为单位 ——
+
+- name: 普通英文单词结尾数字不参与单位插空
+  selection:
+    mode: defaults
+  input: 第10chapter开始
+  expected: 第 10 chapter 开始
+
+- name: 希腊字母/变量不触发单位插空（保守）
+  selection:
+    mode: defaults
+  input: 参数为2alpha与3beta
+  expected: 参数为 2alpha 与 3beta
