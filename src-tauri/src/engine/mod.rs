@@ -21,8 +21,10 @@ pub mod pipeline;
 pub mod protection;
 pub mod registry;
 mod rule_impls;
+pub(crate) mod semantic_tokens;
 pub mod tokenizer;
 pub(crate) mod unicode_boundaries;
+pub(crate) mod unit_lexicon;
 
 pub use model::{FormatRequest, RuleMeta, RuleSelection};
 pub use pipeline::format_text;

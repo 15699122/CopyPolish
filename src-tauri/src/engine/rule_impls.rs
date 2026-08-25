@@ -7,6 +7,7 @@
 use regex::{Captures, Regex};
 use std::sync::OnceLock;
 
+use super::semantic_tokens::{scan_semantic_tokens, SemanticTokenKind};
 use super::tokenizer::{contains_cjk, spacing_units};
 use super::unicode_boundaries::{BoundaryStrategy, ScriptClass, TextUnit};
 
@@ -174,13 +175,35 @@ pub fn cn_digit_space(text: &str) -> String {
 
 /// spacing.number-unit：数字与单位之间增加空格。
 pub fn digit_unit_space(text: &str) -> String {
+    let mut out = String::with_capacity(text.len() + 8);
+    let mut cursor = 0;
+
+    for token in scan_semantic_tokens(text) {
+        if token.start < cursor {
+            continue;
+        }
+        out.push_str(&text[cursor..token.unit_start]);
+
+        let unit = &text[token.unit_start..token.end];
+        let is_temperature = token.kind == SemanticTokenKind::Temperature;
+        let has_space = text[token.number_end..token.unit_start]
+            .chars()
+            .any(char::is_whitespace);
+
+        if !is_temperature && !has_space {
+            out.push(' ');
+        }
+        out.push_str(unit);
+        cursor = token.end;
+    }
+
+    out.push_str(&text[cursor..]);
+
+    // 兼容历史规则：角度/百分号在数字前的空格会被移除，百分号包括全角写法。
     static DEG_PERCENT: OnceLock<Regex> = OnceLock::new();
-    static UNIT: OnceLock<Regex> = OnceLock::new();
-    let text = DEG_PERCENT
+    DEG_PERCENT
         .get_or_init(|| Regex::new(r"(\d)\s+([°%％])").unwrap())
-        .replace_all(text, "$1$2");
-    UNIT.get_or_init(|| Regex::new(r"(\d)([A-Za-z]{1,4})([^A-Za-z0-9]|$)").unwrap())
-        .replace_all(&text, "$1 $2$3")
+        .replace_all(&out, "$1$2")
         .to_string()
 }
 

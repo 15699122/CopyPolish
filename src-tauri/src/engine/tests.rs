@@ -249,6 +249,42 @@ fn formats_digit_units_and_percentages() {
 }
 
 #[test]
+fn formats_unicode_and_compound_measurements_without_word_false_positives() {
+    assert_eq!(
+        format_text(&req("薄膜厚度10μm，孔径5μm")).unwrap(),
+        "薄膜厚度 10 μm，孔径 5 μm"
+    );
+    assert_eq!(
+        format_text(&req("薄膜厚度10µm，晶格常数3Å，间距2Å")).unwrap(),
+        "薄膜厚度 10 µm，晶格常数 3 Å，间距 2 Å"
+    );
+    assert_eq!(
+        format_text(&req("电阻10kΩ，阻抗50Ω")).unwrap(),
+        "电阻 10 kΩ，阻抗 50 Ω"
+    );
+    assert_eq!(
+        format_text(&req("浓度30mg·mL⁻¹，密度2kg·m⁻³")).unwrap(),
+        "浓度 30 mg·mL⁻¹，密度 2 kg·m⁻³"
+    );
+    assert_eq!(
+        format_text(&req("25°C保存，68°F运输")).unwrap(),
+        "25°C 保存，68°F 运输"
+    );
+    assert_eq!(
+        format_text(&req("第10chapter开始，参数为2alpha与3beta")).unwrap(),
+        "第 10chapter 开始，参数为 2alpha 与 3beta"
+    );
+}
+
+#[test]
+fn number_unit_rule_keeps_chemical_formulas_protected() {
+    assert_eq!(
+        super::rule_impls::digit_unit_space("Fe²⁺、SO₄²⁻与10μm样品"),
+        "Fe²⁺、SO₄²⁻与10 μm样品"
+    );
+}
+
+#[test]
 fn formats_punctuation_and_proper_nouns() {
     assert_eq!(
         format_text(&req("德国队竟然战胜了巴西队！！")).unwrap(),
