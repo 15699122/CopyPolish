@@ -43,10 +43,6 @@ fn protect_patterns() -> &'static Vec<FancyRegex> {
             r"(?s)(?<!\\)\$\$(?!\$).*?(?<!\\)\$\$",
             // LaTeX inline $...$（排除转义与空白起始）
             r#"(?<!\\)\$(?!\s|\$)(?:\\.|[^$\n\\]){1,300}?(?<!\\)\$(?!\$)"#,
-            // Markdown image
-            r"!\[[^\]\n]*\]\([^\n)]*\)",
-            // Markdown link
-            r"\[[^\]\n]+\]\([^\n)]*\)",
             // Markdown reference-style link usage
             r"\[[^\]\n]+\]\[[^\]\n]*\]",
             // autolink <https://...> / <mail@...>
@@ -69,8 +65,6 @@ fn link_patterns() -> &'static Vec<FancyRegex> {
     static PATTERNS: OnceLock<Vec<FancyRegex>> = OnceLock::new();
     PATTERNS.get_or_init(|| {
         [
-            r"!\[[^\]\n]*\]\([^\n)]*\)",
-            r"\[[^\]\n]+\]\([^\n)]*\)",
             r"(?i)<(?:(?:https?://[^>\s]+)|(?:[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}))>",
             r#"(?i)https?://[^\s，。；：！？、（）《》【】「」“”‘’…—<>'"]+"#,
             r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}",
@@ -83,8 +77,103 @@ fn link_patterns() -> &'static Vec<FancyRegex> {
 
 /// 把受保护片段替换为占位符；placeholders 按创建顺序保存 (占位符, 原文)。
 pub fn protect(text: &str, placeholders: &mut Vec<(String, String)>) -> Result<String, String> {
-    let protected = protect_with(protect_patterns(), text, placeholders)?;
+    let linked = protect_markdown_links(text, placeholders);
+    let protected = protect_with(protect_patterns(), &linked, placeholders)?;
     Ok(protect_inline_code(&protected, placeholders))
+}
+
+/// 保护 Markdown 链接和图片链接，支持目标中的嵌套圆括号。
+///
+/// 扫描器只处理同一行且最终闭合的 `[label](target)` 结构；未闭合结构
+/// 保留为普通文本，避免把后续正文整体吞入占位符。
+fn protect_markdown_links(text: &str, placeholders: &mut Vec<(String, String)>) -> String {
+    let bytes = text.as_bytes();
+    let mut out = String::with_capacity(text.len());
+    let mut cursor = 0;
+
+    while cursor < bytes.len() {
+        let Some(relative_open) = text[cursor..].find('[') else {
+            out.push_str(&text[cursor..]);
+            break;
+        };
+        let open = cursor + relative_open;
+        let image_start = open.checked_sub(1).filter(|&index| bytes[index] == b'!');
+        let structure_start = image_start.unwrap_or(open);
+
+        let Some(label_end) = find_link_label_end(bytes, open) else {
+            out.push_str(&text[cursor..]);
+            break;
+        };
+        if bytes.get(label_end + 1) != Some(&b'(') {
+            out.push_str(&text[cursor..label_end + 1]);
+            cursor = label_end + 1;
+            continue;
+        }
+
+        let target_open = label_end + 1;
+        let Some(target_end) = find_link_target_end(bytes, target_open) else {
+            out.push_str(&text[cursor..target_open + 1]);
+            cursor = target_open + 1;
+            continue;
+        };
+
+        out.push_str(&text[cursor..structure_start]);
+        let ph = placeholder(placeholders.len());
+        placeholders.push((
+            ph.clone(),
+            text[structure_start..target_end + 1].to_string(),
+        ));
+        out.push_str(&ph);
+        cursor = target_end + 1;
+    }
+
+    out
+}
+
+fn find_link_label_end(bytes: &[u8], open: usize) -> Option<usize> {
+    let mut depth = 0usize;
+    let mut index = open;
+    while index < bytes.len() && bytes[index] != b'\n' {
+        if bytes[index] == b'\\' {
+            index += 2;
+            continue;
+        }
+        match bytes[index] {
+            b'[' => depth += 1,
+            b']' => {
+                depth = depth.checked_sub(1)?;
+                if depth == 0 {
+                    return Some(index);
+                }
+            }
+            _ => {}
+        }
+        index += 1;
+    }
+    None
+}
+
+fn find_link_target_end(bytes: &[u8], open: usize) -> Option<usize> {
+    let mut depth = 0usize;
+    let mut index = open;
+    while index < bytes.len() && bytes[index] != b'\n' {
+        if bytes[index] == b'\\' {
+            index += 2;
+            continue;
+        }
+        match bytes[index] {
+            b'(' => depth += 1,
+            b')' => {
+                depth = depth.checked_sub(1)?;
+                if depth == 0 {
+                    return Some(index);
+                }
+            }
+            _ => {}
+        }
+        index += 1;
+    }
+    None
 }
 
 /// 保护任意长度反引号 delimiter 的行内代码。
@@ -221,7 +310,8 @@ pub fn space_around_links(text: &str) -> String {
     static BEFORE: OnceLock<Regex> = OnceLock::new();
     static AFTER: OnceLock<Regex> = OnceLock::new();
     let mut phs: Vec<(String, String)> = Vec::new();
-    let protected = match protect_with(link_patterns(), text, &mut phs) {
+    let linked = protect_markdown_links(text, &mut phs);
+    let protected = match protect_with(link_patterns(), &linked, &mut phs) {
         Ok(p) => p,
         Err(_) => return text.to_string(),
     };
