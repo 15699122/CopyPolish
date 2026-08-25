@@ -100,6 +100,12 @@
   input: 转义\*标记\*和\_强调\_继续GitHub
   expected: 转义\*标记\*和\_强调\_继续 GitHub
 
+- name: Markdown 硬换行保持完整而正文继续格式化
+  selection:
+    mode: defaults
+  input: "第一行GitHub  \n第二行5000元继续"
+  expected: "第一行 GitHub  \n第二行 5000 元继续"
+
 - name: YAML front matter 保持完整而正文继续格式化
   selection:
     mode: defaults

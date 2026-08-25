@@ -82,8 +82,42 @@ pub fn protect(text: &str, placeholders: &mut Vec<(String, String)>) -> Result<S
     let html_protected = protect_html_blocks(&table_protected, placeholders);
     let inline_html_protected = protect_inline_html_tags(&html_protected, placeholders);
     let protected = protect_with(protect_patterns(), &inline_html_protected, placeholders)?;
-    let escaped = protect_escaped_markdown(&protected, placeholders);
+    let hard_breaks = protect_markdown_hard_breaks(&protected, placeholders);
+    let escaped = protect_escaped_markdown(&hard_breaks, placeholders);
     Ok(protect_inline_code(&escaped, placeholders))
+}
+
+/// 保护 Markdown 硬换行标记：行尾两个以上空格或行尾反斜杠。
+/// 换行本身不占位，继续交给现有换行归一化/还原流程处理。
+fn protect_markdown_hard_breaks(text: &str, placeholders: &mut Vec<(String, String)>) -> String {
+    let mut output = String::with_capacity(text.len());
+    for (index, line) in text.split('\n').enumerate() {
+        if index > 0 {
+            output.push('\n');
+        }
+
+        let trailing_spaces = line.len() - line.trim_end_matches(' ').len();
+        let hard_break_len = if trailing_spaces >= 2 {
+            trailing_spaces
+        } else if line.ends_with('\\') {
+            1
+        } else {
+            0
+        };
+
+        if hard_break_len == 0 {
+            output.push_str(line);
+            continue;
+        }
+
+        let content_end = line.len() - hard_break_len;
+        output.push_str(&line[..content_end]);
+        let marker = &line[content_end..];
+        let ph = placeholder(placeholders.len());
+        placeholders.push((ph.clone(), marker.to_string()));
+        output.push_str(&ph);
+    }
+    output
 }
 
 /// 保护反斜杠与 Markdown 可转义标点的组合，避免转义标记被规则改写。
@@ -629,7 +663,9 @@ pub fn is_placeholder_line(line: &str) -> bool {
 pub fn space_around_inline_placeholders(text: &str, placeholders: &[(String, String)]) -> String {
     let inline: Vec<String> = placeholders
         .iter()
-        .filter(|(_, val)| !val.contains('\n') && !is_escaped_markdown_value(val))
+        .filter(|(_, val)| {
+            !val.contains('\n') && !is_escaped_markdown_value(val) && !is_hard_break_value(val)
+        })
         .map(|(ph, _)| regex::escape(ph))
         .collect();
     if inline.is_empty() {
@@ -645,6 +681,10 @@ pub fn space_around_inline_placeholders(text: &str, placeholders: &[(String, Str
 fn is_escaped_markdown_value(value: &str) -> bool {
     let bytes = value.as_bytes();
     bytes.len() == 2 && bytes[0] == b'\\'
+}
+
+fn is_hard_break_value(value: &str) -> bool {
+    (value.len() >= 2 && value.bytes().all(|byte| byte == b' ')) || value == "\\"
 }
 
 pub fn restore_escaped_markdown_adjacency(text: &str, placeholders: &[(String, String)]) -> String {

@@ -518,6 +518,21 @@ fn formats_protected_content() {
         r"路径是 <windows-user-home>，价格是\$100"
     );
 
+    let hard_break_spaces = "第一行GitHub  \n第二行5000元继续";
+    assert_eq!(
+        format_text(&req(hard_break_spaces)).unwrap(),
+        "第一行 GitHub  \n第二行 5000 元继续"
+    );
+    let hard_break_backslash = "第一行GitHub\\\n第二行5000元继续";
+    assert_eq!(
+        format_text(&req(hard_break_backslash)).unwrap(),
+        "第一行 GitHub\\\n第二行 5000 元继续"
+    );
+    assert_eq!(
+        format_text(&req("普通行尾空格 GitHub ")).unwrap(),
+        "普通行尾空格 GitHub "
+    );
+
     let html_comment = "文本\n<!-- 注释GitHub 5000元\n第二行10cm -->\n结束";
     assert_eq!(format_text(&req(html_comment)).unwrap(), html_comment);
 
