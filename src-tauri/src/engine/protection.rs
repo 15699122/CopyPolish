@@ -80,8 +80,134 @@ pub fn protect(text: &str, placeholders: &mut Vec<(String, String)>) -> Result<S
     let linked = protect_markdown_links(text, placeholders);
     let table_protected = protect_markdown_table_lines(&linked, placeholders);
     let html_protected = protect_html_blocks(&table_protected, placeholders);
-    let protected = protect_with(protect_patterns(), &html_protected, placeholders)?;
+    let inline_html_protected = protect_inline_html_tags(&html_protected, placeholders);
+    let protected = protect_with(protect_patterns(), &inline_html_protected, placeholders)?;
     Ok(protect_inline_code(&protected, placeholders))
+}
+
+/// 保护行内 HTML 标签本身，但不保护标签之间的普通文本。
+///
+/// 只接受带 ASCII 标签名且在同一行闭合的 `<tag ...>` / `</tag>` / `<tag />`
+/// 结构；属性值中的 `>` 仅在引号外作为标签结束符。比较表达式和 autolink
+/// 不满足标签边界，不会进入此保护路径。
+fn protect_inline_html_tags(text: &str, placeholders: &mut Vec<(String, String)>) -> String {
+    let bytes = text.as_bytes();
+    let mut output = String::with_capacity(text.len());
+    let mut cursor = 0;
+
+    while cursor < bytes.len() {
+        let Some(relative_open) = text[cursor..].find('<') else {
+            output.push_str(&text[cursor..]);
+            break;
+        };
+        let open = cursor + relative_open;
+        let Some(end) = find_inline_html_tag_end(bytes, open) else {
+            output.push_str(&text[cursor..]);
+            break;
+        };
+        if !is_inline_html_tag(bytes, open, end) {
+            output.push_str(&text[cursor..open + 1]);
+            cursor = open + 1;
+            continue;
+        }
+
+        output.push_str(&text[cursor..open]);
+        if let Some(name) = inline_html_tag_name(bytes, open) {
+            if !is_self_closing_html_tag(bytes, open, end) {
+                if let Some(close_end) = find_inline_html_closing_tag(bytes, end + 1, name) {
+                    let ph = placeholder(placeholders.len());
+                    placeholders.push((ph.clone(), text[open..=close_end].to_string()));
+                    output.push_str(&ph);
+                    cursor = close_end + 1;
+                    continue;
+                }
+            }
+        }
+
+        let ph = placeholder(placeholders.len());
+        placeholders.push((ph.clone(), text[open..=end].to_string()));
+        output.push_str(&ph);
+        cursor = end + 1;
+    }
+
+    output
+}
+
+fn find_inline_html_tag_end(bytes: &[u8], open: usize) -> Option<usize> {
+    let mut quote = None;
+    for (index, &byte) in bytes.iter().enumerate().skip(open + 1) {
+        match (quote, byte) {
+            (Some(current), byte) if byte == current => quote = None,
+            (None, b'"' | b'\'') => quote = Some(bytes[index]),
+            (None, b'\n') => return None,
+            (None, b'>') => return Some(index),
+            _ => {}
+        }
+    }
+    None
+}
+
+fn inline_html_tag_name(bytes: &[u8], open: usize) -> Option<&str> {
+    let mut index = open + 1;
+    if bytes.get(index) == Some(&b'/') {
+        return None;
+    }
+    let start = index;
+    while bytes
+        .get(index)
+        .is_some_and(|byte| byte.is_ascii_alphabetic())
+    {
+        index += 1;
+    }
+    (index > start).then(|| std::str::from_utf8(&bytes[start..index]).ok())?
+}
+
+fn is_self_closing_html_tag(bytes: &[u8], open: usize, end: usize) -> bool {
+    bytes[open + 1..end]
+        .iter()
+        .rev()
+        .find(|byte| !byte.is_ascii_whitespace())
+        .is_some_and(|byte| *byte == b'/')
+}
+
+fn find_inline_html_closing_tag(bytes: &[u8], start: usize, name: &str) -> Option<usize> {
+    let marker = format!("</{name}");
+    let text = std::str::from_utf8(bytes).ok()?;
+    let mut cursor = start;
+    while cursor < bytes.len() {
+        let relative = text[cursor..].find(&marker)?;
+        let close_start = cursor + relative;
+        let boundary = bytes.get(close_start + marker.len()).copied();
+        if matches!(boundary, Some(b'>') | Some(b' ') | Some(b'\t')) {
+            return find_inline_html_tag_end(bytes, close_start);
+        }
+        cursor = close_start + marker.len();
+    }
+    None
+}
+
+fn is_inline_html_tag(bytes: &[u8], open: usize, end: usize) -> bool {
+    if bytes.get(open) != Some(&b'<') || bytes.get(end) != Some(&b'>') {
+        return false;
+    }
+    let mut index = open + 1;
+    if bytes.get(index) == Some(&b'/') {
+        index += 1;
+    }
+    let name_start = index;
+    while bytes
+        .get(index)
+        .is_some_and(|byte| byte.is_ascii_alphabetic())
+    {
+        index += 1;
+    }
+    if index == name_start {
+        return false;
+    }
+    matches!(
+        bytes.get(index),
+        Some(b'>') | Some(b'/') | Some(b' ' | b'\t')
+    )
 }
 
 /// 保护常见 Markdown HTML block，避免 block 内部文本被普通规则改写。

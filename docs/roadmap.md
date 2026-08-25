@@ -169,7 +169,7 @@ frontend/src/hooks/useShortcuts.ts # 监听、启停、IME 防护、动作分发
 - 行内保护扩展：
   - 任意长度反引号 delimiter（`` ` `` / `` `` ` `` / `` ``` `` 等）；当前已完成同长度 delimiter 的行内代码保护；
   - Markdown 链接的平衡括号与引用式链接；当前已完成嵌套括号链接/图片保护；
-  - HTML inline tag；
+  - HTML inline tag；当前已完成常见行内标签和自闭合标签保护；
   - 行内数学与转义字符；
 - 用小型状态机替代堆叠 `fancy-regex`（尤其反引号与括号嵌套）；
 - 产品策略：
