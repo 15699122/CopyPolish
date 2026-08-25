@@ -482,6 +482,30 @@ fn formats_protected_content() {
         "<div class=\"notice\">\n在GitHub上发布5000元\n</div>\n正文在 GitHub 上发布"
     );
 
+    assert_eq!(
+        format_text(&req("行内<span>GitHub</span>继续")).unwrap(),
+        "行内 <span>GitHub</span> 继续"
+    );
+    assert_eq!(
+        format_text(&req(
+            r#"点击<a href="https://example.com/a>b">GitHub</a>继续"#
+        ))
+        .unwrap(),
+        r#"点击 <a href="https://example.com/a>b">GitHub</a> 继续"#
+    );
+    assert_eq!(
+        format_text(&req("换行<br/>继续GitHub")).unwrap(),
+        "换行 <br/> 继续 GitHub"
+    );
+    assert_eq!(
+        format_text(&req("比较a < b且x > y继续GitHub")).unwrap(),
+        "比较 a < b 且 x > y 继续 GitHub"
+    );
+    assert_eq!(
+        format_text(&req("未闭合<span>GitHub继续")).unwrap(),
+        "未闭合 <span> GitHub 继续"
+    );
+
     let html_comment = "文本\n<!-- 注释GitHub 5000元\n第二行10cm -->\n结束";
     assert_eq!(format_text(&req(html_comment)).unwrap(), html_comment);
 
