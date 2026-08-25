@@ -1,0 +1,70 @@
+# Unicode 边界回归样例（roadmap §5）。
+# 首期行为冻结：CJK Extension B 视同汉字参与中英/中数插空；
+# emoji ZWJ / 肤色修饰 / 组合附加符保持完整 cluster，不在其内部插空；
+# Kana、Hangul 首期归为 Other，不触发插空（后续如引入 Script 属性需另行评审）。
+
+- name: CJK 扩展区 B 与英文之间增加空格
+  selection:
+    mode: defaults
+  input: 𠀀LeanCloud
+  expected: 𠀀 LeanCloud
+
+- name: 英文与扩展区 B 汉字之间增加空格且连续汉字不拆分
+  selection:
+    mode: defaults
+  input: LeanCloud𠀀文档
+  expected: LeanCloud 𠀀文档
+
+- name: emoji ZWJ 家庭序列不被切断也不插空
+  selection:
+    mode: defaults
+  input: 中文👨‍👩‍👧‍👦GitHub
+  expected: 中文👨‍👩‍👧‍👦GitHub
+
+- name: emoji 肤色修饰符保持一个整体
+  selection:
+    mode: defaults
+  input: 中文👍🏽GitHub
+  expected: 中文👍🏽GitHub
+
+- name: 分解形式 é（e + U+0301）与中文之间正常插空
+  selection:
+    mode: defaults
+  input: Café中文
+  expected: Café 中文
+
+- name: 汉字与组合附加符作为一个整体不插空
+  selection:
+    mode: only
+    keys:
+      - spacing.cjk-latin
+  input: 好́在GitHub
+  expected: 好́在 GitHub
+
+- name: 片假名首期视为 Other 不插空
+  selection:
+    mode: only
+    keys:
+      - spacing.cjk-latin
+  input: 中文カタカナGitHub
+  expected: 中文カタカナGitHub
+
+- name: 谚文首期视为 Other 不插空
+  selection:
+    mode: only
+    keys:
+      - spacing.cjk-latin
+  input: 中文한글GitHub
+  expected: 中文한글GitHub
+
+- name: emoji ZWJ 与 Markdown 链接保护组合
+  selection:
+    mode: defaults
+  input: 中文👨‍👩‍👧‍👦[GitHub](https://example.com/a;b?x=$1|y)结束
+  expected: 中文👨‍👩‍👧‍👦 [GitHub](https://example.com/a;b?x=$1|y) 结束
+
+- name: 扩展区 B 与化学式保护组合
+  selection:
+    mode: defaults
+  input: 𠀀Fe²⁺用于反应
+  expected: 𠀀 Fe²⁺ 用于反应

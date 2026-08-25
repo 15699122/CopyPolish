@@ -69,7 +69,7 @@ frontend/src/hooks/useShortcuts.ts # 监听、启停、IME 防护、动作分发
 
 ### 5.1 现状限制
 
-- `tokenizer.rs` 使用手写 Unicode 区间判定 CJK/Latin/Digit，规则实现大量基于逐 `char` 遍历与 ASCII 判断，对 emoji ZWJ 序列、组合附加符、CJK 扩展区（Extension B 及后续）的处理不够稳健；
+- `tokenizer.rs` 使用手写 Unicode 区间判定 CJK/Latin/Digit，规则实现大量基于逐 `char` 遍历与 ASCII 判断，对 emoji ZWJ 序列、组合附加符、CJK 扩展区（Extension B 及后续）的处理不够稳健（此项已由阶段 B 解决，见下）；
 - 单位识别仅支持 1–4 个 ASCII 字母（`[A-Za-z]{1,4}`），无法可靠处理 `μm/µm`、`Å/Å`、`Ω/kΩ`、`mg·mL⁻¹`、`kg·m⁻³` 等；
 - `μ`、`µ`、`Å`、`Å`、`Ω`、`∂`、`±`、`×`、`≤`、`≥` 等均落入 `Other`，无统一语义策略；
 - Markdown 保护是「正则集合」而非语法级识别，对多反引号行内代码、引用式链接、嵌套括号 URL、表格分隔行、YAML front matter、HTML 注释等有边界缺口；
@@ -77,14 +77,14 @@ frontend/src/hooks/useShortcuts.ts # 监听、启停、IME 防护、动作分发
 
 ### 5.2 阶段总览
 
-| 阶段 | 优先级 | 内容 |
-| --- | --- | --- |
-| A | P0 | 测试先行：补齐失败型黄金样例与测试矩阵（本次分析已产出样例清单） |
-| B | P1 | `unicode-segmentation` 与统一字符边界层 |
-| C | P1 | 单位词典与语义 token（特殊单位 / 温度 / 数学符号分类） |
-| D | P2 | Markdown 块级扫描器与行内保护扩展 |
-| E | P2 | Unicode 等价识别与输出规范化（默认关闭） |
-| F | P2 | 性能基准与边界回归纳入 CI |
+| 阶段 | 优先级 | 内容 | 状态 |
+| --- | --- | --- | --- |
+| A | P0 | 测试先行：补齐失败型黄金样例与测试矩阵（本次分析已产出样例清单） | 规划 |
+| B | P1 | `unicode-segmentation` 与统一字符边界层 | ✅ 已完成（见 5.4） |
+| C | P1 | 单位词典与语义 token（特殊单位 / 温度 / 数学符号分类） | 规划 |
+| D | P2 | Markdown 块级扫描器与行内保护扩展 | 规划 |
+| E | P2 | Unicode 等价识别与输出规范化（默认关闭） | 规划 |
+| F | P2 | 性能基准与边界回归纳入 CI | 规划 |
 
 ### 5.3 阶段 A：测试先行（P0，先行于任何新规则/保护层改动）
 
@@ -108,7 +108,7 @@ frontend/src/hooks/useShortcuts.ts # 监听、启停、IME 防护、动作分发
    ```
 3. 每个样例同时覆盖：单规则、默认规则组合、Markdown 保护组合、幂等性、LF / CRLF / CR 保留、长文本性能回归。
 
-### 5.4 阶段 B：`unicode-segmentation` 与统一字符边界层（P1）
+### 5.4 阶段 B：`unicode-segmentation` 与统一字符边界层（P1）✅ 已在 `unicode-boundaries` 分支实现
 
 - 轻量 Rust crate（UAX #29 Grapheme / Word / Sentence 边界，MIT/Apache-2.0）；
 - 新建独立封装层 `src-tauri/src/engine/unicode_boundaries.rs`，不立即全面替换 tokenizer；
