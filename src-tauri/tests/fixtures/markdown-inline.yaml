@@ -19,18 +19,6 @@
   input: 见![替代文本](img/a.png "标题")结束
   expected: 见 ![替代文本](img/a.png "标题") 结束
 
-- name: 引用式链接定义保持完整
-  selection:
-    mode: defaults
-  input: |
-    查看[官网][home]然后继续
-
-    [home]: https://example.com/a;b?x=1&y=2
-  expected: |
-    查看 [官网][home] 然后继续
-
-    [home]: https://example.com/a;b?x=1&y=2
-
 - name: 行内 HTML 标签不被拆分
   selection:
     mode: defaults

@@ -43,3 +43,15 @@
     title: 在GitHub上发布
     ---
     正文在 GitHub 上发布
+
+- name: 引用式链接定义保持完整而正文继续格式化
+  selection:
+    mode: defaults
+  input: |-
+    查看[官网][home]然后继续
+
+      [home]: <https://example.com/a;b?x=1&y=2> "官网"
+  expected: |-
+    查看 [官网][home] 然后继续
+
+      [home]: <https://example.com/a;b?x=1&y=2> "官网"

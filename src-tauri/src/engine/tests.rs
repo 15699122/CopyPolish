@@ -470,6 +470,13 @@ fn formats_protected_content() {
         format_text(&req(non_front_matter)).unwrap(),
         "正文\n---\ntitle: 在 GitHub 上发布"
     );
+
+    let reference_definition =
+        "查看[官网][home]然后继续\n\n  [home]: <https://example.com/a;b> \"官网\"";
+    assert_eq!(
+        format_text(&req(reference_definition)).unwrap(),
+        "查看 [官网][home] 然后继续\n\n  [home]: <https://example.com/a;b> \"官网\""
+    );
 }
 
 #[test]
