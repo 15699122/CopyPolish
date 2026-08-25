@@ -91,7 +91,7 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
 
 1. 规则 key 使用稳定的英文点分标识（如 `spacing.cjk-latin`）；中文展示名不参与内部寻址。旧版设置中的中文 key 由 `normalize_rule_keys` 迁移。
 2. 保护层正则依赖 lookbehind/backreference，必须使用 `fancy-regex`（`regex` crate 不支持）。
-3. 占位符格式为 `\u{E000}CCWPROTECTED{n}\u{E001}`；保护范围包括文档开头 YAML front matter、引用式链接定义、fenced code block、HTML 注释、LaTeX 环境/display/inline/command、支持嵌套括号目标的 Markdown 图片/链接/autolink、任意长度同 delimiter 的行内代码、URL、邮箱、缩进代码行及化学式。
+3. 占位符格式为 `\u{E000}CCWPROTECTED{n}\u{E001}`；保护范围包括文档开头 YAML front matter、表格分隔行、引用式链接定义、fenced code block、HTML 注释、LaTeX 环境/display/inline/command、支持嵌套括号目标的 Markdown 图片/链接/autolink、任意长度同 delimiter 的行内代码、URL、邮箱、缩进代码行及化学式。
 4. 行内占位符补空格时须过滤跨行值（fenced block 不补空格）。
 5. 规则选择由 `FormatRequest.selection` 显式表达：`all` 执行全部规则，`defaults` 执行默认规则，`only` 执行指定 key，`none` 不执行任何规则。用户设置文件继续保存 `enabled: string[]`，其中空数组表示“全不选”，由前端转换为 `none`。
 6. 保护规则或 tokenizer 新增/调整后，必须补充 Markdown / LaTeX / URL / 邮箱 / 代码 / 化学式边界测试。

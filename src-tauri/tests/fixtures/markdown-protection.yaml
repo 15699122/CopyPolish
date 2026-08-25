@@ -36,6 +36,18 @@
   input: 中文``未闭合GitHub
   expected: 中文 `` 未闭合 GitHub
 
+- name: 表格分隔行保持完整而表格正文继续格式化
+  selection:
+    mode: defaults
+  input: |-
+    | 标题GitHub | 数值5000元 |
+    | :---: | ---: |
+    | 内容GitHub | 价格5000元 |
+  expected: |-
+    | 标题 GitHub | 数值 5000 元 |
+    | :---: | ---: |
+    | 内容 GitHub | 价格 5000 元 |
+
 - name: HTML 注释保持完整
   selection:
     mode: defaults
