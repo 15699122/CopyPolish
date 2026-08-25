@@ -31,6 +31,8 @@ fn protect_patterns() -> &'static Vec<FancyRegex> {
             r"(?s)\A(?:\u{FEFF})?---[ \t]*\n.*?\n---[ \t]*(?=\n|$)",
             // HTML 注释（支持跨行，注释内部完全保持原样）
             r"(?s)<!--.*?-->",
+            // 引用式链接定义：整行保护，支持最多 3 个前导空格与可选标题。
+            r##"(?m)^[ \t]{0,3}\[[^\]\n]+\]:[ \t]*(?:<[^>\n]+>|[^\s<>\n]+)(?:[ \t]+(?:"[^"]*"|'[^']*'|\([^\)]*\)))?[ \t]*(?=\n|$)"##,
             // LaTeX environment
             r"(?s)\\begin\{(equation\*?|align\*?|gather\*?|multline\*?|matrix|pmatrix|bmatrix|cases)\}.*?\\end\{\1\}",
             // LaTeX display \[...\]
@@ -45,6 +47,8 @@ fn protect_patterns() -> &'static Vec<FancyRegex> {
             r"!\[[^\]\n]*\]\([^\n)]*\)",
             // Markdown link
             r"\[[^\]\n]+\]\([^\n)]*\)",
+            // Markdown reference-style link usage
+            r"\[[^\]\n]+\]\[[^\]\n]*\]",
             // autolink <https://...> / <mail@...>
             r"(?i)<(?:(?:https?://[^>\s]+)|(?:[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}))>",
             // inline code
