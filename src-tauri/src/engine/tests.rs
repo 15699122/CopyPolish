@@ -498,6 +498,18 @@ fn formats_protected_content() {
         "正文\n---\ntitle: 在 GitHub 上发布"
     );
 
+    let table = "| 标题GitHub | 数值5000元 |\n| :---: | ---: |\n| 内容GitHub | 价格5000元 |";
+    assert_eq!(
+        format_text(&req(table)).unwrap(),
+        "| 标题 GitHub | 数值 5000 元 |\n| :---: | ---: |\n| 内容 GitHub | 价格 5000 元 |"
+    );
+
+    let non_table_separator = "正文---|---正文";
+    assert_eq!(
+        format_text(&req(non_table_separator)).unwrap(),
+        "正文---|---正文"
+    );
+
     let reference_definition =
         "查看[官网][home]然后继续\n\n  [home]: <https://example.com/a;b> \"官网\"";
     assert_eq!(

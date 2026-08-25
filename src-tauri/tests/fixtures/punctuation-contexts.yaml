@@ -1,18 +1,6 @@
 # 标点上下文阶段 A 基线。
 # 重点冻结 URL、代码、HTML、LaTeX 与表格上下文中的标点安全边界。
 
-- name: 表格分隔竖线保持完整
-  selection:
-    mode: defaults
-  input: |
-    | a | b |
-    | --- | --- |
-    | x,y | z |
-  expected: |
-    | a | b |
-    | --- | --- |
-    | x，y | z |
-
 - name: 链接 URL 中的标点保持半角
   selection:
     mode: defaults

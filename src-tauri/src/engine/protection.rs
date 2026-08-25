@@ -78,8 +78,51 @@ fn link_patterns() -> &'static Vec<FancyRegex> {
 /// 把受保护片段替换为占位符；placeholders 按创建顺序保存 (占位符, 原文)。
 pub fn protect(text: &str, placeholders: &mut Vec<(String, String)>) -> Result<String, String> {
     let linked = protect_markdown_links(text, placeholders);
-    let protected = protect_with(protect_patterns(), &linked, placeholders)?;
+    let table_protected = protect_markdown_table_lines(&linked, placeholders);
+    let protected = protect_with(protect_patterns(), &table_protected, placeholders)?;
     Ok(protect_inline_code(&protected, placeholders))
+}
+
+/// 保护 Markdown 表格分隔行，避免分隔符中的短横线被标点规则改写。
+///
+/// 只接受包含至少两个分隔单元的行；每个单元必须是 `---`、`:---`、
+/// `---:` 或 `:---:` 形式。单独的水平分隔线和普通表格正文不受影响。
+fn protect_markdown_table_lines(text: &str, placeholders: &mut Vec<(String, String)>) -> String {
+    text.split('\n')
+        .map(|line| {
+            if is_table_separator_line(line) {
+                let ph = placeholder(placeholders.len());
+                placeholders.push((ph.clone(), line.to_string()));
+                ph
+            } else {
+                line.to_string()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn is_table_separator_line(line: &str) -> bool {
+    let trimmed = line.trim();
+    if !trimmed.contains('|') {
+        return false;
+    }
+
+    let cells: Vec<&str> = trimmed
+        .split('|')
+        .map(str::trim)
+        .filter(|cell| !cell.is_empty())
+        .collect();
+    cells.len() >= 2 && cells.iter().all(|cell| is_table_separator_cell(cell))
+}
+
+fn is_table_separator_cell(cell: &str) -> bool {
+    let cell = cell
+        .strip_prefix(':')
+        .unwrap_or(cell)
+        .strip_suffix(':')
+        .unwrap_or_else(|| cell.strip_prefix(':').unwrap_or(cell));
+    cell.len() >= 3 && cell.bytes().all(|byte| byte == b'-')
 }
 
 /// 保护 Markdown 链接和图片链接，支持目标中的嵌套圆括号。
