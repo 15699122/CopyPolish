@@ -22,6 +22,9 @@ pub mod protection;
 pub mod registry;
 mod rule_impls;
 pub(crate) mod semantic_tokens;
+// Span/edit 重构的迁移脚手架；当前由模块内单元测试验证，尚未接管生产 pipeline。
+#[allow(dead_code)]
+pub(crate) mod spans;
 pub mod tokenizer;
 pub(crate) mod unicode_boundaries;
 pub(crate) mod unit_lexicon;
