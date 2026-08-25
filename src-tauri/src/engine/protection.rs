@@ -112,6 +112,17 @@ pub fn protect_byte_spans(
     spans: &[(usize, usize)],
     placeholders: &mut Vec<(String, String)>,
 ) -> String {
+    protect_byte_spans_with_offset(text, spans, placeholders, 0)
+}
+
+/// 与 `protect_byte_spans` 相同，但允许调用方为占位符编号提供偏移量，
+/// 以便多个独立占位符集合可以安全地在同一文本中共存。
+pub fn protect_byte_spans_with_offset(
+    text: &str,
+    spans: &[(usize, usize)],
+    placeholders: &mut Vec<(String, String)>,
+    offset: usize,
+) -> String {
     if spans.is_empty() {
         return text.to_string();
     }
@@ -119,7 +130,7 @@ pub fn protect_byte_spans(
     let mut last = 0usize;
     for &(s, e) in spans {
         out.push_str(&text[last..s]);
-        let ph = placeholder(placeholders.len());
+        let ph = placeholder(offset + placeholders.len());
         placeholders.push((ph.clone(), text[s..e].to_string()));
         out.push_str(&ph);
         last = e;
@@ -179,6 +190,27 @@ pub fn space_around_inline_placeholders(text: &str, placeholders: &[(String, Str
     let alt = inline.join("|");
     let before_re = Regex::new(&format!(r"(\S)({alt})")).unwrap();
     let after_re = Regex::new(&format!(r#"({alt})([^\s，。；：！？、）】》」』])"#)).unwrap();
+    let before = before_re.replace_all(text, "$1 $2");
+    after_re.replace_all(&before, "$1 $2").to_string()
+}
+
+/// 为数学表达式占位符补充仅限 Han 边界的空格。
+///
+/// 数学 token 不复用普通 Markdown 占位符的 `\S` 边界规则，避免在全角标点后
+/// 产生额外空格；表达式内部和标点邻接关系均保持原样。
+pub fn space_around_math_placeholders(text: &str, placeholders: &[(String, String)]) -> String {
+    let inline: Vec<String> = placeholders
+        .iter()
+        .filter(|(_, val)| !val.contains('\n'))
+        .map(|(ph, _)| regex::escape(ph))
+        .collect();
+    if inline.is_empty() {
+        return text.to_string();
+    }
+    let alt = inline.join("|");
+    let cjk = r"[\u{3400}-\u{4dbf}\u{4e00}-\u{9fff}\u{f900}-\u{faff}]";
+    let before_re = Regex::new(&format!(r"({cjk})({alt})")).unwrap();
+    let after_re = Regex::new(&format!(r"({alt})({cjk})")).unwrap();
     let before = before_re.replace_all(text, "$1 $2");
     after_re.replace_all(&before, "$1 $2").to_string()
 }

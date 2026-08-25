@@ -155,18 +155,34 @@ fn break_superscript_unit_boundaries(text: &str) -> String {
     after.replace_all(&text, "$1 $2").to_string()
 }
 
+fn break_han_math_boundaries(text: &str) -> String {
+    static BEFORE: OnceLock<Regex> = OnceLock::new();
+    static AFTER: OnceLock<Regex> = OnceLock::new();
+    let operator = r"[∂±×≈≤≥]";
+    let cjk = r"\u{3400}-\u{4dbf}\u{4e00}-\u{9fff}\u{f900}-\u{faff}";
+    let before = BEFORE.get_or_init(|| {
+        Regex::new(&format!(r"([{cjk}])({operator})")).expect("invalid Han-math boundary regex")
+    });
+    let after = AFTER.get_or_init(|| {
+        Regex::new(&format!(r"({operator})([{cjk}])")).expect("invalid math-Han boundary regex")
+    });
+    let text = before.replace_all(text, "$1 $2");
+    after.replace_all(&text, "$1 $2").to_string()
+}
+
 pub fn cn_en_space(text: &str) -> String {
     cn_en_space_with(text, BoundaryStrategy::Graphemes)
 }
 
 /// spacing.cjk-number：中文与数字之间增加空格。
 pub(crate) fn cn_digit_space_with(text: &str, strategy: BoundaryStrategy) -> String {
-    insert_space_between_units(&spacing_units(text, strategy), |a, b| {
+    let text = insert_space_between_units(&spacing_units(text, strategy), |a, b| {
         matches!(
             (a.script, b.script),
             (ScriptClass::Han, ScriptClass::Digit) | (ScriptClass::Digit, ScriptClass::Han)
         )
-    })
+    });
+    break_han_math_boundaries(&text)
 }
 
 pub fn cn_digit_space(text: &str) -> String {
