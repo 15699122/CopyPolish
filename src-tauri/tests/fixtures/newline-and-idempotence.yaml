@@ -1,0 +1,19 @@
+# 复杂结构换行与幂等性稳定回归。
+
+- name: LF 复杂结构保持换行风格
+  selection:
+    mode: defaults
+  input: "正文在GitHub上发布\n$$\nE=mc^2\n$$\n结果为5000元"
+  expected: "正文在 GitHub 上发布\n$$\nE=mc^2\n$$\n结果为 5000 元"
+
+- name: CRLF 复杂结构保持换行风格
+  selection:
+    mode: defaults
+  input: "正文在GitHub上发布\r\n```text\r\nGitHub 5000元\r\n```\r\n结果为5000元"
+  expected: "正文在 GitHub 上发布\r\n```text\r\nGitHub 5000元\r\n```\r\n结果为 5000 元"
+
+- name: CR 复杂结构保持换行风格
+  selection:
+    mode: defaults
+  input: "正文在GitHub上发布\r结果为5000元"
+  expected: "正文在 GitHub 上发布\r结果为 5000 元"

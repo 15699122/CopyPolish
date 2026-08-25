@@ -66,6 +66,18 @@ fn load_passing_golden_cases() -> Vec<(String, GoldenCase)> {
             "markdown-protection.yaml",
             include_str!("../../tests/fixtures/markdown-protection.yaml"),
         ),
+        (
+            "complex-compositions.yaml",
+            include_str!("../../tests/fixtures/complex-compositions.yaml"),
+        ),
+        (
+            "rule-interactions.yaml",
+            include_str!("../../tests/fixtures/rule-interactions.yaml"),
+        ),
+        (
+            "newline-and-idempotence.yaml",
+            include_str!("../../tests/fixtures/newline-and-idempotence.yaml"),
+        ),
     ]
     .into_iter()
     .flat_map(|(file, yaml)| parse_fixture(file, yaml))
@@ -85,6 +97,10 @@ fn load_pending_baseline_cases() -> Vec<(String, GoldenCase)> {
         (
             "punctuation-contexts.yaml",
             include_str!("../../tests/fixtures/punctuation-contexts.yaml"),
+        ),
+        (
+            "structure-precedence.yaml",
+            include_str!("../../tests/fixtures/structure-precedence.yaml"),
         ),
     ]
     .into_iter()
@@ -377,6 +393,89 @@ fn explicit_rule_selection_modes_are_unambiguous() {
         selection: RuleSelection::None,
     };
     assert_eq!(format_text(&none).unwrap(), text);
+}
+
+#[test]
+fn rule_selection_key_order_does_not_change_pipeline_order() {
+    let text = "使用github登录，样品10μm在25°C保存";
+    let forward = FormatRequest {
+        text: text.to_string(),
+        selection: RuleSelection::Only {
+            keys: vec![
+                keys::NAMING_PROPER_NOUNS.to_string(),
+                keys::SPACING_CJK_LATIN.to_string(),
+                keys::SPACING_CJK_NUMBER.to_string(),
+                keys::SPACING_NUMBER_UNIT.to_string(),
+                keys::SPACING_TEMPERATURE_CJK.to_string(),
+            ],
+        },
+    };
+    let reverse = FormatRequest {
+        text: text.to_string(),
+        selection: RuleSelection::Only {
+            keys: vec![
+                keys::SPACING_TEMPERATURE_CJK.to_string(),
+                keys::SPACING_NUMBER_UNIT.to_string(),
+                keys::SPACING_CJK_NUMBER.to_string(),
+                keys::SPACING_CJK_LATIN.to_string(),
+                keys::NAMING_PROPER_NOUNS.to_string(),
+            ],
+        },
+    };
+    assert_eq!(
+        format_text(&forward).unwrap(),
+        format_text(&reverse).unwrap()
+    );
+}
+
+#[test]
+fn representative_rule_compositions_are_idempotent() {
+    let cases = [
+        (
+            "使用github登录，样品10μm在25°C保存",
+            vec![
+                keys::NAMING_PROPER_NOUNS,
+                keys::SPACING_CJK_LATIN,
+                keys::SPACING_CJK_NUMBER,
+                keys::SPACING_NUMBER_UNIT,
+                keys::SPACING_TEMPERATURE_CJK,
+            ],
+        ),
+        (
+            "请看[GitHub](https://example.com)然后继续5000元",
+            vec![
+                keys::SPACING_AROUND_LINKS,
+                keys::SPACING_CJK_LATIN,
+                keys::SPACING_CJK_NUMBER,
+            ],
+        ),
+        (
+            "使用github！！，价格为１０μm",
+            vec![
+                keys::NAMING_PROPER_NOUNS,
+                keys::TEXT_HALFWIDTH_DIGITS,
+                keys::PUNCT_NO_REPETITION,
+                keys::SPACING_NUMBER_UNIT,
+                keys::SPACING_CJK_NUMBER,
+            ],
+        ),
+    ];
+
+    for (text, selected) in cases {
+        let request = FormatRequest {
+            text: text.to_string(),
+            selection: RuleSelection::Only {
+                keys: selected.iter().map(|key| (*key).to_string()).collect(),
+            },
+        };
+        let once = format_text(&request).unwrap();
+        let twice = format_text(&FormatRequest {
+            text: once.clone(),
+            selection: request.selection.clone(),
+        })
+        .unwrap();
+        assert_eq!(once, twice, "composition is not idempotent: {text}");
+    }
 }
 
 #[test]

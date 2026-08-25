@@ -83,11 +83,14 @@ Windows 版依赖系统的 WebView2 Evergreen Runtime。Windows 10/11 通常已�
 - 自动链接形式的 URL / 邮箱；
 - 普通 URL 和邮箱；
 - LaTeX 行内公式、展示公式、常见环境和命令；
+- YAML front matter、HTML block/注释、表格分隔行、引用式链接定义；
+- 任意长度反引号行内代码、嵌套括号链接/图片、行内 HTML 标签、转义 Markdown 标记和硬换行；
+- 美元定界的行内/展示数学公式，以及有限词典识别的特殊单位（如 `μm`、`µm`、`Å`、`Å`、`Ω`、`mg/mL`）；
 - 化学式：包含 Unicode 上下标、电荷标记或水合物连接符（`·`）的片段，如 `Fe²⁺`、`SO₄²⁻`、`FeCl₂·4H₂O`、`CuSO₄·5H₂O`。
 
 例如 `$E=mc^2$`、代码块中的符号、链接地址、化学式通常不会被规则拆开或替换。
 
-> 规划中：对复杂 Markdown 结构（表格、引用式链接、多反引号行内代码、YAML front matter 等）、更多特殊单位（`μm/µm`、`Å/Å`、`Ω` 等）与数学符号（`∂/±/≤` 等）、以及更细粒度的 Unicode 边界（emoji ZWJ、CJK 扩展区）的识别与处理能力，正在按开发路线图分阶段增强。详见 [docs/roadmap.md](docs/roadmap.md) §5。当前版本以「宁漏格式化、不破坏结构」为保护原则。
+> 仍在增强：Markdown 保护目前是保守子集，不等同于完整 CommonMark/HTML 解析器；更复杂的嵌套结构、Markdown 状态机统一化、Unicode 等价识别、性能基准和规则组合边界仍按 [docs/roadmap.md](docs/roadmap.md) §5 分阶段推进。当前版本继续遵循「宁漏格式化、不破坏结构」原则。
 
 ## 用户设置
 

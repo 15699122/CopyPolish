@@ -1,0 +1,26 @@
+# 结构优先级稳定回归。
+# 保护结构内部包含其他语法标记时，外层结构应优先保持完整。
+
+- name: 行内代码优先于单位数学和 URL 识别
+  selection:
+    mode: defaults
+  input: 代码`10μm $x$ https://example.com`继续GitHub
+  expected: 代码 `10μm $x$ https://example.com` 继续 GitHub
+
+- name: 链接目标优先于美元数学和标点规则
+  selection:
+    mode: defaults
+  input: 查看[价格](https://example.com/a?cost=$10&x=1)然后继续GitHub
+  expected: 查看 [价格](https://example.com/a?cost=$10&x=1) 然后继续 GitHub
+
+- name: HTML 属性中的 URL 和标点保持完整
+  selection:
+    mode: defaults
+  input: 点击<a href="https://example.com/a,b?x=1">GitHub</a>继续
+  expected: 点击 <a href="https://example.com/a,b?x=1">GitHub</a> 继续
+
+- name: LaTeX 公式内部的单位文本保持完整
+  selection:
+    mode: defaults
+  input: 公式$10μm+3mg/mL$很重要GitHub
+  expected: 公式 $10μm+3mg/mL$ 很重要 GitHub
