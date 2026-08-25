@@ -25,6 +25,12 @@ pub(crate) enum SpanKind {
     InlineCode,
     MarkdownLink,
     HtmlBlock,
+    FencedCode,
+    FrontMatter,
+    HtmlComment,
+    ReferenceDefinition,
+    IndentedCode,
+    TableSeparator,
     LatexMath,
 }
 
@@ -37,9 +43,16 @@ impl SpanKind {
             | Self::Temperature
             | Self::ScientificUnit
             | Self::MathExpression => SpanPriority::SemanticAtomic,
-            Self::InlineCode | Self::MarkdownLink | Self::HtmlBlock | Self::LatexMath => {
-                SpanPriority::OpaqueStructure
-            }
+            Self::InlineCode
+            | Self::MarkdownLink
+            | Self::HtmlBlock
+            | Self::FencedCode
+            | Self::FrontMatter
+            | Self::HtmlComment
+            | Self::ReferenceDefinition
+            | Self::IndentedCode
+            | Self::TableSeparator
+            | Self::LatexMath => SpanPriority::OpaqueStructure,
         }
     }
 }
@@ -142,6 +155,12 @@ pub(crate) fn scan_semantic_spans(text: &str) -> Vec<TextSpan> {
 /// 这是后续 placeholder → TextEdit 迁移的只读入口；当前不改变生产 pipeline。
 pub(crate) fn scan_structure_spans(text: &str) -> Vec<TextSpan> {
     let mut spans = Vec::new();
+    scan_front_matter_spans(text, &mut spans);
+    scan_fenced_code_spans(text, &mut spans);
+    scan_html_comment_spans(text, &mut spans);
+    scan_reference_definition_spans(text, &mut spans);
+    scan_indented_code_spans(text, &mut spans);
+    scan_table_separator_spans(text, &mut spans);
     scan_inline_code_spans(text, &mut spans);
     scan_markdown_link_spans(text, &mut spans);
     scan_html_block_spans(text, &mut spans);
@@ -153,6 +172,171 @@ pub(crate) fn scan_all_spans(text: &str) -> Vec<TextSpan> {
     let mut spans = scan_semantic_spans(text);
     spans.extend(scan_structure_spans(text));
     arbitrate_spans(spans)
+}
+
+fn line_ranges(text: &str) -> Vec<(usize, usize, &str)> {
+    let mut ranges = Vec::new();
+    let mut start = 0usize;
+    for line in text.split('\n') {
+        let end = start + line.len();
+        ranges.push((start, end, line));
+        start = end.saturating_add(1);
+    }
+    ranges
+}
+
+fn scan_front_matter_spans(text: &str, output: &mut Vec<TextSpan>) {
+    let lines = line_ranges(text);
+    let Some(&(start, _, first)) = lines.first() else {
+        return;
+    };
+    let first = first.strip_prefix('\u{FEFF}').unwrap_or(first);
+    if first.trim() != "---" {
+        return;
+    }
+    for &(end_start, end, line) in lines.iter().skip(1) {
+        if line.trim() == "---" {
+            if let Some(span) = TextSpan::new(start, end, SpanKind::FrontMatter) {
+                output.push(span);
+            }
+            break;
+        }
+        let _ = end_start;
+    }
+}
+
+fn scan_fenced_code_spans(text: &str, output: &mut Vec<TextSpan>) {
+    let lines = line_ranges(text);
+    let mut index = 0;
+    while index < lines.len() {
+        let (start, _, line) = lines[index];
+        let trimmed = line.trim_start_matches([' ', '\t']);
+        let indent = line.len() - trimmed.len();
+        let bytes = trimmed.as_bytes();
+        let marker = if bytes.starts_with(b"```") {
+            Some(b'`')
+        } else if bytes.starts_with(b"~~~") {
+            Some(b'~')
+        } else {
+            None
+        };
+        if indent > 3 || marker.is_none() {
+            index += 1;
+            continue;
+        }
+        let marker = marker.unwrap();
+        let mut marker_len = 0;
+        while marker_len < trimmed.len() && trimmed.as_bytes()[marker_len] == marker {
+            marker_len += 1;
+        }
+        if marker_len < 3 {
+            index += 1;
+            continue;
+        }
+        let mut end_line = None;
+        for (candidate, (_, _, content)) in lines.iter().enumerate().skip(index + 1) {
+            let close = content.trim_start_matches([' ', '\t']);
+            let close_count = close.bytes().take_while(|byte| *byte == marker).count();
+            if close_count >= marker_len && close[close_count..].trim().is_empty() {
+                end_line = Some(candidate);
+                break;
+            }
+        }
+        if let Some(end_line) = end_line {
+            let end = lines[end_line].1;
+            if let Some(span) = TextSpan::new(start, end, SpanKind::FencedCode) {
+                output.push(span);
+            }
+            index = end_line + 1;
+        } else {
+            index += 1;
+        }
+    }
+}
+
+fn scan_html_comment_spans(text: &str, output: &mut Vec<TextSpan>) {
+    let mut cursor = 0;
+    while let Some(relative) = text[cursor..].find("<!--") {
+        let start = cursor + relative;
+        let Some(relative_end) = text[start + 4..].find("-->") else {
+            break;
+        };
+        let end = start + 4 + relative_end + 3;
+        if let Some(span) = TextSpan::new(start, end, SpanKind::HtmlComment) {
+            output.push(span);
+        }
+        cursor = end;
+    }
+}
+
+fn scan_reference_definition_spans(text: &str, output: &mut Vec<TextSpan>) {
+    for (start, end, line) in line_ranges(text) {
+        let trimmed = line.trim_start_matches([' ', '\t']);
+        let indent = line.len() - trimmed.len();
+        if indent > 3 || !trimmed.starts_with('[') {
+            continue;
+        }
+        let Some(label_end) = trimmed.find("]:") else {
+            continue;
+        };
+        let target = trimmed[label_end + 2..].trim();
+        if target.starts_with('<')
+            || target.starts_with("http://")
+            || target.starts_with("https://")
+        {
+            if let Some(span) = TextSpan::new(start, end, SpanKind::ReferenceDefinition) {
+                output.push(span);
+            }
+        }
+    }
+}
+
+fn scan_indented_code_spans(text: &str, output: &mut Vec<TextSpan>) {
+    let lines = line_ranges(text);
+    let mut index = 0;
+    while index < lines.len() {
+        if !(lines[index].2.starts_with("    ") || lines[index].2.starts_with('\t')) {
+            index += 1;
+            continue;
+        }
+        let start = lines[index].0;
+        let mut end = lines[index].1;
+        index += 1;
+        while index < lines.len()
+            && (lines[index].2.starts_with("    ") || lines[index].2.starts_with('\t'))
+        {
+            end = lines[index].1;
+            index += 1;
+        }
+        if let Some(span) = TextSpan::new(start, end, SpanKind::IndentedCode) {
+            output.push(span);
+        }
+    }
+}
+
+fn scan_table_separator_spans(text: &str, output: &mut Vec<TextSpan>) {
+    for (start, end, line) in line_ranges(text) {
+        let trimmed = line.trim();
+        if !trimmed.contains('|') {
+            continue;
+        }
+        let cells: Vec<&str> = trimmed
+            .split('|')
+            .map(str::trim)
+            .filter(|cell| !cell.is_empty())
+            .collect();
+        let valid = cells.len() >= 2
+            && cells.iter().all(|cell| {
+                let cell = cell.strip_prefix(':').unwrap_or(cell);
+                let cell = cell.strip_suffix(':').unwrap_or(cell);
+                cell.len() >= 3 && cell.bytes().all(|byte| byte == b'-')
+            });
+        if valid {
+            if let Some(span) = TextSpan::new(start, end, SpanKind::TableSeparator) {
+                output.push(span);
+            }
+        }
+    }
 }
 
 fn scan_inline_code_spans(text: &str, output: &mut Vec<TextSpan>) {
@@ -438,5 +622,33 @@ mod tests {
             &text[spans[0].start..spans[0].end],
             "`10μm $x$ https://example.com`"
         );
+    }
+
+    #[test]
+    fn block_structure_scanners_cover_supported_protection_shapes() {
+        let text = "---\ntitle: 10μm\n---\n<!-- 3mg/mL -->\n```text\n$x$\n```\n    Fe²⁺\n| --- | --- |\n[home]: https://example.com\n正文";
+        let spans = scan_structure_spans(text);
+        let kinds: Vec<SpanKind> = spans.iter().map(|span| span.kind).collect();
+        for kind in [
+            SpanKind::FrontMatter,
+            SpanKind::HtmlComment,
+            SpanKind::FencedCode,
+            SpanKind::IndentedCode,
+            SpanKind::TableSeparator,
+            SpanKind::ReferenceDefinition,
+        ] {
+            assert!(kinds.contains(&kind), "missing span kind: {kind:?}");
+        }
+    }
+
+    #[test]
+    fn unclosed_block_structures_do_not_consume_following_text() {
+        let text = "---\ntitle: 10μm\n正文在GitHub上发布";
+        let spans = scan_structure_spans(text);
+        assert!(!spans.iter().any(|span| span.kind == SpanKind::FrontMatter));
+
+        let text = "```text\n10μm\n正文在GitHub上发布";
+        let spans = scan_structure_spans(text);
+        assert!(!spans.iter().any(|span| span.kind == SpanKind::FencedCode));
     }
 }
