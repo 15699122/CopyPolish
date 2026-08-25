@@ -13,3 +13,33 @@
     <!-- 注释GitHub 5000元
     第二行10cm -->
     结束
+
+- name: YAML front matter 保持完整而正文继续格式化
+  selection:
+    mode: defaults
+  input: |-
+    ---
+    title: 在GitHub上发布
+    count: 5000元
+    ---
+    正文在GitHub上发布
+  expected: |-
+    ---
+    title: 在GitHub上发布
+    count: 5000元
+    ---
+    正文在 GitHub 上发布
+
+- name: 带 BOM 的 YAML front matter 保持完整
+  selection:
+    mode: defaults
+  input: |-
+    ﻿---
+    title: 在GitHub上发布
+    ---
+    正文在GitHub上发布
+  expected: |-
+    ﻿---
+    title: 在GitHub上发布
+    ---
+    正文在 GitHub 上发布

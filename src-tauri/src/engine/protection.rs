@@ -27,6 +27,8 @@ fn protect_patterns() -> &'static Vec<FancyRegex> {
         [
             // fenced code block（``` 或 ~~~，支持缩进闭合）
             r"(?s)(^|\n)([ \t]*)(`{3,}|~{3,})[^\n]*\n.*?\n\2\3[ \t]*(?=\n|$)",
+            // YAML front matter：仅匹配文档开头，可选 UTF-8 BOM，分隔线独占一行。
+            r"(?s)\A(?:\u{FEFF})?---[ \t]*\n.*?\n---[ \t]*(?=\n|$)",
             // HTML 注释（支持跨行，注释内部完全保持原样）
             r"(?s)<!--.*?-->",
             // LaTeX environment

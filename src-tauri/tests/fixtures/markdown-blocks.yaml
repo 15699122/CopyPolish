@@ -1,19 +1,5 @@
 # Markdown 块级保护阶段 A 基线。
 
-- name: YAML front matter 保持完整
-  selection:
-    mode: defaults
-  input: |
-    ---
-    title: 在GitHub上发布
-    ---
-    正文在GitHub上发布
-  expected: |
-    ---
-    title: 在GitHub上发布
-    ---
-    正文在 GitHub 上发布
-
 - name: fenced code block 保持完整
   selection:
     mode: defaults

@@ -451,6 +451,25 @@ fn formats_protected_content() {
 
     let html_comment = "文本\n<!-- 注释GitHub 5000元\n第二行10cm -->\n结束";
     assert_eq!(format_text(&req(html_comment)).unwrap(), html_comment);
+
+    let front_matter = "---\ntitle: 在GitHub上发布\ncount: 5000元\n---\n正文在GitHub上发布";
+    assert_eq!(
+        format_text(&req(front_matter)).unwrap(),
+        "---\ntitle: 在GitHub上发布\ncount: 5000元\n---\n正文在 GitHub 上发布"
+    );
+
+    let bom_front_matter = "\u{FEFF}---\ntitle: 在GitHub上发布\n---\n正文在GitHub上发布";
+    assert_eq!(
+        format_text(&req(bom_front_matter)).unwrap(),
+        "\u{FEFF}---\ntitle: 在GitHub上发布\n---\n正文在 GitHub 上发布"
+    );
+
+    // 文档中部的水平分隔线不是 front matter，后续文本仍可格式化。
+    let non_front_matter = "正文\n---\ntitle: 在GitHub上发布";
+    assert_eq!(
+        format_text(&req(non_front_matter)).unwrap(),
+        "正文\n---\ntitle: 在 GitHub 上发布"
+    );
 }
 
 #[test]
