@@ -21,6 +21,9 @@ pub mod pipeline;
 pub mod protection;
 pub mod registry;
 mod rule_impls;
+// TextEdit 迁移脚手架；当前由模块内单元测试验证，尚未接管生产 pipeline。
+#[allow(dead_code)]
+pub(crate) mod edit_plan;
 pub(crate) mod semantic_tokens;
 // Span/edit 重构的迁移脚手架；当前由模块内单元测试验证，尚未接管生产 pipeline。
 #[allow(dead_code)]
