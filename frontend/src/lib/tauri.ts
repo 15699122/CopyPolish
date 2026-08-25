@@ -50,6 +50,12 @@ function fallbackFormat(text: string): string {
     .replace(new RegExp(`(?<=[A-Za-z])(?=${cjk})`, "g"), " ")
     .replace(new RegExp(`(?<=${cjk})(?=\\d)`, "g"), " ")
     .replace(new RegExp(`(?<=\\d)(?=${cjk})`, "g"), " ")
+    // 上标结尾的科学单位片段（如 mg·mL⁻¹）与中文之间的边界，对齐桌面端
+    // spacing.cjk-latin 的 break_superscript_unit_boundaries 行为。
+    .replace(
+      new RegExp(`(?<=[\\u00b9\\u00b2\\u00b3\\u2070-\\u209f])(?=${cjk})`, "g"),
+      " ",
+    )
     .replace(/\s+([，。；：！？、）】》」』])/g, "$1")
     .replace(/([，。；：！？、））】》」』])\s+/g, "$1");
 }

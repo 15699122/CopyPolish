@@ -93,6 +93,8 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
 4. 行内占位符补空格时须过滤跨行值（fenced block 不补空格）。
 5. 规则选择由 `FormatRequest.selection` 显式表达：`all` 执行全部规则，`defaults` 执行默认规则，`only` 执行指定 key，`none` 不执行任何规则。用户设置文件继续保存 `enabled: string[]`，其中空数组表示“全不选”，由前端转换为 `none`。
 6. 保护规则或 tokenizer 新增/调整后，必须补充 Markdown / LaTeX / URL / 邮箱 / 代码 / 化学式边界测试。
+7. `spacing.cjk-latin` 除直接中英相邻外，还处理 Markdown 单星强调片段 `*word*`（word 仅含 ASCII 字母）与 CJK 或比较运算符 `<`/`>`/`=` 相邻的边界；与英文字母/数字相邻（如 `a*b*c`）及 `**粗体**` 不受影响。调整边界字符集时须同步更新 spacing.yaml 黄金样例与幂等用例。
+8. `spacing.cjk-latin` 另处理以 Unicode 上标结尾的科学单位片段（如 `mg·mL⁻¹`：字母开头、可含 `·` 连接段、以上标字符结尾）与相邻中文之间的空格；片段内部不改写，化学式在保护层已转为占位符不会进入该规则。浏览器预览的 `fallbackFormat` 须同步对应边界行为。
 
 ## 用户设置持久化
 
