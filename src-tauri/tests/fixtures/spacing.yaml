@@ -51,3 +51,47 @@
       - spacing.temperature-cjk
   input: 32℉解冻
   expected: 32℉ 解冻
+
+- name: Markdown 斜体统计符号与中文及比较运算符之间增加空格
+  selection:
+    mode: only
+    keys:
+      - spacing.cjk-latin
+      - spacing.cjk-number
+  input: 采用双尾非配对 Student’s *t*检验，以*p*<0.05为显著差异。
+  expected: 采用双尾非配对 Student’s *t* 检验，以 *p* <0.05 为显著差异。
+
+- name: 默认规则处理含斜体统计符号的实验描述
+  selection:
+    mode: defaults
+  input: |-
+    - 每组实验进行3次重复，数据表示为均值 ± 标准差；采用双尾非配对 Student’s *t*检验，以*p*<0.05为显著差异。
+  expected: |-
+    - 每组实验进行 3 次重复，数据表示为均值 ± 标准差；采用双尾非配对 Student’s *t* 检验，以 *p* <0.05 为显著差异。
+
+- name: 相邻英文字母不与斜体片段拆开
+  selection:
+    mode: only
+    keys:
+      - spacing.cjk-latin
+  input: 结果a*b*c保持不变
+  expected: 结果 a*b*c 保持不变
+
+- name: 上标单位片段与中文及缩写之间增加空格
+  selection:
+    mode: only
+    keys:
+      - spacing.cjk-latin
+      - spacing.cjk-number
+  input: AC磁场，且30 mg·mL⁻¹比10 mg·mL⁻¹作用更强，旋转DC磁场下。
+  expected: AC 磁场，且 30 mg·mL⁻¹ 比 10 mg·mL⁻¹ 作用更强，旋转 DC 磁场下。
+
+- name: 默认规则处理含上标单位的实验列表
+  selection:
+    mode: defaults
+  input: |-
+    - 对作用较弱的70 nm颗粒：
+    - AC磁场使生物膜明显稀疏，且30 mg·mL⁻¹比10 mg·mL⁻¹作用更强；
+  expected: |-
+    - 对作用较弱的 70 nm 颗粒：
+    - AC 磁场使生物膜明显稀疏，且 30 mg·mL⁻¹ 比 10 mg·mL⁻¹ 作用更强；

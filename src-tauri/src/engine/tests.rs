@@ -371,6 +371,9 @@ fn protected_cases_are_idempotent() {
         "样品为FeCl₂·4H₂O，纯度99%",
         "铁离子Fe²⁺用于反应",
         "不与MIONPs、Fe²⁺或DA-PEG-DA/PEG接触",
+        "采用双尾非配对 Student’s *t*检验，以*p*<0.05为显著差异。",
+        "结果a*b*c保持不变",
+        "AC磁场，且30 mg·mL⁻¹比10 mg·mL⁻¹作用更强，旋转DC磁场下。",
     ];
     for src in cases {
         let once = format_text(&req(src)).unwrap();
@@ -404,5 +407,15 @@ fn handles_utf8_multibyte_and_emoji() {
     assert_eq!(
         format_text(&req("第一行LeanCloud\n第二行5000元\n第三行👍")).unwrap(),
         "第一行 LeanCloud\n第二行 5000 元\n第三行👍"
+    );
+}
+
+#[test]
+fn formats_superscript_unit_and_acronym_boundaries() {
+    let src = "AC磁场，且30 mg\u{b7}mL\u{207b}\u{b9}比10 mg\u{b7}mL\u{207b}\u{b9}作用更强，旋转DC磁场下。";
+    println!("ACTUAL=[{}]", format_text(&req(src)).unwrap());
+    assert_eq!(
+        format_text(&req(src)).unwrap(),
+        "AC 磁场，且 30 mg\u{b7}mL\u{207b}\u{b9} 比 10 mg\u{b7}mL\u{207b}\u{b9} 作用更强，旋转 DC 磁场下。"
     );
 }

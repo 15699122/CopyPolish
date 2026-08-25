@@ -93,13 +93,62 @@ fn straight_corner_quotes(text: &str) -> String {
 // ---------------------------------------------------------------------------
 
 /// spacing.cjk-latin：中英文之间增加空格。
+///
+/// 在直接中英相连的基础上，额外处理 Markdown 行内单星强调片段（如 *t*、*p*）
+/// 与中文或比较运算符相邻的边界：`学生的*t*检验` → `学生的 *t* 检验`、
+/// `以*p*<0.05为` → `以 *p* <0.05 为`。
 pub fn cn_en_space(text: &str) -> String {
-    insert_space_between(&tokenize(text), |a, b| {
+    let base = insert_space_between(&tokenize(text), |a, b| {
         matches!(
             (a.kind, b.kind),
             (CharKind::Cjk, CharKind::Latin) | (CharKind::Latin, CharKind::Cjk)
         )
-    })
+    });
+    let text = break_emphasis_boundaries(&base);
+    break_superscript_unit_boundaries(&text)
+}
+
+/// 在 `cn_en_space` 结果上，补齐「CJK / 比较运算符 ↔ Markdown 单星强调片段」间的空格。
+///
+/// 匹配形式：`*word*`（word 为纯 ASCII 字母，如 *t*、*p*）；视为原子片段，
+/// 与邻接的 CJK 字符或比较运算符 `<`/`>`/`=` 之间插入空格，例如
+/// `中*t*` → `中 *t*`、`*p*<0.05` → `*p* <0.05`。
+/// 不拆分与相邻英文字母/数字（如 `a*b*c` 保持原样），且不影响 `**粗体**`。
+fn break_emphasis_boundaries(text: &str) -> String {
+    static BEFORE: OnceLock<Regex> = OnceLock::new();
+    static AFTER: OnceLock<Regex> = OnceLock::new();
+    // 边界：CJK 字 或 比较运算符 < > =（排除 ASCII 字母/数字/空格/星号），
+    // 仅当 `*word*` 与上述字符相邻时加空格，避免伤及 `a*b*c` 及 `**粗体**`。
+    let boundary = r"[\u{3400}-\u{4dbf}\u{4e00}-\u{9fff}\u{f900}-\u{faff}<>=]";
+    let before = BEFORE.get_or_init(|| {
+        Regex::new(&format!(r"({boundary})(\*[A-Za-z]+\*)")).expect("invalid before-emphasis regex")
+    });
+    let after = AFTER.get_or_init(|| {
+        Regex::new(&format!(r"(\*[A-Za-z]+\*)({boundary})")).expect("invalid after-emphasis regex")
+    });
+    let text = before.replace_all(text, "$1 $2");
+    after.replace_all(&text, "$1 $2").to_string()
+}
+
+/// 补齐「以 Unicode 上标结尾的科学单位片段（如 mg·mL⁻¹）与相邻中文」间的空格。
+///
+/// 片段形如 `mg·mL⁻¹`（字母开头，可含字母/数字与 `·` 连接段，以上标字符结尾）。
+/// tokenizer 将上标归类为独立类别，直接 CJK↔Latin/Digit 规则无法覆盖其尾部边界；
+/// 此处仅在片段整体与中文相邻时补空格，不改动片段内部。化学式（如 Fe²⁺）在保护层
+/// 已转为占位符，不会进入本规则。
+fn break_superscript_unit_boundaries(text: &str) -> String {
+    static BEFORE: OnceLock<Regex> = OnceLock::new();
+    static AFTER: OnceLock<Regex> = OnceLock::new();
+    let unit = r"[A-Za-z][A-Za-z0-9]*(?:[·⋅][A-Za-z0-9]+)*[⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾]+";
+    let cjk = r"\u{3400}-\u{4dbf}\u{4e00}-\u{9fff}\u{f900}-\u{faff}";
+    let before = BEFORE.get_or_init(|| {
+        Regex::new(&format!(r"([{cjk}])({unit})")).expect("invalid before-unit regex")
+    });
+    let after = AFTER.get_or_init(|| {
+        Regex::new(&format!(r"({unit})([{cjk}])")).expect("invalid after-unit regex")
+    });
+    let text = before.replace_all(text, "$1 $2");
+    after.replace_all(&text, "$1 $2").to_string()
 }
 
 /// spacing.cjk-number：中文与数字之间增加空格。
