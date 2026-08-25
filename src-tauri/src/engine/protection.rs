@@ -82,7 +82,49 @@ pub fn protect(text: &str, placeholders: &mut Vec<(String, String)>) -> Result<S
     let html_protected = protect_html_blocks(&table_protected, placeholders);
     let inline_html_protected = protect_inline_html_tags(&html_protected, placeholders);
     let protected = protect_with(protect_patterns(), &inline_html_protected, placeholders)?;
-    Ok(protect_inline_code(&protected, placeholders))
+    let escaped = protect_escaped_markdown(&protected, placeholders);
+    Ok(protect_inline_code(&escaped, placeholders))
+}
+
+/// 保护反斜杠与 Markdown 可转义标点的组合，避免转义标记被规则改写。
+///
+/// 该扫描在 LaTeX / HTML / 链接等完整结构之后执行，因此不会截断已有的
+/// `\\[...\\]`、`\\(...\\)` 或 `\\frac{...}` 保护片段。转义占位符在边界
+/// 补空格阶段会被排除，保持 `\\*text\\*` 的原始邻接关系。
+fn protect_escaped_markdown(text: &str, placeholders: &mut Vec<(String, String)>) -> String {
+    // `[` / `]` / `(` / `)` 与现有 LaTeX display/inline 语法重叠，
+    // 保留给 LaTeX 保护层处理，避免改变既有公式语义。
+    const ESCAPABLE: &[u8] = b"\\`*_{}#+-.!|>";
+    let bytes = text.as_bytes();
+    let mut output = String::with_capacity(text.len());
+    let mut cursor = 0;
+
+    while cursor < bytes.len() {
+        if bytes[cursor] == b'\\'
+            && bytes
+                .get(cursor + 1)
+                .is_some_and(|byte| ESCAPABLE.contains(byte))
+        {
+            let ph = placeholder(placeholders.len());
+            placeholders.push((ph.clone(), text[cursor..cursor + 2].to_string()));
+            output.push_str(&ph);
+            cursor += 2;
+        } else {
+            if bytes[cursor] == b'\\' {
+                output.push('\\');
+                cursor += 1;
+            } else {
+                let next = text[cursor..]
+                    .find('\\')
+                    .map(|offset| cursor + offset)
+                    .unwrap_or(bytes.len());
+                output.push_str(&text[cursor..next]);
+                cursor = next;
+            }
+        }
+    }
+
+    output
 }
 
 /// 保护行内 HTML 标签本身，但不保护标签之间的普通文本。
@@ -587,7 +629,7 @@ pub fn is_placeholder_line(line: &str) -> bool {
 pub fn space_around_inline_placeholders(text: &str, placeholders: &[(String, String)]) -> String {
     let inline: Vec<String> = placeholders
         .iter()
-        .filter(|(_, val)| !val.contains('\n'))
+        .filter(|(_, val)| !val.contains('\n') && !is_escaped_markdown_value(val))
         .map(|(ph, _)| regex::escape(ph))
         .collect();
     if inline.is_empty() {
@@ -598,6 +640,23 @@ pub fn space_around_inline_placeholders(text: &str, placeholders: &[(String, Str
     let after_re = Regex::new(&format!(r#"({alt})([^\s，。；：！？、）】》」』])"#)).unwrap();
     let before = before_re.replace_all(text, "$1 $2");
     after_re.replace_all(&before, "$1 $2").to_string()
+}
+
+fn is_escaped_markdown_value(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    bytes.len() == 2 && bytes[0] == b'\\'
+}
+
+pub fn restore_escaped_markdown_adjacency(text: &str, placeholders: &[(String, String)]) -> String {
+    let mut current = text.to_string();
+    for (_, value) in placeholders
+        .iter()
+        .filter(|(_, value)| is_escaped_markdown_value(value))
+    {
+        current = current.replace(&format!(" {value}"), value);
+        current = current.replace(&format!("{value} "), value);
+    }
+    current
 }
 
 /// 为数学表达式占位符补充仅限 Han 边界的空格。
