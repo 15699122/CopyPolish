@@ -82,7 +82,7 @@ frontend/src/hooks/useShortcuts.ts # 监听、启停、IME 防护、动作分发
 | A | P0 | 测试先行：补齐复杂排版 fixture，并区分稳定回归与待实现基线 | ✅ 已完成（稳定/待实现基线已分离） |
 | B | P1 | `unicode-segmentation` 与统一字符边界层 | ✅ 已完成（见 5.4） |
 | C | P1 | 单位词典与语义 token（特殊单位 / 温度 / 数学符号分类） | 🚧 进行中 |
-| D | P2 | Markdown 块级扫描器与行内保护扩展 | 🚧 进行中（已完成 HTML 注释保护首批增量） |
+| D | P2 | Markdown 块级扫描器与行内保护扩展 | 🚧 进行中（已完成 YAML/front matter、HTML block/注释、表格分隔行、引用式链接、反引号和嵌套括号链接保护） |
 | E | P2 | Unicode 等价识别与输出规范化（默认关闭） | 规划 |
 | F | P2 | 性能基准与边界回归纳入 CI | 规划 |
 
@@ -165,7 +165,7 @@ frontend/src/hooks/useShortcuts.ts # 监听、启停、IME 防护、动作分发
 ### 5.6 阶段 D：Markdown 块级扫描器与行内保护扩展（P2）
 
 - 在保留占位符机制前提下，将管线从「所有非空行均规则处理」调整为「只格式化可编辑文本区间」；
-- 块级扫描器首批识别：YAML front matter、fenced / indented code block、HTML 注释与 HTML block、表格分隔行、引用式链接定义；当前已完成 YAML front matter、HTML 注释、表格分隔行与引用式链接定义保护，其他案例仍保留在 pending 基线；
+- 块级扫描器首批识别：YAML front matter、fenced / indented code block、HTML 注释与 HTML block、表格分隔行、引用式链接定义；当前已完成 YAML front matter、HTML 注释、HTML block、表格分隔行与引用式链接定义保护，其他案例仍保留在 pending 基线；
 - 行内保护扩展：
   - 任意长度反引号 delimiter（`` ` `` / `` `` ` `` / `` ``` `` 等）；当前已完成同长度 delimiter 的行内代码保护；
   - Markdown 链接的平衡括号与引用式链接；当前已完成嵌套括号链接/图片保护；

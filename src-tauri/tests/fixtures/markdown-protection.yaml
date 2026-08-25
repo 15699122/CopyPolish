@@ -62,6 +62,20 @@
     第二行10cm -->
     结束
 
+- name: HTML block 保持完整而普通正文继续格式化
+  selection:
+    mode: defaults
+  input: |-
+    <div class="notice">
+    在GitHub上发布5000元
+    </div>
+    正文在GitHub上发布
+  expected: |-
+    <div class="notice">
+    在GitHub上发布5000元
+    </div>
+    正文在 GitHub 上发布
+
 - name: YAML front matter 保持完整而正文继续格式化
   selection:
     mode: defaults
