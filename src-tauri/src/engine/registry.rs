@@ -30,14 +30,45 @@ pub mod keys {
     pub const PUNCT_CORNER_QUOTES: &str = "punctuation.corner-quotes";
 }
 
-/// 一条已注册规则：元数据 + 处理函数 + 历史 key 别名。
+/// 规则执行阶段。
+///
+/// 同一阶段内保持注册表原顺序，以便这次重构不改变既有输出；不同阶段
+/// 的顺序由 `execution_rules` 显式决定，而不是由调用方自行推断。
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum RulePhase {
+    PunctuationNormalization,
+    NamingNormalization,
+    StructureBoundary,
+    TextBoundary,
+    FinalCleanup,
+}
+
+/// 一条已注册规则：元数据 + 执行阶段 + 处理函数 + 历史 key 别名。
 #[derive(Clone)]
 pub struct RuleDef {
     pub meta: RuleMeta,
+    pub phase: RulePhase,
     /// 旧版设置文件中的等价 key（中文名）；为空表示无历史别名。
     pub legacy: &'static [&'static str],
     #[allow(clippy::type_complexity)]
     pub apply: fn(&str) -> String,
+}
+
+fn phase_for_key(key: &str) -> RulePhase {
+    use keys::*;
+    match key {
+        PUNCT_NO_REPETITION
+        | PUNCT_FULLWIDTH_CJK
+        | TEXT_HALFWIDTH_DIGITS
+        | TEXT_ASCII_PUNCT_IN_LATIN => RulePhase::PunctuationNormalization,
+        NAMING_PROPER_NOUNS | NAMING_EXPAND_ABBREVIATIONS => RulePhase::NamingNormalization,
+        SPACING_AROUND_LINKS | PUNCT_CORNER_QUOTES => RulePhase::StructureBoundary,
+        SPACING_CJK_LATIN | SPACING_CJK_NUMBER | SPACING_NUMBER_UNIT | SPACING_TEMPERATURE_CJK => {
+            RulePhase::TextBoundary
+        }
+        SPACING_NO_SPACE_AROUND_FW_PUNCT => RulePhase::FinalCleanup,
+        _ => RulePhase::FinalCleanup,
+    }
 }
 
 impl RuleDef {
@@ -63,12 +94,13 @@ fn def(
             disputed,
             default,
         },
+        phase: phase_for_key(key),
         legacy,
         apply,
     }
 }
 
-/// 规则注册表。数组顺序即 pipeline 的执行顺序。
+/// 规则注册表。数组顺序是 UI 展示和同阶段规则的稳定 tie-breaker。
 /// 历史 12 条规则已全部迁移；争议规则与两个名词规则默认关闭。
 static RULES: std::sync::LazyLock<Vec<RuleDef>> = std::sync::LazyLock::new(|| {
     use keys::*;
@@ -196,6 +228,16 @@ static RULES: std::sync::LazyLock<Vec<RuleDef>> = std::sync::LazyLock::new(|| {
 /// 全部已注册规则（按执行顺序）。
 pub fn rules() -> &'static [RuleDef] {
     &RULES
+}
+
+/// 返回 pipeline 使用的显式阶段顺序。
+///
+/// 排序是稳定的：相同阶段保留注册表顺序，从而在引入 phase 元数据时
+/// 不改变已有规则组合的输出。
+pub fn execution_rules() -> Vec<&'static RuleDef> {
+    let mut ordered: Vec<_> = RULES.iter().collect();
+    ordered.sort_by_key(|rule| rule.phase);
+    ordered
 }
 
 /// 返回全部规则元数据（供 Tauri command 序列化给前端）。

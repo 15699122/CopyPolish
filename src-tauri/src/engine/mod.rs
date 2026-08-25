@@ -28,7 +28,10 @@ pub(crate) mod unit_lexicon;
 
 pub use model::{FormatRequest, RuleMeta, RuleSelection};
 pub use pipeline::format_text;
-pub use registry::{default_rules, enabled_defaults, normalize_rule_keys, rules, RuleDef};
+pub use registry::{
+    default_rules, enabled_defaults, execution_rules, normalize_rule_keys, rules, RuleDef,
+    RulePhase,
+};
 pub use tokenizer::detect_chemical_formulas;
 
 #[cfg(test)]

@@ -237,6 +237,33 @@ fn registry_contains_migrated_rules_with_defaults() {
 }
 
 #[test]
+fn registry_execution_order_is_phase_explicit_and_stable() {
+    let ordered = execution_rules();
+    let keys: Vec<&str> = ordered.iter().map(|rule| rule.key()).collect();
+    assert_eq!(
+        keys,
+        vec![
+            keys::PUNCT_NO_REPETITION,
+            keys::PUNCT_FULLWIDTH_CJK,
+            keys::TEXT_HALFWIDTH_DIGITS,
+            keys::TEXT_ASCII_PUNCT_IN_LATIN,
+            keys::NAMING_PROPER_NOUNS,
+            keys::NAMING_EXPAND_ABBREVIATIONS,
+            keys::SPACING_AROUND_LINKS,
+            keys::PUNCT_CORNER_QUOTES,
+            keys::SPACING_CJK_LATIN,
+            keys::SPACING_CJK_NUMBER,
+            keys::SPACING_NUMBER_UNIT,
+            keys::SPACING_TEMPERATURE_CJK,
+            keys::SPACING_NO_SPACE_AROUND_FW_PUNCT,
+        ]
+    );
+    assert!(ordered
+        .windows(2)
+        .all(|pair| pair[0].phase <= pair[1].phase));
+}
+
+#[test]
 fn formats_basic_copywriting_sample() {
     assert_eq!(
         format_text(&req("在LeanCloud上，花了5000元")).unwrap(),

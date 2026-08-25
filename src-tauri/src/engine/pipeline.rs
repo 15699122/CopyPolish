@@ -18,7 +18,7 @@ use super::protection::{
     protect_markdown_lines, restore, restore_escaped_markdown_adjacency,
     space_around_inline_placeholders, space_around_math_placeholders,
 };
-use super::registry::rules;
+use super::registry::{execution_rules, rules};
 use super::semantic_tokens::scan_math_expressions;
 use super::tokenizer::detect_chemical_formulas;
 
@@ -48,7 +48,7 @@ pub fn format_text(req: &FormatRequest) -> Result<String, String> {
     let protected = protect(&text, &mut placeholders)?;
     let line_protected = protect_markdown_lines(&protected, &mut placeholders);
 
-    let registered = rules();
+    let registered = execution_rules();
     let mut out: Vec<String> = Vec::new();
     for line in line_protected.split('\n') {
         if line.trim().is_empty() {
@@ -62,7 +62,7 @@ pub fn format_text(req: &FormatRequest) -> Result<String, String> {
         }
 
         let mut current = line.to_string();
-        for rule in registered {
+        for rule in &registered {
             if enabled.contains(rule.key()) {
                 current = (rule.apply)(&current);
             }
