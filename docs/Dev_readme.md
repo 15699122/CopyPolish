@@ -102,7 +102,7 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
 11. 阶段 C 第一批已将 `spacing.number-unit` 接入有限单位词典：支持 `μm/µm`、`Å/Å`、`Ω/kΩ`、`°C/°F` 与常见复合科学单位；`semantic_tokens.rs` 同时提供明确数学表达式的保守扫描（`∂f/∂x`、`x≤y`、`a≈b`、`3±0.5`、`2×3`），表达式内部保护、仅在 Han 直接边界补空格，不在全角标点后添加额外空格。单位扫描不使用 look-around，边界通过 Rust 字节区间检查完成。
 12. Markdown 安全处理：检测到明显 Markdown 标记时默认启用安全模式（宁漏格式化、不破坏结构）；当前采用“手写扫描器 + 有限 `fancy-regex` + 占位符”的混合保护层，块级（front matter / fenced、缩进代码 / HTML 注释 / 表格分隔行 / 引用式链接定义）与行内（任意长度反引号 / 链接平衡括号 / HTML 标签 / 美元定界行内与展示数学 / 转义字符）保护保持「保护 → 仅格式化可编辑区间 → 还原」的管线。后续重构目标是统一为可仲裁的 span / edit plan，而不是继续堆叠正则。
 13. `registry.rs` 的 `RulePhase` 与 `before/after` 是规则调度的显式元数据：pipeline 通过 `execution_rules()` 做稳定拓扑排序，同 phase 使用注册表顺序作为 tie-break；未知依赖、重复 key 和循环依赖会被拒绝。`rules()` 仍用于稳定的 UI 展示顺序。
-14. `spans.rs` 提供统一 `SpanKind` / `SpanPriority` / `TextSpan` 与重叠仲裁；当前已汇总化学式、有限单位、Unicode 数学 token，以及 fenced code、front matter、HTML block/comment、引用式链接定义、缩进代码、表格分隔行、行内代码、Markdown 链接和美元数学等结构 span，但仍不改变现有 placeholder pipeline。`edit_plan.rs` 提供 UTF-8 安全的 `TextEdit` 创建、冲突仲裁和逆序应用基础，仍未接管生产 pipeline。
+14. `spans.rs` 提供统一 `SpanKind` / `SpanPriority` / `TextSpan` 与重叠仲裁；当前已汇总化学式、有限单位、Unicode 数学 token，以及 fenced code、front matter、HTML block/comment、引用式链接定义、缩进代码、表格分隔行、行内代码、Markdown 链接和美元数学等结构 span，但仍不改变现有 placeholder pipeline。`edit_plan.rs` 提供 UTF-8 安全的 `TextEdit` 创建、冲突仲裁、逆序应用和语义边界编辑规划；其中单位/数学边界规划只在测试路径验证，仍未接管生产 pipeline。
  15. Unicode 等价识别与输出规范化分离：识别层把 `µ/μ`、`Å/Å` 视为等价语义，输出层默认不改写用户原文；如提供统一表示，须作为独立、默认关闭的规范化规则并评估 NFKC 影响。
  16. 复杂输入测试应至少覆盖结构保护、语义 token、普通文本规则三层同时命中的场景；新增规则或保护层改动必须补充复杂组合 fixture、规则选择组合、优先级和幂等性测试。当前 `structure-precedence.yaml` 作为 pending 基线记录行内代码与单位/数学扫描的优先级冲突，不能把该差异误标为稳定行为。
 
