@@ -12,6 +12,24 @@
   input: 中文```a `` b```后续GitHub
   expected: 中文 ```a `` b``` 后续 GitHub
 
+- name: 嵌套括号链接保持完整
+  selection:
+    mode: defaults
+  input: 请看[文档](https://example.com/foo_(bar_(baz)))然后继续
+  expected: 请看 [文档](https://example.com/foo_(bar_(baz))) 然后继续
+
+- name: 嵌套括号图片保持完整
+  selection:
+    mode: defaults
+  input: 图片![示例](img/foo_(small).png)结束GitHub
+  expected: 图片 ![示例](img/foo_(small).png) 结束 GitHub
+
+- name: 未闭合链接不吞掉后续正文
+  selection:
+    mode: defaults
+  input: 未闭合[文档](https://example.com/foo_(bar)继续GitHub
+  expected: 未闭合[文档]（ https://example.com/foo_(bar)继续GitHub
+
 - name: 未闭合反引号不吞掉后续正文
   selection:
     mode: defaults

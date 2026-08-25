@@ -1,18 +1,6 @@
 # Markdown 行内保护 pending 基线。
 # 目标是保护结构，同时继续格式化结构外的普通文本。
 
-- name: 嵌套括号链接保持完整
-  selection:
-    mode: defaults
-  input: 请看[文档](https://example.com/foo_(bar))然后继续
-  expected: 请看 [文档](https://example.com/foo_(bar)) 然后继续
-
-- name: 图片链接保持完整
-  selection:
-    mode: defaults
-  input: 见![替代文本](img/a.png "标题")结束
-  expected: 见 ![替代文本](img/a.png "标题") 结束
-
 - name: 行内 HTML 标签不被拆分
   selection:
     mode: defaults

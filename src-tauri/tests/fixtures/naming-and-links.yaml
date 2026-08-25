@@ -21,3 +21,11 @@
       - spacing.around-links
   input: 查看[官网](https://example.com)然后继续
   expected: 查看 [官网](https://example.com) 然后继续
+
+- name: 嵌套括号链接之间增加空格
+  selection:
+    mode: only
+    keys:
+      - spacing.around-links
+  input: 访问[文档](https://example.com/foo_(bar_(baz)))即可
+  expected: 访问 [文档](https://example.com/foo_(bar_(baz))) 即可

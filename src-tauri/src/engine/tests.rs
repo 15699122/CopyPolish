@@ -457,6 +457,21 @@ fn formats_protected_content() {
         "请看 [GitHub链接](https://example.com/a;b?x=$1|y) 然后继续"
     );
     assert_eq!(
+        format_text(&req(
+            "请看[文档](https://example.com/foo_(bar_(baz)))然后继续"
+        ))
+        .unwrap(),
+        "请看 [文档](https://example.com/foo_(bar_(baz))) 然后继续"
+    );
+    assert_eq!(
+        format_text(&req("图片![示例](img/foo_(small).png)结束GitHub")).unwrap(),
+        "图片 ![示例](img/foo_(small).png) 结束 GitHub"
+    );
+    assert_eq!(
+        format_text(&req("未闭合[文档](https://example.com/foo_(bar)继续GitHub")).unwrap(),
+        "未闭合[文档]（ https://example.com/foo_(bar)继续GitHub"
+    );
+    assert_eq!(
         format_text(&req(r#"图片![alt text](image/path.png "title")很好"#)).unwrap(),
         r#"图片 ![alt text](image/path.png "title") 很好"#
     );
