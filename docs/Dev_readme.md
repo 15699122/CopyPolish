@@ -28,6 +28,8 @@ Tauri 2
     │   ├── protection.rs      Markdown / LaTeX / URL / 邮箱保护层
     │   ├── tokenizer.rs       字符分类 + 化学式识别
     │   ├── unicode_boundaries.rs  UAX #29 grapheme 边界层（roadmap §5）
+    │   ├── spans.rs            结构/语义 span 扫描与优先级仲裁脚手架
+    │   ├── edit_plan.rs        UTF-8 安全 TextEdit 规划与冲突仲裁脚手架
     │   ├── rule_impls.rs      各条规则的纯函数实现
     │   ├── model.rs           RuleMeta / FormatRequest
     │   └── tests.rs           引擎单元测试
@@ -40,6 +42,7 @@ Tauri 2
 - **用户设置**：保存在 exe 相同目录的 `rules.yaml`（YAML；见下文），首次运行自动迁移旧版 `ccw-formatter-settings.json`；读取与保存时通过 `normalize_rule_keys` 把旧版中文 key 迁移为稳定 key 并丢弃未知 key。
 - **化学式识别**：tokenizer 保守识别含 Unicode 上下标、电荷标记或水合物连接符的片段（`Fe²⁺`、`SO₄²⁻`、`FeCl₂·4H₂O` 等），在规则处理前转为占位符整体保护，为后续新规则提供可靠判定单元。
 - **Unicode 边界层**（roadmap §5）：`unicode_boundaries.rs` 基于 `unicode-segmentation` 提供 extended grapheme cluster 切分与保守分类（`Han / Latin / Digit / Other`）。中英插空与中数插空两条规则以 grapheme 为判定单位——emoji ZWJ 序列、肤色修饰符、组合附加符不会被切断；Han 范围表集中维护并已覆盖 CJK Extension B。`BoundaryStrategy::LegacyChars` 仅供新旧策略对比测试，生产固定使用 Graphemes；化学式检测不经过该层，仍沿用保守正则 + 字节区间。Kana/Hangul 首期归为 `Other` 不触发插空，行为由 `tests/fixtures/unicode-boundaries.yaml` 冻结；性能基线见 [unicode-baseline.md](unicode-baseline.md)。
+- **规则调度与迁移基础设施**：`registry.rs` 已使用 `RulePhase` 与 `before/after` 依赖进行稳定拓扑排序，并拒绝未知依赖、重复 key 和循环依赖。`spans.rs` 已提供结构/语义 span 扫描与优先级仲裁；`edit_plan.rs` 已提供 UTF-8 安全的 `TextEdit` 创建、冲突仲裁、逆序应用和单位/数学边界规划。两者当前均为迁移脚手架，尚未替换生产 placeholder pipeline。
 
 ## 当前开发状态
 
@@ -105,6 +108,15 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
 14. `spans.rs` 提供统一 `SpanKind` / `SpanPriority` / `TextSpan` 与重叠仲裁；当前已汇总化学式、有限单位、Unicode 数学 token，以及 fenced code、front matter、HTML block/comment、引用式链接定义、缩进代码、表格分隔行、行内代码、Markdown 链接和美元数学等结构 span，但仍不改变现有 placeholder pipeline。`edit_plan.rs` 提供 UTF-8 安全的 `TextEdit` 创建、冲突仲裁、逆序应用和语义边界编辑规划；其中单位/数学边界规划只在测试路径验证，仍未接管生产 pipeline。
  15. Unicode 等价识别与输出规范化分离：识别层把 `µ/μ`、`Å/Å` 视为等价语义，输出层默认不改写用户原文；如提供统一表示，须作为独立、默认关闭的规范化规则并评估 NFKC 影响。
  16. 复杂输入测试应至少覆盖结构保护、语义 token、普通文本规则三层同时命中的场景；新增规则或保护层改动必须补充复杂组合 fixture、规则选择组合、优先级和幂等性测试。当前 `structure-precedence.yaml` 作为 pending 基线记录行内代码与单位/数学扫描的优先级冲突，不能把该差异误标为稳定行为。
+
+## 当前开发进度摘要（2026-08-25）
+
+- **已完成**：阶段 A 测试分层、阶段 B Unicode grapheme 边界、阶段 C 第一批有限单位词典/语义 token、阶段 D 首批 Markdown 保护能力。
+- **已完成的调度重构基础**：`RulePhase`、`before/after` 依赖、稳定拓扑排序、依赖图错误检测。
+- **已完成的 Span/Edit 基础**：结构与语义 span 扫描、重叠仲裁、UTF-8 安全 `TextEdit`、非重叠编辑逆序应用、单位/数学边界编辑规划。
+- **未完成**：Span/Edit 尚未接管 `format_text`；现有生产路径仍是 placeholder + 逐行 `fn(&str) -> String` 规则；`structure-precedence.yaml` 仍是 pending 基线。
+- **未完成**：完整单位词典、温度规则独立 stable key、Unicode 等价识别/默认关闭规范化、1 MB 长文本性能基准、真实 Tauri E2E、Windows 10/11 真机验收和正式 `v0.5.0` 发布。
+- **当前验证基线**：Rust 单元测试 66 项、前端 Vitest 15 项；fmt、Clippy、前端构建和 diff 检查均纳入本地/CI 验证。
 
 ## 用户设置持久化
 
