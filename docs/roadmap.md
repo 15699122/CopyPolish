@@ -228,7 +228,7 @@ frontend/src/hooks/useShortcuts.ts # 监听、启停、IME 防护、动作分发
 - 将 `spacing.number-unit`、温标、数学边界和全角标点清理迁移为 span-aware edits；
 - 移除普通/数学多套 placeholder 编号约定；
 - 解决所有结构优先级 pending 案例并迁移为稳定黄金 fixture；
-- 增加编辑计划与旧 placeholder 路径的逐例 diff 对照；✅ 已完成并扩展至**全部稳定黄金 fixture**（`tests.rs::edit_plan_path_matches_placeholder_pipeline_on_stable_fixtures`）：语义边界类能力（文本边界、selection 门控、温标/‰、`$…$` 边界）与 `cn_en_space` 扩展边界（Markdown 单星强调片段、Unicode 上标结尾单位片段，`edit_plan.rs::plan_extended_boundary_edits`）双路径输出完全一致；剩余 31 例差异对应三类尚未迁移的生产能力（非边界规则、全角标点清理、结构保护还原），按案例冻结在测试内 `PENDING_DIFFS` 清单，须随迁移逐项消除；
+- 增加编辑计划与旧 placeholder 路径的逐例 diff 对照；✅ 已完成并扩展至**全部稳定黄金 fixture**（`tests.rs::edit_plan_path_matches_placeholder_pipeline_on_stable_fixtures`）：语义边界、`cn_en_space` 扩展边界（强调/上标单位）、inline placeholder 边缘补空格（新增 `InlineHtml` span）双路径输出完全一致；HTML block span 覆盖缺口已修复；剩余 15 例差异对应两类尚未迁移的生产能力（非边界逐行规则、未闭合结构还原特例），按案例冻结在测试内 `PENDING_DIFFS` 清单，须随迁移逐项消除；
 - 建立 10 KB/100 KB/1 MB 性能和内存基线。
 
 ### 5.8 阶段 E：Unicode 等价识别与输出规范化（P2）

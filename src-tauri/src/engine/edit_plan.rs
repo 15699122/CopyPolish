@@ -269,7 +269,81 @@ pub(crate) fn plan_semantic_boundary_edits_with_selection(
         edits.extend(extended_edits);
     }
 
+    // Inline placeholder 边缘补空格（对齐 space_around_inline_placeholders，
+    // 无条件执行）：行内代码 / 链接 / 行内 HTML / 化学式等非可编辑片段
+    // 与任意非空白前字符、非空白非全角标点后字符之间插入空格。
+    let inline_edge_edits = plan_inline_placeholder_edge_edits(text, &spans, &edits);
+    edits.extend(inline_edge_edits);
+
     arbitrate_edits(edits)
+}
+
+/// Inline placeholder 边缘补空格：
+/// - before：span 前任意非空白字符 → 插入空格（含全角标点，如 `、Fe²⁺`）；
+/// - after：span 后非空白且不属于全角标点排除集的字符 → 插入空格。
+fn plan_inline_placeholder_edge_edits(
+    text: &str,
+    spans: &[TextSpan],
+    existing: &[TextEdit],
+) -> Vec<TextEdit> {
+    const AFTER_EXCLUDED: &[char] = &[
+        '，', '。', '；', '：', '！', '？', '、', '）', '】', '》', '」', '』',
+    ];
+    let mut edits: Vec<TextEdit> = Vec::new();
+    for span in spans {
+        if span.priority == SpanPriority::Editable {
+            continue;
+        }
+        // 仅处理「行内」保护片段：块级结构（fenced/indented code、HTML block、
+        // front matter 等）整行保持原样，不补边界空格。
+        if !matches!(
+            span.kind,
+            SpanKind::InlineCode
+                | SpanKind::MarkdownLink
+                | SpanKind::InlineHtml
+                | SpanKind::ChemicalFormula
+        ) {
+            continue;
+        }
+
+        fn covered(existing: &[TextEdit], edits: &[TextEdit], boundary: usize) -> bool {
+            existing
+                .iter()
+                .chain(edits.iter())
+                .any(|edit: &TextEdit| boundary >= edit.start && boundary <= edit.end)
+        }
+
+        if let Some((before_start, before_end, before)) = previous_char_range(text, span.start) {
+            if before != ' ' && !covered(existing, &edits, span.start) {
+                if let Ok(edit) = TextEdit::new(
+                    text,
+                    before_start,
+                    before_end,
+                    format!("{before} "),
+                    EditPriority::Editable,
+                ) {
+                    edits.push(edit);
+                }
+            }
+        }
+        if let Some((after_start, after_end, after)) = next_char_range(text, span.end) {
+            if after != ' '
+                && !AFTER_EXCLUDED.contains(&after)
+                && !covered(existing, &edits, span.end)
+            {
+                if let Ok(edit) = TextEdit::new(
+                    text,
+                    after_start,
+                    after_end,
+                    format!(" {after}"),
+                    EditPriority::Editable,
+                ) {
+                    edits.push(edit);
+                }
+            }
+        }
+    }
+    edits
 }
 
 /// 扩展边界：Markdown 单星强调片段（`*word*`）与以 Unicode 上标结尾的
@@ -509,8 +583,11 @@ mod tests {
         let text = "样品10μm且计算∂f/∂x很重要，代码`10μm $x$`继续";
         let edits = plan_semantic_boundary_edits(text);
         let output = apply_edits(text, &edits).unwrap();
-        // 单位/数学边界 + 文本边界（Han↔Digit / Latin↔Han）；行内代码整体不动。
-        assert_eq!(output, "样品 10 μm 且计算 ∂f/∂x 很重要，代码`10μm $x$`继续");
+        // 单位/数学/文本边界 + inline placeholder 边缘补空格；行内代码内部不动。
+        assert_eq!(
+            output,
+            "样品 10 μm 且计算 ∂f/∂x 很重要，代码 `10μm $x$` 继续"
+        );
     }
 
     #[test]
