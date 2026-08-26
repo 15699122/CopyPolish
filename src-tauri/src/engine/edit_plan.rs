@@ -203,6 +203,17 @@ fn previous_char_range(text: &str, index: usize) -> Option<(usize, usize, char)>
         .map(|(start, ch)| (start, index, ch))
 }
 
+/// 测试对照入口：对原文仅应用单位/数学语义边界编辑。
+///
+/// 这是 roadmap §5.7「编辑计划与旧 placeholder 路径逐例 diff 对照」的新路径
+/// 侧；生产 `format_text` 尚未使用本函数。随迁移推进，逐步把温标、全角标点
+/// 清理等规则纳入编辑计划后，本函数覆盖面将与生产管线收敛。
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) fn format_units_and_math_via_edits(text: &str) -> String {
+    apply_edits(text, &plan_semantic_boundary_edits(text))
+        .expect("semantic boundary edits must apply cleanly")
+}
+
 fn next_char_range(text: &str, index: usize) -> Option<(usize, usize, char)> {
     let ch = text[index..].chars().next()?;
     Some((index, index + ch.len_utf8(), ch))
