@@ -23,7 +23,9 @@ use super::semantic_tokens::scan_math_expressions;
 use super::spans::{scan_all_spans, TextSpan};
 use super::tokenizer::detect_chemical_formulas;
 
-pub fn format_text(req: &FormatRequest) -> Result<String, String> {
+/// 迁移期保留的旧 placeholder 管线，仅供新旧路径等价性回归测试使用。
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) fn format_text_legacy(req: &FormatRequest) -> Result<String, String> {
     let enabled: HashSet<String> = match &req.selection {
         RuleSelection::All => rules().iter().map(|rule| rule.key().to_string()).collect(),
         RuleSelection::Defaults => super::registry::enabled_defaults().into_iter().collect(),
@@ -80,6 +82,14 @@ pub fn format_text(req: &FormatRequest) -> Result<String, String> {
     Ok(restore_newlines(&restored, newline))
 }
 
+/// 格式化文本的正式入口。
+///
+/// 生产路径已切换到 span-aware 混合管线；旧 placeholder 管线暂时保留在
+/// 本模块内，待发布后完成输出与性能观察后再删除。
+pub fn format_text(req: &FormatRequest) -> Result<String, String> {
+    format_text_span_aware(req)
+}
+
 fn normalize_newlines(text: &str) -> (String, &'static str) {
     if text.contains("\r\n") {
         (text.replace("\r\n", "\n"), "\r\n")
@@ -103,7 +113,8 @@ fn restore_newlines(text: &str, newline: &str) -> String {
 //
 // 这是「placeholder → TextEdit」重构的对照骨架：用 scan_all_spans 划定的
 // 不可编辑区间替代 protection 的部分占位符，然后对可编辑区间复用现有
-// execution_rules 纯函数规则。当前仅作测试探针，不替换生产 format_text；
+// execution_rules 纯函数规则。当前已接入生产 format_text；旧 placeholder 管线
+// 暂时保留为迁移期对照实现；
 // URL / 邮箱、硬换行、引用式链接、未闭合反引号及数学复合单位等结构已纳入
 // span 扫描和对照门禁，后续重点转为生产入口切换与旧 placeholder 清理。
 // ---------------------------------------------------------------------------
@@ -120,7 +131,16 @@ fn enabled_set(req: &FormatRequest) -> HashSet<String> {
 /// 把「不透明结构」span 替代入主占位符，返回受控文本与占位符表。
 /// 语义原子（测量/温度/科学单位/数学）不占位——它们应作为普通文本参与
 /// 逐行规则（如 `spacing.number-unit`、`temperature-cjk`），与生产一致。
-fn protect_spans(text: &str, spans: &[TextSpan]) -> (String, Vec<(String, String)>) {
+type Placeholder = (String, String);
+
+struct ProtectedSpans {
+    text: String,
+    all: Vec<Placeholder>,
+    inline: Vec<Placeholder>,
+    math: Vec<Placeholder>,
+}
+
+fn protect_spans(text: &str, spans: &[TextSpan]) -> ProtectedSpans {
     let mut opaque: Vec<TextSpan> = spans
         .iter()
         .filter(|span| {
@@ -161,16 +181,29 @@ fn protect_spans(text: &str, spans: &[TextSpan]) -> (String, Vec<(String, String
     opaque = super::spans::arbitrate_spans(opaque);
     let mut output = String::with_capacity(text.len());
     let mut placeholders = Vec::with_capacity(opaque.len());
+    let mut inline_placeholders = Vec::with_capacity(opaque.len());
+    let mut math_placeholders = Vec::with_capacity(opaque.len());
     let mut cursor = 0usize;
     for (index, span) in opaque.iter().enumerate() {
         output.push_str(&text[cursor..span.start]);
         let ph = placeholder(index);
-        placeholders.push((ph.clone(), text[span.start..span.end].to_string()));
+        let value = text[span.start..span.end].to_string();
+        placeholders.push((ph.clone(), value.clone()));
+        if span.kind == super::spans::SpanKind::LatexMath {
+            math_placeholders.push((ph.clone(), value));
+        } else {
+            inline_placeholders.push((ph.clone(), value));
+        }
         output.push_str(&ph);
         cursor = span.end;
     }
     output.push_str(&text[cursor..]);
-    (output, placeholders)
+    ProtectedSpans {
+        text: output,
+        all: placeholders,
+        inline: inline_placeholders,
+        math: math_placeholders,
+    }
 }
 
 /// span 感知混合管线：用 span 划分不可编辑区间 → 可编辑区间复用纯函数规则
@@ -181,7 +214,8 @@ pub(crate) fn format_text_span_aware(req: &FormatRequest) -> Result<String, Stri
     let (text, newline) = normalize_newlines(&req.text);
 
     let spans = scan_all_spans(&text);
-    let (protected, placeholders) = protect_spans(&text, &spans);
+    let protected_spans = protect_spans(&text, &spans);
+    let protected = protected_spans.text;
 
     let registered = execution_rules();
     let mut out: Vec<String> = Vec::new();
@@ -204,7 +238,8 @@ pub(crate) fn format_text_span_aware(req: &FormatRequest) -> Result<String, Stri
     }
 
     let formatted = out.join("\n");
-    let formatted = space_around_inline_placeholders(&formatted, &placeholders);
-    let restored = restore(&formatted, &placeholders);
+    let formatted = space_around_inline_placeholders(&formatted, &protected_spans.inline);
+    let formatted = space_around_math_placeholders(&formatted, &protected_spans.math);
+    let restored = restore(&formatted, &protected_spans.all);
     Ok(restore_newlines(&restored, newline))
 }
