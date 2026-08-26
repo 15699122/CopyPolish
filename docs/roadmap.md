@@ -26,16 +26,16 @@
 
 ## 4. P1：快捷键配置与冲突规避
 
-当前快捷键硬编码于 `frontend/src/App.tsx` 的全局 keydown 监听（`Ctrl/Cmd+Enter` 格式化、`Ctrl/Cmd+Shift+C` 复制、`Ctrl/Cmd+,` 打开设置），存在与输入法、系统或其他软件冲突的可能。分两阶段实施：
+快捷键配置已于 2026-08 合入 `dev`：原硬编码于 `frontend/src/App.tsx` 的全局 keydown 监听已重构为 `lib/shortcuts.ts` + `hooks/useShortcuts.ts`，支持总开关、自定义绑定、冲突校验与 IME 防护。以下为设计约束的最终落地记录：
 
-### 阶段 A：快捷键总开关
+### 阶段 A：快捷键总开关 ✅ 已完成
 
 - 新增持久化设置字段 `shortcuts.enabled: bool`（Rust `UserSettings` + YAML 序列化 + 前端类型 + localStorage 回退同步）；
 - 关闭时不注册/不执行应用自定义快捷键；
 - 保留 Radix Dialog 原生 `Esc` 关闭行为；
 - 仅在窗口聚焦且事件确实匹配已启用动作时调用 `preventDefault()`。
 
-### 阶段 B：自定义快捷键
+### 阶段 B：自定义快捷键 ✅ 已完成（Comma 作为默认值的历史兼容例外，自定义录制按白名单限制）
 
 | 动作 key | 默认值 |
 | --- | --- |
@@ -46,7 +46,7 @@
 设计约束：
 
 - 存储语义组合键 `CtrlOrCmd`，用 `KeyboardEvent.code` 识别按键；
-- 必须至少一个修饰键；禁止单字母/数字/标点绑定；
+- 自定义绑定必须包含 `CtrlOrCmd`（可额外附加 Shift/Alt）；禁止单字母/数字/标点绑定；`CtrlOrCmd+Comma` 作为默认值的历史兼容例外保留；
 - 动作间禁止重复绑定，冲突给出明确校验错误；
 - 维护高风险系统组合键黑名单；
 - 输入法组合态（`event.isComposing`，兼容 `keyCode === 229`）不触发；

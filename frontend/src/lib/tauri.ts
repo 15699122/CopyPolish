@@ -89,6 +89,23 @@ export type ThemeMode = "system" | "light" | "dark";
 export type FontFamily = "system" | "microsoft-yahei" | "pingfang" | "noto-sans-cjk" | "simsun" | "simhei";
 export type EditorFontSize = "small" | "normal" | "large" | "x-large";
 export type UiScale = "compact" | "small" | "normal" | "large" | "x-large";
+export type ShortcutAction = "format_now" | "copy_output" | "open_settings";
+export type ShortcutBindings = Record<ShortcutAction, string>;
+
+export interface ShortcutSettings {
+  enabled: boolean;
+  bindings: ShortcutBindings;
+}
+
+export const DEFAULT_SHORTCUT_SETTINGS: ShortcutSettings = {
+  enabled: true,
+  bindings: {
+    format_now: "CtrlOrCmd+Enter",
+    copy_output: "CtrlOrCmd+Shift+KeyC",
+    open_settings: "CtrlOrCmd+Comma",
+  },
+};
+
 export type SettingsLoadNotice =
   | "legacy_settings_detected"
   | "legacy_settings_corrupt"
@@ -103,6 +120,7 @@ export interface UserSettings {
   font: FontFamily;
   editor_font_size: EditorFontSize;
   ui_scale: UiScale;
+  shortcuts: ShortcutSettings;
 }
 
 export interface LoadedUserSettings extends UserSettings {
@@ -130,6 +148,7 @@ export async function getUserSettings(): Promise<LoadedUserSettings | null> {
         font: ensureFontFamily(parsed.font),
         editor_font_size: ensureEditorFontSize(parsed.editor_font_size),
         ui_scale: ensureUiScale(parsed.ui_scale),
+        shortcuts: ensureShortcutSettings(parsed.shortcuts),
         notices: [],
       };
     } catch {
@@ -149,8 +168,21 @@ export async function getUserSettings(): Promise<LoadedUserSettings | null> {
     font: ensureFontFamily(settings.font),
     editor_font_size: ensureEditorFontSize(settings.editor_font_size),
     ui_scale: ensureUiScale(settings.ui_scale),
+    shortcuts: ensureShortcutSettings(settings.shortcuts),
     notices: loaded.notices ?? [],
   };
+}
+
+/** 旧设置缺少 shortcuts 字段时回退为启用 + 默认绑定；未知动作 key 一并补齐。 */
+function ensureShortcutSettings(value: unknown): ShortcutSettings {
+  const fallback = DEFAULT_SHORTCUT_SETTINGS;
+  if (typeof value !== "object" || value === null) return fallback;
+  const raw = value as Partial<ShortcutSettings>;
+  const bindings =
+    typeof raw.bindings === "object" && raw.bindings !== null
+      ? { ...fallback.bindings, ...(raw.bindings as ShortcutBindings) }
+      : { ...fallback.bindings };
+  return { enabled: raw.enabled ?? true, bindings };
 }
 
 export async function saveUserSettings(settings: UserSettings): Promise<void> {
@@ -162,14 +194,7 @@ export async function saveUserSettings(settings: UserSettings): Promise<void> {
     }
     return;
   }
-  await invoke("save_user_settings", {
-    enabled: settings.enabled,
-    lastInput: settings.last_input,
-    theme: settings.theme,
-    font: settings.font,
-    editorFontSize: settings.editor_font_size,
-    uiScale: settings.ui_scale,
-  });
+  await invoke("save_user_settings", { settings });
 }
 
 function ensureThemeMode(value: unknown): ThemeMode {
