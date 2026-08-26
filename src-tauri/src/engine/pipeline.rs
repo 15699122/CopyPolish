@@ -14,17 +14,23 @@ use std::collections::HashSet;
 
 use super::model::{FormatRequest, RuleSelection};
 use super::protection::{
-    is_placeholder_line, placeholder, protect, protect_byte_spans, protect_byte_spans_with_offset,
-    protect_markdown_lines, restore, restore_escaped_markdown_adjacency,
-    space_around_inline_placeholders, space_around_math_placeholders,
+    is_placeholder_line, placeholder, restore, space_around_inline_placeholders,
+    space_around_math_placeholders,
+};
+#[cfg(test)]
+use super::protection::{
+    protect, protect_byte_spans, protect_byte_spans_with_offset, protect_markdown_lines,
+    restore_escaped_markdown_adjacency,
 };
 use super::registry::{execution_rules, rules};
+#[cfg(test)]
 use super::semantic_tokens::scan_math_expressions;
 use super::spans::{scan_all_spans, TextSpan};
+#[cfg(test)]
 use super::tokenizer::detect_chemical_formulas;
 
 /// 迁移期保留的旧 placeholder 管线，仅供新旧路径等价性回归测试使用。
-#[cfg_attr(not(test), allow(dead_code))]
+#[cfg(test)]
 pub(crate) fn format_text_legacy(req: &FormatRequest) -> Result<String, String> {
     let enabled: HashSet<String> = match &req.selection {
         RuleSelection::All => rules().iter().map(|rule| rule.key().to_string()).collect(),
