@@ -919,3 +919,89 @@ fn chemical_detection_unaffected_by_boundary_layer() {
     assert_eq!(spans.len(), 1);
     assert_eq!(&sample[spans[0].0..spans[0].1], "Fe²⁺");
 }
+
+/// 编辑计划路径与生产 placeholder 路径的逐例对照（roadmap §5.7）。
+///
+/// 新路径当前只覆盖单位/数学语义边界，与生产管线的差异被显式冻结在
+/// `PENDING_DIFFS` 中；随 R3 迁移把更多规则纳入编辑计划，差异应单调减少，
+/// 清单中的案例消除后必须同步移除。
+#[test]
+fn edit_plan_path_matches_placeholder_pipeline_on_semantic_fixtures() {
+    use super::edit_plan::format_units_and_math_via_edits;
+
+    // 差异成因分类：
+    // 1) 「默认组合」计量单位案例：生产管线同时执行 cjk-latin / cjk-number
+    //    等文本边界规则，编辑计划路径尚未纳入这些规则；
+    // 2) 反例案例（chapter/alpha/beta）：管线在数字与中文间插空，编辑计划
+    //    正确地不把英文词当单位，但也不做中数插空；
+    // 3) 数学案例：美元定界公式与中文的边界空格目前由保护层占位符逻辑完成，
+    //    编辑计划尚未接入结构 span；cjk-number 单规则同理。
+    // 随 R3 迁移逐项消除后，必须同步从本清单移除对应条目。
+    const PENDING_DIFFS: &[&str] = &[
+        "measurements.yaml / 微米单位 μm 与中文之间插空（默认组合）",
+        "measurements.yaml / 微米单位 µm 保留原始字符并插空",
+        "measurements.yaml / 埃单位保留原始 Unicode 写法并插空",
+        "measurements.yaml / 欧姆与 SI 前缀插空",
+        "measurements.yaml / 复合科学单位整体保留并插空",
+        "measurements.yaml / 斜线复合单位整体保留并插空",
+        "measurements.yaml / 常见非 SI 单位与缩写整体保留并插空",
+        "measurements.yaml / 常见公制与气压单位整体保留并插空",
+        "measurements.yaml / 千分号与中文边界保持",
+        "measurements.yaml / ASCII 温标表记（°C / °F）与中文之间插空",
+        "measurements.yaml / Unicode 温标符号（℃ / ℉）既有行为保持",
+        "measurements.yaml / 普通英文单词结尾数字不参与单位插空",
+        "measurements.yaml / 希腊字母/变量不触发单位插空（保守）",
+        "mathematical-symbols.yaml / 数学模式中的半角逗号保持不变",
+        "mathematical-symbols.yaml / 比较表达式中的普通文本不被误判为单位",
+    ];
+
+    let semantic_fixtures: [(&str, &str); 2] = [
+        (
+            "measurements.yaml",
+            include_str!("../../tests/fixtures/measurements.yaml"),
+        ),
+        (
+            "mathematical-symbols.yaml",
+            include_str!("../../tests/fixtures/mathematical-symbols.yaml"),
+        ),
+    ];
+
+    let mut observed_diffs: Vec<String> = Vec::new();
+    for (file, yaml) in semantic_fixtures {
+        for (_, case) in parse_fixture(file, yaml) {
+            let request = FormatRequest {
+                text: case.input.clone(),
+                selection: case.selection.clone(),
+            };
+            let pipeline_output = format_text(&request)
+                .unwrap_or_else(|error| panic!("fixture {file} / {} failed: {error}", case.name));
+            let edit_plan_output = format_units_and_math_via_edits(&case.input);
+
+            // 单向不变量（无误报）：生产管线未修改的输入，编辑计划也不得修改。
+            if pipeline_output == case.input {
+                assert_eq!(
+                    edit_plan_output, case.input,
+                    "edit plan changed {} / {} but the placeholder pipeline would not",
+                    file, case.name
+                );
+            }
+
+            if pipeline_output != edit_plan_output {
+                observed_diffs.push(format!("{file} / {}", case.name));
+            }
+        }
+    }
+
+    let unexpected: Vec<&String> = observed_diffs
+        .iter()
+        .filter(|name| !PENDING_DIFFS.contains(&name.as_str()))
+        .collect();
+    let stale: Vec<&&str> = PENDING_DIFFS
+        .iter()
+        .filter(|pending| !observed_diffs.iter().any(|name| name == *pending))
+        .collect();
+    assert!(
+        unexpected.is_empty() && stale.is_empty(),
+        "PENDING_DIFFS is out of date;\nunexpected diffs: {unexpected:?}\nstale entries: {stale:?}"
+    );
+}

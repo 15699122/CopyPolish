@@ -117,9 +117,9 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
 - **已完成**：快捷键总开关与自定义绑定（roadmap §4 阶段 A/B；持久化、冲突校验、IME 防护、恢复默认）。
 - **已完成的调度重构基础**：`RulePhase`、`before/after` 依赖、稳定拓扑排序、依赖图错误检测。
 - **已完成的 Span/Edit 基础**：结构与语义 span 扫描、重叠仲裁、UTF-8 安全 `TextEdit`、非重叠编辑逆序应用、单位/数学边界编辑规划。
-- **未完成**：Span/Edit 尚未接管 `format_text`；现有生产路径仍是 placeholder + 逐行 `fn(&str) -> String` 规则；`structure-precedence.yaml` 仍是 pending 基线。
+- **未完成**：Span/Edit 尚未接管 `format_text`；现有生产路径仍是 placeholder + 逐行 `fn(&str) -> String` 规则；`structure-precedence.yaml` 仍是 pending 基线。编辑计划与旧 placeholder 路径的逐例 diff 对照已建立（`tests.rs::edit_plan_path_matches_placeholder_pipeline_on_semantic_fixtures`，当前差异冻结在测试内 `PENDING_DIFFS` 清单，共 15 例，随迁移单调消除）。
 - **未完成**：完整单位词典、温度规则独立 stable key、Unicode 等价识别/默认关闭规范化、1 MB 长文本性能基准、真实 Tauri E2E、Windows 10/11 真机验收和正式 `v0.5.0` 发布。
-- **当前验证基线**：Rust 单元测试 69 项、前端 Vitest 33 项；fmt、Clippy、前端构建和 diff 检查均纳入本地/CI 验证。
+- **当前验证基线**：Rust 单元测试 70 项、前端 Vitest 33 项；fmt、Clippy、前端构建和 diff 检查均纳入本地/CI 验证。
 
 ## 用户设置持久化
 

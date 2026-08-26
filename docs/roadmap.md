@@ -224,7 +224,7 @@ frontend/src/hooks/useShortcuts.ts # 监听、启停、IME 防护、动作分发
 - 将 `spacing.number-unit`、温标、数学边界和全角标点清理迁移为 span-aware edits；
 - 移除普通/数学多套 placeholder 编号约定；
 - 解决所有结构优先级 pending 案例并迁移为稳定黄金 fixture；
-- 增加编辑计划与旧 placeholder 路径的逐例 diff 对照；
+- 增加编辑计划与旧 placeholder 路径的逐例 diff 对照；✅ 已完成：对照测试位于 `tests.rs::edit_plan_path_matches_placeholder_pipeline_on_semantic_fixtures`，覆盖 `measurements.yaml` 与 `mathematical-symbols.yaml` 全部案例，含「管线不改则编辑计划也不改」的单向无误报不变量；当前 15 例差异按成因分类冻结在测试内 `PENDING_DIFFS` 清单，须随迁移逐项消除；
 - 建立 10 KB/100 KB/1 MB 性能和内存基线。
 
 ### 5.8 阶段 E：Unicode 等价识别与输出规范化（P2）
