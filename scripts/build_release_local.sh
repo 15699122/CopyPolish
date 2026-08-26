@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Linux 本地构建与发布资产整理（roadmap §3 / docs/manual-release.md）。
+# Linux 本地构建与发布资产整理（roadmap §3 / docs/release/manual-release.md）。
 #
 # 约束：
 # - 必须在干净的发布工作区运行（git status 无任何改动）；
@@ -37,7 +37,7 @@ done
 echo "== 检查干净发布工作区 =="
 if [[ -n "$(git -C "$REPO_ROOT" status --porcelain)" ]]; then
     echo "错误：工作区存在未提交改动。请在独立的发布 worktree 中执行。" >&2
-    echo "参考 docs/manual-release.md 第 3 节。" >&2
+    echo "参考 docs/release/manual-release.md 第 3 节。" >&2
     exit 1
 fi
 

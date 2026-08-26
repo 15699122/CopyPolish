@@ -1,6 +1,6 @@
 # CopyPolish 本地构建与手动发布指南
 
-本指南描述在不依赖 GitHub Actions 构建的情况下，于本地编译 Release 产物并手动上传到 GitHub Releases 的完整流程。标准自动发布仍由 `.github/workflows/release.yml` 承担；两种模式共享相同的验证门槛、版本策略、资产命名与人工验收标准。中长期发布相关维护项见 [roadmap.md](roadmap.md)。
+本指南描述在不依赖 GitHub Actions 构建的情况下，于本地编译 Release 产物并手动上传到 GitHub Releases 的完整流程。标准自动发布仍由 `.github/workflows/release.yml` 承担；两种模式共享相同的验证门槛、版本策略、资产命名与人工验收标准。中长期发布相关维护项见 [roadmap.md](../roadmap.md)。
 
 > 提示：`scripts/build_release_local.sh`（Linux）、`scripts/build_release_local.ps1`（Windows）与 `scripts/verify_release_assets.py`（产物校验）封装了本指南的核心步骤；仍需遵守下文的干净发布工作区与人工验收要求，首次使用前请先通读本指南。
 
@@ -261,7 +261,7 @@ CopyPolish_linux_amd64.AppImage
 
 ## 9. Windows 真机人工验收
 
-正式发布前，在真实 Windows 10/11 环境运行本地构建的 `CopyPolish.exe` 完成 [v0.5.0-release-plan.md](v0.5.0-release-plan.md) 第 12 节的全部人工验收项，至少包括：
+正式发布前，在真实 Windows 10/11 环境运行本地构建的 `CopyPolish.exe` 完成 [v0.5.0-release-plan.md](../v0.5.0-release-plan.md) 第 12 节的全部人工验收项，至少包括：
 
 - 启动、WebView2、无边框窗口拖动与最小化/最大化/关闭、最小尺寸 800×600；
 - 100%–200% DPI 布局；

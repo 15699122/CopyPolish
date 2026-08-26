@@ -145,6 +145,7 @@ shortcuts:
 
 版本管理、开发环境、测试方法、CI / Release、打包细节和实现约束请参阅：
 
-- [docs/Dev_readme.md](docs/Dev_readme.md)：开发说明（架构、验证命令、CI/Release、实现约束）；
-- [docs/manual-release.md](docs/manual-release.md)：本地构建与手动上传 GitHub Release 指南；
+- [docs/README.md](docs/README.md)：开发者文档导航与阅读顺序；
+- [docs/development.md](docs/development.md)：开发说明（架构、验证命令、CI/Release、实现约束）；
+- [docs/release/manual-release.md](docs/release/manual-release.md)：本地构建与手动上传 GitHub Release 指南；
 - [docs/roadmap.md](docs/roadmap.md)：后续开发路线图。
