@@ -929,28 +929,16 @@ fn chemical_detection_unaffected_by_boundary_layer() {
 fn edit_plan_path_matches_placeholder_pipeline_on_semantic_fixtures() {
     use super::edit_plan::format_units_and_math_via_edits;
 
-    // 差异成因分类：
-    // 1) 「默认组合」计量单位案例：生产管线同时执行 cjk-latin / cjk-number
-    //    等文本边界规则，编辑计划路径尚未纳入这些规则；
-    // 2) 反例案例（chapter/alpha/beta）：管线在数字与中文间插空，编辑计划
-    //    正确地不把英文词当单位，但也不做中数插空；
-    // 3) 数学案例：美元定界公式与中文的边界空格目前由保护层占位符逻辑完成，
-    //    编辑计划尚未接入结构 span；cjk-number 单规则同理。
-    // 随 R3 迁移逐项消除后，必须同步从本清单移除对应条目。
+    // 剩余 5 例差异均为「专门能力尚未迁移到编辑计划路径」，随 R3 推进逐项
+    // 消除并从清单移除：
+    // 1) selection 门控：文本边界目前不感知规则选择；
+    // 2) 温标/‰ 等符号与中文的边界由 spacing.temperature-cjk 等专门规则完成，
+    //    编辑计划的单位词典把 `5‰` 视为计量 span，插空位置不同；
+    // 3) 美元定界公式与 cjk-number 单规则的边界行为依赖保护层占位符逻辑。
     const PENDING_DIFFS: &[&str] = &[
-        "measurements.yaml / 微米单位 μm 与中文之间插空（默认组合）",
-        "measurements.yaml / 微米单位 µm 保留原始字符并插空",
-        "measurements.yaml / 埃单位保留原始 Unicode 写法并插空",
-        "measurements.yaml / 欧姆与 SI 前缀插空",
-        "measurements.yaml / 复合科学单位整体保留并插空",
-        "measurements.yaml / 斜线复合单位整体保留并插空",
-        "measurements.yaml / 常见非 SI 单位与缩写整体保留并插空",
-        "measurements.yaml / 常见公制与气压单位整体保留并插空",
+        "measurements.yaml / 单规则 number-unit 覆盖微米与欧姆",
         "measurements.yaml / 千分号与中文边界保持",
-        "measurements.yaml / ASCII 温标表记（°C / °F）与中文之间插空",
         "measurements.yaml / Unicode 温标符号（℃ / ℉）既有行为保持",
-        "measurements.yaml / 普通英文单词结尾数字不参与单位插空",
-        "measurements.yaml / 希腊字母/变量不触发单位插空（保守）",
         "mathematical-symbols.yaml / 数学模式中的半角逗号保持不变",
         "mathematical-symbols.yaml / 比较表达式中的普通文本不被误判为单位",
     ];
@@ -967,6 +955,7 @@ fn edit_plan_path_matches_placeholder_pipeline_on_semantic_fixtures() {
     ];
 
     let mut observed_diffs: Vec<String> = Vec::new();
+    let mut diff_details: Vec<String> = Vec::new();
     for (file, yaml) in semantic_fixtures {
         for (_, case) in parse_fixture(file, yaml) {
             let request = FormatRequest {
@@ -988,6 +977,10 @@ fn edit_plan_path_matches_placeholder_pipeline_on_semantic_fixtures() {
 
             if pipeline_output != edit_plan_output {
                 observed_diffs.push(format!("{file} / {}", case.name));
+                diff_details.push(format!(
+                    "{} / {}\n  input:    {:?}\n  pipeline: {:?}\n  editplan: {:?}",
+                    file, case.name, case.input, pipeline_output, edit_plan_output
+                ));
             }
         }
     }
@@ -1002,6 +995,12 @@ fn edit_plan_path_matches_placeholder_pipeline_on_semantic_fixtures() {
         .collect();
     assert!(
         unexpected.is_empty() && stale.is_empty(),
-        "PENDING_DIFFS is out of date;\nunexpected diffs: {unexpected:?}\nstale entries: {stale:?}"
+        "PENDING_DIFFS is out of date;\nunexpected diffs: {unexpected:?}\nstale entries: {stale:?}\n\ndiff details:\n{}",
+        diff_details
+            .iter()
+            .filter(|detail| unexpected.iter().any(|name| detail.contains(name.as_str())))
+            .cloned()
+            .collect::<Vec<_>>()
+            .join("\n")
     );
 }
