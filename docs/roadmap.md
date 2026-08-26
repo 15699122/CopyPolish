@@ -72,8 +72,8 @@ frontend/src/hooks/useShortcuts.ts # 监听、启停、IME 防护、动作分发
 - 阶段 B 已解决 grapheme cluster 边界问题；当前剩余限制是语义分类仍分散在 tokenizer、unit lexicon 和规则实现中；
 - 单位词典已覆盖首批 Unicode、SI、温标和复合单位，但仍是有限词典，不是完整计量单位语法；
 - Markdown 保护已覆盖路线图首批结构，但仍是“扫描器 + 有限正则 + 占位符”的保守子集，不等同于完整 Markdown/HTML 语法解析；
-- pipeline 已按 `RulePhase` + `before/after` 依赖做稳定拓扑排序，同 phase 使用注册表顺序作为 tie-break；Span/Edit 的基础优先级与冲突仲裁已完成，但尚未接管生产保护层或格式化 pipeline；
-- `spans.rs` 已提供统一语义/结构 span 与重叠仲裁基础，`edit_plan.rs` 已提供 UTF-8 安全的 TextEdit 仲裁/应用及语义边界规划基础；两者尚未接管保护层或 pipeline；
+- pipeline 已按 `RulePhase` + `before/after` 依赖做稳定拓扑排序，同 phase 使用注册表顺序作为 tie-break；Span/Edit 的基础优先级与冲突仲裁已完成，span-aware 混合管线已接管生产保护层与格式化 pipeline；
+- `spans.rs` 已提供统一语义/结构 span 与重叠仲裁基础，`edit_plan.rs` 已提供 UTF-8 安全的 TextEdit 仲裁/应用及语义边界规划基础；两者已通过全部稳定 fixture 等价性验证并接入生产，旧 placeholder 路径仅保留作迁移期回归；
 - 复杂输入的组合 fixture、规则容斥矩阵和长文本性能基线仍需继续补齐。
 
 ### 5.2 阶段总览
@@ -212,14 +212,14 @@ frontend/src/hooks/useShortcuts.ts # 监听、启停、IME 防护、动作分发
 - 未知依赖、重复 key、循环依赖测试；
 - `SpanKind` / `SpanPriority` / `TextSpan`；
 - 语义 span：化学式、Measurement、Temperature、ScientificUnit、MathExpression；
-- 结构 span：fenced code、front matter、HTML block/comment、引用式链接定义、缩进代码、表格分隔行、行内代码、Markdown 链接、美元数学；
+- 结构 span：fenced code、front matter、HTML block/comment、引用式链接定义、缩进代码、表格分隔行、行内代码、Markdown 链接、URL/邮箱、硬换行、LaTeX command/定界数学、美元数学；
 - span 重叠仲裁：结构 > 语义原子 > 可编辑文本；
 - `TextEdit` UTF-8 边界校验、编辑冲突仲裁、逆序应用；
 - 单位和数学边界的测试用编辑计划。
 
 #### 未完成
 
-- 将结构/语义 span 正式接入现有保护层；
+- 将结构/语义 span 正式接入现有保护层；✅ 已完成：`format_text_span_aware` 已通过全量稳定 fixture 等价性验证并接入生产 `format_text`；
 - 结构保护还原迁移的三类已确认差异（2026-08-26 对照输出）：
   a) inline placeholder 周边 CJK 空格：生产管线对行内代码 / 链接 / 图片 / 行内 HTML / 化学式占位符两侧补空格；
   b) HTML block 的 span 覆盖缺口：✅ 已修复——`scan_html_block_spans` 此前计算 span 终点时漏掉中间行长度与换行符，导致块内正文漏出 span；已修正并新增回归测试 `spans.rs::html_block_span_covers_interior_lines`；
