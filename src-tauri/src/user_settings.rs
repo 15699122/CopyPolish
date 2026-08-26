@@ -20,6 +20,19 @@ use std::path::{Path, PathBuf};
 pub const SETTINGS_FILE_NAME: &str = "rules.yaml";
 /// 设置备份文件名；主文件损坏时作为最后一次有效保存的恢复来源。
 pub const SETTINGS_BACKUP_FILE_NAME: &str = "rules.yaml.bak";
+
+/// 由设置文件路径派生备份路径：在文件名后追加 `.bak`。
+/// 生产设置文件固定为 `rules.yaml`，派生结果即 `rules.yaml.bak`；
+/// 测试使用随机临时文件名时各自得到唯一备份路径，避免并行测试共享
+/// 同一备份文件产生竞态。
+pub(crate) fn backup_path_for(settings_path: &Path) -> PathBuf {
+    let mut name = settings_path
+        .file_name()
+        .map(|n| n.to_os_string())
+        .unwrap_or_default();
+    name.push(".bak");
+    settings_path.with_file_name(name)
+}
 /// 旧版设置文件名（JSON，仅用于一次性迁移读取）。
 pub const LEGACY_SETTINGS_FILE_NAME: &str = "ccw-formatter-settings.json";
 
@@ -222,7 +235,7 @@ pub fn save_to(path: &Path, settings: &UserSettings) -> Result<(), String> {
 
     // 先保留当前有效文件，再替换主文件。若备份轮换失败，主文件仍保持不变。
     let mut backup_moved = false;
-    let backup_path = path.with_file_name(SETTINGS_BACKUP_FILE_NAME);
+    let backup_path = backup_path_for(path);
     if path.exists() {
         if backup_path.exists() {
             fs::remove_file(&backup_path).map_err(|e| {
@@ -371,13 +384,13 @@ mod tests {
         assert!(raw.contains("editor_font_size"));
         assert!(raw.contains("ui_scale"));
         let _ = fs::remove_file(&path);
-        let _ = fs::remove_file(path.with_file_name(SETTINGS_BACKUP_FILE_NAME));
+        let _ = fs::remove_file(backup_path_for(&path));
     }
 
     #[test]
     fn second_save_creates_backup_of_previous_settings() {
         let path = temp_settings_file("backup");
-        let backup = path.with_file_name(SETTINGS_BACKUP_FILE_NAME);
+        let backup = backup_path_for(&path);
         let first = UserSettings {
             last_input: "第一次".to_string(),
             ..UserSettings::default()
@@ -398,28 +411,33 @@ mod tests {
 
     #[test]
     fn corrupt_primary_recovers_from_backup_with_status() {
-        let path = temp_settings_file("recover");
-        let dir = path.parent().expect("temporary settings path has parent");
-        let backup = path.with_file_name(SETTINGS_BACKUP_FILE_NAME);
+        let dir = std::env::temp_dir().join(format!(
+            "ccw-settings-recover-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos()
+        ));
+        let path = dir.join(SETTINGS_FILE_NAME);
         let expected = UserSettings {
             last_input: "可恢复内容👍".to_string(),
             ..UserSettings::default()
         };
 
-        fs::create_dir_all(dir).unwrap();
+        fs::create_dir_all(&dir).unwrap();
         save_to(&path, &expected).expect("first save should succeed");
         save_to(&path, &UserSettings::default()).expect("second save should succeed");
         fs::write(&path, "invalid: [").unwrap();
 
-        let loaded = load_from_dir_with_status(dir).expect("backup should be loaded");
+        let loaded = load_from_dir_with_status(&dir).expect("backup should be loaded");
         assert_eq!(loaded.settings, expected);
         assert_eq!(
             loaded.notices,
             vec![SettingsLoadNotice::PrimarySettingsCorruptRecoveredFromBackup]
         );
 
-        let _ = fs::remove_file(&path);
-        let _ = fs::remove_file(&backup);
+        let _ = fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -603,7 +621,7 @@ mod tests {
         assert!(raw.contains("shortcuts"));
         assert!(raw.contains("CtrlOrCmd+Shift+KeyF"));
         let _ = fs::remove_file(&path);
-        let _ = fs::remove_file(path.with_file_name(SETTINGS_BACKUP_FILE_NAME));
+        let _ = fs::remove_file(backup_path_for(&path));
     }
 
     /// 仅有 enabled、缺失 bindings 的 shortcuts 字段应补齐默认绑定。
