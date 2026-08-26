@@ -966,7 +966,6 @@ fn edit_plan_path_matches_placeholder_pipeline_on_stable_fixtures() {
         "markdown-protection.yaml / 嵌套括号图片保持完整",
         "markdown-protection.yaml / 未闭合链接不吞掉后续正文",
         "markdown-protection.yaml / 未闭合反引号不吞掉后续正文",
-        "markdown-protection.yaml / HTML block 保持完整而普通正文继续格式化",
         "markdown-protection.yaml / 行内 HTML 标签保持完整而标签外正文继续格式化",
         "markdown-protection.yaml / 未闭合行内 HTML 标签不吞掉后续正文",
         "markdown-protection.yaml / 引用式链接定义保持完整而正文继续格式化",
