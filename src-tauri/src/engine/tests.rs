@@ -922,32 +922,69 @@ fn chemical_detection_unaffected_by_boundary_layer() {
 
 /// 编辑计划路径与生产 placeholder 路径的逐例对照（roadmap §5.7）。
 ///
-/// 新路径当前只覆盖单位/数学语义边界，与生产管线的差异被显式冻结在
+/// 覆盖全部稳定黄金 fixture；新路径尚未复刻的能力差异被显式冻结在
 /// `PENDING_DIFFS` 中；随 R3 迁移把更多规则纳入编辑计划，差异应单调减少，
 /// 清单中的案例消除后必须同步移除。
 #[test]
-fn edit_plan_path_matches_placeholder_pipeline_on_semantic_fixtures() {
+fn edit_plan_path_matches_placeholder_pipeline_on_stable_fixtures() {
     use super::edit_plan::format_units_and_math_via_edits;
 
-    // 全部语义 fixture 案例已实现双路径输出一致。新增/迁移规则时若产生
-    // 差异，须先在此登记并说明消除路径，随迁移逐项移除，保持清单为空为常态。
-    const PENDING_DIFFS: &[&str] = &[];
-
-    let semantic_fixtures: [(&str, &str); 2] = [
-        (
-            "measurements.yaml",
-            include_str!("../../tests/fixtures/measurements.yaml"),
-        ),
-        (
-            "mathematical-symbols.yaml",
-            include_str!("../../tests/fixtures/mathematical-symbols.yaml"),
-        ),
+    // 全量稳定 fixture 对照基线（roadmap §5.7）：语义边界类能力已完全一致；
+    // 剩余 35 例差异对应编辑计划尚未复刻的四类生产能力，随 R3 迁移逐项消除：
+    // 1) 非边界规则（标点规范化、名词规范化、直角引号、链接空格等逐行规则）；
+    // 2) 全角标点清理（spacing.no-space-around-fw-punct，FinalCleanup 阶段）；
+    // 3) cn_en_space 扩展边界：Markdown 单星强调片段、Unicode 上标结尾单位片段；
+    // 4) 结构保护的占位符补空格/还原行为（行内代码、链接、HTML block 等周边空格）。
+    const PENDING_DIFFS: &[&str] = &[
+        // —— spacing.yaml ——
+        "spacing.yaml / 全角标点与其他字符之间不加空格",
+        "spacing.yaml / Markdown 斜体统计符号与中文及比较运算符之间增加空格",
+        "spacing.yaml / 默认规则处理含斜体统计符号的实验描述",
+        "spacing.yaml / 上标单位片段与中文及缩写之间增加空格",
+        "spacing.yaml / 默认规则处理含上标单位的实验列表",
+        // —— punctuation.yaml（标点规范化规则未迁移）——
+        "punctuation.yaml / 不重复使用标点符号",
+        "punctuation.yaml / 使用全角中文标点",
+        "punctuation.yaml / 数字使用半角字符",
+        "punctuation.yaml / 英文整句使用半角标点",
+        "punctuation.yaml / 简体中文使用直角引号",
+        // —— naming-and-links.yaml（名词规则与链接空格未迁移）——
+        "naming-and-links.yaml / 专有名词使用正确的大小写",
+        "naming-and-links.yaml / 不要使用不地道的缩写",
+        "naming-and-links.yaml / 链接之间增加空格",
+        "naming-and-links.yaml / 嵌套括号链接之间增加空格",
+        // —— protection.yaml / markdown-protection.yaml（结构保护还原未迁移）——
+        "protection.yaml / Markdown 链接地址保持完整",
+        "protection.yaml / 同文含化学式时普通缩写连字符复合词不被拆开",
+        "markdown-protection.yaml / 双反引号行内代码保持完整",
+        "markdown-protection.yaml / 三反引号行内代码保持完整",
+        "markdown-protection.yaml / 嵌套括号链接保持完整",
+        "markdown-protection.yaml / 嵌套括号图片保持完整",
+        "markdown-protection.yaml / 未闭合链接不吞掉后续正文",
+        "markdown-protection.yaml / 未闭合反引号不吞掉后续正文",
+        "markdown-protection.yaml / HTML block 保持完整而普通正文继续格式化",
+        "markdown-protection.yaml / 行内 HTML 标签保持完整而标签外正文继续格式化",
+        "markdown-protection.yaml / 未闭合行内 HTML 标签不吞掉后续正文",
+        "markdown-protection.yaml / 引用式链接定义保持完整而正文继续格式化",
+        // —— unicode-boundaries.yaml（组合场景）——
+        "unicode-boundaries.yaml / emoji ZWJ 与 Markdown 链接保护组合",
+        "unicode-boundaries.yaml / 扩展区 B 与化学式保护组合",
+        // —— 复合场景 ——
+        "selection-and-regressions.yaml / 全选模式执行全部规则",
+        "complex-compositions.yaml / 中文英文链接单位化学式与数学共同处理",
+        "complex-compositions.yaml / 代码链接单位和普通正文彼此隔离",
+        "rule-interactions.yaml / 专有名词与中英文边界共同处理",
+        "rule-interactions.yaml / 全角数字与数字单位共同处理",
+        "rule-interactions.yaml / 中英文数字单位和温标共同处理",
+        "rule-interactions.yaml / 链接周边空格与中英文边界共同处理",
     ];
+
+    let all_cases = load_passing_golden_cases();
 
     let mut observed_diffs: Vec<String> = Vec::new();
     let mut diff_details: Vec<String> = Vec::new();
-    for (file, yaml) in semantic_fixtures {
-        for (_, case) in parse_fixture(file, yaml) {
+    for (file, case) in &all_cases {
+        {
             let request = FormatRequest {
                 text: case.input.clone(),
                 selection: case.selection.clone(),
