@@ -4,8 +4,9 @@
 //! 原文 UTF-8 字节区间，先校验边界，再按优先级仲裁，最后从后向前应用。
 
 use super::semantic_tokens::scan_semantic_tokens;
-use super::spans::{scan_all_spans, SpanKind, SpanPriority};
+use super::spans::{scan_all_spans, SpanKind, SpanPriority, TextSpan};
 use super::tokenizer::{classify, CharKind};
+use super::unicode_boundaries::{units, BoundaryStrategy, ScriptClass};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum EditPriority {
@@ -193,7 +194,58 @@ pub(crate) fn plan_semantic_boundary_edits(text: &str) -> Vec<TextEdit> {
             }
         }
     }
+
+    // 文本边界（对齐 spacing.cjk-latin / spacing.cjk-number 的核心行为）：
+    // Han↔Latin、Han↔Digit 直接相邻时插入空格。以 grapheme cluster 为判定
+    // 单位，且不插入任何结构/语义 span 内部；span 边界处（如「厚度|10μm」）
+    // 允许插空。温标符号、‰ 等由专门规则/后续迁移处理，此处不涉及。
+    let text_boundary_edits = plan_text_boundary_edits(text, &spans, &edits);
+    edits.extend(text_boundary_edits);
+
     arbitrate_edits(edits)
+}
+
+/// 为 Han↔Latin / Han↔Digit 直接相邻边界生成零宽插入编辑。
+///
+/// `existing` 是已生成的语义/结构编辑；数学边界编辑以「字符替换」方式插空，
+/// 可能与零宽插入落在同一位置，覆盖检查依赖它避免产生双空格。
+fn plan_text_boundary_edits(
+    text: &str,
+    spans: &[TextSpan],
+    existing: &[TextEdit],
+) -> Vec<TextEdit> {
+    let mut edits = Vec::new();
+    let units = units(text, BoundaryStrategy::Graphemes);
+    for pair in units.windows(2) {
+        let (left, right) = (pair[0], pair[1]);
+        let boundary = right.byte_start;
+        let inside_span = spans
+            .iter()
+            .any(|span| span.start < boundary && boundary < span.end);
+        if inside_span {
+            continue;
+        }
+        let needs_space = matches!(
+            (left.script, right.script),
+            (ScriptClass::Han, ScriptClass::Latin)
+                | (ScriptClass::Latin, ScriptClass::Han)
+                | (ScriptClass::Han, ScriptClass::Digit)
+                | (ScriptClass::Digit, ScriptClass::Han)
+        );
+        if needs_space {
+            let already_covered = existing
+                .iter()
+                .any(|edit: &TextEdit| boundary >= edit.start && boundary <= edit.end);
+            if !already_covered {
+                if let Ok(edit) =
+                    TextEdit::new(text, boundary, boundary, " ", EditPriority::Editable)
+                {
+                    edits.push(edit);
+                }
+            }
+        }
+    }
+    edits
 }
 
 fn previous_char_range(text: &str, index: usize) -> Option<(usize, usize, char)> {
@@ -295,13 +347,16 @@ mod tests {
         let text = "样品10μm且计算∂f/∂x很重要，代码`10μm $x$`继续";
         let edits = plan_semantic_boundary_edits(text);
         let output = apply_edits(text, &edits).unwrap();
-        assert_eq!(output, "样品10 μm且计算 ∂f/∂x 很重要，代码`10μm $x$`继续");
+        // 单位/数学边界 + 文本边界（Han↔Digit / Latin↔Han）；行内代码整体不动。
+        assert_eq!(output, "样品 10 μm 且计算 ∂f/∂x 很重要，代码`10μm $x$`继续");
     }
 
     #[test]
-    fn semantic_plan_keeps_temperature_number_boundary() {
+    fn semantic_plan_formats_temperature_and_text_boundaries() {
         let text = "样品25°C保存，4℃冷藏";
         let output = apply_edits(text, &plan_semantic_boundary_edits(text)).unwrap();
-        assert_eq!(output, "样品25°C保存，4℃冷藏");
+        // ASCII 温标：Han↔Digit 与 Latin↔Han 边界插空；Unicode 温标符号
+        // （℃ 归 Other）保持既有行为，不插空。
+        assert_eq!(output, "样品 25°C 保存，4℃冷藏");
     }
 }
