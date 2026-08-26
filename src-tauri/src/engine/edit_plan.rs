@@ -275,6 +275,11 @@ pub(crate) fn plan_semantic_boundary_edits_with_selection(
     let inline_edge_edits = plan_inline_placeholder_edge_edits(text, &spans, &edits);
     edits.extend(inline_edge_edits);
 
+    // 未闭合反引号 delimiter 仅保护反引号串本身（对齐 protect_inline_code），
+    // 同样获得边缘补空格。
+    let unclosed_edits = plan_unclosed_backtick_edits(text, &spans, &edits);
+    edits.extend(unclosed_edits);
+
     arbitrate_edits(edits)
 }
 
@@ -330,6 +335,91 @@ fn plan_inline_placeholder_edge_edits(
             if after != ' '
                 && !AFTER_EXCLUDED.contains(&after)
                 && !covered(existing, &edits, span.end)
+            {
+                if let Ok(edit) = TextEdit::new(
+                    text,
+                    after_start,
+                    after_end,
+                    format!(" {after}"),
+                    EditPriority::Editable,
+                ) {
+                    edits.push(edit);
+                }
+            }
+        }
+    }
+    edits
+}
+
+/// 未闭合反引号 delimiter 的边缘补空格。
+///
+/// 生产 `protect_inline_code` 对未闭合 delimiter「仅保护反引号串本身」，
+/// 因此该串同样获得 `\S` / 非-非 排除集的边缘空格。此处找出不属于任何
+/// 已闭合行内代码 span 的反引号 run，套用同一规则。
+fn plan_unclosed_backtick_edits(
+    text: &str,
+    spans: &[TextSpan],
+    existing: &[TextEdit],
+) -> Vec<TextEdit> {
+    const AFTER_EXCLUDED: &[char] = &[
+        '，', '。', '；', '：', '！', '？', '、', '）', '】', '》', '」', '』',
+    ];
+    let code_spans: Vec<&TextSpan> = spans
+        .iter()
+        .filter(|span| span.kind == SpanKind::InlineCode)
+        .collect();
+    let bytes = text.as_bytes();
+    let mut edits: Vec<TextEdit> = Vec::new();
+    let mut index = 0usize;
+    while index < bytes.len() {
+        if bytes[index] != b'`' {
+            index += 1;
+            continue;
+        }
+        let run_start = index;
+        while index < bytes.len() && bytes[index] == b'`' {
+            index += 1;
+        }
+        let run_end = index;
+        // 属于已闭合行内代码或任何结构 span（fenced 围栏等）的反引号不处理。
+        let inside_structure = spans.iter().any(|span| {
+            span.priority == SpanPriority::OpaqueStructure
+                && span.start < run_end
+                && run_start < span.end
+        });
+        if inside_structure
+            || code_spans
+                .iter()
+                .any(|span| span.start < run_end && run_start < span.end)
+        {
+            continue;
+        }
+
+        fn covered(existing: &[TextEdit], edits: &[TextEdit], boundary: usize) -> bool {
+            existing
+                .iter()
+                .chain(edits.iter())
+                .any(|edit: &TextEdit| boundary >= edit.start && boundary <= edit.end)
+        }
+
+        if let Some((before_start, before_end, before)) = previous_char_range(text, run_start) {
+            if before != ' '
+                && !covered(existing, &edits, run_start)
+                && !covered(existing, &edits, before_start)
+            {
+                if let Ok(edit) = TextEdit::new(
+                    text,
+                    before_start,
+                    before_end,
+                    format!("{before} "),
+                    EditPriority::Editable,
+                ) {
+                    edits.push(edit);
+                }
+            }
+        }
+        if let Some((after_start, after_end, after)) = next_char_range(text, index) {
+            if after != ' ' && !AFTER_EXCLUDED.contains(&after) && !covered(existing, &edits, index)
             {
                 if let Ok(edit) = TextEdit::new(
                     text,

@@ -956,9 +956,9 @@ fn edit_plan_path_matches_placeholder_pipeline_on_stable_fixtures() {
         // b) HTML block 的 span 覆盖缺口：✅ 已修复
         //    （scan_html_block_spans 终点计算漏中间行；回归测试 spans.rs::
         //    html_block_span_covers_interior_lines）；
-        // c) 未闭合结构的特殊还原（如 `[文档]（` 全角括号替换）。
+        // c) 未闭合结构特例：未闭合反引号 ✅ 已实现（plan_unclosed_backtick_edits）；
+        //    未闭合链接的 `（` 全角替换实为 fullwidth 标点规则产生，归入非边界逐行规则组。
         "markdown-protection.yaml / 未闭合链接不吞掉后续正文",
-        "markdown-protection.yaml / 未闭合反引号不吞掉后续正文",
         "markdown-protection.yaml / 引用式链接定义保持完整而正文继续格式化",
         // —— unicode-boundaries.yaml（组合场景）——
         // —— 复合场景 ——
