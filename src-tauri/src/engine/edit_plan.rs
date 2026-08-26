@@ -3,6 +3,7 @@
 //! 本模块是 Span → TextEdit 迁移基础设施，当前不接管生产 pipeline。编辑使用
 //! 原文 UTF-8 字节区间，先校验边界，再按优先级仲裁，最后从后向前应用。
 
+use super::model::RuleSelection;
 use super::semantic_tokens::scan_semantic_tokens;
 use super::spans::{scan_all_spans, SpanKind, SpanPriority, TextSpan};
 use super::tokenizer::{classify, CharKind};
@@ -120,32 +121,83 @@ pub(crate) fn apply_edits(text: &str, edits: &[TextEdit]) -> Result<String, Stri
 /// 为已经仲裁的语义 span 生成边界编辑计划。
 ///
 /// 该函数是生产 pipeline 迁移前的对照路径：只处理最终保留下来的
-/// `Measurement` / `ScientificUnit` / `MathExpression` span，结构 span 内部
-/// 不会生成编辑。温标的数字与符号间距继续保持 `25°C` / `4℃` 的既有语义。
+/// `Measurement` / `Temperature` / `ScientificUnit` / `MathExpression` /
+/// `LatexMath` span，结构 span 内部不会生成编辑。温标的数字与符号间距
+/// 继续 `25°C` / `4℃` 的既有语义；文本边界受规则选择门控。
 pub(crate) fn plan_semantic_boundary_edits(text: &str) -> Vec<TextEdit> {
+    plan_semantic_boundary_edits_with_selection(text, &RuleSelection::All)
+}
+
+/// 文本边界（Han↔Latin / Han↔Digit）的规则启用门控，
+/// 对齐生产 pipeline 中 `spacing.cjk-latin` / `spacing.cjk-number` 的选择语义。
+#[derive(Clone, Copy, Debug)]
+struct TextBoundaryGate {
+    cjk_latin: bool,
+    cjk_number: bool,
+}
+
+impl TextBoundaryGate {
+    fn from_selection(selection: &RuleSelection) -> Self {
+        fn enabled(selection: &RuleSelection, key: &str) -> bool {
+            match selection {
+                RuleSelection::All => true,
+                RuleSelection::None => false,
+                RuleSelection::Defaults => {
+                    super::registry::enabled_defaults().iter().any(|k| k == key)
+                }
+                RuleSelection::Only { keys } => keys.iter().any(|k| k == key),
+            }
+        }
+        Self {
+            cjk_latin: enabled(selection, super::registry::keys::SPACING_CJK_LATIN),
+            cjk_number: enabled(selection, super::registry::keys::SPACING_CJK_NUMBER),
+        }
+    }
+
+    fn allows(&self, pair: (ScriptClass, ScriptClass)) -> bool {
+        use ScriptClass::{Digit, Han, Latin};
+        match pair {
+            (Han, Latin) | (Latin, Han) => self.cjk_latin,
+            (Han, Digit) | (Digit, Han) => self.cjk_number,
+            _ => false,
+        }
+    }
+}
+
+pub(crate) fn plan_semantic_boundary_edits_with_selection(
+    text: &str,
+    selection: &RuleSelection,
+) -> Vec<TextEdit> {
+    let gate = TextBoundaryGate::from_selection(selection);
     let spans = scan_all_spans(text);
-    let semantic_ranges: Vec<(usize, usize, SpanKind)> = spans
+    // 参与边界处理的 span：语义原子 + 美元定界的 LaTeX 数学（结构保护）。
+    let relevant: Vec<(usize, usize, SpanKind)> = spans
         .iter()
         .filter_map(|span| match span.kind {
             SpanKind::Measurement
             | SpanKind::Temperature
             | SpanKind::ScientificUnit
-            | SpanKind::MathExpression => Some((span.start, span.end, span.kind)),
+            | SpanKind::MathExpression
+            | SpanKind::LatexMath => Some((span.start, span.end, span.kind)),
             _ => None,
         })
         .collect();
 
     let mut edits = Vec::new();
-    for (start, end, kind) in semantic_ranges {
+    for (start, end, kind) in relevant {
+        // 数字|单位 拆分仅适用于非温度、非百分号类计量单位；
+        // 温度与百分号类保持「数字紧贴符号」，边界空格交给边缘处理。
+        let mut percent_like = false;
         if matches!(kind, SpanKind::Measurement | SpanKind::ScientificUnit) {
             for token in scan_semantic_tokens(text) {
-                if token.start != start
-                    || token.end != end
-                    || token.kind == super::semantic_tokens::SemanticTokenKind::Temperature
-                {
+                if token.start != start || token.end != end {
                     continue;
                 }
-                if token.number_end == token.unit_start
+                let unit = &text[token.unit_start..token.end];
+                percent_like = matches!(unit, "%" | "％" | "‰");
+                if !percent_like
+                    && token.kind != super::semantic_tokens::SemanticTokenKind::Temperature
+                    && token.number_end == token.unit_start
                     && next_char_range(text, token.unit_start).is_some()
                 {
                     edits.push(
@@ -163,7 +215,14 @@ pub(crate) fn plan_semantic_boundary_edits(text: &str) -> Vec<TextEdit> {
             }
         }
 
-        if kind == SpanKind::MathExpression {
+        // 边缘处理：span 与直接相邻汉字之间插入空格。对齐生产管线中
+        // 数学表达式占位符补空格、温标符号规则与百分号-中文规则的行为；
+        // 覆盖检查会吸收文本边界在同一位置的零宽插入，避免双空格。
+        let edge_handled = matches!(
+            kind,
+            SpanKind::Temperature | SpanKind::MathExpression | SpanKind::LatexMath
+        ) || percent_like;
+        if edge_handled {
             if let Some((before_start, before_end, before)) = previous_char_range(text, start) {
                 if classify(before) == CharKind::Cjk {
                     edits.push(
@@ -171,10 +230,10 @@ pub(crate) fn plan_semantic_boundary_edits(text: &str) -> Vec<TextEdit> {
                             text,
                             before_start,
                             before_end,
-                            format!("{} ", before),
+                            format!("{before} "),
                             EditPriority::SemanticAtomic,
                         )
-                        .expect("math boundary edit must use valid UTF-8 boundaries"),
+                        .expect("semantic edge edit must use valid UTF-8 boundaries"),
                     );
                 }
             }
@@ -185,10 +244,10 @@ pub(crate) fn plan_semantic_boundary_edits(text: &str) -> Vec<TextEdit> {
                             text,
                             after_start,
                             after_end,
-                            format!(" {}", after),
+                            format!(" {after}"),
                             EditPriority::SemanticAtomic,
                         )
-                        .expect("math boundary edit must use valid UTF-8 boundaries"),
+                        .expect("semantic edge edit must use valid UTF-8 boundaries"),
                     );
                 }
             }
@@ -196,10 +255,10 @@ pub(crate) fn plan_semantic_boundary_edits(text: &str) -> Vec<TextEdit> {
     }
 
     // 文本边界（对齐 spacing.cjk-latin / spacing.cjk-number 的核心行为）：
-    // Han↔Latin、Han↔Digit 直接相邻时插入空格。以 grapheme cluster 为判定
-    // 单位，且不插入任何结构/语义 span 内部；span 边界处（如「厚度|10μm」）
-    // 允许插空。温标符号、‰ 等由专门规则/后续迁移处理，此处不涉及。
-    let text_boundary_edits = plan_text_boundary_edits(text, &spans, &edits);
+    // Han↔Latin、Han↔Digit 直接相邻时插入空格；数学运算符 ↔ Han 边界归入
+    // cjk-number（对应 break_han_math_boundaries）。以 grapheme cluster 为
+    // 判定单位，且不插入任何结构/语义 span 内部；受规则选择门控。
+    let text_boundary_edits = plan_text_boundary_edits(text, &spans, &edits, &gate);
     edits.extend(text_boundary_edits);
 
     arbitrate_edits(edits)
@@ -213,7 +272,9 @@ fn plan_text_boundary_edits(
     text: &str,
     spans: &[TextSpan],
     existing: &[TextEdit],
+    gate: &TextBoundaryGate,
 ) -> Vec<TextEdit> {
+    const MATH_OPERATORS: &[char] = &['∂', '±', '×', '≈', '≤', '≥'];
     let mut edits = Vec::new();
     let units = units(text, BoundaryStrategy::Graphemes);
     for pair in units.windows(2) {
@@ -225,13 +286,15 @@ fn plan_text_boundary_edits(
         if inside_span {
             continue;
         }
-        let needs_space = matches!(
-            (left.script, right.script),
-            (ScriptClass::Han, ScriptClass::Latin)
-                | (ScriptClass::Latin, ScriptClass::Han)
-                | (ScriptClass::Han, ScriptClass::Digit)
-                | (ScriptClass::Digit, ScriptClass::Han)
-        );
+        // 数学运算符 ↔ Han 边界归入 cjk-number（对齐 break_han_math_boundaries）。
+        let needs_space = gate.allows((left.script, right.script))
+            || (gate.cjk_number
+                && matches!(
+                    (left.script, right.script),
+                    (ScriptClass::Han, ScriptClass::Other) | (ScriptClass::Other, ScriptClass::Han)
+                )
+                && (MATH_OPERATORS.contains(&right.text.chars().next().unwrap_or_default())
+                    || MATH_OPERATORS.contains(&left.text.chars().next().unwrap_or_default())));
         if needs_space {
             let already_covered = existing
                 .iter()
@@ -261,9 +324,12 @@ fn previous_char_range(text: &str, index: usize) -> Option<(usize, usize, char)>
 /// 侧；生产 `format_text` 尚未使用本函数。随迁移推进，逐步把温标、全角标点
 /// 清理等规则纳入编辑计划后，本函数覆盖面将与生产管线收敛。
 #[cfg_attr(not(test), allow(dead_code))]
-pub(crate) fn format_units_and_math_via_edits(text: &str) -> String {
-    apply_edits(text, &plan_semantic_boundary_edits(text))
-        .expect("semantic boundary edits must apply cleanly")
+pub(crate) fn format_units_and_math_via_edits(text: &str, selection: &RuleSelection) -> String {
+    apply_edits(
+        text,
+        &plan_semantic_boundary_edits_with_selection(text, selection),
+    )
+    .expect("semantic boundary edits must apply cleanly")
 }
 
 fn next_char_range(text: &str, index: usize) -> Option<(usize, usize, char)> {
@@ -356,7 +422,7 @@ mod tests {
         let text = "样品25°C保存，4℃冷藏";
         let output = apply_edits(text, &plan_semantic_boundary_edits(text)).unwrap();
         // ASCII 温标：Han↔Digit 与 Latin↔Han 边界插空；Unicode 温标符号
-        // （℃ 归 Other）保持既有行为，不插空。
-        assert_eq!(output, "样品 25°C 保存，4℃冷藏");
+        // （℃）经边缘处理与后续汉字之间插空——与生产管线行为一致。
+        assert_eq!(output, "样品 25°C 保存，4℃ 冷藏");
     }
 }
