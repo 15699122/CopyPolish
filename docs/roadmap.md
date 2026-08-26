@@ -18,7 +18,7 @@
 
 - GitHub Actions 保持为标准 CI 与可复现构建路径；
 - 本地构建 + 手动上传为正式支持的备用发布方式（Runbook：[manual-release.md](manual-release.md)）；
-- 后续补充自动化脚本：
+- 已提供本地发布自动化脚本：
   - `scripts/build_release_local.ps1`（Windows 版本同步、构建、DLL 收集、`.7z` 打包）；
   - `scripts/build_release_local.sh`（Linux 构建与资产命名）;
   - `scripts/verify_release_assets.py`（校验 tag、版本一致性、资产存在性与命名、7z 目录结构）。

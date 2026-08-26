@@ -2,6 +2,8 @@
 
 本指南描述在不依赖 GitHub Actions 构建的情况下，于本地编译 Release 产物并手动上传到 GitHub Releases 的完整流程。标准自动发布仍由 `.github/workflows/release.yml` 承担；两种模式共享相同的验证门槛、版本策略、资产命名与人工验收标准。中长期发布相关维护项见 [roadmap.md](roadmap.md)。
 
+> 提示：`scripts/build_release_local.sh`（Linux）、`scripts/build_release_local.ps1`（Windows）与 `scripts/verify_release_assets.py`（产物校验）封装了本指南的核心步骤；仍需遵守下文的干净发布工作区与人工验收要求，首次使用前请先通读本指南。
+
 ## 1. 适用范围与发布模式
 
 | 模式 | 用途 | 说明 |
