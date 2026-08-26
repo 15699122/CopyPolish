@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { AppTitleBar } from "@/components/AppTitleBar";
 import { SettingsDialog } from "@/components/SettingsDialog";
 import { FONT_FAMILY_STACKS } from "@/lib/fonts";
+import { useShortcuts } from "@/hooks/useShortcuts";
 import {
   formatText,
   getAppVersion,
@@ -23,12 +24,15 @@ import {
   getUserSettings,
   isTauri,
   saveUserSettings,
+  DEFAULT_SHORTCUT_SETTINGS,
   type Rule,
   type RuleSelection,
   type FontFamily,
   type EditorFontSize,
   type LoadedUserSettings,
   type SettingsLoadNotice,
+  type ShortcutAction,
+  type ShortcutBindings,
   type ThemeMode,
   type UiScale,
 } from "@/lib/tauri";
@@ -82,6 +86,13 @@ export default function App() {
   const [font, setFont] = useState<FontFamily>("system");
   const [editorFontSize, setEditorFontSize] = useState<EditorFontSize>("normal");
   const [uiScale, setUiScale] = useState<UiScale>("normal");
+  // 快捷键：总开关与动作绑定，随用户设置持久化。
+  const [shortcutsEnabled, setShortcutsEnabled] = useState(
+    DEFAULT_SHORTCUT_SETTINGS.enabled,
+  );
+  const [shortcutBindings, setShortcutBindings] = useState<ShortcutBindings>(
+    DEFAULT_SHORTCUT_SETTINGS.bindings,
+  );
 
   function currentSettings(next: Partial<{
     enabled: string[];
@@ -90,6 +101,7 @@ export default function App() {
     font: FontFamily;
     editor_font_size: EditorFontSize;
     ui_scale: UiScale;
+    shortcuts: { enabled: boolean; bindings: ShortcutBindings };
   }> = {}) {
     return {
       enabled,
@@ -98,6 +110,10 @@ export default function App() {
       font,
       editor_font_size: editorFontSize,
       ui_scale: uiScale,
+      shortcuts: {
+        enabled: shortcutsEnabled,
+        bindings: shortcutBindings,
+      },
       ...next,
     };
   }
@@ -171,6 +187,10 @@ export default function App() {
           }
           setEditorFontSize(saved.editor_font_size ?? "normal");
           setUiScale(saved.ui_scale ?? "normal");
+          if (saved.shortcuts) {
+            setShortcutsEnabled(saved.shortcuts.enabled);
+            setShortcutBindings(saved.shortcuts.bindings);
+          }
           setSettingsLoadNotices(saved.notices ?? []);
           if (saved.last_input) {
             setInput(saved.last_input);
@@ -238,26 +258,17 @@ export default function App() {
     document.documentElement.style.setProperty("--app-ui-scale", scales[uiScale]);
   }, [uiScale]);
 
-  useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      const modifier = event.ctrlKey || event.metaKey;
-      if (!modifier || event.altKey) return;
-
-      if (event.key === "Enter") {
-        event.preventDefault();
-        scheduleFormat(input, enabled, 0);
-      } else if (event.shiftKey && event.key.toLowerCase() === "c") {
-        event.preventDefault();
-        void onCopy();
-      } else if (!event.shiftKey && event.key === ",") {
-        event.preventDefault();
-        setSettingsOpen(true);
-      }
-    }
-
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [enabled, input, output]);
+  // 快捷键监听与分发：总开关关闭时不注册；IME 组合态不触发；
+  // 仅在精确匹配绑定时 preventDefault。Esc 仍由 Radix Dialog 原生处理。
+  useShortcuts({
+    enabled: shortcutsEnabled,
+    bindings: shortcutBindings,
+    onFormatNow: () => scheduleFormat(input, enabled, 0),
+    onCopyOutput: () => {
+      void onCopy();
+    },
+    onOpenSettings: () => setSettingsOpen(true),
+  });
 
   // 实时排版（防抖 + 忽略乱序的旧请求）
   function scheduleFormat(nextInput: string, applyEnabled = enabled, delayOverride?: number) {
@@ -451,6 +462,60 @@ export default function App() {
       });
   }
 
+  function onShortcutsEnabledChange(nextEnabled: boolean) {
+    setShortcutsEnabled(nextEnabled);
+    setSettingsStatus("saving");
+    saveUserSettings(
+      currentSettings({ shortcuts: { enabled: nextEnabled, bindings: shortcutBindings } }),
+    )
+      .then(() => {
+        setSettingsStatus("saved");
+        setSettingsError(null);
+      })
+      .catch((e) => {
+        setSettingsStatus("error");
+        setSettingsError(String(e));
+      });
+  }
+
+  function onSaveShortcutBinding(action: ShortcutAction, binding: string) {
+    const nextBindings = { ...shortcutBindings, [action]: binding };
+    setShortcutBindings(nextBindings);
+    setSettingsStatus("saving");
+    saveUserSettings(
+      currentSettings({
+        shortcuts: { enabled: shortcutsEnabled, bindings: nextBindings },
+      }),
+    )
+      .then(() => {
+        setSettingsStatus("saved");
+        setSettingsError(null);
+      })
+      .catch((e) => {
+        setSettingsStatus("error");
+        setSettingsError(String(e));
+      });
+  }
+
+  function onResetShortcuts() {
+    const next = {
+      enabled: DEFAULT_SHORTCUT_SETTINGS.enabled,
+      bindings: { ...DEFAULT_SHORTCUT_SETTINGS.bindings },
+    };
+    setShortcutsEnabled(next.enabled);
+    setShortcutBindings(next.bindings);
+    setSettingsStatus("saving");
+    saveUserSettings(currentSettings({ shortcuts: next }))
+      .then(() => {
+        setSettingsStatus("saved");
+        setSettingsError(null);
+      })
+      .catch((e) => {
+        setSettingsStatus("error");
+        setSettingsError(String(e));
+      });
+  }
+
   function settingsNoticeText(notice: SettingsLoadNotice): string {
     const messages: Record<SettingsLoadNotice, string> = {
       legacy_settings_detected: "检测到旧版本设置文件，已迁移至 rules.yaml。",
@@ -601,6 +666,11 @@ return (
           onResetFont={onResetFont}
           onEditorFontSizeChange={onEditorFontSizeChange}
           onUiScaleChange={onUiScaleChange}
+          shortcutsEnabled={shortcutsEnabled}
+          shortcutBindings={shortcutBindings}
+          onShortcutsEnabledChange={onShortcutsEnabledChange}
+          onSaveShortcutBinding={onSaveShortcutBinding}
+          onResetShortcuts={onResetShortcuts}
         />
 
         <Button variant="outline" size="sm" data-testid="clear-input" onClick={onClear}>

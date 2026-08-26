@@ -21,6 +21,8 @@ Tauri 2
 │   └── 无边框标题栏：拖动、最小化、最大化、关闭
 │   └── src/lib/tauri.ts 受限 command 封装（前端唯一后端入口）
 │   └── src/lib/fonts.ts 统一字体令牌（全 UI 共享 --app-font-family）
+│   └── src/lib/shortcuts.ts 快捷键 schema、序列化、匹配与校验
+│   └── src/hooks/useShortcuts.ts 快捷键监听启停与动作分发
 └── src-tauri/
     ├── src/engine/            Rust 原生排版引擎
     │   ├── registry.rs        规则注册表（稳定 key / 元数据 / 默认启用 / key 迁移）
@@ -109,14 +111,15 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
  15. Unicode 等价识别与输出规范化分离：识别层把 `µ/μ`、`Å/Å` 视为等价语义，输出层默认不改写用户原文；如提供统一表示，须作为独立、默认关闭的规范化规则并评估 NFKC 影响。
  16. 复杂输入测试应至少覆盖结构保护、语义 token、普通文本规则三层同时命中的场景；新增规则或保护层改动必须补充复杂组合 fixture、规则选择组合、优先级和幂等性测试。当前 `structure-precedence.yaml` 作为 pending 基线记录行内代码与单位/数学扫描的优先级冲突，不能把该差异误标为稳定行为。
 
-## 当前开发进度摘要（2026-08-25）
+## 当前开发进度摘要（2026-08-26）
 
 - **已完成**：阶段 A 测试分层、阶段 B Unicode grapheme 边界、阶段 C 第一批有限单位词典/语义 token、阶段 D 首批 Markdown 保护能力。
+- **已完成**：快捷键总开关与自定义绑定（roadmap §4 阶段 A/B；持久化、冲突校验、IME 防护、恢复默认）。
 - **已完成的调度重构基础**：`RulePhase`、`before/after` 依赖、稳定拓扑排序、依赖图错误检测。
 - **已完成的 Span/Edit 基础**：结构与语义 span 扫描、重叠仲裁、UTF-8 安全 `TextEdit`、非重叠编辑逆序应用、单位/数学边界编辑规划。
 - **未完成**：Span/Edit 尚未接管 `format_text`；现有生产路径仍是 placeholder + 逐行 `fn(&str) -> String` 规则；`structure-precedence.yaml` 仍是 pending 基线。
 - **未完成**：完整单位词典、温度规则独立 stable key、Unicode 等价识别/默认关闭规范化、1 MB 长文本性能基准、真实 Tauri E2E、Windows 10/11 真机验收和正式 `v0.5.0` 发布。
-- **当前验证基线**：Rust 单元测试 66 项、前端 Vitest 15 项；fmt、Clippy、前端构建和 diff 检查均纳入本地/CI 验证。
+- **当前验证基线**：Rust 单元测试 69 项、前端 Vitest 33 项；fmt、Clippy、前端构建和 diff 检查均纳入本地/CI 验证。
 
 ## 用户设置持久化
 
@@ -129,12 +132,19 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
   font: system
   editor_font_size: normal
   ui_scale: normal
+  shortcuts:
+    enabled: true
+    bindings:
+      format_now: CtrlOrCmd+Enter
+      copy_output: CtrlOrCmd+Shift+KeyC
+      open_settings: CtrlOrCmd+Comma
   ```
-- 字段：`enabled`（启用规则）、`last_input`（最近输入）、`theme`（`system` / `light` / `dark`）、`font`（字体预设）、`editor_font_size`（`small` / `normal` / `large` / `x-large`）、`ui_scale`（`compact` / `small` / `normal` / `large` / `x-large`）。旧版设置文件缺少新增字段时分别回落为 `normal`。
+- 字段：`enabled`（启用规则）、`last_input`（最近输入）、`theme`（`system` / `light` / `dark`）、`font`（字体预设）、`editor_font_size`（`small` / `normal` / `large` / `x-large`）、`ui_scale`（`compact` / `small` / `normal` / `large` / `x-large`）、`shortcuts`（快捷键总开关与绑定，缺省回退为启用 + 默认组合键）。旧版设置文件缺少新增字段时分别回落为默认值。
 - 迁移：`rules.yaml` 不存在但同目录存在旧版 `ccw-formatter-settings.json` 时，自动读取旧 JSON 并转换写入新 YAML。
 - 保存策略：写临时文件 `rules.yaml.tmp` 并 `sync_all` 后原子 rename 到 `rules.yaml`；替换前将上一份有效文件轮换为 `rules.yaml.bak`，避免中途退出产生半截文件，并为主文件损坏提供恢复来源。目标是 exe 同目录，目录不存在或无写权限时返回带完整路径的诊断错误（前端在设置弹窗中展示，提示把便携版放到可写目录）。
 - 实现：`user_settings.rs` 提供 `load_from/save_to`（可注入路径）、`load_from_dir_with_status`（区分旧版本迁移、主设置损坏、备份损坏和恢复状态）、`load_from_dir`（兼容返回设置内容）与 `load_with_status`（exe 目录）；command 层暴露 `get_user_settings`（返回 `notices` 提醒列表）、`save_user_settings`（保存前过滤未知规则 key并保存字号/缩放）与 `get_settings_path`（返回设置文件完整路径，供界面显示）。
 - 前端行为：启动恢复；规则开关/全选/恢复默认/清空/主题/字体即时保存，输入防抖（160ms）保存；浏览器预览回退 localStorage。字体使用固定跨平台预设与 CSS fallback 栈，不尝试枚举系统已安装字体。
+- 快捷键：`frontend/src/lib/shortcuts.ts` 集中维护动作 key、默认绑定（`CtrlOrCmd` + `KeyboardEvent.code` 序列化）、事件匹配、IME 防护与校验（必须含 Ctrl/Cmd、动作间禁止重复、系统黑名单、允许按键白名单，`Comma` 作为默认值兼容例外）；`frontend/src/hooks/useShortcuts.ts` 负责监听启停（总开关关闭时不注册监听器）与动作分发；录制交互在 SettingsDialog 的“快捷键”分区完成，冲突/保存反馈通过 `aria-live` 输出；Esc 始终交给 Radix Dialog。
 - 长文本排版：普通文本使用 160ms 防抖，达到 50,000 字符使用 450ms，达到 200,000 字符使用 900ms；界面显示排版中、长文本和最近一次耗时提示，并通过序列号丢弃过期结果。
 - 设置 Dialog 的版本号通过 `getAppVersion()` 读取：打包环境使用 Tauri `getVersion()`，浏览器预览使用 Vite 从 `frontend/package.json` 注入的 `__APP_VERSION__` 回退值，避免重复维护版本常量。
 - 设置弹窗 Footer 保持与主界面一致的 `py-4` 纵向内边距；桌面端单行显示版本/保存状态/设置路径与操作按钮，小屏或较长保存错误时采用 flex-wrap 响应式换行。
@@ -258,7 +268,7 @@ git diff --check
 
 1. 真实 Windows 机器人工验收：下载 CI 的 `windows-portable` artifact，运行 `.exe`，输入 `在LeanCloud上，花了5000元` → 应输出 `在 LeanCloud 上，花了 5000 元`；验证设置弹窗 13 条规则、开关即时重排、设置文件持久化、高 DPI 显示。
 2. 正式发布 `v0.5.0`：人工复核 Release 资产、Release Notes、版本号和 latest 标记。
-3. `v0.5.0` 发布后的中长期工作（本地构建/手动发布自动化脚本、快捷键开关与自定义、复杂排版与 Unicode 基础能力增强（多行/Markdown/特殊单位/数学符号）、Unicode 引擎升级、ICU4X 评估、E2E、性能基准、hooks 拆分等）统一在 [roadmap.md](roadmap.md) 跟踪，其中复杂排版增强的详细阶段计划见其 §5。
+3. `v0.5.0` 发布后的中长期工作（复杂排版与 Unicode 基础能力增强（多行/Markdown/特殊单位/数学符号）、Unicode 引擎升级、ICU4X 评估、E2E、性能基准、其余 hooks 拆分等）统一在 [roadmap.md](roadmap.md) 跟踪，其中复杂排版增强的详细阶段计划见其 §5。本地构建自动化脚本与快捷键总开关/自定义绑定已完成并合入 `dev`。
 
 ## 图标
 
