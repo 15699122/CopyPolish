@@ -929,19 +929,9 @@ fn chemical_detection_unaffected_by_boundary_layer() {
 fn edit_plan_path_matches_placeholder_pipeline_on_semantic_fixtures() {
     use super::edit_plan::format_units_and_math_via_edits;
 
-    // 剩余 5 例差异均为「专门能力尚未迁移到编辑计划路径」，随 R3 推进逐项
-    // 消除并从清单移除：
-    // 1) selection 门控：文本边界目前不感知规则选择；
-    // 2) 温标/‰ 等符号与中文的边界由 spacing.temperature-cjk 等专门规则完成，
-    //    编辑计划的单位词典把 `5‰` 视为计量 span，插空位置不同；
-    // 3) 美元定界公式与 cjk-number 单规则的边界行为依赖保护层占位符逻辑。
-    const PENDING_DIFFS: &[&str] = &[
-        "measurements.yaml / 单规则 number-unit 覆盖微米与欧姆",
-        "measurements.yaml / 千分号与中文边界保持",
-        "measurements.yaml / Unicode 温标符号（℃ / ℉）既有行为保持",
-        "mathematical-symbols.yaml / 数学模式中的半角逗号保持不变",
-        "mathematical-symbols.yaml / 比较表达式中的普通文本不被误判为单位",
-    ];
+    // 全部语义 fixture 案例已实现双路径输出一致。新增/迁移规则时若产生
+    // 差异，须先在此登记并说明消除路径，随迁移逐项移除，保持清单为空为常态。
+    const PENDING_DIFFS: &[&str] = &[];
 
     let semantic_fixtures: [(&str, &str); 2] = [
         (
@@ -964,7 +954,7 @@ fn edit_plan_path_matches_placeholder_pipeline_on_semantic_fixtures() {
             };
             let pipeline_output = format_text(&request)
                 .unwrap_or_else(|error| panic!("fixture {file} / {} failed: {error}", case.name));
-            let edit_plan_output = format_units_and_math_via_edits(&case.input);
+            let edit_plan_output = format_units_and_math_via_edits(&case.input, &case.selection);
 
             // 单向不变量（无误报）：生产管线未修改的输入，编辑计划也不得修改。
             if pipeline_output == case.input {
