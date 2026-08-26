@@ -949,37 +949,23 @@ fn edit_plan_path_matches_placeholder_pipeline_on_stable_fixtures() {
         // —— naming-and-links.yaml（名词规则与链接空格未迁移）——
         "naming-and-links.yaml / 专有名词使用正确的大小写",
         "naming-and-links.yaml / 不要使用不地道的缩写",
-        "naming-and-links.yaml / 链接之间增加空格",
-        "naming-and-links.yaml / 嵌套括号链接之间增加空格",
         // —— protection.yaml / markdown-protection.yaml（结构保护还原未迁移）——
         // 差异细分为三类（已通过对照输出确认，2026-08-26）：
-        // a) inline placeholder 周边 CJK 空格：生产管线对行内代码 / 链接 /
-        //    图片 / 行内 HTML / 化学式占位符两侧补空格；
-        // b) HTML block 的 span 覆盖缺口：scan_structure_spans 对块内中间行
-        //    的覆盖与 protection.rs 不一致，编辑路径会误格式化块内正文；
+        // a) inline placeholder 周边 CJK 空格：✅ 已实现
+        //    （edit_plan.rs::plan_inline_placeholder_edge_edits + 新增 InlineHtml span）；
+        // b) HTML block 的 span 覆盖缺口：✅ 已修复
+        //    （scan_html_block_spans 终点计算漏中间行；回归测试 spans.rs::
+        //    html_block_span_covers_interior_lines）；
         // c) 未闭合结构的特殊还原（如 `[文档]（` 全角括号替换）。
-        "protection.yaml / Markdown 链接地址保持完整",
-        "protection.yaml / 同文含化学式时普通缩写连字符复合词不被拆开",
-        "markdown-protection.yaml / 双反引号行内代码保持完整",
-        "markdown-protection.yaml / 三反引号行内代码保持完整",
-        "markdown-protection.yaml / 嵌套括号链接保持完整",
-        "markdown-protection.yaml / 嵌套括号图片保持完整",
         "markdown-protection.yaml / 未闭合链接不吞掉后续正文",
         "markdown-protection.yaml / 未闭合反引号不吞掉后续正文",
-        "markdown-protection.yaml / 行内 HTML 标签保持完整而标签外正文继续格式化",
-        "markdown-protection.yaml / 未闭合行内 HTML 标签不吞掉后续正文",
         "markdown-protection.yaml / 引用式链接定义保持完整而正文继续格式化",
         // —— unicode-boundaries.yaml（组合场景）——
-        "unicode-boundaries.yaml / emoji ZWJ 与 Markdown 链接保护组合",
-        "unicode-boundaries.yaml / 扩展区 B 与化学式保护组合",
         // —— 复合场景 ——
         "selection-and-regressions.yaml / 全选模式执行全部规则",
-        "complex-compositions.yaml / 中文英文链接单位化学式与数学共同处理",
-        "complex-compositions.yaml / 代码链接单位和普通正文彼此隔离",
         "rule-interactions.yaml / 专有名词与中英文边界共同处理",
         "rule-interactions.yaml / 全角数字与数字单位共同处理",
         "rule-interactions.yaml / 中英文数字单位和温标共同处理",
-        "rule-interactions.yaml / 链接周边空格与中英文边界共同处理",
     ];
 
     let all_cases = load_passing_golden_cases();

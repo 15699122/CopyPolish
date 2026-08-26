@@ -292,7 +292,7 @@ fn protect_inline_html_tags(text: &str, placeholders: &mut Vec<(String, String)>
     output
 }
 
-fn find_inline_html_tag_end(bytes: &[u8], open: usize) -> Option<usize> {
+pub(crate) fn find_inline_html_tag_end(bytes: &[u8], open: usize) -> Option<usize> {
     let mut quote = None;
     for (index, &byte) in bytes.iter().enumerate().skip(open + 1) {
         match (quote, byte) {
@@ -306,7 +306,7 @@ fn find_inline_html_tag_end(bytes: &[u8], open: usize) -> Option<usize> {
     None
 }
 
-fn inline_html_tag_name(bytes: &[u8], open: usize) -> Option<&str> {
+pub(crate) fn inline_html_tag_name(bytes: &[u8], open: usize) -> Option<&str> {
     let mut index = open + 1;
     if bytes.get(index) == Some(&b'/') {
         return None;
@@ -321,7 +321,7 @@ fn inline_html_tag_name(bytes: &[u8], open: usize) -> Option<&str> {
     (index > start).then(|| std::str::from_utf8(&bytes[start..index]).ok())?
 }
 
-fn is_self_closing_html_tag(bytes: &[u8], open: usize, end: usize) -> bool {
+pub(crate) fn is_self_closing_html_tag(bytes: &[u8], open: usize, end: usize) -> bool {
     bytes[open + 1..end]
         .iter()
         .rev()
@@ -329,7 +329,11 @@ fn is_self_closing_html_tag(bytes: &[u8], open: usize, end: usize) -> bool {
         .is_some_and(|byte| *byte == b'/')
 }
 
-fn find_inline_html_closing_tag(bytes: &[u8], start: usize, name: &str) -> Option<usize> {
+pub(crate) fn find_inline_html_closing_tag(
+    bytes: &[u8],
+    start: usize,
+    name: &str,
+) -> Option<usize> {
     let marker = format!("</{name}");
     let text = std::str::from_utf8(bytes).ok()?;
     let mut cursor = start;
@@ -345,7 +349,7 @@ fn find_inline_html_closing_tag(bytes: &[u8], start: usize, name: &str) -> Optio
     None
 }
 
-fn is_inline_html_tag(bytes: &[u8], open: usize, end: usize) -> bool {
+pub(crate) fn is_inline_html_tag(bytes: &[u8], open: usize, end: usize) -> bool {
     if bytes.get(open) != Some(&b'<') || bytes.get(end) != Some(&b'>') {
         return false;
     }

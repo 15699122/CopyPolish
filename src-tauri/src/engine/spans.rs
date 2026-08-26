@@ -24,6 +24,7 @@ pub(crate) enum SpanKind {
     MathExpression,
     InlineCode,
     MarkdownLink,
+    InlineHtml,
     HtmlBlock,
     FencedCode,
     FrontMatter,
@@ -45,6 +46,7 @@ impl SpanKind {
             | Self::MathExpression => SpanPriority::SemanticAtomic,
             Self::InlineCode
             | Self::MarkdownLink
+            | Self::InlineHtml
             | Self::HtmlBlock
             | Self::FencedCode
             | Self::FrontMatter
@@ -164,6 +166,7 @@ pub(crate) fn scan_structure_spans(text: &str) -> Vec<TextSpan> {
     scan_inline_code_spans(text, &mut spans);
     scan_markdown_link_spans(text, &mut spans);
     scan_html_block_spans(text, &mut spans);
+    scan_inline_html_spans(text, &mut spans);
     scan_dollar_math_spans(text, &mut spans);
     arbitrate_spans(spans)
 }
@@ -477,6 +480,44 @@ fn scan_html_block_spans(text: &str, output: &mut Vec<TextSpan>) {
             offset += lines[line].len() + usize::from(line + 1 < lines.len());
             line += 1;
         }
+    }
+}
+
+/// 扫描行内 HTML 标签/元素（与 protection.rs 的占位符行为对齐）：
+/// 单个标签（含自闭合）或成对元素的完整区间；跨行标签不匹配。
+fn scan_inline_html_spans(text: &str, output: &mut Vec<TextSpan>) {
+    use super::protection::{
+        find_inline_html_closing_tag, find_inline_html_tag_end, inline_html_tag_name,
+        is_inline_html_tag, is_self_closing_html_tag,
+    };
+
+    let bytes = text.as_bytes();
+    let mut cursor = 0usize;
+    while cursor < bytes.len() {
+        let Some(relative_open) = text[cursor..].find('<') else {
+            break;
+        };
+        let open = cursor + relative_open;
+        let Some(end) = find_inline_html_tag_end(bytes, open) else {
+            break;
+        };
+        if !is_inline_html_tag(bytes, open, end) {
+            cursor = open + 1;
+            continue;
+        }
+        let mut close_end = None;
+        if let Some(name) = inline_html_tag_name(bytes, open) {
+            if !is_self_closing_html_tag(bytes, open, end) {
+                if let Some(found) = find_inline_html_closing_tag(bytes, end + 1, name) {
+                    close_end = Some(found);
+                }
+            }
+        }
+        let span_end = close_end.unwrap_or(end) + 1;
+        if let Some(span) = TextSpan::new(open, span_end, SpanKind::InlineHtml) {
+            output.push(span);
+        }
+        cursor = span_end;
     }
 }
 
