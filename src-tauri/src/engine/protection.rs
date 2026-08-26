@@ -532,7 +532,7 @@ fn protect_markdown_links(text: &str, placeholders: &mut Vec<(String, String)>) 
     out
 }
 
-fn find_link_label_end(bytes: &[u8], open: usize) -> Option<usize> {
+pub(crate) fn find_link_label_end(bytes: &[u8], open: usize) -> Option<usize> {
     let mut depth = 0usize;
     let mut index = open;
     while index < bytes.len() && bytes[index] != b'\n' {

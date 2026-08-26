@@ -103,9 +103,9 @@ fn restore_newlines(text: &str, newline: &str) -> String {
 //
 // 这是「placeholder → TextEdit」重构的对照骨架：用 scan_all_spans 划定的
 // 不可编辑区间替代 protection 的部分占位符，然后对可编辑区间复用现有
-// execution_rules 纯函数规则。当前仅作测试探针，不替换生产 format_text。
-// polymorphic 差异（URL / LaTeX / 邮箱等 spans 仍未覆盖的结构）会在对照中
-// 暴露出来，作为后续补齐扫描器的依据。
+// execution_rules 纯函数规则。当前仅作测试探针，不替换生产 format_text；
+// URL / 邮箱、硬换行、引用式链接、未闭合反引号及数学复合单位等结构已纳入
+// span 扫描和对照门禁，后续重点转为生产入口切换与旧 placeholder 清理。
 // ---------------------------------------------------------------------------
 
 fn enabled_set(req: &FormatRequest) -> HashSet<String> {
@@ -121,10 +121,44 @@ fn enabled_set(req: &FormatRequest) -> HashSet<String> {
 /// 语义原子（测量/温度/科学单位/数学）不占位——它们应作为普通文本参与
 /// 逐行规则（如 `spacing.number-unit`、`temperature-cjk`），与生产一致。
 fn protect_spans(text: &str, spans: &[TextSpan]) -> (String, Vec<(String, String)>) {
-    let opaque: Vec<&TextSpan> = spans
+    let mut opaque: Vec<TextSpan> = spans
         .iter()
-        .filter(|span| span.priority == super::spans::SpanPriority::OpaqueStructure)
+        .filter(|span| {
+            span.priority == super::spans::SpanPriority::OpaqueStructure
+                || span.kind == super::spans::SpanKind::ChemicalFormula
+        })
+        .copied()
         .collect();
+
+    // `2×3cm²` 会被数学扫描识别为 `2×3`、单位扫描识别为 `3cm²`。
+    // 生产 pipeline 的占位符边界不会在二者之间插空，因此混合管线需要将
+    // 数学表达式后紧邻的单位后缀扩展进同一保护区间。
+    for span in spans
+        .iter()
+        .filter(|span| span.kind == super::spans::SpanKind::MathExpression)
+    {
+        let mut end = span.end;
+        while let Some(ch) = text[end..].chars().next() {
+            let next_end = end + ch.len_utf8();
+            if ch.is_ascii_alphanumeric()
+                || matches!(ch, '²' | '³' | '⁰'..='⁹' | '₀'..='₉' | '⁻' | '⁺')
+            {
+                end = next_end;
+            } else {
+                break;
+            }
+        }
+        if end > span.end {
+            opaque.push(TextSpan {
+                start: span.start,
+                end,
+                kind: span.kind,
+                priority: super::spans::SpanPriority::OpaqueStructure,
+            });
+        }
+    }
+    opaque.sort_by_key(|span| (span.start, std::cmp::Reverse(span.end)));
+    opaque = super::spans::arbitrate_spans(opaque);
     let mut output = String::with_capacity(text.len());
     let mut placeholders = Vec::with_capacity(opaque.len());
     let mut cursor = 0usize;

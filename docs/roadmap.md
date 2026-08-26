@@ -159,7 +159,7 @@ frontend/src/hooks/useShortcuts.ts # 监听、启停、IME 防护、动作分发
 - 完整单位词典和更完整复合单位语法；
 - 温度表示的独立 stable key 评估及与 `spacing.temperature-cjk` 的最终兼容方案；
 - `MathExpression` 的更完整语法边界；
-- 将语义边界从当前规则函数迁移到统一 TextEdit 计划，并补充旧/新路径输出对照；——混合管线对照骨架已建立（`pipeline.rs::format_text_span_aware`：span 划分可编辑区间 + 复用纯函数规则），全部稳定 fixture 上 span 化混合管线与生产高度一致（初始 23 例差异 → 屏蔽 OpaqueStructure 后仅剩 7 例 protection 细节未对齐），对照测试 `tests::span_aware_pipeline_matches_production_on_stable_fixtures` 当前标 `#[ignore]` 作为开发基线，7 例缺口（化学式边缘空格、`×3cm²` 单位拆分、数学符号全角替换、硬换行、引用后链接定义空格等）须逐一补齐 span 覆盖或边缘规则；
+- 将语义边界从当前规则函数迁移到统一 TextEdit 计划，并补充旧/新路径输出对照；✅ 已建立并验证混合管线（`pipeline.rs::format_text_span_aware`：OpaqueStructure span 划分不可编辑区间 + 可编辑区间复用纯函数规则），全部稳定 fixture 已与生产路径逐例一致；对照测试 `tests::span_aware_pipeline_matches_production_on_stable_fixtures` 已恢复为普通测试门禁。URL/邮箱、硬换行、引用式链接、未闭合反引号、数学复合单位及 inline placeholder 边界均已纳入 span 对照；剩余工作是将 `format_text` 正式切换到混合管线、清理旧 placeholder 路径，并为非边界规则补充独立的 TextEdit/可编辑区间策略；
 
 - 不使用「任意 Unicode 字母都可当单位」的宽泛 regex，改用**有限词典 + 复合语法**：
   - 基础单位：`m` / `g` / `s` / `L` / `mol` / `K` / `Pa` / `Hz` / `N` / `J` / `W` / `V` / `A` / `Ω` / `dB` / `rad` / `rpm` / `px` 等；显式常用项包括 `cm` / `cL` / `hPa`；
@@ -224,11 +224,11 @@ frontend/src/hooks/useShortcuts.ts # 监听、启停、IME 防护、动作分发
   a) inline placeholder 周边 CJK 空格：生产管线对行内代码 / 链接 / 图片 / 行内 HTML / 化学式占位符两侧补空格；
   b) HTML block 的 span 覆盖缺口：✅ 已修复——`scan_html_block_spans` 此前计算 span 终点时漏掉中间行长度与换行符，导致块内正文漏出 span；已修正并新增回归测试 `spans.rs::html_block_span_covers_interior_lines`；
   c) 未闭合结构的特殊还原（如 `[文档]（` 全角括号替换）；
-- 将 `TextEdit` 正式接入 `format_text`；
-- 将 `spacing.number-unit`、温标、数学边界和全角标点清理迁移为 span-aware edits；
+- 将 `TextEdit` 正式接入 `format_text`；混合管线已完成等价性验证，尚未切换生产入口；
+- 将 `spacing.number-unit`、温标和数学边界迁移为 span-aware edits；✅ 已完成并通过语义 fixture 对照；全角标点清理仍待纳入混合管线的规则选择/编辑计划；
 - 移除普通/数学多套 placeholder 编号约定；
 - 解决所有结构优先级 pending 案例并迁移为稳定黄金 fixture；
-- 增加编辑计划与旧 placeholder 路径的逐例 diff 对照；✅ 已完成并扩展至**全部稳定黄金 fixture**（`tests.rs::edit_plan_path_matches_placeholder_pipeline_on_stable_fixtures`）：语义边界、`cn_en_space` 扩展边界（强调/上标单位）、inline placeholder 边缘补空格、未闭合反引号特例双路径输出完全一致；HTML block span 覆盖缺口已修复；剩余 14 例差异**收敛为非边界逐行规则一类**（标点规范化、名词规范化、全角括号替换、全选组合等），按案例冻结在测试内 `PENDING_DIFFS` 清单，建议以「span 划定可编辑区间 + 复用现有纯函数规则」的混合模式随生产接管一并消除；
+- 增加编辑计划与旧 placeholder 路径的逐例 diff 对照；✅ 已完成并扩展至**全部稳定黄金 fixture**：语义 EditPlan 对照测试 `tests.rs::edit_plan_path_matches_placeholder_pipeline_on_semantic_fixtures` 已收窄为单位/数学边界职责并通过；混合管线全量等价性测试为 `tests.rs::span_aware_pipeline_matches_production_on_stable_fixtures`，已恢复为普通测试并通过全部稳定 fixture。当前没有未处理的混合管线输出差异；后续重点是生产入口切换、旧 placeholder 清理以及非边界规则的独立 TextEdit/可编辑区间策略；
 - 建立 10 KB/100 KB/1 MB 性能和内存基线。
 
 ### 5.8 阶段 E：Unicode 等价识别与输出规范化（P2）

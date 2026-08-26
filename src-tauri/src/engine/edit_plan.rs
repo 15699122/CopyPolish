@@ -4,6 +4,7 @@
 //! 原文 UTF-8 字节区间，先校验边界，再按优先级仲裁，最后从后向前应用。
 
 use super::model::RuleSelection;
+use super::semantic_tokens::scan_math_expressions;
 use super::semantic_tokens::scan_semantic_tokens;
 use super::spans::{scan_all_spans, SpanKind, SpanPriority, TextSpan};
 use super::tokenizer::{classify, CharKind};
@@ -199,6 +200,11 @@ pub(crate) fn plan_semantic_boundary_edits_with_selection(
                     && token.kind != super::semantic_tokens::SemanticTokenKind::Temperature
                     && token.number_end == token.unit_start
                     && next_char_range(text, token.unit_start).is_some()
+                    && !scan_math_expressions(text)
+                        .iter()
+                        .any(|&(math_start, math_end)| {
+                            math_start <= token.start && token.number_end <= math_end
+                        })
                 {
                     edits.push(
                         TextEdit::new(

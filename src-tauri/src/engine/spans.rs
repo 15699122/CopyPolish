@@ -24,7 +24,10 @@ pub(crate) enum SpanKind {
     MathExpression,
     InlineCode,
     MarkdownLink,
+    Url,
+    Email,
     InlineHtml,
+    HardBreak,
     HtmlBlock,
     FencedCode,
     FrontMatter,
@@ -46,7 +49,10 @@ impl SpanKind {
             | Self::MathExpression => SpanPriority::SemanticAtomic,
             Self::InlineCode
             | Self::MarkdownLink
+            | Self::Url
+            | Self::Email
             | Self::InlineHtml
+            | Self::HardBreak
             | Self::HtmlBlock
             | Self::FencedCode
             | Self::FrontMatter
@@ -165,8 +171,11 @@ pub(crate) fn scan_structure_spans(text: &str) -> Vec<TextSpan> {
     scan_table_separator_spans(text, &mut spans);
     scan_inline_code_spans(text, &mut spans);
     scan_markdown_link_spans(text, &mut spans);
+    scan_url_email_spans(text, &mut spans);
     scan_html_block_spans(text, &mut spans);
     scan_inline_html_spans(text, &mut spans);
+    scan_reference_link_spans(text, &mut spans);
+    scan_hard_break_spans(text, &mut spans);
     scan_dollar_math_spans(text, &mut spans);
     arbitrate_spans(spans)
 }
@@ -382,6 +391,11 @@ fn scan_inline_code_spans(text: &str, output: &mut Vec<TextSpan>) {
             }
             cursor = end;
         } else {
+            // 与 protection.rs 保持一致：未闭合 delimiter 只保护反引号串本身，
+            // 后续正文仍可参与格式化；边界空格由 inline placeholder 逻辑处理。
+            if let Some(span) = TextSpan::new(start, delimiter_end, SpanKind::InlineCode) {
+                output.push(span);
+            }
             cursor = delimiter_end;
         }
     }
@@ -415,6 +429,33 @@ fn scan_markdown_link_spans(text: &str, output: &mut Vec<TextSpan>) {
             output.push(span);
         }
         cursor = target_end + 1;
+    }
+}
+
+/// 扫描普通 URL 与邮箱地址，复用 protection.rs 的有限边界语义。
+/// Markdown 链接、HTML 和其他更高优先级结构会在统一仲裁时覆盖其中的 URL span。
+fn scan_url_email_spans(text: &str, output: &mut Vec<TextSpan>) {
+    use std::sync::OnceLock;
+
+    static PATTERNS: OnceLock<(regex::Regex, regex::Regex)> = OnceLock::new();
+    let (url, email) = PATTERNS.get_or_init(|| {
+        (
+            regex::Regex::new(r#"(?i)https?://[^\s，。；：！？、（）《》【】「」“”‘’…—<>'"]+"#)
+                .expect("invalid URL span regex"),
+            regex::Regex::new(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}")
+                .expect("invalid email span regex"),
+        )
+    });
+
+    for matched in url.find_iter(text) {
+        if let Some(span) = TextSpan::new(matched.start(), matched.end(), SpanKind::Url) {
+            output.push(span);
+        }
+    }
+    for matched in email.find_iter(text) {
+        if let Some(span) = TextSpan::new(matched.start(), matched.end(), SpanKind::Email) {
+            output.push(span);
+        }
     }
 }
 
@@ -518,6 +559,60 @@ fn scan_inline_html_spans(text: &str, output: &mut Vec<TextSpan>) {
             output.push(span);
         }
         cursor = span_end;
+    }
+}
+
+/// 扫描引用式 Markdown 链接 `[label][reference]`，避免链接标记被普通规则拆开。
+fn scan_reference_link_spans(text: &str, output: &mut Vec<TextSpan>) {
+    use super::protection::find_link_label_end;
+
+    let bytes = text.as_bytes();
+    let mut cursor = 0usize;
+    while cursor < bytes.len() {
+        let Some(relative) = text[cursor..].find('[') else {
+            break;
+        };
+        let start = cursor + relative;
+        let Some(label_end) = find_link_label_end(bytes, start) else {
+            break;
+        };
+        let Some(reference_start) = label_end.checked_add(1) else {
+            break;
+        };
+        if bytes.get(reference_start) != Some(&b'[') {
+            cursor = label_end + 1;
+            continue;
+        }
+        let Some(reference_end) = find_link_label_end(bytes, reference_start) else {
+            cursor = reference_start + 1;
+            continue;
+        };
+        if let Some(span) = TextSpan::new(start, reference_end + 1, SpanKind::MarkdownLink) {
+            output.push(span);
+        }
+        cursor = reference_end + 1;
+    }
+}
+
+/// 扫描 Markdown 硬换行标记：行尾两个以上空格或行尾反斜杠。
+fn scan_hard_break_spans(text: &str, output: &mut Vec<TextSpan>) {
+    for (start, end, line) in line_ranges(text) {
+        let trailing_spaces = line.len() - line.trim_end_matches(' ').len();
+        let length = if trailing_spaces >= 2 {
+            trailing_spaces
+        } else if line.ends_with('\\') {
+            1
+        } else {
+            0
+        };
+        if length > 0 {
+            let marker_start = end - length;
+            if let Some(span) =
+                TextSpan::new(start + marker_start - start, end, SpanKind::HardBreak)
+            {
+                output.push(span);
+            }
+        }
     }
 }
 

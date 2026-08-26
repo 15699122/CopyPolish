@@ -117,9 +117,9 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
 - **已完成**：快捷键总开关与自定义绑定（roadmap §4 阶段 A/B；持久化、冲突校验、IME 防护、恢复默认）。
 - **已完成的调度重构基础**：`RulePhase`、`before/after` 依赖、稳定拓扑排序、依赖图错误检测。
 - **已完成的 Span/Edit 基础**：结构与语义 span 扫描、重叠仲裁、UTF-8 安全 `TextEdit`、非重叠编辑逆序应用、单位/数学边界编辑规划。
-- **未完成**：Span/Edit 尚未接管 `format_text`；现有生产路径仍是 placeholder + 逐行 `fn(&str) -> String` 规则；`structure-precedence.yaml` 仍是 pending 基线。编辑计划与生产路径的全量稳定 fixture 对照已建立：语义边界、强调/上标单位扩展边界、inline placeholder 边缘补空格、未闭合反引号特例均双路径完全一致；HTML block span 覆盖缺口已修复；剩余 14 例差异收敛为**单一类**（非边界逐行规则，含未闭合链接的全角括号替换），冻结在测试内 `PENDING_DIFFS` 清单。
+- **未完成**：Span/Edit 尚未正式接管 `format_text`；当前生产路径仍为 placeholder + 逐行 `fn(&str) -> String` 规则，`structure-precedence.yaml` 仍是 pending 基线。span-aware 混合管线已与全部稳定 fixture 逐例一致，并由普通测试 `tests.rs::span_aware_pipeline_matches_production_on_stable_fixtures` 持续门禁；URL/邮箱、硬换行、引用式链接、未闭合反引号、数学复合单位及 inline placeholder 边界均已纳入对照。下一步是将混合管线接入生产入口、迁移剩余非边界规则并清理旧 placeholder 路径。
 - **未完成**：完整单位词典、温度规则独立 stable key、Unicode 等价识别/默认关闭规范化、1 MB 长文本性能基准、真实 Tauri E2E、Windows 10/11 真机验收和正式 `v0.5.0` 发布。
-- **当前验证基线**：Rust 单元测试 71 项、前端 Vitest 33 项；fmt、Clippy、前端构建和 diff 检查均纳入本地/CI 验证。
+- **当前验证基线**：Rust 单元测试 72 项、前端 Vitest 33 项；fmt、Clippy、前端构建和 diff 检查均纳入本地/CI 验证。
 
 ## 用户设置持久化
 
