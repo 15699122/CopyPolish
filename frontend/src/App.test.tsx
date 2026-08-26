@@ -584,6 +584,8 @@ describe("快捷键配置", () => {
     await waitFor(() => expect(screen.getByTestId("open-settings")).toHaveFocus());
 
     // 新绑定生效，旧绑定失效。
+    // 清除输入阶段正常防抖排版产生的调用，只观察快捷键事件本身。
+    mocks.formatText.mockClear();
     fireEvent.keyDown(input, { code: "Enter", ctrlKey: true, key: "Enter" });
     expect(mocks.formatText).not.toHaveBeenCalled();
     fireEvent.keyDown(input, { code: "KeyR", ctrlKey: true, key: "r" });
