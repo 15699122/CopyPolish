@@ -261,7 +261,103 @@ pub(crate) fn plan_semantic_boundary_edits_with_selection(
     let text_boundary_edits = plan_text_boundary_edits(text, &spans, &edits, &gate);
     edits.extend(text_boundary_edits);
 
+    // 扩展边界（对齐 cn_en_space 的 break_emphasis_boundaries /
+    // break_superscript_unit_boundaries）：Markdown 单星强调片段与
+    // Unicode 上标结尾科学单位片段，受 spacing.cjk-latin 门控。
+    if gate.cjk_latin {
+        let extended_edits = plan_extended_boundary_edits(text, &spans, &edits);
+        edits.extend(extended_edits);
+    }
+
     arbitrate_edits(edits)
+}
+
+/// 扩展边界：Markdown 单星强调片段（`*word*`）与以 Unicode 上标结尾的
+/// 科学单位片段（如 `mg·mL⁻¹`）同 CJK 直接相邻时插入空格。
+///
+/// 对齐生产 `break_emphasis_boundaries` / `break_superscript_unit_boundaries`：
+/// - 强调片段边界为 CJK 或比较运算符 `<`/`>`/`=`，不拆 `a*b*c` 与 `**粗体**`；
+/// - 上标单位片段为字母开头、可含 `·` 连接段、以上标字符结尾；
+/// - 匹配落入结构/语义 span 内部时跳过；已被既有编辑覆盖的位置跳过。
+fn plan_extended_boundary_edits(
+    text: &str,
+    spans: &[TextSpan],
+    existing: &[TextEdit],
+) -> Vec<TextEdit> {
+    use std::sync::OnceLock;
+
+    fn regexes() -> &'static (regex::Regex, regex::Regex, regex::Regex, regex::Regex) {
+        static RE: OnceLock<(regex::Regex, regex::Regex, regex::Regex, regex::Regex)> =
+            OnceLock::new();
+        RE.get_or_init(|| {
+            let cjk = r"\u{3400}-\u{4dbf}\u{4e00}-\u{9fff}\u{f900}-\u{faff}";
+            let superscript_unit = format!(
+                r"[A-Za-z][A-Za-z0-9]*(?:[·⋅][A-Za-z0-9]+)*[{}]+",
+                "⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾"
+            );
+            (
+                regex::Regex::new(&format!(r"([{cjk}])(\*[A-Za-z]+\*)"))
+                    .expect("invalid emphasis-before regex"),
+                regex::Regex::new(&format!(r"(\*[A-Za-z]+\*)([{cjk}<>=])"))
+                    .expect("invalid emphasis-after regex"),
+                regex::Regex::new(&format!(r"([{cjk}])({superscript_unit})"))
+                    .expect("invalid superscript-before regex"),
+                regex::Regex::new(&format!(r"({superscript_unit})([{cjk}])"))
+                    .expect("invalid superscript-after regex"),
+            )
+        })
+    }
+
+    let (emphasis_before, emphasis_after, unit_before, unit_after) = regexes();
+    let mut edits: Vec<TextEdit> = Vec::new();
+
+    fn inside_span(spans: &[TextSpan], start: usize, end: usize) -> bool {
+        spans
+            .iter()
+            .any(|span| span.start < end && start < span.end)
+    }
+
+    fn push_boundary(
+        text: &str,
+        boundary: usize,
+        spans: &[TextSpan],
+        existing: &[TextEdit],
+        edits: &mut Vec<TextEdit>,
+    ) {
+        // 边界两侧字符任一落入非可编辑 span 即跳过；已被既有编辑覆盖的位置
+        // 跳过（避免与语义/数学边缘编辑叠加为双空格）。
+        if inside_span(spans, boundary.saturating_sub(1), boundary + 1) {
+            return;
+        }
+        let already_covered = existing
+            .iter()
+            .chain(edits.iter())
+            .any(|edit: &TextEdit| boundary >= edit.start && boundary <= edit.end);
+        if !already_covered {
+            if let Ok(edit) = TextEdit::new(text, boundary, boundary, " ", EditPriority::Editable) {
+                edits.push(edit);
+            }
+        }
+    }
+
+    for captures in emphasis_before.captures_iter(text) {
+        let group2 = captures.get(2).expect("capture 2 exists");
+        push_boundary(text, group2.start(), spans, existing, &mut edits);
+    }
+    for captures in emphasis_after.captures_iter(text) {
+        let group2 = captures.get(2).expect("capture 2 exists");
+        push_boundary(text, group2.start(), spans, existing, &mut edits);
+    }
+    for captures in unit_before.captures_iter(text) {
+        let group2 = captures.get(2).expect("capture 2 exists");
+        push_boundary(text, group2.start(), spans, existing, &mut edits);
+    }
+    for captures in unit_after.captures_iter(text) {
+        let group1 = captures.get(1).expect("capture 1 exists");
+        push_boundary(text, group1.end(), spans, existing, &mut edits);
+    }
+
+    edits
 }
 
 /// 为 Han↔Latin / Han↔Digit 直接相邻边界生成零宽插入编辑。

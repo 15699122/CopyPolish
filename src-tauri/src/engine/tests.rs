@@ -938,8 +938,6 @@ fn edit_plan_path_matches_placeholder_pipeline_on_stable_fixtures() {
     const PENDING_DIFFS: &[&str] = &[
         // —— spacing.yaml ——
         "spacing.yaml / 全角标点与其他字符之间不加空格",
-        "spacing.yaml / Markdown 斜体统计符号与中文及比较运算符之间增加空格",
-        "spacing.yaml / 默认规则处理含斜体统计符号的实验描述",
         "spacing.yaml / 上标单位片段与中文及缩写之间增加空格",
         "spacing.yaml / 默认规则处理含上标单位的实验列表",
         // —— punctuation.yaml（标点规范化规则未迁移）——
