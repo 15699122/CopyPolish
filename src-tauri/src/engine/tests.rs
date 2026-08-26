@@ -952,6 +952,12 @@ fn edit_plan_path_matches_placeholder_pipeline_on_stable_fixtures() {
         "naming-and-links.yaml / 链接之间增加空格",
         "naming-and-links.yaml / 嵌套括号链接之间增加空格",
         // —— protection.yaml / markdown-protection.yaml（结构保护还原未迁移）——
+        // 差异细分为三类（已通过对照输出确认，2026-08-26）：
+        // a) inline placeholder 周边 CJK 空格：生产管线对行内代码 / 链接 /
+        //    图片 / 行内 HTML / 化学式占位符两侧补空格；
+        // b) HTML block 的 span 覆盖缺口：scan_structure_spans 对块内中间行
+        //    的覆盖与 protection.rs 不一致，编辑路径会误格式化块内正文；
+        // c) 未闭合结构的特殊还原（如 `[文档]（` 全角括号替换）。
         "protection.yaml / Markdown 链接地址保持完整",
         "protection.yaml / 同文含化学式时普通缩写连字符复合词不被拆开",
         "markdown-protection.yaml / 双反引号行内代码保持完整",
