@@ -159,7 +159,7 @@ frontend/src/hooks/useShortcuts.ts # 监听、启停、IME 防护、动作分发
 - 完整单位词典和更完整复合单位语法；
 - 温度表示的独立 stable key 评估及与 `spacing.temperature-cjk` 的最终兼容方案；
 - `MathExpression` 的更完整语法边界；
-- 将语义边界从当前规则函数迁移到统一 TextEdit 计划，并补充旧/新路径输出对照。
+- 将语义边界从当前规则函数迁移到统一 TextEdit 计划，并补充旧/新路径输出对照；——混合管线对照骨架已建立（`pipeline.rs::format_text_span_aware`：span 划分可编辑区间 + 复用纯函数规则），全部稳定 fixture 上 span 化混合管线与生产高度一致（初始 23 例差异 → 屏蔽 OpaqueStructure 后仅剩 7 例 protection 细节未对齐），对照测试 `tests::span_aware_pipeline_matches_production_on_stable_fixtures` 当前标 `#[ignore]` 作为开发基线，7 例缺口（化学式边缘空格、`×3cm²` 单位拆分、数学符号全角替换、硬换行、引用后链接定义空格等）须逐一补齐 span 覆盖或边缘规则；
 
 - 不使用「任意 Unicode 字母都可当单位」的宽泛 regex，改用**有限词典 + 复合语法**：
   - 基础单位：`m` / `g` / `s` / `L` / `mol` / `K` / `Pa` / `Hz` / `N` / `J` / `W` / `V` / `A` / `Ω` / `dB` / `rad` / `rpm` / `px` 等；显式常用项包括 `cm` / `cL` / `hPa`；

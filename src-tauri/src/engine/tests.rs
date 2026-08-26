@@ -1,6 +1,7 @@
 // engine/tests.rs —— 引擎单元测试（迁移自旧 rust_engine.rs，并新增
 // 化学式识别、注册表扩展性与旧 key 迁移的回归测试）。
 
+use super::pipeline::format_text_span_aware;
 use super::*;
 
 #[derive(serde::Deserialize)]
@@ -1018,5 +1019,47 @@ fn edit_plan_path_matches_placeholder_pipeline_on_stable_fixtures() {
             .cloned()
             .collect::<Vec<_>>()
             .join("\n")
+    );
+}
+
+/// span 感知混合管线与生产 placeholder 管线在全部稳定 fixture 上的输出一致
+///（roadmap §5.7 R3 收尾：探索性骨架）。
+///
+/// # 当前状态
+/// 混合管线（span 划分可编辑区间 + 复用纯函数规则）已证明与生产高度一致；
+/// 仅剩 7 例「protection 细节」未对齐（化学式边缘空格、`×3cm²` 单位拆分、
+/// 未闭合链接全角替换、硬换行、引用式链接定义空格等），这些需要逐一补齐
+/// span 覆盖或边缘规则。故本测试标记为 `#[ignore]`（pending 开发基线），
+/// 工作区内随时可以 `cargo test -- --ignored span_aware_pipeline` 推进。
+#[test]
+#[ignore = "span-aware 混合管线仍在开发：7 例 protection 细节未对齐（见注释）"]
+fn span_aware_pipeline_matches_production_on_stable_fixtures() {
+    let all_cases = load_passing_golden_cases();
+    assert!(
+        !all_cases.is_empty(),
+        "stable fixture suite must not be empty"
+    );
+    let mut mismatches: Vec<String> = Vec::new();
+    for (file, case) in &all_cases {
+        let request = FormatRequest {
+            text: case.input.clone(),
+            selection: case.selection.clone(),
+        };
+        let production = format_text(&request)
+            .unwrap_or_else(|e| panic!("fixture {file} / {} production failed: {e}", case.name));
+        let span_aware = format_text_span_aware(&request)
+            .unwrap_or_else(|e| panic!("fixture {file} / {} span-aware failed: {e}", case.name));
+        if production != span_aware {
+            mismatches.push(format!(
+                "{file} / {}\n  production: {:?}\n  span-aware: {:?}",
+                case.name, production, span_aware
+            ));
+        }
+    }
+    assert!(
+        mismatches.is_empty(),
+        "span-aware pipeline diverged from production on {} case(s):\n{}",
+        mismatches.len(),
+        mismatches.join("\n")
     );
 }
