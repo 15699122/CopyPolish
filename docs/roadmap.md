@@ -72,7 +72,7 @@ frontend/src/hooks/useShortcuts.ts # 监听、启停、IME 防护、动作分发
 - 阶段 B 已解决 grapheme cluster 边界问题；当前剩余限制是语义分类仍分散在 tokenizer、unit lexicon 和规则实现中；
 - 单位词典已覆盖首批 Unicode、SI、温标和复合单位，但仍是有限词典，不是完整计量单位语法；
 - Markdown 保护已覆盖路线图首批结构，但仍是“扫描器 + 有限正则 + 占位符”的保守子集，不等同于完整 Markdown/HTML 语法解析；
-- pipeline 已按 `RulePhase` + `before/after` 依赖做稳定拓扑排序，同 phase 使用注册表顺序作为 tie-break；span 优先级和 edit 冲突仍待后续阶段完成；
+- pipeline 已按 `RulePhase` + `before/after` 依赖做稳定拓扑排序，同 phase 使用注册表顺序作为 tie-break；Span/Edit 的基础优先级与冲突仲裁已完成，但尚未接管生产保护层或格式化 pipeline；
 - `spans.rs` 已提供统一语义/结构 span 与重叠仲裁基础，`edit_plan.rs` 已提供 UTF-8 安全的 TextEdit 仲裁/应用及语义边界规划基础；两者尚未接管保护层或 pipeline；
 - 复杂输入的组合 fixture、规则容斥矩阵和长文本性能基线仍需继续补齐。
 
