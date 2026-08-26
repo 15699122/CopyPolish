@@ -459,7 +459,13 @@ fn scan_html_block_spans(text: &str, output: &mut Vec<TextSpan>) {
             }
         }
         if let Some(end_line) = end_line {
-            let end = offset + lines[end_line].len();
+            // 终点必须包含起始行到结束行之间的所有中间行与换行符，
+            // 否则块内正文会漏出 span 被当作可编辑文本格式化。
+            let mut end = offset;
+            for content in lines.iter().take(end_line).skip(line) {
+                end += content.len() + 1;
+            }
+            end += lines[end_line].len();
             if let Some(span) = TextSpan::new(offset, end, SpanKind::HtmlBlock) {
                 output.push(span);
             }
@@ -650,5 +656,21 @@ mod tests {
         let text = "```text\n10μm\n正文在GitHub上发布";
         let spans = scan_structure_spans(text);
         assert!(!spans.iter().any(|span| span.kind == SpanKind::FencedCode));
+    }
+
+    /// HTML block span 必须覆盖起始行到结束行之间的全部中间行；
+    /// 否则块内正文会漏出 span 被当作可编辑文本格式化。
+    #[test]
+    fn html_block_span_covers_interior_lines() {
+        let text = "<div class=\"notice\">\n在GitHub上发布5000元\n</div>\n正文在GitHub上发布";
+        let spans = scan_structure_spans(text);
+        let span = spans
+            .iter()
+            .find(|span| span.kind == SpanKind::HtmlBlock)
+            .expect("html block span must be detected");
+        assert_eq!(
+            &text[span.start..span.end],
+            "<div class=\"notice\">\n在GitHub上发布5000元\n</div>"
+        );
     }
 }
