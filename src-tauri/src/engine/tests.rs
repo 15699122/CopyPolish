@@ -921,118 +921,48 @@ fn chemical_detection_unaffected_by_boundary_layer() {
     assert_eq!(&sample[spans[0].0..spans[0].1], "Fe²⁺");
 }
 
-/// 编辑计划路径与生产 placeholder 路径的逐例对照（roadmap §5.7）。
+/// 语义编辑计划路径与生产 placeholder 路径的逐例对照（roadmap §5.7）。
 ///
-/// 覆盖全部稳定黄金 fixture；新路径尚未复刻的能力差异被显式冻结在
-/// `PENDING_DIFFS` 中；随 R3 迁移把更多规则纳入编辑计划，差异应单调减少，
-/// 清单中的案例消除后必须同步移除。
+/// 本测试只覆盖 EditPlan 当前职责范围内的计量单位/数学边界 fixture；
+/// 完整 span-aware 混合管线的全量等价性由下方独立测试负责。
 #[test]
-fn edit_plan_path_matches_placeholder_pipeline_on_stable_fixtures() {
+fn edit_plan_path_matches_placeholder_pipeline_on_semantic_fixtures() {
     use super::edit_plan::format_units_and_math_via_edits;
 
-    // 全量稳定 fixture 对照基线（roadmap §5.7）：语义边界类能力已完全一致；
-    // 剩余 35 例差异对应编辑计划尚未复刻的四类生产能力，随 R3 迁移逐项消除：
-    // 1) 非边界规则（标点规范化、名词规范化、直角引号、链接空格等逐行规则）；
-    // 2) 全角标点清理（spacing.no-space-around-fw-punct，FinalCleanup 阶段）；
-    // 3) cn_en_space 扩展边界：Markdown 单星强调片段、Unicode 上标结尾单位片段；
-    // 4) 结构保护的占位符补空格/还原行为（行内代码、链接、HTML block 等周边空格）。
-    const PENDING_DIFFS: &[&str] = &[
-        // —— spacing.yaml ——
-        "spacing.yaml / 全角标点与其他字符之间不加空格",
-        "spacing.yaml / 上标单位片段与中文及缩写之间增加空格",
-        "spacing.yaml / 默认规则处理含上标单位的实验列表",
-        // —— punctuation.yaml（标点规范化规则未迁移）——
-        "punctuation.yaml / 不重复使用标点符号",
-        "punctuation.yaml / 使用全角中文标点",
-        "punctuation.yaml / 数字使用半角字符",
-        "punctuation.yaml / 英文整句使用半角标点",
-        "punctuation.yaml / 简体中文使用直角引号",
-        // —— naming-and-links.yaml（名词规则与链接空格未迁移）——
-        "naming-and-links.yaml / 专有名词使用正确的大小写",
-        "naming-and-links.yaml / 不要使用不地道的缩写",
-        // —— protection.yaml / markdown-protection.yaml（结构保护还原未迁移）——
-        // 差异细分为三类（已通过对照输出确认，2026-08-26）：
-        // a) inline placeholder 周边 CJK 空格：✅ 已实现
-        //    （edit_plan.rs::plan_inline_placeholder_edge_edits + 新增 InlineHtml span）；
-        // b) HTML block 的 span 覆盖缺口：✅ 已修复
-        //    （scan_html_block_spans 终点计算漏中间行；回归测试 spans.rs::
-        //    html_block_span_covers_interior_lines）；
-        // c) 未闭合结构特例：未闭合反引号 ✅ 已实现（plan_unclosed_backtick_edits）；
-        //    未闭合链接的 `（` 全角替换实为 fullwidth 标点规则产生，归入非边界逐行规则组。
-        "markdown-protection.yaml / 未闭合链接不吞掉后续正文",
-        "markdown-protection.yaml / 引用式链接定义保持完整而正文继续格式化",
-        // —— unicode-boundaries.yaml（组合场景）——
-        // —— 复合场景 ——
-        "selection-and-regressions.yaml / 全选模式执行全部规则",
-        "rule-interactions.yaml / 专有名词与中英文边界共同处理",
-        "rule-interactions.yaml / 全角数字与数字单位共同处理",
-        "rule-interactions.yaml / 中英文数字单位和温标共同处理",
+    let semantic_fixtures = [
+        (
+            "measurements.yaml",
+            include_str!("../../tests/fixtures/measurements.yaml"),
+        ),
+        (
+            "mathematical-symbols.yaml",
+            include_str!("../../tests/fixtures/mathematical-symbols.yaml"),
+        ),
     ];
 
-    let all_cases = load_passing_golden_cases();
-
-    let mut observed_diffs: Vec<String> = Vec::new();
-    let mut diff_details: Vec<String> = Vec::new();
-    for (file, case) in &all_cases {
-        {
+    for (file, yaml) in semantic_fixtures {
+        for (_, case) in parse_fixture(file, yaml) {
             let request = FormatRequest {
                 text: case.input.clone(),
                 selection: case.selection.clone(),
             };
-            let pipeline_output = format_text(&request)
+            let production = format_text(&request)
                 .unwrap_or_else(|error| panic!("fixture {file} / {} failed: {error}", case.name));
-            let edit_plan_output = format_units_and_math_via_edits(&case.input, &case.selection);
-
-            // 单向不变量（无误报）：生产管线未修改的输入，编辑计划也不得修改。
-            if pipeline_output == case.input {
-                assert_eq!(
-                    edit_plan_output, case.input,
-                    "edit plan changed {} / {} but the placeholder pipeline would not",
-                    file, case.name
-                );
-            }
-
-            if pipeline_output != edit_plan_output {
-                observed_diffs.push(format!("{file} / {}", case.name));
-                diff_details.push(format!(
-                    "{} / {}\n  input:    {:?}\n  pipeline: {:?}\n  editplan: {:?}",
-                    file, case.name, case.input, pipeline_output, edit_plan_output
-                ));
-            }
+            let edit_plan = format_units_and_math_via_edits(&case.input, &case.selection);
+            assert_eq!(
+                edit_plan, production,
+                "semantic edit plan diverged on {file} / {}",
+                case.name
+            );
         }
     }
-
-    let unexpected: Vec<&String> = observed_diffs
-        .iter()
-        .filter(|name| !PENDING_DIFFS.contains(&name.as_str()))
-        .collect();
-    let stale: Vec<&&str> = PENDING_DIFFS
-        .iter()
-        .filter(|pending| !observed_diffs.iter().any(|name| name == *pending))
-        .collect();
-    assert!(
-        unexpected.is_empty() && stale.is_empty(),
-        "PENDING_DIFFS is out of date;\nunexpected diffs: {unexpected:?}\nstale entries: {stale:?}\n\ndiff details:\n{}",
-        diff_details
-            .iter()
-            .filter(|detail| unexpected.iter().any(|name| detail.contains(name.as_str())))
-            .cloned()
-            .collect::<Vec<_>>()
-            .join("\n")
-    );
 }
 
-/// span 感知混合管线与生产 placeholder 管线在全部稳定 fixture 上的输出一致
-///（roadmap §5.7 R3 收尾：探索性骨架）。
+/// span 感知混合管线与生产 placeholder 管线在全部稳定 fixture 上的输出一致。
 ///
-/// # 当前状态
-/// 混合管线（span 划分可编辑区间 + 复用纯函数规则）已证明与生产高度一致；
-/// 仅剩 7 例「protection 细节」未对齐（化学式边缘空格、`×3cm²` 单位拆分、
-/// 未闭合链接全角替换、硬换行、引用式链接定义空格等），这些需要逐一补齐
-/// span 覆盖或边缘规则。故本测试标记为 `#[ignore]`（pending 开发基线），
-/// 工作区内随时可以 `cargo test -- --ignored span_aware_pipeline` 推进。
+/// 混合管线以统一 span 划分不可编辑区间，并在可编辑区间复用现有纯函数规则；
+/// 该测试是 R3 生产接管前的等价性门禁。
 #[test]
-#[ignore = "span-aware 混合管线仍在开发：7 例 protection 细节未对齐（见注释）"]
 fn span_aware_pipeline_matches_production_on_stable_fixtures() {
     let all_cases = load_passing_golden_cases();
     assert!(
