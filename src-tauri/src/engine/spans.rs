@@ -176,6 +176,8 @@ pub(crate) fn scan_structure_spans(text: &str) -> Vec<TextSpan> {
     scan_inline_html_spans(text, &mut spans);
     scan_reference_link_spans(text, &mut spans);
     scan_hard_break_spans(text, &mut spans);
+    scan_latex_delimited_spans(text, &mut spans);
+    scan_latex_command_spans(text, &mut spans);
     scan_dollar_math_spans(text, &mut spans);
     arbitrate_spans(spans)
 }
@@ -616,6 +618,101 @@ fn scan_hard_break_spans(text: &str, output: &mut Vec<TextSpan>) {
     }
 }
 
+/// 扫描反斜杠定界的 LaTeX 数学：`\(...\)` 与 `\[...\]`。
+/// 这两类结构由旧保护层整体保留，span-aware 管线也必须将其视为不透明区域。
+fn scan_latex_delimited_spans(text: &str, output: &mut Vec<TextSpan>) {
+    for (open, close) in [(r"\(", r"\)"), (r"\[", r"\]")] {
+        let mut cursor = 0usize;
+        while let Some(relative_open) = text[cursor..].find(open) {
+            let start = cursor + relative_open;
+            let content_start = start + open.len();
+            let Some(relative_close) = text[content_start..].find(close) else {
+                break;
+            };
+            let end = content_start + relative_close + close.len();
+            if let Some(span) = TextSpan::new(start, end, SpanKind::LatexMath) {
+                output.push(span);
+            }
+            cursor = end;
+        }
+    }
+}
+
+/// 扫描带参数的 LaTeX command（如 `\frac{a}{b}`、`\sqrt[3]{x}`）。
+///
+/// 生产保护层会整体保护这类 command；span-aware 管线必须保持相同的
+/// 不透明边界，避免规则改写 command 内部或丢失其两侧边界空格。
+fn scan_latex_command_spans(text: &str, output: &mut Vec<TextSpan>) {
+    let bytes = text.as_bytes();
+    let mut cursor = 0usize;
+    while cursor < bytes.len() {
+        let Some(relative) = text[cursor..].find('\\') else {
+            break;
+        };
+        let start = cursor + relative;
+        let mut index = start + 1;
+        while index < bytes.len() && bytes[index].is_ascii_alphabetic() {
+            index += 1;
+        }
+        if index == start + 1 {
+            cursor = start + 1;
+            continue;
+        }
+        if bytes.get(index) == Some(&b'*') {
+            index += 1;
+        }
+
+        // 可选方括号参数。
+        if bytes.get(index) == Some(&b'[') {
+            let Some(end) = balanced_delimited_end(bytes, index, b'[', b']') else {
+                cursor = index + 1;
+                continue;
+            };
+            index = end + 1;
+        }
+
+        let mut group_count = 0usize;
+        while bytes.get(index) == Some(&b'{') {
+            let Some(end) = balanced_delimited_end(bytes, index, b'{', b'}') else {
+                break;
+            };
+            index = end + 1;
+            group_count += 1;
+        }
+        if group_count > 0 {
+            if let Some(span) = TextSpan::new(start, index, SpanKind::LatexMath) {
+                output.push(span);
+            }
+            cursor = index;
+        } else {
+            cursor = start + 1;
+        }
+    }
+}
+
+fn balanced_delimited_end(bytes: &[u8], start: usize, open: u8, close: u8) -> Option<usize> {
+    let mut depth = 0usize;
+    let mut index = start;
+    while index < bytes.len() && bytes[index] != b'\n' {
+        if bytes[index] == b'\\' {
+            index = index.saturating_add(2);
+            continue;
+        }
+        match bytes[index] {
+            byte if byte == open => depth += 1,
+            byte if byte == close => {
+                depth = depth.checked_sub(1)?;
+                if depth == 0 {
+                    return Some(index);
+                }
+            }
+            _ => {}
+        }
+        index += 1;
+    }
+    None
+}
+
 fn html_block_tag(line: &str, indent: usize) -> Option<&'static str> {
     if indent > 3 || !line.starts_with('<') {
         return None;
@@ -643,6 +740,9 @@ fn scan_dollar_math_spans(text: &str, output: &mut Vec<TextSpan>) {
             break;
         };
         let start = cursor + relative;
+        // 与生产保护层保持一致：只有奇数个连续反斜杠才会转义美元符号；
+        // 偶数反斜杠后的 `$x$` 仍是数学 span，但其边界不能按普通 inline
+        // placeholder 处理，否则会在反斜杠与公式之间插入额外空格。
         if escaped_dollar(bytes, start) {
             cursor = start + 1;
             continue;

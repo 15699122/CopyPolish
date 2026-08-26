@@ -1,7 +1,7 @@
 // engine/tests.rs —— 引擎单元测试（迁移自旧 rust_engine.rs，并新增
 // 化学式识别、注册表扩展性与旧 key 迁移的回归测试）。
 
-use super::pipeline::format_text_span_aware;
+use super::pipeline::{format_text_legacy, format_text_span_aware};
 use super::*;
 
 #[derive(serde::Deserialize)]
@@ -975,8 +975,8 @@ fn span_aware_pipeline_matches_production_on_stable_fixtures() {
             text: case.input.clone(),
             selection: case.selection.clone(),
         };
-        let production = format_text(&request)
-            .unwrap_or_else(|e| panic!("fixture {file} / {} production failed: {e}", case.name));
+        let production = format_text_legacy(&request)
+            .unwrap_or_else(|e| panic!("fixture {file} / {} legacy failed: {e}", case.name));
         let span_aware = format_text_span_aware(&request)
             .unwrap_or_else(|e| panic!("fixture {file} / {} span-aware failed: {e}", case.name));
         if production != span_aware {
