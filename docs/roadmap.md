@@ -1,6 +1,6 @@
 # CopyPolish 后续开发路线图
 
-本文档跟踪 `v0.5.0` 正式发布后的中长期开发工作；`v0.5.0` 发布门槛与验收仍以 [v0.5.0-release-plan.md](v0.5.0-release-plan.md) 为准，本地构建与手动发布操作见 [manual-release.md](manual-release.md)。
+本文档跟踪 `v0.5.0` 正式发布后的中长期开发工作；`v0.5.0` 发布门槛与验收仍以 [v0.5.0-release-plan.md](v0.5.0-release-plan.md) 为准，本地构建与手动发布操作见 [manual-release.md](release/manual-release.md)。
 
 ## 1. 优先级原则
 
@@ -17,7 +17,7 @@
 ## 3. P1：本地构建与手动发布能力
 
 - GitHub Actions 保持为标准 CI 与可复现构建路径；
-- 本地构建 + 手动上传为正式支持的备用发布方式（Runbook：[manual-release.md](manual-release.md)）；
+- 本地构建 + 手动上传为正式支持的备用发布方式（Runbook：[manual-release.md](release/manual-release.md)）；
 - 已提供本地发布自动化脚本：
   - `scripts/build_release_local.ps1`（Windows 版本同步、构建、DLL 收集、`.7z` 打包）；
   - `scripts/build_release_local.sh`（Linux 构建与资产命名）;
@@ -329,4 +329,4 @@ P2  §5 阶段 D（Markdown 块级扫描器）→ 阶段 E（Unicode 等价规�
 
 > 注：§5 阶段 A（测试先行）优先于任何新规则或保护层改动落地，以守住既有的黄金样例回归体系。
 
-每完成一项，更新本文档对应章节的状态标记，并按 `Dev_readme.md` 的文档同步约定更新 README / Dev_readme。
+每完成一项，更新本文档对应章节的状态标记，并按 `docs/development.md` 的文档同步约定更新 README / development.md。

@@ -1,4 +1,4 @@
-# Windows 本地构建与 .7z 打包（roadmap §3 / docs/manual-release.md）。
+# Windows 本地构建与 .7z 打包（roadmap §3 / docs/release/manual-release.md）。
 #
 # 约束：
 # - 必须在干净的发布工作区运行（git status 无任何改动）；
@@ -25,7 +25,7 @@ Set-Location $RepoRoot
 Write-Host "== 检查干净发布工作区 =="
 $dirty = git status --porcelain
 if ($dirty) {
-    Write-Error "工作区存在未提交改动。请在独立的发布 worktree 中执行（见 docs/manual-release.md 第 3 节）。"
+    Write-Error "工作区存在未提交改动。请在独立的发布 worktree 中执行（见 docs/release/manual-release.md 第 3 节）。"
 }
 
 Write-Host "== 同步 tag 完整版本 ($Tag) =="

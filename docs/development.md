@@ -1,15 +1,16 @@
 # 文案净排（CopyPolish）：开发说明
 
-本文档面向后续维护者，记录当前项目结构、架构边界、开发运行方式、测试命令、打包方式和已知注意事项。普通用户使用说明请参阅 [README.md](README.md)。
+本文档面向后续维护者，记录当前项目结构、架构边界、开发运行方式、测试命令、打包方式和已知注意事项。普通用户使用说明请参阅 [README.md](../README.md)。
 
 ## `v0.5.0` 正式发布计划
 
-当前 `v0.5.0` 正式发布的开发、测试、Windows 验收和发布门槛统一记录在 [v0.5.0-release-plan.md](v0.5.0-release-plan.md)。后续开发应按该计划的阶段顺序执行；在黄金样例回归测试体系建立前，不新增格式化规则或大型 UI 功能。
+当前 `v0.5.0` 正式发布的开发、测试、Windows 验收和发布门槛统一记录在 [v0.5.0-release-plan.md](v0.5.0-release-plan.md)。后续开发应按该计划的阶段顺序执行；在黄金样例回归测试体系建立前，不新增格式化规则或大型 UI 功能。维护者文档总入口见 [docs/README.md](README.md)。
 
 其他文档入口：
 
 - [roadmap.md](roadmap.md)：`v0.5.0` 发布后的中长期开发路线图（快捷键配置、Unicode 引擎升级、ICU4X 评估、E2E、性能基准、hooks 拆分等）；
-- [manual-release.md](manual-release.md)：本地构建与手动上传 GitHub Release 的操作 Runbook（备用发布路径）。
+- [README.md](README.md)：维护者文档导航；
+- [manual-release.md](release/manual-release.md)：本地构建与手动上传 GitHub Release 的操作 Runbook（备用发布路径）。
 
 > 历史说明：项目早期为 Python + customtkinter 桌面 GUI（入口 `chinese_copywriting_formatter.py`，曾使用 `rules.yaml` 保存设置）。该路线已于 2026-08 彻底移除，相关文件（`gui/`、`python/formatter_bridge.py`、`run.sh`、`packaging/`、PyInstaller 工作流等）均不再存在。当前 Rust 应用使用新的 `rules.yaml` 设置实现，并通过同目录旧版 `ccw-formatter-settings.json` 进行一次性迁移；不复用旧 Python 的读写逻辑。
 
@@ -43,7 +44,7 @@ Tauri 2
 - **规则注册表驱动**：规则的唯一事实来源是 `src-tauri/src/engine/registry.rs`。每条规则有稳定的机器 key（如 `spacing.cjk-latin`），展示名/分组仅存于元数据；新增规则只需在注册表追加一个 `RuleDef`，command 层、pipeline 与前端均无需改动。历史规则已迁移为独立注册项，当前共 13 条规则（既有规则的效果与默认开关保持不变）。
 - **用户设置**：保存在 exe 相同目录的 `rules.yaml`（YAML；见下文），首次运行自动迁移旧版 `ccw-formatter-settings.json`；读取与保存时通过 `normalize_rule_keys` 把旧版中文 key 迁移为稳定 key 并丢弃未知 key。
 - **化学式识别**：tokenizer 保守识别含 Unicode 上下标、电荷标记或水合物连接符的片段（`Fe²⁺`、`SO₄²⁻`、`FeCl₂·4H₂O` 等），在规则处理前转为占位符整体保护，为后续新规则提供可靠判定单元。
-- **Unicode 边界层**（roadmap §5）：`unicode_boundaries.rs` 基于 `unicode-segmentation` 提供 extended grapheme cluster 切分与保守分类（`Han / Latin / Digit / Other`）。中英插空与中数插空两条规则以 grapheme 为判定单位——emoji ZWJ 序列、肤色修饰符、组合附加符不会被切断；Han 范围表集中维护并已覆盖 CJK Extension B。`BoundaryStrategy::LegacyChars` 仅供新旧策略对比测试，生产固定使用 Graphemes；化学式检测不经过该层，仍沿用保守正则 + 字节区间。Kana/Hangul 首期归为 `Other` 不触发插空，行为由 `tests/fixtures/unicode-boundaries.yaml` 冻结；性能基线见 [unicode-baseline.md](unicode-baseline.md)。
+- **Unicode 边界层**（roadmap §5）：`unicode_boundaries.rs` 基于 `unicode-segmentation` 提供 extended grapheme cluster 切分与保守分类（`Han / Latin / Digit / Other`）。中英插空与中数插空两条规则以 grapheme 为判定单位——emoji ZWJ 序列、肤色修饰符、组合附加符不会被切断；Han 范围表集中维护并已覆盖 CJK Extension B。`BoundaryStrategy::LegacyChars` 仅供新旧策略对比测试，生产固定使用 Graphemes；化学式检测不经过该层，仍沿用保守正则 + 字节区间。Kana/Hangul 首期归为 `Other` 不触发插空，行为由 `tests/fixtures/unicode-boundaries.yaml` 冻结；性能基线见 [unicode-baseline.md](benchmarks/unicode-baseline.md)。
 - **规则调度与迁移基础设施**：`registry.rs` 已使用 `RulePhase` 与 `before/after` 依赖进行稳定拓扑排序，并拒绝未知依赖、重复 key 和循环依赖。`spans.rs` 已提供结构/语义 span 扫描与优先级仲裁；`edit_plan.rs` 已提供 UTF-8 安全的 `TextEdit` 创建、冲突仲裁、逆序应用和单位/数学边界规划。span-aware 混合管线已接入生产 `format_text`；旧 placeholder pipeline 暂保留为迁移期等价性回归路径。
 
 ## 当前开发状态
@@ -69,10 +70,12 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
 ```text
 ├── README.md                      # 用户文档
 ├── docs/
-│   ├── Dev_readme.md              # 开发者文档（本文件）
+│   ├── README.md                  # 维护者文档导航
+│   ├── development.md             # 开发者文档（本文件）
 │   ├── v0.5.0-release-plan.md     # v0.5.0 发布计划与验收门槛
 │   ├── roadmap.md                 # v0.5.0 后的中长期开发路线图
-│   └── manual-release.md          # 本地构建与手动上传 Release Runbook
+│   ├── release/manual-release.md  # 本地构建与手动上传 Release Runbook
+│   └── benchmarks/                # 性能与体积基准记录
 ├── reference/                     # 历史参考资产（不参与构建、打包与测试门禁）
 │   ├── ccw_engine.py              # 历史 Python 实现
 │   └── rule_catalog.yaml          # 历史规则元数据
@@ -191,7 +194,7 @@ npm ci --prefix frontend
 
 1. 先检查 `git status --short --branch`，确认当前分支、远程跟踪分支与待提交文件；
 2. 查看 diff，确保提交范围只包含本次任务相关更改；
-3. 审阅仓库 Markdown 文档并按本次修改的影响范围同步：用户可见的功能、用法、限制、下载/运行方式或设置行为有变化时更新 `README.md`；架构、开发流程、实现约束、测试/构建命令、CI 或发布流程有变化时更新 `Dev_readme.md`；
+3. 审阅仓库 Markdown 文档并按本次修改的影响范围同步：用户可见的功能、用法、限制、下载/运行方式或设置行为有变化时更新 `README.md`；架构、开发流程、实现约束、测试/构建命令、CI 或发布流程有变化时更新 `docs/development.md`；
 4. 若本次修改不改变已有文档描述，不做无意义改写，但必须在最终结果中明确说明“已审阅 Markdown 文档，确认无需更新”；文档更新应与代码修改一起纳入本次 diff、验证、提交与推送；
 5. 运行与本次修改相关的必要验证；
 6. 使用清晰的 commit message 提交；
@@ -260,7 +263,7 @@ git diff --check
 ## 重要实现约束
 
 1. 前端只能通过 `frontend/src/lib/tauri.ts` 的封装访问后端，不直接 `invoke`。
-2. `reference/` 仅作历史参考，不定义 Rust 引擎行为。
+2. `reference/` 仅作历史参考，不定义 Rust 引擎行为；详见 `reference/README.md`。
 3. 改动规则定义时，只需更新 `src-tauri/src/engine/registry.rs`、对应规则实现及 Rust 回归测试；前端通过 command 动态读取 metadata。
 4. 打包资源变更需同步 `tauri.conf.json` 的 `bundle.resources` 并做安装态 smoke。
 5. Tailwind 优先使用间距刻度类（如 `min-h-130` = 130 × 0.25rem），仅当数值不在刻度上时才用 `[...]` 任意值写法，避免 lint 警告。
@@ -287,7 +290,7 @@ git diff --check
 
 - 存储治理：GitHub Actions artifacts 仅作为 job 间传递与短期人工验收的临时副本（保留 1–3 天），长期可下载来源一律以 GitHub Release assets 为准；本地 `src-tauri/target/` 是可随时删除的可再生构建缓存（受 `.gitignore` 覆盖），不提交、不视为源码。系统保留各 workflow 最近一次成功与失败 run 用于诊断，其余已完成的旧 run 可安全删除。
 
-除 GitHub Actions 自动构建外，项目同样支持**本地构建 + 手动上传 GitHub Release** 的备用发布路径；两种模式共享相同的验证门槛、版本脚本、资产命名与人工验收标准，操作步骤见 [manual-release.md](manual-release.md)。`prepare_release_version.py` 可在 CI runner 或隔离的本地发布工作区（独立 clone / Git worktree）执行，禁止在待提交的日常开发工作区直接运行。
+除 GitHub Actions 自动构建外，项目同样支持**本地构建 + 手动上传 GitHub Release** 的备用发布路径；两种模式共享相同的验证门槛、版本脚本、资产命名与人工验收标准，操作步骤见 [manual-release.md](release/manual-release.md)。`prepare_release_version.py` 可在 CI runner 或隔离的本地发布工作区（独立 clone / Git worktree）执行，禁止在待提交的日常开发工作区直接运行。
 
 CI/Release 会打印 Node/npm/Rust/Cargo/系统版本，便于核对本地与 Runner 环境差异。
 
