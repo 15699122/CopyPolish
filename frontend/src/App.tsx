@@ -65,6 +65,20 @@ export default function App() {
 
   const debounceRef = useRef<number | null>(null);
   const settingsDebounceRef = useRef<number | null>(null);
+
+  // 组件卸载时取消尚未执行的排版/设置保存任务，避免异步定时器
+  // 在测试或窗口生命周期结束后继续使用旧状态触发后端调用。
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current !== null) {
+        window.clearTimeout(debounceRef.current);
+      }
+      if (settingsDebounceRef.current !== null) {
+        window.clearTimeout(settingsDebounceRef.current);
+      }
+      seqRef.current += 1;
+    };
+  }, []);
   const seqRef = useRef(0);
 
   // 规则加载完成后置 true，避免恢复流程把用户设置覆盖为默认值。
