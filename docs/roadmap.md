@@ -220,6 +220,10 @@ frontend/src/hooks/useShortcuts.ts # 监听、启停、IME 防护、动作分发
 #### 未完成
 
 - 将结构/语义 span 正式接入现有保护层；
+- 结构保护还原迁移的三类已确认差异（2026-08-26 对照输出）：
+  a) inline placeholder 周边 CJK 空格：生产管线对行内代码 / 链接 / 图片 / 行内 HTML / 化学式占位符两侧补空格；
+  b) HTML block 的 span 覆盖缺口：`scan_structure_spans` 对块内中间行的覆盖与 `protection.rs` 不一致，编辑路径会误格式化块内正文；
+  c) 未闭合结构的特殊还原（如 `[文档]（` 全角括号替换）；
 - 将 `TextEdit` 正式接入 `format_text`；
 - 将 `spacing.number-unit`、温标、数学边界和全角标点清理迁移为 span-aware edits；
 - 移除普通/数学多套 placeholder 编号约定；
