@@ -324,12 +324,18 @@ git diff --check
 
 ## 持续集成
 
-`.github/workflows/ci.yml` 与 `.github/workflows/release.yml`：
+当前 CI/CD 主路径为根目录 `.gitlab-ci.yml`；`.github/workflows/ci.yml` 与
+`.github/workflows/release.yml` 暂保留为 GitHub 镜像阶段的备用路径，待 GitLab
+Release 与 GitHub Release 同步稳定后降级为手动触发：
 
-- `ci.yml` 在 `dev`、`master` 与 PR 上运行快速验证：cargo fmt + cargo clippy（`-D warnings`）+ 纯 Rust cargo test（当前包含黄金样例、设置备份恢复和 UTF-8 多字节回归）+ `git diff --check` + 前端 vitest 组件测试 + tsc/vite 构建；配置了 concurrency（同一 PR / 分支新 commit 自动取消过时 run）与 `timeout-minutes: 20`；纯 Rust 测试不安装 GTK/WebKitGTK 系统依赖；
-- `release.yml` 在推送 `v*` tag 时运行完整发布流水线，也支持 workflow_dispatch 手动指定既有 tag 并可选标记 pre-release（tag 名含 `-` 时自动识别为预发布）；各 job 均设置 timeout 上限；
+- `.gitlab-ci.yml` 在 GitLab `dev`、`master` 与 MR 上运行快速验证；tag 流水线拆分为 Linux / Windows 构建、资产汇总校验和 GitLab Release；
+
+- `ci.yml` 在 GitHub `dev`、`master` 与 PR 上运行同等快速验证；GitLab 成为主 CI 后仅作为备用/过渡检查；
+- `release.yml` 仍可在推送 `v*` tag 时运行完整 GitHub 发布流水线，也支持 workflow_dispatch；迁移完成后不得与 GitLab tag Release 同时自动创建同一 Release，应改为手动 fallback；
 - 构建阶段拆分为 `linux-build` 与 `windows-build` 两个独立 job 并行执行：Linux 构建 deb/rpm/AppImage 并上传 `bundle-ubuntu-latest`；Windows 以 `--no-bundle` 构建无边框便携 `.exe`，以临时根目录打包为只含 exe/DLL 的 `.7z` 后上传 `windows-portable`（不生成任何安装器——WiX MSI 无法处理中文产品名，且产品定位为免安装便携版）。项目不支持 macOS。发布类 artifact 设置了短保留期（Linux bundle 与 Windows portable 均为 3 天、Windows 失败日志 1 天）并关闭二次压缩（`compression-level: 0`），长期下载一律以 GitHub Release assets 为准；
-- `windows-smoke` job（windows-latest）：直接下载 `windows-build` 上传的同一份 `CopyPolish.exe` 做 GUI 冒烟——启动进程 → 轮询等待主窗口句柄出现（最长 60 秒）→ 保持 10 秒验证稳定性 → 强制结束进程；不再重复安装工具链或重新编译 Tauri。
+- `windows-smoke` job（windows-latest）：直接下载 `windows-build` 上传的同一份 `CopyPolish.exe` 做 GUI 冒烟——启动进程 → 轮询等待主窗口句柄出现（最长 60 秒）→ 保持 10 秒验证稳定性 → 强制结束进程；在 GitLab SaaS runner 的 GUI smoke 验收完成前，可继续作为过渡门禁。
+
+GitLab SaaS Windows runner 当前使用标签 `saas-windows-medium-amd64`，每个 job 使用全新 Windows VM，默认 shell 为 Windows PowerShell 5.1。镜像预装 Node 21.x、Git 与 7-Zip，但未预装 Rust；`.gitlab-ci.yml` 在 job 内安装 Node 24.19.0、Rust 1.98.0 MSVC、Python 3 shim，并设置 `PYTHONIOENCODING=utf-8`。如需使用 PowerShell 7，只能在 job 内安装后通过 `pwsh -File` 调用，不能通过项目 YAML 修改 SaaS runner 的底层 shell。
 
 - 存储治理：GitHub Actions artifacts 仅作为 job 间传递与短期人工验收的临时副本（保留 1–3 天），长期可下载来源一律以 GitHub Release assets 为准；本地 `src-tauri/target/` 是可随时删除的可再生构建缓存（受 `.gitignore` 覆盖），不提交、不视为源码。系统保留各 workflow 最近一次成功与失败 run 用于诊断，其余已完成的旧 run 可安全删除。
 

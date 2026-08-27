@@ -270,6 +270,9 @@ build:windows:
   script:
     - |
       $ErrorActionPreference = 'Stop'
+      # Windows SaaS runner 的 Python 默认 stdout 为 cp1252；项目脚本会输出中文，
+      # 必须显式使用 UTF-8，否则 check_version.py 会触发 UnicodeEncodeError。
+      $env:PYTHONIOENCODING = 'utf-8'
       Write-Host '== 环境探测 =='
       $PSVersionTable | Select-Object PSVersion
       git --version
