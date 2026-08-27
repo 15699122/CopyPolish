@@ -1,4 +1,4 @@
-# Windows 本地构建与 .7z 打包（roadmap §3 / docs/release/manual-release.md）。
+﻿# Windows 本地构建与 .7z 打包（roadmap §3 / docs/release/manual-release.md）。
 #
 # 约束：
 # - 必须在干净的发布工作区运行（git status 无任何改动）；
