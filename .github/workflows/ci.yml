@@ -48,6 +48,10 @@ jobs:
         working-directory: src-tauri
         run: cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test
 
+      - name: Ratatui TUI tests and build
+        working-directory: src-tauri
+        run: cargo clippy --features tui --all-targets -- -D warnings && cargo test --features tui && cargo build --features tui --bin copypolish-tui
+
       - name: Patch formatting check
         run: git diff --check
 
