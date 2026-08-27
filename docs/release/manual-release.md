@@ -281,6 +281,14 @@ export GITLAB_PROJECT_ID=85804438
 
 上传成功后，在同一 tag 的 GitLab pipeline 中手动执行 `release:finalize`。该 job 会从 Generic Package Registry 下载 Windows 与 Linux 五项资产，运行完整 `verify_release_assets.py --platform all`，生成 `SHA256SUMS` 并创建 GitLab Release。
 
+若 AppImage 上传遇到网络错误，可以暂时跳过它；此时不要执行 `release:finalize`。手动上传完成后，确认以下 URL 对应文件返回 HTTP 200，再执行 finalize：
+
+```text
+https://gitlab.com/api/v4/projects/85804438/packages/generic/copypolish/vX.Y.Z[-suffix]/CopyPolish_linux_amd64.AppImage
+```
+
+`release:finalize` 会强制下载并校验全部五项资产，缺少 AppImage 时应保持失败，这是预期的安全门禁。
+
 > 不要把 `GITLAB_TOKEN` 写入 remote URL、脚本、仓库文件或提交历史。PAT 仅用于本次上传和 GitLab API 操作；GitLab MCP Server 仍使用 OAuth，不接受 PAT。
 
 ## 9. Windows 真机人工验收

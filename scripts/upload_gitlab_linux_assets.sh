@@ -42,11 +42,12 @@ for file in "${FILES[@]}"; do
     path="$DIST_DIR/$file"
     [[ -s "$path" ]] || { echo "错误：资产为空或不存在: $path" >&2; exit 1; }
     url="$PACKAGE_URL/$file"
-    status="$(curl -sS -o /dev/null -w '%{http_code}' \
+    status="$(curl --connect-timeout 30 --max-time 120 -sS -o /dev/null -w '%{http_code}' \
         -H "PRIVATE-TOKEN: $GITLAB_TOKEN" "$url")"
     if [[ "$status" == "200" ]]; then
         tmp="$(mktemp)"
-        curl -fsSL -H "PRIVATE-TOKEN: $GITLAB_TOKEN" "$url" -o "$tmp"
+        curl --fail --show-error --location --connect-timeout 30 --max-time 300 \
+            -H "PRIVATE-TOKEN: $GITLAB_TOKEN" "$url" -o "$tmp"
         if cmp -s "$path" "$tmp"; then
             echo "已存在且 SHA 相同，跳过: $file"
             rm -f "$tmp"
@@ -60,7 +61,8 @@ for file in "${FILES[@]}"; do
         exit 1
     fi
     echo "上传: $file"
-    curl --fail --show-error --location \
+    curl --fail --show-error --location --connect-timeout 30 --max-time 1800 \
+        --retry 3 --retry-delay 10 --retry-all-errors \
         --header "PRIVATE-TOKEN: $GITLAB_TOKEN" \
         --upload-file "$path" "$url"
 done
