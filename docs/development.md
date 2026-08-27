@@ -37,11 +37,14 @@ Tauri 2
     │   ├── model.rs           RuleMeta / FormatRequest
     │   └── tests.rs           引擎单元测试
     ├── src/user_settings.rs   用户设置持久化（exe 同目录 rules.yaml，YAML）
-    └── src/commands.rs        Tauri command 层
+    ├── src/commands.rs        Tauri command 层
+    ├── src/tui/               Ratatui + Crossterm 终端界面（tui feature）
+    └── src/bin/copypolish-tui.rs  TUI 独立入口
 ```
 
 - **应用为纯 Rust 实现**：`format_text` / `get_rules` / `get_enabled_defaults` / 设置读写全部由 Rust 提供，构建与打包不依赖 Python。
 - **规则注册表驱动**：规则的唯一事实来源是 `src-tauri/src/engine/registry.rs`。每条规则有稳定的机器 key（如 `spacing.cjk-latin`），展示名/分组仅存于元数据；新增规则只需在注册表追加一个 `RuleDef`，command 层、pipeline 与前端均无需改动。历史规则已迁移为独立注册项，当前共 13 条规则（既有规则的效果与默认开关保持不变）。
+- **Ratatui TUI**：`src-tauri/src/bin/copypolish-tui.rs` 提供独立终端入口，只有启用 Cargo feature `tui` 时才编译。TUI 直接调用 `engine::format_text`、`RuleSelection` 和规则注册表，不经过 Tauri command，也不复制格式化规则。当前已提供多行 Unicode 安全输入、真实光标、输入/输出滚动、规则覆盖层、全选/默认/全不选和帮助覆盖层；剪贴板（OSC 52）、共享 `rules.yaml` 设置读写和 stdin/stdout 非交互模式亦已实现（见下文 TUI 章节）。
 - **用户设置**：保存在 exe 相同目录的 `rules.yaml`（YAML；见下文），首次运行自动迁移旧版 `ccw-formatter-settings.json`；读取与保存时通过 `normalize_rule_keys` 把旧版中文 key 迁移为稳定 key 并丢弃未知 key。
 - **化学式识别**：tokenizer 保守识别含 Unicode 上下标、电荷标记或水合物连接符的片段（`Fe²⁺`、`SO₄²⁻`、`FeCl₂·4H₂O` 等），在规则处理前转为占位符整体保护，为后续新规则提供可靠判定单元。
 - **Unicode 边界层**（roadmap §5）：`unicode_boundaries.rs` 基于 `unicode-segmentation` 提供 extended grapheme cluster 切分与保守分类（`Han / Latin / Digit / Other`）。中英插空与中数插空两条规则以 grapheme 为判定单位——emoji ZWJ 序列、肤色修饰符、组合附加符不会被切断；Han 范围表集中维护并已覆盖 CJK Extension B。`BoundaryStrategy::LegacyChars` 仅供新旧策略对比测试，生产固定使用 Graphemes；化学式检测不经过该层，仍沿用保守正则 + 字节区间。Kana/Hangul 首期归为 `Other` 不触发插空，行为由 `tests/fixtures/unicode-boundaries.yaml` 冻结；性能基线见 [unicode-baseline.md](benchmarks/unicode-baseline.md)。
@@ -236,6 +239,43 @@ cd frontend && npm run tauri build -- --no-bundle  # Windows 便携 exe（不生
 
 Windows `.7z` 压缩包约定：根目录直接包含 `CopyPolish.exe` 及构建目录中存在的旁置 DLL 依赖（如有），不得包含 `dist`、`windows` 或其他上级目录。
 
+## 终端版（Ratatui TUI）
+
+TUI 与桌面 GUI 共用同一 Rust 引擎与 `rules.yaml` 设置，模块位于 `src-tauri/src/tui/`：
+
+| 模块 | 职责 |
+|---|---|
+| `bin/copypolish-tui.rs` | 二进制入口：CLI 参数分发、非交互/交互模式选择 |
+| `tui/app.rs` | 纯状态机：焦点、规则选择、状态栏、格式化调用 |
+| `tui/editor.rs` | grapheme 安全的多行编辑缓冲（复用 `unicode-segmentation`） |
+| `tui/events.rs` | Crossterm 事件 → 状态转换 |
+| `tui/ui.rs` | Ratatui 渲染（双栏布局、规则/帮助覆盖层） |
+| `tui/terminal.rs` | raw mode / alternate screen 生命周期与 panic-safe 清理 |
+| `tui/clipboard.rs` | OSC 52 剪贴板序列编码与写入（零系统依赖） |
+| `tui/settings.rs` | 共享 `rules.yaml` 的读取/保存门面（只动 `enabled` 和 `last_input`） |
+| `tui/cli.rs` | 非交互模式：stdin / 文件 → 引擎 → stdout / 文件 |
+
+### 运行
+
+```bash
+# 交互界面
+cargo run --manifest-path src-tauri/Cargo.toml --features tui --bin copypolish-tui
+
+# 非交互模式
+printf '在LeanCloud上，花了5000元' | copypolish-tui --stdin --no-config
+copypolish-tui --input article.md --output formatted.md --rules all
+copypolish-tui --help   # 完整参数说明
+```
+
+规则参数优先级：显式 `--rules <all|defaults|none>` > 共享设置中的规则集 > 默认规则；`--enable/--disable` 在基础集之上调整，`--no-config` 完全跳过 `rules.yaml`。
+
+### 快捷键（交互模式）
+
+- `Tab` / `Shift+Tab` 切换输入、输出、规则区域；
+- `r` 规则面板，`Space` 切换单条规则，`a` / `d` / `n` 全选 / 默认 / 全不选；
+- `Ctrl+Enter` 立即排版；`c` 复制输出（OSC 52）；`x` 清空输入；
+- `Ctrl+S` 手动保存设置；退出时自动把规则选择与最近输入写回 `rules.yaml`（`--no-config` 下不写入）。
+
 ## 验证命令
 
 开发提交前建议至少运行：
@@ -257,6 +297,9 @@ npm run build --prefix frontend
 cargo fmt --manifest-path src-tauri/Cargo.toml --check
 cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 cargo test --manifest-path src-tauri/Cargo.toml
+cargo clippy --manifest-path src-tauri/Cargo.toml --features tui --all-targets -- -D warnings
+cargo test --manifest-path src-tauri/Cargo.toml --features tui
+cargo build --manifest-path src-tauri/Cargo.toml --features tui --bin copypolish-tui
 git diff --check
 ```
 

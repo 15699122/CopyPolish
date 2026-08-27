@@ -311,7 +311,18 @@ frontend/src/hooks/
 - Dependabot 已覆盖 npm / Cargo / GitHub Actions（周更，target dev 分支），保持合并前 CI 必过；
 - 建立 Node/Rust/Tauri/React 升级 runbook 与预发布 tag 验证流程。
 
-## 12. 推荐执行顺序
+## 12. Ratatui TUI（已完成 MVP）
+
+终端入口 `copypolish-tui`（`tui` feature）已随 §5 引擎能力一并落地，与桌面 GUI 共用引擎和 `rules.yaml`：
+
+- [x] Phase 0–2：双栏输入/输出预览、动态规则面板、`All/Defaults/Only/None` 完整语义、帮助覆盖层；
+- [x] Phase 3：grapheme 安全多行编辑（emoji ZWJ / 组合字符 / CJK Extension B）、输出滚动、格式化耗时与错误提示；
+- [x] Phase 4：OSC 52 剪贴板复制（零系统依赖）、共享 `rules.yaml` 读写（只动 `enabled` 与 `last_input`）、stdin/stdout 非交互模式与 `--no-config`；
+- [ ] 后续可选：真实终端跨平台 smoke（Windows Terminal / SSH 无剪贴板降级）、大文本 debounce 与 worker thread 化、发布资产评估（独立 `CopyPolish-TUI-*` 二进制）。
+
+实施细节见 `docs/development.md` 的“终端版（Ratatui TUI）”章节。
+
+## 13. 推荐执行顺序
 
 ```text
 P0  §2 发布闭环

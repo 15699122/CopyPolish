@@ -141,6 +141,26 @@ shortcuts:
 
 如果检测到旧版本设置文件、主设置文件损坏或备份文件损坏，应用会在主界面和设置窗口显示对应提醒；主设置损坏时会优先尝试从 `rules.yaml.bak` 恢复。
 
+## 终端版（实验性）
+
+除桌面 GUI 外，项目还提供基于 Ratatui 的终端界面 `copypolish-tui`，与桌面版共用同一 Rust 排版引擎和 `rules.yaml` 规则设置。需从源码构建：
+
+```bash
+# 交互式终端界面
+cargo run --manifest-path src-tauri/Cargo.toml --features tui --bin copypolish-tui
+
+# 非交互模式（stdin → stdout）
+printf '在LeanCloud上，花了5000元' | copypolish-tui --stdin --no-config
+
+# 文件输入输出
+copypolish-tui --input article.md --output formatted.md --rules all
+
+# 查看全部参数
+copypolish-tui --help
+```
+
+非交互模式常用参数：`--rules <all|defaults|none>` 覆盖规则集；`--enable <key>` / `--disable <key>` 微调单条规则；`--no-config` 完全跳过共享设置。交互界面支持多行编辑、实时预览、规则开关与复制输出（OSC 52，依赖终端支持）。详见 [docs/development.md](docs/development.md) 的“终端版”章节。
+
 ## 开发文档
 
 版本管理、开发环境、测试方法、CI / Release、打包细节和实现约束请参阅：
