@@ -1,199 +1,120 @@
-# CopyPolish GitLab CI/CD —— 由 GitHub Actions（ci.yml / release.yml）等价迁移而来。
-#
-# Pipeline 分为两类：
-#   1. 快速门禁：dev / master push 与 MR —— 对应 ci.yml；
-#   2. 发布流水线：v* tag push —— 对应 release.yml。
-#
-# 版本策略与资产命名完全沿用项目既有约定（见 docs/release/manual-release.md）：
-#   - 正式版 tag vX.Y.Z；预发布 tag 名称含 "-"（如 v0.6.0-pre1）；
-#   - 五个发布资产：
-#       CopyPolish.exe                     （Windows 便携版）
-#       CopyPolish-windows-x64.7z          （Windows 便携压缩包）
-#       CopyPolish_linux_amd64.deb
-#       CopyPolish-linux-x86_64.rpm
-#       CopyPolish_linux_amd64.AppImage
-#
-# Runner 要求：
-#   - Linux job：GitLab.com hosted runner 或任意带 Docker 的 self-managed runner；
-#   - Windows job（build:windows）：使用 GitLab.com SaaS Windows runner，标签
-#     saas-windows-medium-amd64。该镜像未预装 Rust（Node 预装 21.x，非项目固定
-#     24.19.0），因此 job 内用 rustup 自装 MSVC 工具链并对齐 Node 24.19.0
-#     （详见 docs/development/gitlab-migration.md §4）。
-#     本 job 按「全新 VM、自装工具链」设计，不依赖跨 job 缓存。
+# GitLab build-only pipeline for CopyPolish.
+# GitHub is the development and public-release platform. GitLab runs only when
+# GitHub pushes a v* release tag to this project.
 
 stages:
-  - test
   - build
   - package
   - release
 
 variables:
   NODE_VERSION: "24.19.0"
-  # 将 Cargo home 指向工作区，使下方 .cargo/ 缓存真正捕获 registry/git 依赖
-  CARGO_HOME: "$CI_PROJECT_DIR/.cargo"
 
 workflow:
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-    - if: '$CI_COMMIT_BRANCH == "dev"'
-    - if: '$CI_COMMIT_BRANCH == "master"'
     - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/'
+    - when: never
 
-.rules_tags:
+.rules_tag:
   rules:
     - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/'
 
-.rules_branch:
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-    - if: '$CI_COMMIT_BRANCH == "dev"'
-    - if: '$CI_COMMIT_BRANCH == "master"'
-
-test:rust:
-  stage: test
+build:linux:
+  stage: build
   image: rust:1.98-bookworm
-  timeout: 30 minutes
-  interruptible: true
-  cache:
-    key:
-      files:
-        - src-tauri/Cargo.lock
-      prefix: rust-linux-v1.98.0
-    paths:
-      - .cargo/
-      - src-tauri/target/
-  script:
-    # rust 镜像默认不含 git/python3；GitLab clone 在容器内进行，必须先装 git。
-    # tauri/wry 默认 feature 也会编译 GTK 与 WebKit 绑定（gdk-sys/soup3-sys 等），
-    # GitLab Linux 测试环境需要这些 GTK/WebKit 开发库；Linux Release 资产则在本地构建。
-    - apt-get update && apt-get install -y --no-install-recommends git python3 ca-certificates pkg-config
-    - apt-get install -y --no-install-recommends libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-    - rustc --version && cargo --version
-    - cd src-tauri
-    - cargo fmt --check
-    - cargo clippy --all-targets -- -D warnings
-    - cargo test
-    # Ratatui TUI 仅在 feature 打开时编译，不影响默认构建。
-    - cargo clippy --features tui --all-targets -- -D warnings
-    - cargo test --features tui
-    - cargo build --features tui --bin copypolish-tui
-    - git diff --check
-    - python3 ../scripts/check_version.py ${CI_COMMIT_TAG}
-  rules: !reference [.rules_branch, rules]
-
-test:frontend:
-  stage: test
-  image: node:24-bookworm
-  timeout: 25 minutes
-  interruptible: true
+  timeout: 60 minutes
   cache:
     key:
       files:
         - frontend/package-lock.json
-      prefix: npm-linux-v1
+        - src-tauri/Cargo.lock
+      prefix: copypolish-linux-v1
     paths:
+      - .cargo/
+      - src-tauri/target/
       - frontend/.npm/
+  before_script:
+    - apt-get update
+    - apt-get install -y --no-install-recommends curl git python3 ca-certificates pkg-config xz-utils
+    - apt-get install -y --no-install-recommends libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+    - curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" | tar -xJ --strip-components=1 -C /usr/local
   script:
-    - cd frontend
-    - npm ci --cache .npm
-    - npm test -- --run
-    - npm run build
-  rules: !reference [.rules_branch, rules]
+    - python3 scripts/prepare_release_version.py "$CI_COMMIT_TAG"
+    - python3 scripts/check_version.py "$CI_COMMIT_TAG"
+    - npm ci --prefix frontend --cache frontend/.npm
+    - npm run tauri --prefix frontend -- build
+    - mkdir -p dist/linux
+    - find src-tauri/target/release/bundle -name '*.deb' -exec cp {} dist/linux/CopyPolish_linux_amd64.deb \;
+    - find src-tauri/target/release/bundle -name '*.rpm' -exec cp {} dist/linux/CopyPolish-linux-x86_64.rpm \;
+    - find src-tauri/target/release/bundle -name '*.AppImage' -exec cp {} dist/linux/CopyPolish_linux_amd64.AppImage \;
+    - python3 scripts/verify_release_assets.py "$CI_COMMIT_TAG" --dist-dir dist/linux --platform linux
+  artifacts:
+    name: linux-bundles-$CI_COMMIT_TAG
+    paths:
+      - dist/linux/
+    expire_in: 3 days
+  rules: !reference [.rules_tag, rules]
 
-# ---- Stage 2：Windows SaaS 构建（仅 tag） ------------------------------------
 build:windows:
   stage: build
   timeout: 90 minutes
-  needs: []
   tags:
     - saas-windows-medium-amd64
-  # SaaS Windows runner 每 job 全新 VM；完整工具链与构建逻辑见
-  # scripts/ci/build_windows_gitlab.ps1。
   script:
     - |
       $ErrorActionPreference = 'Stop'
       & powershell.exe -NoProfile -ExecutionPolicy Bypass `
         -File .\scripts\ci\build_windows_gitlab.ps1 `
         -Tag $env:CI_COMMIT_TAG
-      if ($LASTEXITCODE -ne 0) { throw "Windows 构建脚本失败，退出码 $LASTEXITCODE" }
+      if ($LASTEXITCODE -ne 0) { throw "Windows build failed: $LASTEXITCODE" }
   artifacts:
     name: windows-portable-$CI_COMMIT_TAG
     paths:
       - dist/windows/
     expire_in: 3 days
-  rules: !reference [.rules_tags, rules]
+  rules: !reference [.rules_tag, rules]
 
-# Windows 资产上传到 Generic Package Registry；Linux 资产由本地脚本上传。
-publish:windows:
+package:assemble:
   stage: package
   image: alpine:3.20
   needs:
+    - job: build:linux
+      artifacts: true
     - job: build:windows
       artifacts: true
-  timeout: 15 minutes
+  before_script:
+    - apk add --no-cache python3 coreutils p7zip
   script:
-    - apk add --no-cache curl
-    - |
-      BASE_URL="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/copypolish/${CI_COMMIT_TAG}"
-      for f in CopyPolish.exe CopyPolish-windows-x64.7z; do
-        echo "== 上传 Windows 资产: ${f} =="
-        curl --fail --show-error --location \
-          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-          --upload-file "dist/windows/${f}" "${BASE_URL}/${f}"
-      done
-  rules: !reference [.rules_tags, rules]
+    - mkdir -p dist/final
+    - cp dist/linux/CopyPolish_linux_amd64.deb dist/final/
+    - cp dist/linux/CopyPolish-linux-x86_64.rpm dist/final/
+    - cp dist/linux/CopyPolish_linux_amd64.AppImage dist/final/
+    - cp dist/windows/CopyPolish.exe dist/final/
+    - cp dist/windows/CopyPolish-windows-x64.7z dist/final/
+    - python3 scripts/verify_release_assets.py "$CI_COMMIT_TAG" --dist-dir dist/final --platform all
+    - cd dist/final && sha256sum CopyPolish.exe CopyPolish-windows-x64.7z CopyPolish_linux_amd64.deb CopyPolish-linux-x86_64.rpm CopyPolish_linux_amd64.AppImage > SHA256SUMS && sha256sum -c SHA256SUMS
+  artifacts:
+    name: release-files-$CI_COMMIT_TAG
+    paths:
+      - dist/final/
+    expire_in: 3 days
+  rules: !reference [.rules_tag, rules]
 
-# 本地 Linux 资产与 Windows CI 资产合并后，人工点击执行最终 Release。
-# Linux 文件必须先由 scripts/upload_gitlab_linux_assets.sh 上传到同一 tag 的 package。
-release:finalize:
+release:gitlab:
   stage: release
   image: alpine:3.20
   needs:
-    - job: publish:windows
-      artifacts: false
+    - job: package:assemble
+      artifacts: true
   timeout: 20 minutes
   resource_group: release-$CI_COMMIT_TAG
-  interruptible: false
-  when: manual
-  allow_failure: false
   before_script:
-    - apk add --no-cache curl python3 coreutils
+    - apk add --no-cache curl python3
   script:
-    - mkdir -p dist/final
     - |
       BASE_URL="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/copypolish/${CI_COMMIT_TAG}"
-      for f in CopyPolish.exe CopyPolish-windows-x64.7z CopyPolish_linux_amd64.deb CopyPolish-linux-x86_64.rpm CopyPolish_linux_amd64.AppImage; do
-        echo "== 下载 Release 资产: ${f} =="
-        curl --fail --show-error --location \
-          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-          --output "dist/final/${f}" "${BASE_URL}/${f}"
+      for f in CopyPolish.exe CopyPolish-windows-x64.7z CopyPolish_linux_amd64.deb CopyPolish-linux-x86_64.rpm CopyPolish_linux_amd64.AppImage SHA256SUMS; do
+        curl --fail --show-error --location --header "JOB-TOKEN: ${CI_JOB_TOKEN}" --upload-file "dist/final/${f}" "${BASE_URL}/${f}"
       done
-    - >-
-      python3 scripts/verify_release_assets.py "$CI_COMMIT_TAG"
-      --dist-dir dist/final --platform all
-    - >-
-      cd dist/final && sha256sum CopyPolish.exe CopyPolish-windows-x64.7z
-      CopyPolish_linux_amd64.deb CopyPolish-linux-x86_64.rpm
-      CopyPolish_linux_amd64.AppImage > SHA256SUMS
-      && sha256sum -c SHA256SUMS && cd ../..
-    - >-
-      curl --fail --show-error --location
-      --header "JOB-TOKEN: ${CI_JOB_TOKEN}"
-      --upload-file dist/final/SHA256SUMS "${BASE_URL}/SHA256SUMS"
-    - >-
-      python3 scripts/ci/create_gitlab_release.py
-    - >-
-      echo "Release 页面：${CI_PROJECT_URL}/-/releases/${CI_COMMIT_TAG}"
-  rules: !reference [.rules_tags, rules]
-
-# ==============================================================================
-# 尚未实现（后续阶段补充）：
-#   1. Windows GUI smoke（对应 release.yml 的 windows-smoke）—— 需要具备 GUI
-#      交互能力的 Windows runner；Session 0 隔离可能影响窗口句柄检测，
-#      按迁移计划属阶段四单独验收，暂不由本流水线承担。
-#   2. GitHub Release 同步（mirror-release）—— 需要 GITHUB_RELEASE_TOKEN 等
-#      CI/CD Variable 且完成 push mirror 后再启用（迁移计划第六~八阶段）。
-#   3. Cline 侧 GitLab MCP 自动化仅限只读诊断，不参与发布决策，
-#      见 docs/development/gitlab-mcp.md。
-# ==============================================================================
-
+    - python3 scripts/ci/create_gitlab_release.py
+  rules: !reference [.rules_tag, rules]

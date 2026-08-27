@@ -16,7 +16,7 @@
 
 ## 3. P1：本地构建与手动发布能力
 
-- GitHub Actions 保持为标准 CI 与可复现构建路径；
+- GitHub Actions 保持为标准 CI、Release 编排与可复现发布路径；GitLab 仅作为由 GitHub tag workflow 调用的 Linux/Windows Build Service；
 - 本地构建 + 手动上传为正式支持的备用发布方式（Runbook：[manual-release.md](release/manual-release.md)）；
 - 已提供本地发布自动化脚本：
   - `scripts/build_release_local.ps1`（Windows 版本同步、构建、DLL 收集、`.7z` 打包）；

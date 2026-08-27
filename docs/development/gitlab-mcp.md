@@ -1,9 +1,12 @@
 # GitLab MCP Server 使用说明
 
-本仓库迁移至 GitLab 后，可在 Cline 中接入 GitLab 官方 MCP Server（Beta），用于**只读诊断与低风险辅助操作**。
+本项目使用 GitLab 作为 Build Service 后，可在 Cline 中接入 GitLab 官方 MCP Server（Beta），用于**只读构建诊断与低风险辅助操作**。
+
+GitHub 是源码、Issue、Pull Request、版本 tag 和公开 Release 的主平台；GitLab MCP
+只用于查看 GitLab 构建 pipeline、job 日志、Package Registry 和内部构建 Release。
 
 > **架构约束**：MCP 属于开发/运维辅助控制面，不属于 CI/CD 关键路径。
-> 构建、Release 创建、GitHub 同步一律由 `.gitlab-ci.yml` 与 GitLab API 完成；
+> GitLab 构建由 `.gitlab-ci.yml` 完成，GitHub 最终 Release 由 `.github/workflows/release.yml` 完成；
 > Cline 侧 MCP 不参与发布决策，不得持有任何 CI/CD Variable 或 Release token。
 
 ## 1. 前置条件
@@ -92,18 +95,18 @@ GitLab MCP Server 仅支持 OAuth 2.0 认证，**不能使用 Personal Access To
 - [ ] 查询本项目、默认分支；
 - [ ] `get_repository_file` 读取 README.md / .gitlab-ci.yml（注意：读取的是
       远端指定 ref 的已提交内容，不反映本地未提交改动）；
-- [ ] 查询最近一次 pipeline 及其 jobs；
+- 查询最近一次 tag pipeline 及其 jobs；
 - [ ] 读取一个 job 日志（验证 UTF-8 中文正常）。
 
 ### 低风险写操作验收
 
-在专门测试 Issue 上完成创建 → 评论 → 更新 label → 关闭后，
-再于 `chore/gitlab-mcp-validation` 测试分支验证：建分支 → 提交文档 → 建 MR → 查看 diff/pipeline。
-**禁止**：创建 tag、改动 protected branch、创建 Release、修改 CI/CD Variables。
+在专门测试 Issue 上完成创建 → 评论 → 更新 label → 关闭；
+只查看 GitLab Build Service 的 tag pipeline、job 和内部 Release，不把 GitLab 分支/MR 当作日常开发流程。
+**禁止**：创建 GitHub/GitLab Release tag、改动 protected branch、创建公开 Release、修改 CI/CD Variables。
 
 ### Pipeline 故障诊断流程
 
-查询 dev pipeline → 列出失败 jobs → 取 job 日志 → 归纳原因 → 建修复 Issue。
+查询 GitLab tag pipeline → 列出失败 jobs → 取 job 日志 → 归纳原因 → 在 GitHub 创建修复 Issue/PR。
 重新运行 job / 取消 pipeline 等能力以实际暴露的工具清单为准。
 
 ## 5. 安全规则

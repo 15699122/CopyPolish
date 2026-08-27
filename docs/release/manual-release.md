@@ -1,6 +1,6 @@
 # CopyPolish 本地构建与手动发布指南
 
-本指南描述 Linux 本地构建、GitLab Windows SaaS 构建、资产上传与 GitLab Release finalize 的完整流程。GitHub Actions 仍保留为备用路径；GitLab 主流程与备用流程共享相同的验证门槛、版本策略、资产命名与人工验收标准。中长期发布相关维护项见 [roadmap.md](../roadmap.md)。
+本指南描述 GitHub 主平台编排 GitLab Build Service、下载构建资产并创建 GitHub Release 的完整流程。GitLab 负责 Linux/Windows 构建和内部构建 Release；GitHub 负责开发、tag、验收和公开 Release。中长期发布相关维护项见 [roadmap.md](../roadmap.md)。
 
 > 提示：`scripts/build_release_local.sh`（Linux）、`scripts/build_release_local.ps1`（Windows）与 `scripts/verify_release_assets.py`（产物校验）封装了本指南的核心步骤；仍需遵守下文的干净发布工作区与人工验收要求，首次使用前请先通读本指南。
 
@@ -8,9 +8,9 @@
 
 | 模式 | 用途 | 说明 |
 | --- | --- | --- |
-| GitLab Windows CI + Linux 本地上传 | 当前主路线 | GitLab tag 触发 Windows 构建；Linux 在本地构建并上传；手动 `release:finalize` 创建 GitLab Release |
-| GitHub Actions 自动构建发布 | 备用路线 | 迁移完成前用于对照和灾难恢复；稳定后改为手动触发，避免双重 Release |
-| 全部资产本地构建 + 手动上传 | 备用路线 | CI 配额/网络受限、需要在真实机器构建验收、或需要更强的发布前人工控制时使用 |
+| GitHub → GitLab 构建 → GitHub Release | 当前主路线 | GitHub tag 触发编排；GitLab 构建 Linux/Windows；GitHub 下载资产、执行 smoke 并创建公开 Release |
+| GitHub Actions 全平台 fallback | 备用路线 | GitLab Build Service、SaaS runner 或桥接 token 不可用时，手动运行 `release-fallback.yml` |
+| 全部资产本地构建 + GitHub 手动上传 | 最后恢复路径 | CI、网络或平台服务不可用时使用 |
 
 原则：
 
@@ -260,9 +260,9 @@ CopyPolish-linux-x86_64.rpm
 CopyPolish_linux_amd64.AppImage
 ```
 
-### 8.1 上传 Linux 资产到 GitLab
+### 8.1 Linux 本地构建恢复路径
 
-GitLab 主发布路线中，Linux 资产由本地 Linux 发布工作区构建并上传；Windows 资产由 GitLab SaaS Windows job 构建。使用与目标 tag 相同的隔离 worktree，并先确认本地 tag 已推送到 GitLab：
+标准主流程不需要本地上传 Linux 资产：GitHub 的 Release workflow 会把同一 tag 推送到 GitLab，由 GitLab Linux job 构建。以下脚本仅在 GitLab Linux runner 不可用时作为恢复路径使用：
 
 ```bash
 export GITLAB_TOKEN='临时 PAT 或仅允许写入 Package Registry 的 Deploy Token'
@@ -279,15 +279,15 @@ export GITLAB_PROJECT_ID=85804438
 - 本地 tag commit 与 GitLab tag commit 一致；
 - 远端同名文件若已存在，则必须与本地文件字节一致，否则拒绝覆盖。
 
-上传成功后，在同一 tag 的 GitLab pipeline 中手动执行 `release:finalize`。该 job 会从 Generic Package Registry 下载 Windows 与 Linux 五项资产，运行完整 `verify_release_assets.py --platform all`，生成 `SHA256SUMS` 并创建 GitLab Release。
+主流程中，GitLab 的 `release:gitlab` 会自动创建内部构建 Release；GitHub workflow 随后下载同一批资产，运行 SHA 校验和 Windows smoke，最后创建公开 GitHub Release。
 
-若 AppImage 上传遇到网络错误，可以暂时跳过它；此时不要执行 `release:finalize`。手动上传完成后，确认以下 URL 对应文件返回 HTTP 200，再执行 finalize：
+若恢复路径中的 AppImage 上传遇到网络错误，可以暂时跳过它；在五项资产齐全前不要创建 GitHub Release。手动上传完成后，确认以下 URL 对应文件返回 HTTP 200：
 
 ```text
 https://gitlab.com/api/v4/projects/85804438/packages/generic/copypolish/vX.Y.Z[-suffix]/CopyPolish_linux_amd64.AppImage
 ```
 
-`release:finalize` 会强制下载并校验全部五项资产，缺少 AppImage 时应保持失败，这是预期的安全门禁。
+GitHub Release workflow 会强制下载并校验全部五项资产，缺少 AppImage 时应保持失败，这是预期的安全门禁。
 
 > 不要把 `GITLAB_TOKEN` 写入 remote URL、脚本、仓库文件或提交历史。PAT 仅用于本次上传和 GitLab API 操作；GitLab MCP Server 仍使用 OAuth，不接受 PAT。
 

@@ -23,6 +23,9 @@
 
 请在 GitHub Releases 页面下载对应平台产物。
 
+源码开发、Issue、Pull Request、版本 tag 和正式 Release 均以 GitHub 仓库为准；
+GitLab 仅作为 Linux/Windows Release 构建服务，不作为日常开发或公开下载入口。
+
 | 平台 | 产物 | 说明 |
 | --- | --- | --- |
 | Windows | `CopyPolish.exe` | 便携版，直接运行 |

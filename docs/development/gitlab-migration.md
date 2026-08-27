@@ -1,14 +1,12 @@
-# CopyPolish → GitLab 迁移：状态与 CI/CD 说明
+# CopyPolish GitLab Build Service：状态与 CI/CD 说明
 
-本文记录本仓库从 GitHub 迁移至 GitLab 的整体计划、当前进度、已定决策、GitLab CI/CD 运行方式与后续待办。
+本文记录 GitHub 主平台与 GitLab Build Service 之间的构建编排、当前进度、已定决策、CI/CD 运行方式与后续待办。
 仅面向维护者；Cline 接入 GitLab MCP 见 [gitlab-mcp.md](gitlab-mcp.md)。
 
-> 现状速览（2026-08-27）：GitLab 已是主仓库与主 CI，GitHub 为只读镜像与第二个下载入口；
-> 普通 CI（test:rust / test:frontend）已在 GitLab 全绿；Windows SaaS runner 已成功调度；
-> `v0.5.0-pre6` 的 Linux 构建已成功；Windows SaaS 已完成 Rust/Node/Python/7-Zip 初始化，
-> 独立构建脚本已修正 Tauri `--no-bundle` 参数转发和 Windows 工具链隔离；Linux 已切换为本地构建后上传。
-> 当前验证 tag 为 `v0.5.0-pre7`：`.deb` / `.rpm` 已上传，`.AppImage` 因网络上传异常暂待手动上传；
-> 在五项资产齐全前不执行 `release:finalize`。Push mirror 与 GitHub Release 同步尚未配置。
+> 现状速览（2026-08-27）：GitHub 是源码、开发协作、tag 和公开 Release 的主平台；
+> GitLab 仅接收 GitHub Release workflow 推送的 `v*` tag，并负责 Linux/Windows 构建与内部构建 Release。
+> GitLab build-only CI、GitHub tag bridge 和 GitHub Release 编排已落地到 `dev`；
+> 尚待使用新的验证 tag 完成完整 GitHub → GitLab → GitHub 链路验收。
 
 ## 1. 架构与目标
 
@@ -16,34 +14,39 @@
 开发者 / Cline
         │
         ▼
-GitLab（主仓库：olivaceum-group/chinese_copywriting_formatter）
-  ├── GitLab CI/CD（test → build → package → release）
-  ├── Generic Package Registry（长期二进制存储）
-  ├── GitLab Release（权威发布）
-  │
-  ├── [待办] Push Mirror ───────────────► GitHub refs（只读镜像）
-  └── [待办] Release Sync Job ──────────► GitHub Release assets
+GitHub（主平台）
+  ├── 开发 / Issue / Pull Request
+  ├── GitHub Actions 普通 CI
+  ├── 创建 v* tag
+  └── 编排并创建公开 GitHub Release
+              │ 精确同步同一 tag
+              ▼
+GitLab Build Service
+  ├── Linux 构建
+  ├── Windows SaaS 构建
+  ├── Generic Package Registry
+  └── 内部 GitLab Release
 ```
 
 原则：
 
-- GitLab 是**唯一写入源**；所有 push / MR / tag / Release 在 GitLab 完成；
-- GitLab CI 是唯一自动构建路径（对应原 GitHub `ci.yml` / `release.yml`）；
-- GitHub 仓库只接收被推送的 refs 与 Release assets，不接受直接开发提交；
-- GitLab MCP 属于辅助控制面，不进入发布关键路径（见 gitlab-mcp.md）。
+- GitHub 是唯一日常写入源；开发、Issue、Pull Request、tag 和公开 Release 均在 GitHub 完成；
+- GitLab 只接收 GitHub Release workflow 推送的 `v*` tag，不接收 `dev` / `master` 日常同步；
+- GitLab CI 只负责跨平台构建和内部构建 Release，GitHub Actions 负责发布编排和最终公开 Release；
+- GitLab MCP 只用于 Build Service 状态和日志诊断，不进入发布关键路径（见 gitlab-mcp.md）。
 
 ## 2. 远程仓库现状
 
 | 远程 | URL | 角色 |
 | --- | --- | --- |
-| `origin` | `https://github.com/15699122/chinese_copywriting_formatter.git` | 镜像 |
-| `gitlab` | `https://gitlab.com/olivaceum-group/chinese_copywriting_formatter.git` | 主仓库 |
+| `origin` | `https://github.com/15699122/chinese_copywriting_formatter.git` | 主平台 |
+| `gitlab` | `https://gitlab.com/olivaceum-group/chinese_copywriting_formatter.git` | Build Service |
 
 分支：
 
-- `dev`：默认开发分支，三端（本地 / GitHub / GitLab）已同步；
+- `dev`：GitHub 默认开发分支，本地 upstream 为 `origin/dev`；
 - `master`：稳定分支，与既有流程不变；
-- `ci/windows-probe`：Windows SaaS Runner 探测临时分支，已完成探测并删除，不推 GitHub。
+- GitLab 不维护日常开发分支，只保留 GitHub workflow 推送的 Release tag。
 
 ## 3. Tag 差异记录
 
@@ -68,43 +71,40 @@ GitLab 比 GitHub 多以下内容（这些 tag 在 GitHub 从未存在）：
 4. **不能「像 GitHub 一样随身完整工具缓存」的原因**：SaaS runner 每 job 新建临时 VM（Custom executor + autoscaler，job 结束即销毁），工具链与 `.cargo/` 无法跨 job 持久化；且镜像未预装 Rust。因此 `build:windows` 必须在 job 内显式自装 Rust + 对齐 Node 24.19.0，不依赖缓存，按「全新 VM」设计。Windows job 还必须把 `CARGO_HOME` / `RUSTUP_HOME` 放在 `%TEMP%`，不能放在仓库目录，否则 rustup 生成的 `.cargo` 会使发布脚本的干净工作区检查失败。
 5. GitLab SaaS Windows runner 默认以 Windows PowerShell 5.1 执行 job。当前通过 `PYTHONIOENCODING=utf-8` 解决 Python 中文输出问题；如继续遇到 5.1 兼容性问题，再在 job 内安装 PowerShell 7 并用 `pwsh -File` 执行独立脚本，但不能通过项目 YAML 修改 SaaS runner 的底层 shell。
 
-## 5. GitLab CI/CD 说明
+## 5. GitLab Build Service CI/CD 说明
 
 主配置：仓库根 `.gitlab-ci.yml`。按 `workflow:rules` 分流：
 
-- **分支 / MR**（`dev` / `master`）：`test:rust`、`test:frontend`；
-- **tag**（`vX.Y.Z` 或含 `-` 的预发布）：`build:windows` → `publish:windows` → 手动 `release:finalize`；Linux 资产由本地脚本上传后参与 finalize。
+- **tag**（`vX.Y.Z` 或含 `-` 的预发布）：`build:linux` 与 `build:windows` 并行，随后 `package:assemble` 和 `release:gitlab`；
+- GitLab 不响应 `dev` / `master` push、GitLab MR 或普通开发流水线。
 
-stage 顺序：`test → build → package → release`。
+stage 顺序：`build → package → release`。
 
-- `build:windows`：Windows SaaS runner，独立脚本 `scripts/ci/build_windows_gitlab.ps1` 自装并核验 MSVC/Rust/Node/Python/7-Zip，使用已验证的 `npm run tauri build -- --no-bundle`，产出两个 Windows 资产；
-- `publish:windows`：使用 `CI_JOB_TOKEN` 上传 Windows 资产至 Generic Package Registry；
-- Linux 资产：在 Node 24.19.0 和 Linux Tauri 依赖齐全的本地隔离 worktree 中运行 `scripts/build_release_local.sh`，再运行 `scripts/upload_gitlab_linux_assets.sh` 上传三个 Linux 资产；
-- `release:finalize`：手动下载同一 tag 的五个资产，运行 `verify_release_assets.py --platform all`，生成 SHA256SUMS，上传摘要并创建 GitLab Release；tag 含 `-` 即 prerelease；`resource_group` 防同 tag 并发。
+- `build:linux`：GitLab Linux runner 安装 Tauri GTK/WebKit 依赖，构建并校验 deb/rpm/AppImage；
+- `build:windows`：Windows SaaS runner 通过 `scripts/ci/build_windows_gitlab.ps1` 自装并核验 MSVC/Rust/Node/Python/7-Zip，构建并校验 exe/.7z；
+- `package:assemble`：合并两平台 artifacts，运行 `verify_release_assets.py --platform all` 并生成 SHA256SUMS；
+- `release:gitlab`：上传六个构建文件到 Generic Package Registry，创建内部 GitLab Release；公开 Release 仍由 GitHub Actions 创建。
 
 版本脚本复用既有：`check_version.py` / `prepare_release_version.py` / `verify_release_assets.py`。
 
-## 6. 同步 GitHub 的方式（待实施）
+## 6. GitHub → GitLab 构建编排（代码已落地，待外部 Secret 与首轮验收）
 
-GitLab 为主，GitHub 为镜像，不做双向写：
+GitHub 为主，GitLab 为 Build Service，不做双向写：
 
-- refs 同步：GitLab **push mirror** 到 GitHub（Settings → Repository → Mirroring repositories → Push）；
-- Release assets：由 GitLab CI 后续新增的 `mirror-release` job（需 CI/CD Variable `GITHUB_RELEASE_TOKEN`、`GITHUB_REPOSITORY`）把 `release:finalize` 生成的同一批资产发布到 GitHub Release；
-- GitHub Actions：迁移稳定后降级为手动 / 备用，避免两边重复构建与重复创建 Release。
-
-## 7. 当前待办（按优先级）
-
-- [x] **`build:windows` 自装工具链基础部分**（rustup 装 Rust + MSVC，装 Node 24.19.0、Python 3 shim、7-Zip）已落地到 dev；SaaS runner 已成功执行工具链安装；
-- [ ] 修正后的独立 Windows 脚本在 SaaS runner 上完成 Tauri exe / `.7z` 产物验证（当前待用新验证 tag 重新执行）；
-- [x] 本地 Linux 资产完成构建和平台校验；`v0.5.0-pre7` 的 `.deb` / `.rpm` 已上传；
-- [ ] 手动上传 `v0.5.0-pre7` 的 `CopyPolish_linux_amd64.AppImage`，再执行 `release:finalize`；
-- [x] 清理临时分支 `ci/windows-probe`（本地 + GitLab）及其临时 `workflow:rules` 放行；
-- [ ] tag 对齐决策：是否将 GitLab 独有的 `v0.5.0` / `v0.5.0-pre5` / backup tag 补推 GitHub；
-- [ ] 配置 GitLab → GitHub push to；
-- [ ] 新增 `release:github` 同步 job，并配置 `GITHUB_RELEASE_TOKEN` / `GITHUB_REPOSITORY` CI/CD Variable；
-- [ ] GitHub Actions 降级为手动 / 备用；
-- [ ] 按 gitlab-mcp.md 完成 MCP 只读验收；
-- [ ] 更新 `docs/development.md`「持续集成」与 roadmap 中把 GitHub 当标准 CI 的叙述为 GitLab 主路径现状。
+- `release.yml` 通过 `scripts/ci/push_tag_to_gitlab.sh` 推送精确 tag；
+- `wait_for_gitlab_pipeline.py` 验证 GitLab pipeline SHA 与 GitHub tag SHA 相同并等待成功；
+- `download_gitlab_release_assets.py` 下载并验证 GitLab 内部 Release 资产；
+- GitHub Windows runner 对 GitLab 生成的 exe 执行 GUI smoke，随后创建公开 GitHub Release；
+- `release-fallback.yml` 仅手动触发，在 GitLab Build Service 不可用时由 GitHub 全平台构建。
+- [x] `dev` 本地 upstream 已切换为 `origin/dev`（GitHub）；
+- [x] GitLab CI 已改为仅响应 Release tag；
+- [x] GitLab Linux/Windows 构建与内部 Release job 已落地；
+- [x] GitHub 主 Release workflow 已加入 tag bridge、pipeline 等待、资产下载、SHA 校验和 Windows smoke；
+- [x] `release-fallback.yml` 已改为仅手动触发；
+- [ ] 按 gitlab-mcp.md 完成 Build Service 只读验收；
+- [ ] 创建 `v0.5.0-pre8`，验收 GitHub tag bridge、GitLab 双平台构建和 GitHub 公开 Release；
+- [ ] 核对 GitHub 下载的五项资产与 GitLab SHA256SUMS 一致；
+- [ ] 完成真实 Windows GUI/DPI/WebView2 人工验收。
 
 ## 8. Windows 人工验收（保持既有约束）
 
