@@ -6,8 +6,9 @@
 > 现状速览（2026-08-27）：GitLab 已是主仓库与主 CI，GitHub 为只读镜像与第二个下载入口；
 > 普通 CI（test:rust / test:frontend）已在 GitLab 全绿；Windows SaaS runner 已成功调度；
 > `v0.5.0-pre6` 的 Linux 构建已成功；Windows SaaS 已完成 Rust/Node/Python/7-Zip 初始化，
-> 当前最后失败点为 Tauri `--no-bundle` 参数转发，独立构建脚本已修正该调用；Linux 已切换为本地构建后上传；
-> push mirror 与 GitHub Release 同步尚未配置。
+> 独立构建脚本已修正 Tauri `--no-bundle` 参数转发和 Windows 工具链隔离；Linux 已切换为本地构建后上传。
+> 当前验证 tag 为 `v0.5.0-pre7`：`.deb` / `.rpm` 已上传，`.AppImage` 因网络上传异常暂待手动上传；
+> 在五项资产齐全前不执行 `release:finalize`。Push mirror 与 GitHub Release 同步尚未配置。
 
 ## 1. 架构与目标
 
@@ -94,8 +95,9 @@ GitLab 为主，GitHub 为镜像，不做双向写：
 ## 7. 当前待办（按优先级）
 
 - [x] **`build:windows` 自装工具链基础部分**（rustup 装 Rust + MSVC，装 Node 24.19.0、Python 3 shim、7-Zip）已落地到 dev；SaaS runner 已成功执行工具链安装；
-- [ ] 修正后的独立 Windows 脚本在 SaaS runner 上完成 Tauri exe / `.7z` 产物验证（前一版已完成工具链初始化，但 `--no-bundle` 参数传递错误）；
-- [ ] 本地 Linux 资产完成构建、平台校验和 Generic Package Registry 上传（上传脚本已实现，待用真实 tag 验证）；
+- [ ] 修正后的独立 Windows 脚本在 SaaS runner 上完成 Tauri exe / `.7z` 产物验证（当前待用新验证 tag 重新执行）；
+- [x] 本地 Linux 资产完成构建和平台校验；`v0.5.0-pre7` 的 `.deb` / `.rpm` 已上传；
+- [ ] 手动上传 `v0.5.0-pre7` 的 `CopyPolish_linux_amd64.AppImage`，再执行 `release:finalize`；
 - [x] 清理临时分支 `ci/windows-probe`（本地 + GitLab）及其临时 `workflow:rules` 放行；
 - [ ] tag 对齐决策：是否将 GitLab 独有的 `v0.5.0` / `v0.5.0-pre5` / backup tag 补推 GitHub；
 - [ ] 配置 GitLab → GitHub push to；
