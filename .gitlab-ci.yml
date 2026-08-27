@@ -1,0 +1,297 @@
+# CopyPolish GitLab CI/CD —— 由 GitHub Actions（ci.yml / release.yml）等价迁移而来。
+#
+# Pipeline 分为两类：
+#   1. 快速门禁：dev / master push 与 MR —— 对应 ci.yml；
+#   2. 发布流水线：v* tag push —— 对应 release.yml。
+#
+# 版本策略与资产命名完全沿用项目既有约定（见 docs/release/manual-release.md）：
+#   - 正式版 tag vX.Y.Z；预发布 tag 名称含 "-"（如 v0.6.0-pre1）；
+#   - 五个发布资产：
+#       CopyPolish.exe                     （Windows 便携版）
+#       CopyPolish-windows-x64.7z          （Windows 便携压缩包）
+#       CopyPolish_linux_amd64.deb
+#       CopyPolish-linux-x86_64.rpm
+#       CopyPolish_linux_amd64.AppImage
+#
+# Runner 要求：
+#   - Linux job：GitLab.com hosted runner 或任意带 Docker 的 self-managed runner；
+#   - Windows job（build:windows）：必须先注册一台 Windows shell executor runner，
+#     打标签 windows + x86_64，并预装 Node.js 24.19.0、Rust 1.98.0（MSVC）、
+#     VS C++ Build Tools、WebView2 Runtime、7-Zip、Python 3、Git。
+#     在该 runner 注册完成之前，tag 流水线会卡在 build:windows——这是预期行为，
+#     代表迁移阶段四（Windows Runner 验证）尚未完成。
+
+stages:
+  - test
+  - build
+  - package
+  - release
+
+variables:
+  NODE_VERSION: "24.19.0"
+  # 将 Cargo home 指向工作区，使下方 .cargo/ 缓存真正捕获 registry/git 依赖
+  CARGO_HOME: "$CI_PROJECT_DIR/.cargo"
+
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == "dev"'
+    - if: '$CI_COMMIT_BRANCH == "master"'
+    - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/'
+
+.rules_tags:
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/'
+
+.rules_branch:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == "dev"'
+    - if: '$CI_COMMIT_BRANCH == "master"'
+
+test:rust:
+  stage: test
+  image: rust:1.98-bookworm
+  timeout: 30 minutes
+  interruptible: true
+  cache:
+    key:
+      files:
+        - src-tauri/Cargo.lock
+      prefix: rust-linux-v1.98.0
+    paths:
+      - .cargo/
+      - src-tauri/target/
+  script:
+    # rust 镜像默认不含 git/python3；GitLab clone 在容器内进行，必须先装 git。
+    - apt-get update && apt-get install -y --no-install-recommends git python3 ca-certificates
+    - rustc --version && cargo --version
+    - cd src-tauri
+    - cargo fmt --check
+    - cargo clippy --all-targets -- -D warnings
+    - cargo test
+    # Ratatui TUI 仅在 feature 打开时编译，不影响默认构建。
+    - cargo clippy --features tui --all-targets -- -D warnings
+    - cargo test --features tui
+    - cargo build --features tui --bin copypolish-tui
+    - git diff --check
+    - python3 ../scripts/check_version.py ${CI_COMMIT_TAG}
+  rules: !reference [.rules_branch, rules]
+
+test:frontend:
+  stage: test
+  image: node:24-bookworm
+  timeout: 25 minutes
+  interruptible: true
+  cache:
+    key:
+      files:
+        - frontend/package-lock.json
+      prefix: npm-linux-v1
+    paths:
+      - frontend/.npm/
+  script:
+    - cd frontend
+    - npm ci --cache .npm
+    - npm test -- --run
+    - npm run build
+  rules: !reference [.rules_branch, rules]
+
+# ---- Stage 3：资产汇总与校验（仅 tag） ---------------------------------------
+package:assemble:
+  stage: package
+  image: alpine:3.20
+  needs:
+    - job: build:linux
+      artifacts: true
+    - job: build:windows
+      artifacts: true
+  timeout: 15 minutes
+  before_script:
+    - apk add --no-cache python3 coreutils findutils
+  script:
+    - mkdir -p dist/final
+    - cp dist/windows/CopyPolish.exe                dist/final/
+    - cp dist/windows/CopyPolish-windows-x64.7z     dist/final/
+    - cp dist/linux/CopyPolish_linux_amd64.deb      dist/final/
+    - cp dist/linux/CopyPolish-linux-x86_64.rpm     dist/final/
+    - cp dist/linux/CopyPolish_linux_amd64.AppImage dist/final/
+    # 完整五资产 + 7z 根目录结构校验（复用既有脚本）
+    - python3 scripts/verify_release_assets.py "$CI_COMMIT_TAG" --dist-dir dist/final
+    # 同时生成 SHA256SUMS 并复核
+    - cd dist/final && sha256sum CopyPolish.exe CopyPolish-windows-x64.7z CopyPolish_linux_amd64.deb CopyPolish-linux-x86_64.rpm CopyPolish_linux_amd64.AppImage > SHA256SUMS && cd ../..
+    - sha256sum -c dist/final/SHA256SUMS
+    - ls -la dist/final
+  artifacts:
+    name: release-files-$CI_COMMIT_TAG
+    paths:
+      - dist/final/
+    expire_in: 3 days
+  rules: !reference [.rules_tags, rules]
+
+# ---- Stage 4：GitLab Release 发布（仅 tag） ----------------------------------
+# 上传五资产 + SHA256SUMS 到 Generic Package Registry（CI_JOB_TOKEN 认证，无额外密钥），
+# 然后用 REST API 创建 Release 并把六个文件挂为 Asset Links。
+# 预发布判断与 GitHub 一致：tag 名含 "-" 即 prerelease。
+release:gitlab:
+  stage: release
+  image: alpine:3.20
+  needs:
+    - job: package:assemble
+      artifacts: true
+  timeout: 15 minutes
+  # 同一 tag 的发布严格串行，防止并行流水线重复创建 Release
+  resource_group: release-$CI_COMMIT_TAG
+  interruptible: false
+  before_script:
+    - apk add --no-cache python3 curl
+  script:
+    - |
+      BASE_URL="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/copypolish/${CI_COMMIT_TAG}"
+      AUTH="JOB-TOKEN: ${CI_JOB_TOKEN}"
+      for f in CopyPolish.exe CopyPolish-windows-x64.7z CopyPolish_linux_amd64.deb CopyPolish-linux-x86_64.rpm CopyPolish_linux_amd64.AppImage SHA256SUMS; do
+        echo "== Uploading ${f} =="
+        curl -sf --header "${AUTH}" --upload-file "dist/final/${f}" "${BASE_URL}/${f}" \
+          || { echo "ERROR: failed to upload ${f}"; exit 1; }
+      done
+    - |
+      python3 - <<'PYEOF'
+      import json, os, urllib.request
+
+      api = os.environ["CI_API_V4_URL"]
+      pid = os.environ["CI_PROJECT_ID"]
+      tag = os.environ["CI_COMMIT_TAG"]
+      sha = os.environ["CI_COMMIT_SHA"]
+      pkg = f"{api}/projects/{pid}/packages/generic/copypolish/{tag}"
+
+      files = [
+          "CopyPolish.exe",
+          "CopyPolish-windows-x64.7z",
+          "CopyPolish_linux_amd64.deb",
+          "CopyPolish-linux-x86_64.rpm",
+          "CopyPolish_linux_amd64.AppImage",
+          "SHA256SUMS",
+      ]
+      payload = {
+          "tag_name": tag,
+          "ref": sha,
+          "name": tag,
+          "prerelease": "-" in tag,   # 与 GitHub Actions 的预发布规则一致
+          "description": "\n".join([
+              f"# {tag}",
+              "",
+              f"- Commit: `{sha}`",
+              "- 二进制文件位于本页 Asset Links（Generic Package Registry）。",
+              "",
+              "## SHA-256 校验",
+              "",
+              "下载 SHA256SUMS 后运行：`sha256sum -c SHA256SUMS`",
+              "",
+              "> 本说明由 CI 自动生成；按项目约定，正式对外发布的",
+              "> Release Notes 必须人工复核后在此页面补充。",
+          ]),
+          "assets": {
+              "links": [
+                  {"name": f, "url": f"{pkg}/{f}", "link_type": "package"}
+                  for f in files
+              ]
+          },
+      }
+
+      req = urllib.request.Request(
+          f"{api}/projects/{pid}/releases",
+          data=json.dumps(payload).encode(),
+          headers={"JOB-TOKEN": os.environ["CI_JOB_TOKEN"],
+                   "Content-Type": "application/json"},
+          method="POST",
+      )
+      with urllib.request.urlopen(req) as resp:
+          body = json.loads(resp.read())
+          print(f"OK: created release tag={body.get('tag_name')} "
+                f"prerelease={body.get('prerelease')}")
+      PYEOF
+    - echo "Release 页面：${CI_PROJECT_URL}/-/releases/${CI_COMMIT_TAG}"
+  rules: !reference [.rules_tags, rules]
+
+# ---- Stage 2：双平台构建（仅 tag） -------------------------------------------
+build:linux:
+  stage: build
+  image: rust:1.98-bookworm
+  timeout: 45 minutes
+  needs: []
+  cache:
+    key:
+      files:
+        - src-tauri/Cargo.lock
+      prefix: rust-linux-v1.98.0
+    paths:
+      - .cargo/
+      - src-tauri/target/
+  before_script:
+    - apt-get update
+    - apt-get install -y --no-install-recommends git python3 curl ca-certificates xz-utils
+    # Tauri Linux 打包系统依赖（与 release.yml 一致）
+    - apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+    # 安装 Node.js 24 到系统路径
+    - curl -fsSL https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz | tar -xJ --strip-components=1 -C /usr/local
+    - node --version && npm --version && rustc --version && cargo --version
+  script:
+    # 将 tag 完整版本（含预发布后缀）写入构建配置，使 getVersion() 与 tag 一致。
+    - python3 scripts/prepare_release_version.py "$CI_COMMIT_TAG"
+    - python3 scripts/check_version.py "$CI_COMMIT_TAG"
+    - npm ci --prefix frontend
+    - npm run tauri --prefix frontend -- build
+    # 收集统一命名的 Linux 资产，供 package 阶段合并
+    - mkdir -p dist/linux
+    - find src-tauri/target/release/bundle -name '*.deb' -exec cp {} dist/linux/CopyPolish_linux_amd64.deb \;
+    - find src-tauri/target/release/bundle -name '*.rpm' -exec cp {} dist/linux/CopyPolish-linux-x86_64.rpm \;
+    - find src-tauri/target/release/bundle -name '*.AppImage' -exec cp {} dist/linux/CopyPolish_linux_amd64.AppImage \;
+    - ls -la dist/linux
+  artifacts:
+    name: linux-bundles-$CI_COMMIT_TAG
+    paths:
+      - dist/linux/
+    expire_in: 3 days
+  rules: !reference [.rules_tags, rules]
+
+build:windows:
+  stage: build
+  timeout: 60 minutes
+  needs: []
+  tags:
+    - windows
+    - x86_64
+  script:
+    # 环境检查
+    - node --version
+    - rustc --version
+    - cargo --version
+    - python3 --version
+    - 7z | Select-Object -First 1
+    # 复用既有本地构建脚本：包含 prepare_release_version / check_version /
+    # tauri --no-bundle 构建 / 7z 打包（根目录含 CopyPolish.exe）/ verify_release_assets。
+    # -SkipVerify 仅跳过与 test:rust / test:frontend 重复的全量测试；
+    # runner 的 fresh clone 满足脚本要求的干净工作区。
+    - .\scripts\build_release_local.ps1 $env:CI_COMMIT_TAG -SkipVerify
+    # 归位到统一 artifacts 布局（dist/windows/），供 package 阶段合并
+    - New-Item -ItemType Directory -Force -Path dist\windows | Out-Null
+    - Move-Item dist\CopyPolish.exe           dist\windows\CopyPolish.exe
+    - Move-Item dist\CopyPolish-windows-x64.7z dist\windows\CopyPolish-windows-x64.7z
+  artifacts:
+    name: windows-portable-$CI_COMMIT_TAG
+    paths:
+      - dist/windows/
+    expire_in: 3 days
+  rules: !reference [.rules_tags, rules]
+
+# ==============================================================================
+# 尚未实现（后续阶段补充）：
+#   1. Windows GUI smoke（对应 release.yml 的 windows-smoke）—— 需要具备 GUI
+#      交互能力的 Windows runner；Session 0 隔离可能影响窗口句柄检测，
+#      按迁移计划属阶段四单独验收，暂不由本流水线承担。
+#   2. GitHub Release 同步（mirror-release）—— 需要 GITHUB_RELEASE_TOKEN 等
+#      CI/CD Variable 且完成 push mirror 后再启用（迁移计划第六~八阶段）。
+#   3. Cline 侧 GitLab MCP 自动化仅限只读诊断，不参与发布决策，
+#      见 docs/development/gitlab-mcp.md。
+# ==============================================================================
+
