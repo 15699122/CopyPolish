@@ -21,6 +21,7 @@
 | `roadmap.md` | 未完成的中长期开发工作 | 规划或任务状态变化时 |
 | `release/manual-release.md` | 本地发布的可操作步骤与故障排查 | 发布流程或脚本变化时 |
 | `development/gitlab-mcp.md` | GitLab MCP Server 在 Cline 中的接入、验收与安全边界 | GitLab 迁移或 MCP 配置变化时 |
+| `development/gitlab-migration.md` | GitLab 迁移整体计划、进度、技术决策与 GitLab CI/CD 说明 | GitLab 迁移或 CI/CD 结构变化时 |
 | `benchmarks/unicode-baseline.md` | 可重复的性能与体积测量记录 | 基准重新测量时 |
 
 `v0.5.0` 正式发布完成后，版本计划文档应迁入 `archive/release-plans/`，并从路线图中移除已完成的 P0 发布闭环。历史 Python 实现见 [`reference/README.md`](../reference/README.md)，不参与当前构建、测试或行为定义。
