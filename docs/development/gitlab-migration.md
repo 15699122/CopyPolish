@@ -6,7 +6,7 @@
 > 现状速览（2026-08-27）：GitHub 是源码、开发协作、tag 和公开 Release 的主平台；
 > GitLab 仅接收 GitHub Release workflow 推送的 `v*` tag，并负责 Linux/Windows 构建与内部构建 Release。
 > GitLab build-only CI、GitHub tag bridge 和 GitHub Release 编排已落地到 `dev`；
-> 尚待使用新的验证 tag 完成完整 GitHub → GitLab → GitHub 链路验收。
+> GitHub `dev` 已于 2026-08-27 同步至提交 `1985c82`；尚待配置 bridge Secret、修复/确认远程 CI 状态，并使用新的验证 tag 完成完整 GitHub → GitLab → GitHub 链路验收。
 
 ## 1. 架构与目标
 
@@ -101,7 +101,11 @@ GitHub 为主，GitLab 为 Build Service，不做双向写：
 - [x] GitLab Linux/Windows 构建与内部 Release job 已落地；
 - [x] GitHub 主 Release workflow 已加入 tag bridge、pipeline 等待、资产下载、SHA 校验和 Windows smoke；
 - [x] `release-fallback.yml` 已改为仅手动触发；
+- [x] `dev` 已提交并推送到 GitHub `origin/dev`（提交 `1985c82`）；
 - [ ] 按 gitlab-mcp.md 完成 Build Service 只读验收；
+- [ ] 在 GitHub 配置 `GITLAB_PROJECT_ID`、`GITLAB_REPOSITORY_URL` 和 `GITLAB_RELEASE_BRIDGE_TOKEN`；
+- [ ] 重新认证 GitLab API，执行远程 CI Lint；当前本地 GitLab HTTPS/API 凭据已失效；
+- [ ] 诊断并修复/确认 GitHub `ci.yml` 远程运行状态；截至 2026-08-27，提交 `1985c82` 对应 run `33092598919` 仍为失败；
 - [ ] 创建 `v0.5.0-pre8`，验收 GitHub tag bridge、GitLab 双平台构建和 GitHub 公开 Release；
 - [ ] 核对 GitHub 下载的五项资产与 GitLab SHA256SUMS 一致；
 - [ ] 完成真实 Windows GUI/DPI/WebView2 人工验收。
