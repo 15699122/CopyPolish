@@ -275,6 +275,15 @@ build:windows:
       git --version
       Write-Host "node=$(node --version) npm=$(npm --version)"
 
+      # CARGO_HOME 不能位于仓库目录：rustup 会在其中创建 .cargo 内容，
+      # 使 build_release_local.ps1 的 git clean-worktree 检查失败。
+      # Windows SaaS runner 是临时 VM，因此把 Rust 状态放到 TEMP，避免污染源码工作区。
+      $env:CARGO_HOME = Join-Path $env:TEMP 'copypolish-cargo-home'
+      $env:RUSTUP_HOME = Join-Path $env:TEMP 'copypolish-rustup-home'
+      New-Item -ItemType Directory -Force -Path $env:CARGO_HOME, $env:RUSTUP_HOME | Out-Null
+      Write-Host "CARGO_HOME=$env:CARGO_HOME"
+      Write-Host "RUSTUP_HOME=$env:RUSTUP_HOME"
+
       # --- 对齐 Node 24.19.0（镜像预装 21.x，项目固定 24.19.0）---
       $nodeMajor = ((node --version).TrimStart('v') -split '\.')[0]
       if ($nodeMajor -ne '24') {
@@ -289,8 +298,8 @@ build:windows:
         $env:PATH = "$np;$env:PATH"
       }
 
-      # --- Rust MSVC 工具链（镜像未预装；CARGO_HOME=$CI_PROJECT_DIR/.cargo，故 bin 在项目目录下）---
-      $cargoBinDir = Join-Path $env:CI_PROJECT_DIR '.cargo\bin'
+      # --- Rust MSVC 工具链（镜像未预装；bin 随临时 CARGO_HOME）---
+      $cargoBinDir = Join-Path $env:CARGO_HOME 'bin'
       $rustcPath = Join-Path $cargoBinDir 'rustc.exe'
       if (-not (Test-Path $rustcPath)) {
         Write-Host '==> rustup 安装 stable-x86_64-pc-windows-msvc =='
@@ -333,6 +342,13 @@ build:windows:
 
       Write-Host '== 构建并打包（复用本地发布脚本）=='
       .\scripts\build_release_local.ps1 $env:CI_COMMIT_TAG -SkipVerify
+
+      if (-not (Test-Path 'dist\CopyPolish.exe')) {
+        throw 'Windows 构建脚本未生成 dist\CopyPolish.exe，停止 artifact 归位。'
+      }
+      if (-not (Test-Path 'dist\CopyPolish-windows-x64.7z')) {
+        throw 'Windows 构建脚本未生成 dist\CopyPolish-windows-x64.7z，停止 artifact 归位。'
+      }
 
       # 归位到统一 artifacts 布局，供 package 阶段合并
       New-Item -ItemType Directory -Force -Path dist\windows | Out-Null
