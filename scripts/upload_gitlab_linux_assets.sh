@@ -17,13 +17,8 @@ fi
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-if [[ -n "$(git status --porcelain)" ]]; then
-    echo "错误：开始上传前工作区不干净；请使用独立发布 worktree。" >&2
-    exit 1
-fi
-
-# prepare_release_version.py 会在隔离发布 worktree 中写入预期的版本改动；
-# 这里不在版本检查后再次执行 git status，避免把这些预期改动误报为错误。
+# 该脚本通常在 build_release_local.sh 已完成版本同步的隔离 worktree 中执行；
+# 因而不能用 git status 判断 clean。调用方必须自行确保工作区不是日常开发目录。
 python3 scripts/check_version.py "$TAG"
 python3 scripts/verify_release_assets.py "$TAG" --dist-dir "$DIST_DIR" --platform linux
 

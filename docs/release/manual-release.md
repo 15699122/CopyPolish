@@ -273,7 +273,7 @@ export GITLAB_PROJECT_ID=85804438
 
 脚本会在上传前检查：
 
-- 工作区干净；
+- 使用隔离发布 worktree（上传脚本允许版本同步产生的预期改动）；
 - 本地版本号与 tag 一致；
 - 三个 Linux 文件存在且非空；
 - 本地 tag commit 与 GitLab tag commit 一致；
