@@ -1,0 +1,298 @@
+use std::collections::BTreeSet;
+use std::time::{Duration, Instant};
+
+use crate::engine::{self, FormatRequest, RuleMeta, RuleSelection};
+
+use super::clipboard;
+use super::editor::TextEditor;
+use super::settings::{self, SharedConfig};
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FocusedPane {
+    Input,
+    Output,
+    Rules,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Overlay {
+    Help,
+    Rules,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Status {
+    Ready,
+    Formatted {
+        elapsed: Duration,
+    },
+    /// 中性提示信息（已复制、已保存等），状态栏原样展示。
+    Info(String),
+    Error(String),
+}
+
+pub struct App {
+    pub input: TextEditor,
+    pub output: String,
+    pub rules: Vec<RuleMeta>,
+    pub selection: RuleSelection,
+    pub focused: FocusedPane,
+    pub overlay: Option<Overlay>,
+    pub status: Status,
+    pub should_quit: bool,
+    pub selected_rule: usize,
+    pub output_scroll: u16,
+    /// `--no-config`：跳过共享 rules.yaml 的读取与写入。
+    pub no_config: bool,
+}
+
+impl App {
+    pub fn new() -> Self {
+        Self::with_config(None, true)
+    }
+
+    /// 按共享设置构造应用；`shared` 为 None 时回落到默认规则与空输入。
+    pub fn with_config(shared: Option<SharedConfig>, no_config: bool) -> Self {
+        let rules = engine::default_rules();
+        let selection = shared
+            .as_ref()
+            .map(|config| config.selection.clone())
+            .unwrap_or(RuleSelection::Defaults);
+        let last_input = shared
+            .as_ref()
+            .filter(|config| !config.last_input.is_empty())
+            .map(|config| config.last_input.clone())
+            .unwrap_or_default();
+        let mut app = Self {
+            input: TextEditor::new(last_input),
+            output: String::new(),
+            rules,
+            selection,
+            focused: FocusedPane::Input,
+            overlay: None,
+            status: Status::Ready,
+            should_quit: false,
+            selected_rule: 0,
+            output_scroll: 0,
+            no_config,
+        };
+        app.format();
+        app
+    }
+
+    pub fn format(&mut self) {
+        let started = Instant::now();
+        let request = FormatRequest {
+            text: self.input.text().to_string(),
+            selection: self.selection.clone(),
+        };
+        match engine::format_text(&request) {
+            Ok(output) => {
+                self.output = output;
+                self.status = Status::Formatted {
+                    elapsed: started.elapsed(),
+                };
+            }
+            Err(error) => self.status = Status::Error(error),
+        }
+    }
+
+    pub fn insert_text(&mut self, text: &str) {
+        self.input.insert(text);
+        self.format();
+    }
+
+    pub fn set_selection(&mut self, selection: RuleSelection) {
+        self.selection = selection;
+        self.format();
+    }
+
+    pub fn toggle_selected_rule(&mut self) {
+        let Some(rule) = self.rules.get(self.selected_rule) else {
+            return;
+        };
+        let mut keys = self.selected_keys();
+        if !keys.remove(&rule.key) {
+            keys.insert(rule.key.clone());
+        }
+        self.selection = RuleSelection::Only {
+            keys: keys.into_iter().collect(),
+        };
+        self.format();
+    }
+
+    pub fn selected_keys(&self) -> BTreeSet<String> {
+        match &self.selection {
+            RuleSelection::All => self.rules.iter().map(|rule| rule.key.clone()).collect(),
+            RuleSelection::Defaults => self
+                .rules
+                .iter()
+                .filter(|rule| rule.default)
+                .map(|rule| rule.key.clone())
+                .collect(),
+            RuleSelection::Only { keys } => keys.iter().cloned().collect(),
+            RuleSelection::None => BTreeSet::new(),
+        }
+    }
+
+    pub fn move_rule(&mut self, delta: isize) {
+        if self.rules.is_empty() {
+            return;
+        }
+        let last = self.rules.len() - 1;
+        self.selected_rule = self.selected_rule.saturating_add_signed(delta).min(last);
+    }
+
+    pub fn clear_input(&mut self) {
+        self.input = TextEditor::default();
+        self.output_scroll = 0;
+        self.format();
+    }
+
+    pub fn scroll_output(&mut self, delta: i16) {
+        if delta.is_negative() {
+            self.output_scroll = self.output_scroll.saturating_sub(delta.unsigned_abs());
+        } else {
+            self.output_scroll = self.output_scroll.saturating_add(delta as u16);
+        }
+    }
+
+    pub fn scroll_output_to_start(&mut self) {
+        self.output_scroll = 0;
+    }
+
+    pub fn scroll_output_to_end(&mut self) {
+        self.output_scroll = u16::MAX;
+    }
+
+    /// 通过 OSC 52 复制当前输出到系统剪贴板。
+    pub fn copy_output(&mut self) {
+        match clipboard::copy_to_clipboard(&self.output) {
+            Ok(()) => self.status = Status::Info("已复制输出（OSC 52）".to_string()),
+            Err(message) => self.status = Status::Error(message),
+        }
+    }
+
+    /// 将规则选择与最近输入写入共享 `rules.yaml`（读改写，保留 GUI 字段）。
+    pub fn save_settings_now(&mut self) {
+        if self.no_config {
+            self.status = Status::Info("--no-config 模式不保存设置".to_string());
+            return;
+        }
+        match settings::persist(&self.selection, self.input.text()) {
+            Ok(()) => self.status = Status::Info("已保存规则与最近输入".to_string()),
+            Err(error) => self.status = Status::Error(format!("保存设置失败：{error}")),
+        }
+    }
+}
+
+impl Default for App {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{App, FocusedPane, Overlay, Status};
+    use crate::engine::RuleSelection;
+
+    #[test]
+    fn default_app_uses_default_rules() {
+        let app = App::new();
+        assert_eq!(app.selection, RuleSelection::Defaults);
+        assert!(matches!(app.status, Status::Formatted { .. }));
+    }
+
+    #[test]
+    fn none_selection_keeps_input_unchanged() {
+        let mut app = App::new();
+        app.insert_text("在LeanCloud上");
+        app.set_selection(RuleSelection::None);
+        assert_eq!(app.output, "在LeanCloud上");
+    }
+
+    #[test]
+    fn toggling_rule_creates_explicit_only_selection() {
+        let mut app = App::new();
+        app.focused = FocusedPane::Rules;
+        let key = app.rules[0].key.clone();
+        app.toggle_selected_rule();
+        assert!(matches!(app.selection, RuleSelection::Only { .. }));
+        assert!(!app.selected_keys().contains(&key));
+    }
+
+    #[test]
+    fn output_scroll_is_saturating() {
+        let mut app = App::new();
+        app.scroll_output(-1);
+        assert_eq!(app.output_scroll, 0);
+        app.scroll_output(3);
+        assert_eq!(app.output_scroll, 3);
+        app.scroll_output_to_start();
+        assert_eq!(app.output_scroll, 0);
+        app.scroll_output_to_end();
+        assert_eq!(app.output_scroll, u16::MAX);
+    }
+
+    #[test]
+    fn shared_config_restores_last_input_and_selection() {
+        let config = super::SharedConfig {
+            selection: RuleSelection::None,
+            last_input: "在LeanCloud上".to_string(),
+        };
+        let app = App::with_config(Some(config), false);
+        assert_eq!(app.input.text(), "在LeanCloud上");
+        assert_eq!(app.selection, RuleSelection::None);
+    }
+
+    #[test]
+    fn empty_shared_last_input_falls_back_to_empty_editor() {
+        let config = super::SharedConfig {
+            selection: RuleSelection::Defaults,
+            last_input: String::new(),
+        };
+        let app = App::with_config(Some(config), true);
+        assert_eq!(app.input.text(), "");
+        // 尽管恢复了共享选择，仍不回写设置。
+        assert!(app.no_config);
+    }
+
+    #[test]
+    fn copy_output_reports_success_via_osc52() {
+        let mut app = App::new();
+        app.insert_text("hi");
+        app.copy_output();
+        assert_eq!(app.status, Status::Info("已复制输出（OSC 52）".to_string()));
+    }
+
+    #[test]
+    fn oversized_output_reports_clipboard_error_without_panic() {
+        let mut app = App::new();
+        app.output = "a".repeat(super::super::clipboard::MAX_CLIPBOARD_BYTES + 1);
+        app.copy_output();
+        match &app.status {
+            Status::Error(message) => assert!(message.contains("输出过大"), "got: {message}"),
+            other => panic!("expected clipboard error, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn save_settings_is_noop_under_no_config() {
+        let mut app = App::new();
+        assert!(app.no_config);
+        app.save_settings_now();
+        assert_eq!(
+            app.status,
+            Status::Info("--no-config 模式不保存设置".to_string())
+        );
+        assert!(!app.should_quit);
+    }
+
+    #[test]
+    fn overlay_variants_cover_help_and_rules() {
+        let app = App::new();
+        assert_eq!(app.overlay, None);
+        let _ = (Overlay::Help, Overlay::Rules);
+    }
+}

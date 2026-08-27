@@ -5,6 +5,9 @@ mod commands;
 pub mod engine;
 mod user_settings;
 
+#[cfg(feature = "tui")]
+pub mod tui;
+
 pub fn run() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
