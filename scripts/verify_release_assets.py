@@ -25,13 +25,18 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
-EXPECTED_ASSETS = (
+WINDOWS_ASSETS = (
     "CopyPolish.exe",
     "CopyPolish-windows-x64.7z",
+)
+
+LINUX_ASSETS = (
     "CopyPolish_linux_amd64.deb",
     "CopyPolish-linux-x86_64.rpm",
     "CopyPolish_linux_amd64.AppImage",
 )
+
+EXPECTED_ASSETS = WINDOWS_ASSETS + LINUX_ASSETS
 
 TAG_RE = re.compile(r"^v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$")
 
@@ -60,18 +65,25 @@ def check_versions(tag: str, errors: list[str]) -> None:
         fail(errors, f"版本一致性校验失败: {detail}")
 
 
-def check_assets(dist_dir: Path, errors: list[str]) -> list[Path]:
-    missing = [name for name in EXPECTED_ASSETS if not (dist_dir / name).is_file()]
+def check_assets(
+    dist_dir: Path, errors: list[str], platform: str
+) -> list[Path]:
+    expected = {
+        "windows": WINDOWS_ASSETS,
+        "linux": LINUX_ASSETS,
+        "all": EXPECTED_ASSETS,
+    }[platform]
+    missing = [name for name in expected if not (dist_dir / name).is_file()]
     for name in missing:
         fail(errors, f"缺少发布资产: {dist_dir / name}")
     extras = [
         p.name
         for p in sorted(dist_dir.iterdir())
-        if p.is_file() and p.name not in EXPECTED_ASSETS
+        if p.is_file() and p.name not in expected
     ]
     for name in extras:
         fail(errors, f"存在非预期文件（请清理后重试）: {name}")
-    return [dist_dir / name for name in EXPECTED_ASSETS if not missing]
+    return [dist_dir / name for name in expected if not missing]
 
 
 def check_7z_root_layout(archive: Path, errors: list[str]) -> None:
@@ -123,7 +135,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--dist-dir",
         default="dist",
-        help="资产所在目录（默认 dist/），五个资产必须平级放置在该目录下",
+        help="资产所在目录（默认 dist/）",
+    )
+    parser.add_argument(
+        "--platform",
+        choices=("windows", "linux", "all"),
+        default="all",
+        help="校验平台资产：windows、linux 或 all（默认 all）",
     )
     args = parser.parse_args(argv)
 
@@ -135,9 +153,9 @@ def main(argv: list[str] | None = None) -> int:
     if not dist_dir.is_dir():
         fail(errors, f"资产目录不存在: {dist_dir}")
     else:
-        present = check_assets(dist_dir, errors)
+        present = check_assets(dist_dir, errors, args.platform)
         archive = dist_dir / "CopyPolish-windows-x64.7z"
-        if archive.is_file():
+        if args.platform in ("windows", "all") and archive.is_file():
             check_7z_root_layout(archive, errors)
         if present and not errors:
             print(f"OK: {len(present)} 个资产命名齐全")

@@ -328,11 +328,11 @@ git diff --check
 `.github/workflows/release.yml` 暂保留为 GitHub 镜像阶段的备用路径，待 GitLab
 Release 与 GitHub Release 同步稳定后降级为手动触发：
 
-- `.gitlab-ci.yml` 在 GitLab `dev`、`master` 与 MR 上运行快速验证；tag 流水线拆分为 Linux / Windows 构建、资产汇总校验和 GitLab Release；
+- `.gitlab-ci.yml` 在 GitLab `dev`、`master` 与 MR 上运行快速验证；tag 流水线只在 Windows SaaS runner 构建 Windows 便携版，再由 `publish:windows` 上传；Linux 三项安装包由本地 `scripts/build_release_local.sh` 构建并上传，最后手动运行 `release:finalize` 汇总五个资产并创建 GitLab Release；
 
 - `ci.yml` 在 GitHub `dev`、`master` 与 PR 上运行同等快速验证；GitLab 成为主 CI 后仅作为备用/过渡检查；
 - `release.yml` 仍可在推送 `v*` tag 时运行完整 GitHub 发布流水线，也支持 workflow_dispatch；迁移完成后不得与 GitLab tag Release 同时自动创建同一 Release，应改为手动 fallback；
-- 构建阶段拆分为 `linux-build` 与 `windows-build` 两个独立 job 并行执行：Linux 构建 deb/rpm/AppImage 并上传 `bundle-ubuntu-latest`；Windows 以 `--no-bundle` 构建无边框便携 `.exe`，以临时根目录打包为只含 exe/DLL 的 `.7z` 后上传 `windows-portable`（不生成任何安装器——WiX MSI 无法处理中文产品名，且产品定位为免安装便携版）。项目不支持 macOS。发布类 artifact 设置了短保留期（Linux bundle 与 Windows portable 均为 3 天、Windows 失败日志 1 天）并关闭二次压缩（`compression-level: 0`），长期下载一律以 GitHub Release assets 为准；
+- Windows SaaS job 以 `--no-bundle` 构建无边框便携 `.exe`，以临时根目录打包为只含 exe/DLL 的 `.7z` 后上传 `windows-portable`（不生成任何安装器——WiX MSI 无法处理中文产品名，且产品定位为免安装便携版）；Linux `.deb` / `.rpm` / `.AppImage` 由本地 Linux worktree 构建并通过 `scripts/upload_gitlab_linux_assets.sh` 上传。项目不支持 macOS。发布类 artifact 仅作短期传递，长期下载一律以 GitLab/GitHub Release assets 为准；
 - `windows-smoke` job（windows-latest）：直接下载 `windows-build` 上传的同一份 `CopyPolish.exe` 做 GUI 冒烟——启动进程 → 轮询等待主窗口句柄出现（最长 60 秒）→ 保持 10 秒验证稳定性 → 强制结束进程；在 GitLab SaaS runner 的 GUI smoke 验收完成前，可继续作为过渡门禁。
 
 GitLab SaaS Windows runner 当前使用标签 `saas-windows-medium-amd64`，每个 job 使用全新 Windows VM，默认 shell 为 Windows PowerShell 5.1。镜像预装 Node 21.x、Git 与 7-Zip，但未预装 Rust；`.gitlab-ci.yml` 在 job 内安装 Node 24.19.0、Rust 1.98.0 MSVC、Python 3 shim，并设置 `PYTHONIOENCODING=utf-8`。如需使用 PowerShell 7，只能在 job 内安装后通过 `pwsh -File` 调用，不能通过项目 YAML 修改 SaaS runner 的底层 shell。
