@@ -15,11 +15,11 @@
 #
 # Runner 要求：
 #   - Linux job：GitLab.com hosted runner 或任意带 Docker 的 self-managed runner；
-#   - Windows job（build:windows）：必须先注册一台 Windows shell executor runner，
-#     打标签 windows + x86_64，并预装 Node.js 24.19.0、Rust 1.98.0（MSVC）、
-#     VS C++ Build Tools、WebView2 Runtime、7-Zip、Python 3、Git。
-#     在该 runner 注册完成之前，tag 流水线会卡在 build:windows——这是预期行为，
-#     代表迁移阶段四（Windows Runner 验证）尚未完成。
+#   - Windows job（build:windows）：使用 GitLab.com SaaS Windows runner，标签
+#     saas-windows-medium-amd64。该镜像未预装 Rust（Node 预装 21.x，非项目固定
+#     24.19.0），因此 job 内用 rustup 自装 MSVC 工具链并对齐 Node 24.19.0
+#     （详见 docs/development/gitlab-migration.md §4）。
+#     本 job 按「全新 VM、自装工具链」设计，不依赖跨 job 缓存。
 
 stages:
   - test
@@ -260,26 +260,57 @@ build:linux:
 
 build:windows:
   stage: build
-  timeout: 60 minutes
+  timeout: 90 minutes
   needs: []
   tags:
     - saas-windows-medium-amd64
+  # SaaS Windows runner 每 job 全新 VM，镜像未预装 Rust（Node 为 21.x）。
+  # 本 job 在同一 PowerShell 会话内完成：对齐 Node 24.19.0 → rustup 装 MSVC 工具链
+  # → 复用本地发布脚本构建并打包 → 归位 artifacts 到 dist/windows/。
   script:
-    # 环境检查
-    - node --version
-    - rustc --version
-    - cargo --version
-    - python3 --version
-    - 7z | Select-Object -First 1
-    # 复用既有本地构建脚本：包含 prepare_release_version / check_version /
-    # tauri --no-bundle 构建 / 7z 打包（根目录含 CopyPolish.exe）/ verify_release_assets。
-    # -SkipVerify 仅跳过与 test:rust / test:frontend 重复的全量测试；
-    # runner 的 fresh clone 满足脚本要求的干净工作区。
-    - .\scripts\build_release_local.ps1 $env:CI_COMMIT_TAG -SkipVerify
-    # 归位到统一 artifacts 布局（dist/windows/），供 package 阶段合并
-    - New-Item -ItemType Directory -Force -Path dist\windows | Out-Null
-    - Move-Item dist\CopyPolish.exe           dist\windows\CopyPolish.exe
-    - Move-Item dist\CopyPolish-windows-x64.7z dist\windows\CopyPolish-windows-x64.7z
+    - |
+      $ErrorActionPreference = 'Stop'
+      Write-Host '== 环境探测 =='
+      $PSVersionTable | Select-Object PSVersion
+      git --version
+      Write-Host "node=$(node --version) npm=$(npm --version)"
+
+      # --- 对齐 Node 24.19.0（镜像预装 21.x，项目固定 24.19.0）---
+      $nodeMajor = ((node --version).TrimStart('v') -split '\.')[0]
+      if ($nodeMajor -ne '24') {
+        Write-Host '== 安装 Node 24.19.0 到临时目录 =='
+        $np = Join-Path $env:TEMP 'node24'
+        if (-not (Test-Path (Join-Path $np 'node.exe'))) {
+          $zip = Join-Path $env:TEMP 'node24.zip'
+          Invoke-WebRequest -Uri 'https://nodejs.org/dist/v24.19.0/node-v24.19.0-win-x64.zip' -OutFile $zip
+          Expand-Archive -Path $zip -DestinationPath $env:TEMP -Force
+          Move-Item (Join-Path $env:TEMP 'node-v24.19.0-win-x64') $np -Force
+        }
+        $env:PATH = "$np;$env:PATH"
+      }
+
+      # --- Rust MSVC 工具链（镜像未预装）---
+      if (-not (Get-Command rustc -ErrorAction SilentlyContinue)) {
+        Write-Host '== rustup 安装 stable-x86_64-pc-windows-msvc =='
+        $rb = Join-Path $env:TEMP 'rustup-init.exe'
+        if (-not (Test-Path $rb)) {
+          Invoke-WebRequest -Uri 'https://win.rustup.rs/x86_64' -OutFile $rb
+        }
+        & $rb -y --profile minimal --default-toolchain stable --target x86_64-pc-windows-msvc
+        $env:PATH = "$env:USERPROFILE\.cargo\bin;$env:PATH"
+      }
+
+      Write-Host '== 版本核对 =='
+      node --version; npm --version; rustc --version; cargo --version
+      Write-Host "7z=$((Get-Command 7z -ErrorAction SilentlyContinue).Source)"
+
+      Write-Host '== 构建并打包（复用本地发布脚本）=='
+      .\scripts\build_release_local.ps1 $env:CI_COMMIT_TAG -SkipVerify
+
+      # 归位到统一 artifacts 布局，供 package 阶段合并
+      New-Item -ItemType Directory -Force -Path dist\windows | Out-Null
+      Move-Item dist\CopyPolish.exe            dist\windows\CopyPolish.exe
+      Move-Item dist\CopyPolish-windows-x64.7z dist\windows\CopyPolish-windows-x64.7z
   artifacts:
     name: windows-portable-$CI_COMMIT_TAG
     paths:
