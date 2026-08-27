@@ -65,8 +65,7 @@ test:rust:
   script:
     # rust 镜像默认不含 git/python3；GitLab clone 在容器内进行，必须先装 git。
     # tauri/wry 默认 feature 也会编译 GTK 与 WebKit 绑定（gdk-sys/soup3-sys 等），
-    # GitHub 的 ubuntu-latest 预装了这些开发库而本容器没有，因此补齐全套
-    # （与 build:linux 的系统依赖一致）。
+    # GitLab Linux 测试环境需要这些 GTK/WebKit 开发库；Linux Release 资产则在本地构建。
     - apt-get update && apt-get install -y --no-install-recommends git python3 ca-certificates pkg-config
     - apt-get install -y --no-install-recommends libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
     - rustc --version && cargo --version
@@ -101,267 +100,90 @@ test:frontend:
     - npm run build
   rules: !reference [.rules_branch, rules]
 
-# ---- Stage 3：资产汇总与校验（仅 tag） ---------------------------------------
-package:assemble:
-  stage: package
-  image: alpine:3.20
-  needs:
-    - job: build:linux
-      artifacts: true
-    - job: build:windows
-      artifacts: true
-  timeout: 15 minutes
-  before_script:
-    - apk add --no-cache python3 coreutils findutils
-  script:
-    - mkdir -p dist/final
-    - cp dist/windows/CopyPolish.exe                dist/final/
-    - cp dist/windows/CopyPolish-windows-x64.7z     dist/final/
-    - cp dist/linux/CopyPolish_linux_amd64.deb      dist/final/
-    - cp dist/linux/CopyPolish-linux-x86_64.rpm     dist/final/
-    - cp dist/linux/CopyPolish_linux_amd64.AppImage dist/final/
-    # 完整五资产 + 7z 根目录结构校验（复用既有脚本）
-    - python3 scripts/verify_release_assets.py "$CI_COMMIT_TAG" --dist-dir dist/final
-    # 同时生成 SHA256SUMS 并复核
-    - cd dist/final && sha256sum CopyPolish.exe CopyPolish-windows-x64.7z CopyPolish_linux_amd64.deb CopyPolish-linux-x86_64.rpm CopyPolish_linux_amd64.AppImage > SHA256SUMS && cd ../..
-    - sha256sum -c dist/final/SHA256SUMS
-    - ls -la dist/final
-  artifacts:
-    name: release-files-$CI_COMMIT_TAG
-    paths:
-      - dist/final/
-    expire_in: 3 days
-  rules: !reference [.rules_tags, rules]
-
-# ---- Stage 4：GitLab Release 发布（仅 tag） ----------------------------------
-# 上传五资产 + SHA256SUMS 到 Generic Package Registry（CI_JOB_TOKEN 认证，无额外密钥），
-# 然后用 REST API 创建 Release 并把六个文件挂为 Asset Links。
-# 预发布判断与 GitHub 一致：tag 名含 "-" 即 prerelease。
-release:gitlab:
-  stage: release
-  image: alpine:3.20
-  needs:
-    - job: package:assemble
-      artifacts: true
-  timeout: 15 minutes
-  # 同一 tag 的发布严格串行，防止并行流水线重复创建 Release
-  resource_group: release-$CI_COMMIT_TAG
-  interruptible: false
-  before_script:
-    - apk add --no-cache python3 curl
-  script:
-    - |
-      BASE_URL="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/copypolish/${CI_COMMIT_TAG}"
-      AUTH="JOB-TOKEN: ${CI_JOB_TOKEN}"
-      for f in CopyPolish.exe CopyPolish-windows-x64.7z CopyPolish_linux_amd64.deb CopyPolish-linux-x86_64.rpm CopyPolish_linux_amd64.AppImage SHA256SUMS; do
-        echo "== Uploading ${f} =="
-        curl -sf --header "${AUTH}" --upload-file "dist/final/${f}" "${BASE_URL}/${f}" \
-          || { echo "ERROR: failed to upload ${f}"; exit 1; }
-      done
-    - |
-      python3 - <<'PYEOF'
-      import json, os, urllib.request
-
-      api = os.environ["CI_API_V4_URL"]
-      pid = os.environ["CI_PROJECT_ID"]
-      tag = os.environ["CI_COMMIT_TAG"]
-      sha = os.environ["CI_COMMIT_SHA"]
-      pkg = f"{api}/projects/{pid}/packages/generic/copypolish/{tag}"
-
-      files = [
-          "CopyPolish.exe",
-          "CopyPolish-windows-x64.7z",
-          "CopyPolish_linux_amd64.deb",
-          "CopyPolish-linux-x86_64.rpm",
-          "CopyPolish_linux_amd64.AppImage",
-          "SHA256SUMS",
-      ]
-      payload = {
-          "tag_name": tag,
-          "ref": sha,
-          "name": tag,
-          "prerelease": "-" in tag,   # 与 GitHub Actions 的预发布规则一致
-          "description": "\n".join([
-              f"# {tag}",
-              "",
-              f"- Commit: `{sha}`",
-              "- 二进制文件位于本页 Asset Links（Generic Package Registry）。",
-              "",
-              "## SHA-256 校验",
-              "",
-              "下载 SHA256SUMS 后运行：`sha256sum -c SHA256SUMS`",
-              "",
-              "> 本说明由 CI 自动生成；按项目约定，正式对外发布的",
-              "> Release Notes 必须人工复核后在此页面补充。",
-          ]),
-          "assets": {
-              "links": [
-                  {"name": f, "url": f"{pkg}/{f}", "link_type": "package"}
-                  for f in files
-              ]
-          },
-      }
-
-      req = urllib.request.Request(
-          f"{api}/projects/{pid}/releases",
-          data=json.dumps(payload).encode(),
-          headers={"JOB-TOKEN": os.environ["CI_JOB_TOKEN"],
-                   "Content-Type": "application/json"},
-          method="POST",
-      )
-      with urllib.request.urlopen(req) as resp:
-          body = json.loads(resp.read())
-          print(f"OK: created release tag={body.get('tag_name')} "
-                f"prerelease={body.get('prerelease')}")
-      PYEOF
-    - echo "Release 页面：${CI_PROJECT_URL}/-/releases/${CI_COMMIT_TAG}"
-  rules: !reference [.rules_tags, rules]
-
-# ---- Stage 2：双平台构建（仅 tag） -------------------------------------------
-build:linux:
-  stage: build
-  image: rust:1.98-bookworm
-  timeout: 45 minutes
-  needs: []
-  cache:
-    key:
-      files:
-        - src-tauri/Cargo.lock
-      prefix: rust-linux-v1.98.0
-    paths:
-      - .cargo/
-      - src-tauri/target/
-  before_script:
-    - apt-get update
-    - apt-get install -y --no-install-recommends git python3 curl ca-certificates xz-utils
-    # Tauri Linux 打包系统依赖（与 release.yml 一致）
-    - apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-    # 安装 Node.js 24 到系统路径
-    - curl -fsSL https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz | tar -xJ --strip-components=1 -C /usr/local
-    - node --version && npm --version && rustc --version && cargo --version
-  script:
-    # 将 tag 完整版本（含预发布后缀）写入构建配置，使 getVersion() 与 tag 一致。
-    - python3 scripts/prepare_release_version.py "$CI_COMMIT_TAG"
-    - python3 scripts/check_version.py "$CI_COMMIT_TAG"
-    - npm ci --prefix frontend
-    - npm run tauri --prefix frontend -- build
-    # 收集统一命名的 Linux 资产，供 package 阶段合并
-    - mkdir -p dist/linux
-    - find src-tauri/target/release/bundle -name '*.deb' -exec cp {} dist/linux/CopyPolish_linux_amd64.deb \;
-    - find src-tauri/target/release/bundle -name '*.rpm' -exec cp {} dist/linux/CopyPolish-linux-x86_64.rpm \;
-    - find src-tauri/target/release/bundle -name '*.AppImage' -exec cp {} dist/linux/CopyPolish_linux_amd64.AppImage \;
-    - ls -la dist/linux
-  artifacts:
-    name: linux-bundles-$CI_COMMIT_TAG
-    paths:
-      - dist/linux/
-    expire_in: 3 days
-  rules: !reference [.rules_tags, rules]
-
+# ---- Stage 2：Windows SaaS 构建（仅 tag） ------------------------------------
 build:windows:
   stage: build
   timeout: 90 minutes
   needs: []
   tags:
     - saas-windows-medium-amd64
-  # SaaS Windows runner 每 job 全新 VM，镜像未预装 Rust（Node 为 21.x）。
-  # 本 job 在同一 PowerShell 会话内完成：对齐 Node 24.19.0 → rustup 装 MSVC 工具链
-  # → 复用本地发布脚本构建并打包 → 归位 artifacts 到 dist/windows/。
+  # SaaS Windows runner 每 job 全新 VM；完整工具链与构建逻辑见
+  # scripts/ci/build_windows_gitlab.ps1。
   script:
     - |
       $ErrorActionPreference = 'Stop'
-      # Windows SaaS runner 的 Python 默认 stdout 为 cp1252；项目脚本会输出中文，
-      # 必须显式使用 UTF-8，否则 check_version.py 会触发 UnicodeEncodeError。
-      $env:PYTHONIOENCODING = 'utf-8'
-      Write-Host '== 环境探测 =='
-      $PSVersionTable | Select-Object PSVersion
-      git --version
-      Write-Host "node=$(node --version) npm=$(npm --version)"
-
-      # CARGO_HOME 不能位于仓库目录：rustup 会在其中创建 .cargo 内容，
-      # 使 build_release_local.ps1 的 git clean-worktree 检查失败。
-      # Windows SaaS runner 是临时 VM，因此把 Rust 状态放到 TEMP，避免污染源码工作区。
-      $env:CARGO_HOME = Join-Path $env:TEMP 'copypolish-cargo-home'
-      $env:RUSTUP_HOME = Join-Path $env:TEMP 'copypolish-rustup-home'
-      New-Item -ItemType Directory -Force -Path $env:CARGO_HOME, $env:RUSTUP_HOME | Out-Null
-      Write-Host "CARGO_HOME=$env:CARGO_HOME"
-      Write-Host "RUSTUP_HOME=$env:RUSTUP_HOME"
-
-      # --- 对齐 Node 24.19.0（镜像预装 21.x，项目固定 24.19.0）---
-      $nodeMajor = ((node --version).TrimStart('v') -split '\.')[0]
-      if ($nodeMajor -ne '24') {
-        Write-Host '== 安装 Node 24.19.0 到临时目录 =='
-        $np = Join-Path $env:TEMP 'node24'
-        if (-not (Test-Path (Join-Path $np 'node.exe'))) {
-          $zip = Join-Path $env:TEMP 'node24.zip'
-          Invoke-WebRequest -Uri 'https://nodejs.org/dist/v24.19.0/node-v24.19.0-win-x64.zip' -OutFile $zip
-          Expand-Archive -Path $zip -DestinationPath $env:TEMP -Force
-          Move-Item (Join-Path $env:TEMP 'node-v24.19.0-win-x64') $np -Force
-        }
-        $env:PATH = "$np;$env:PATH"
-      }
-
-      # --- Rust MSVC 工具链（镜像未预装；bin 随临时 CARGO_HOME）---
-      $cargoBinDir = Join-Path $env:CARGO_HOME 'bin'
-      $rustcPath = Join-Path $cargoBinDir 'rustc.exe'
-      if (-not (Test-Path $rustcPath)) {
-        Write-Host '==> rustup 安装 stable-x86_64-pc-windows-msvc =='
-        $rb = Join-Path $env:TEMP 'rustup-init.exe'
-        if (-not (Test-Path $rb)) {
-          Invoke-WebRequest -Uri 'https://win.rustup.rs/x86_64' -OutFile $rb
-        }
-        & $rb -y --profile minimal
-        $rustupExe = Join-Path $cargoBinDir 'rustup.exe'
-        & $rustupExe toolchain install stable-x86_64-pc-windows-msvc
-        & $rustupExe default stable-x86_64-pc-windows-msvc
-      }
-      $env:PATH = "$cargoBinDir;$env:PATH"
-
-      # --- python3（版本脚本依赖；缺则建 shim 调 python）---
-      $py3 = Get-Command python3 -ErrorAction SilentlyContinue
-      if (-not $py3) {
-        $pyexe = Get-Command python -ErrorAction SilentlyContinue
-        if (-not $pyexe) {
-          Write-Host '==> 安装 Python（chocolatey）=='
-          & choco install python -y --no-progress 2>&1 | Out-Host
-          $pyexe = Get-Command python -ErrorAction SilentlyContinue
-        }
-        if ($pyexe) {
-          $shimDir = Join-Path $env:TEMP 'ppshim'
-          New-Item -ItemType Directory -Force -Path $shimDir | Out-Null
-          $shim = Join-Path $shimDir 'python3.cmd'
-          '@echo off' | Out-File -Encoding ascii -FilePath $shim
-          ('"{0}" %*' -f $pyexe.Source) | Out-File -Encoding ascii -FilePath $shim -Append
-          $env:PATH = "$shimDir;$env:PATH"
-          Write-Host "python3 shim -> $($pyexe.Source)"
-        }
-      }
-
-      Write-Host '== 版本核对 =='
-      node --version; npm --version
-      rustc --version; cargo --version; rustup --version
-      if (Get-Command python3 -ErrorAction SilentlyContinue) { python3 --version } else { Write-Host 'python3 MISSING' }
-      Write-Host "7z=$((Get-Command 7z -ErrorAction SilentlyContinue).Source)"
-
-      Write-Host '== 构建并打包（复用本地发布脚本）=='
-      .\scripts\build_release_local.ps1 $env:CI_COMMIT_TAG -SkipVerify
-
-      if (-not (Test-Path 'dist\CopyPolish.exe')) {
-        throw 'Windows 构建脚本未生成 dist\CopyPolish.exe，停止 artifact 归位。'
-      }
-      if (-not (Test-Path 'dist\CopyPolish-windows-x64.7z')) {
-        throw 'Windows 构建脚本未生成 dist\CopyPolish-windows-x64.7z，停止 artifact 归位。'
-      }
-
-      # 归位到统一 artifacts 布局，供 package 阶段合并
-      New-Item -ItemType Directory -Force -Path dist\windows | Out-Null
-      Move-Item dist\CopyPolish.exe            dist\windows\CopyPolish.exe
-      Move-Item dist\CopyPolish-windows-x64.7z dist\windows\CopyPolish-windows-x64.7z
+      & powershell.exe -NoProfile -ExecutionPolicy Bypass `
+        -File .\scripts\ci\build_windows_gitlab.ps1 `
+        -Tag $env:CI_COMMIT_TAG
+      if ($LASTEXITCODE -ne 0) { throw "Windows 构建脚本失败，退出码 $LASTEXITCODE" }
   artifacts:
     name: windows-portable-$CI_COMMIT_TAG
     paths:
       - dist/windows/
     expire_in: 3 days
+  rules: !reference [.rules_tags, rules]
+
+# Windows 资产上传到 Generic Package Registry；Linux 资产由本地脚本上传。
+publish:windows:
+  stage: package
+  image: alpine:3.20
+  needs:
+    - job: build:windows
+      artifacts: true
+  timeout: 15 minutes
+  script:
+    - apk add --no-cache curl
+    - |
+      BASE_URL="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/copypolish/${CI_COMMIT_TAG}"
+      for f in CopyPolish.exe CopyPolish-windows-x64.7z; do
+        echo "== 上传 Windows 资产: ${f} =="
+        curl --fail --show-error --location \
+          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+          --upload-file "dist/windows/${f}" "${BASE_URL}/${f}"
+      done
+  rules: !reference [.rules_tags, rules]
+
+# 本地 Linux 资产与 Windows CI 资产合并后，人工点击执行最终 Release。
+# Linux 文件必须先由 scripts/upload_gitlab_linux_assets.sh 上传到同一 tag 的 package。
+release:finalize:
+  stage: release
+  image: alpine:3.20
+  needs:
+    - job: publish:windows
+      artifacts: false
+  timeout: 20 minutes
+  resource_group: release-$CI_COMMIT_TAG
+  interruptible: false
+  when: manual
+  allow_failure: false
+  before_script:
+    - apk add --no-cache curl python3 coreutils
+  script:
+    - mkdir -p dist/final
+    - |
+      BASE_URL="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/copypolish/${CI_COMMIT_TAG}"
+      for f in CopyPolish.exe CopyPolish-windows-x64.7z CopyPolish_linux_amd64.deb CopyPolish-linux-x86_64.rpm CopyPolish_linux_amd64.AppImage; do
+        echo "== 下载 Release 资产: ${f} =="
+        curl --fail --show-error --location \
+          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+          --output "dist/final/${f}" "${BASE_URL}/${f}"
+      done
+    - >-
+      python3 scripts/verify_release_assets.py "$CI_COMMIT_TAG"
+      --dist-dir dist/final --platform all
+    - >-
+      cd dist/final && sha256sum CopyPolish.exe CopyPolish-windows-x64.7z
+      CopyPolish_linux_amd64.deb CopyPolish-linux-x86_64.rpm
+      CopyPolish_linux_amd64.AppImage > SHA256SUMS
+      && sha256sum -c SHA256SUMS && cd ../..
+    - >-
+      curl --fail --show-error --location
+      --header "JOB-TOKEN: ${CI_JOB_TOKEN}"
+      --upload-file dist/final/SHA256SUMS "${BASE_URL}/SHA256SUMS"
+    - >-
+      python3 scripts/ci/create_gitlab_release.py
+    - >-
+      echo "Release 页面：${CI_PROJECT_URL}/-/releases/${CI_COMMIT_TAG}"
   rules: !reference [.rules_tags, rules]
 
 # ==============================================================================

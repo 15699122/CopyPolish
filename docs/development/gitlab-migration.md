@@ -5,7 +5,8 @@
 
 > 现状速览（2026-08-27）：GitLab 已是主仓库与主 CI，GitHub 为只读镜像与第二个下载入口；
 > 普通 CI（test:rust / test:frontend）已在 GitLab 全绿；Windows SaaS runner 已成功调度；
-> `v0.5.0-pre6` 的 Linux 构建已成功，Windows 构建仍在修复 PowerShell/Python CI 环境兼容性；
+> `v0.5.0-pre6` 的 Linux 构建已成功；Windows SaaS 已完成 Rust/Node/Python/7-Zip 初始化，
+> 当前最后失败点为 Tauri `--no-bundle` 参数转发，独立构建脚本已修正该调用；Linux 已切换为本地构建后上传；
 > push mirror 与 GitHub Release 同步尚未配置。
 
 ## 1. 架构与目标
@@ -71,14 +72,14 @@ GitLab 比 GitHub 多以下内容（这些 tag 在 GitHub 从未存在）：
 主配置：仓库根 `.gitlab-ci.yml`。按 `workflow:rules` 分流：
 
 - **分支 / MR**（`dev` / `master`）：`test:rust`、`test:frontend`；
-- **tag**（`vX.Y.Z` 或含 `-` 的预发布）：`build:linux` → `build:windows`（并行）→ `package:assemble` → `release:gitlab`。
+- **tag**（`vX.Y.Z` 或含 `-` 的预发布）：`build:windows` → `publish:windows` → 手动 `release:finalize`；Linux 资产由本地脚本上传后参与 finalize。
 
 stage 顺序：`test → build → package → release`。
 
-- `build:linux`：`rust:1.98` 镜像 + Tauri 系统依赖（完整 GTK / WebKitGTK 链路），产出 deb / rpm / AppImage；
-- `build:windows`：Windows SaaS runner，job 内自装 Rust + Node 24.19.0，复用 `scripts/build_release_local.ps1 <tag> -SkipVerify`，产出 `CopyPolish.exe` 与 `.7z`；
-- `package:assemble`：合并五资产 → `verify_release_assets.py` → 生成并复核 `SHA256SUMS`；
-- `release:gitlab`：五资产 + SHA256SUMS 上传 Generic Package Registry（`CI_JOB_TOKEN` 认证，无额外密钥），POST `/releases` 创建 Release；tag 含 `-` 即 prerelease；`resource_group` 防同 tag 并发。
+- `build:windows`：Windows SaaS runner，独立脚本 `scripts/ci/build_windows_gitlab.ps1` 自装并核验 MSVC/Rust/Node/Python/7-Zip，使用已验证的 `npm run tauri build -- --no-bundle`，产出两个 Windows 资产；
+- `publish:windows`：使用 `CI_JOB_TOKEN` 上传 Windows 资产至 Generic Package Registry；
+- Linux 资产：在 Node 24.19.0 和 Linux Tauri 依赖齐全的本地隔离 worktree 中运行 `scripts/build_release_local.sh`，再运行 `scripts/upload_gitlab_linux_assets.sh` 上传三个 Linux 资产；
+- `release:finalize`：手动下载同一 tag 的五个资产，运行 `verify_release_assets.py --platform all`，生成 SHA256SUMS，上传摘要并创建 GitLab Release；tag 含 `-` 即 prerelease；`resource_group` 防同 tag 并发。
 
 版本脚本复用既有：`check_version.py` / `prepare_release_version.py` / `verify_release_assets.py`。
 
@@ -87,12 +88,14 @@ stage 顺序：`test → build → package → release`。
 GitLab 为主，GitHub 为镜像，不做双向写：
 
 - refs 同步：GitLab **push mirror** 到 GitHub（Settings → Repository → Mirroring repositories → Push）；
-- Release assets：由 GitLab CI 的 `mirror-release` job（需 CI/CD Variable `GITHUB_RELEASE_TOKEN`、`GITHUB_REPOSITORY`）把 `release:gitlab` 同一批资产发布到 GitHub Release；
+- Release assets：由 GitLab CI 后续新增的 `mirror-release` job（需 CI/CD Variable `GITHUB_RELEASE_TOKEN`、`GITHUB_REPOSITORY`）把 `release:finalize` 生成的同一批资产发布到 GitHub Release；
 - GitHub Actions：迁移稳定后降级为手动 / 备用，避免两边重复构建与重复创建 Release。
 
 ## 7. 当前待办（按优先级）
 
-- [x] **`build:windows` 自装工具链基础部分**（rustup 装 Rust + MSVC，装 Node 24.19.0、Python 3 shim、7-Zip）已落地到 dev；SaaS runner 已成功执行工具链安装，待完成 Windows 资产构建验证；
+- [x] **`build:windows` 自装工具链基础部分**（rustup 装 Rust + MSVC，装 Node 24.19.0、Python 3 shim、7-Zip）已落地到 dev；SaaS runner 已成功执行工具链安装；
+- [ ] 修正后的独立 Windows 脚本在 SaaS runner 上完成 Tauri exe / `.7z` 产物验证（前一版已完成工具链初始化，但 `--no-bundle` 参数传递错误）；
+- [ ] 本地 Linux 资产完成构建、平台校验和 Generic Package Registry 上传（上传脚本已实现，待用真实 tag 验证）；
 - [x] 清理临时分支 `ci/windows-probe`（本地 + GitLab）及其临时 `workflow:rules` 放行；
 - [ ] tag 对齐决策：是否将 GitLab 独有的 `v0.5.0` / `v0.5.0-pre5` / backup tag 补推 GitHub；
 - [ ] 配置 GitLab → GitHub push to；
