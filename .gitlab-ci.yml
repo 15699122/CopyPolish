@@ -64,7 +64,9 @@ test:rust:
       - src-tauri/target/
   script:
     # rust 镜像默认不含 git/python3；GitLab clone 在容器内进行，必须先装 git。
-    - apt-get update && apt-get install -y --no-install-recommends git python3 ca-certificates
+    # tauri 依赖链（tao/muda → gdk-sys 等）即使默认 feature 也会编译 gdk-sys，
+    # GitHub 的 ubuntu-latest 预装了 GTK3 dev，而本容器没有，必须补装。
+    - apt-get update && apt-get install -y --no-install-recommends git python3 ca-certificates pkg-config libgtk-3-dev
     - rustc --version && cargo --version
     - cd src-tauri
     - cargo fmt --check
