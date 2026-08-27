@@ -289,20 +289,21 @@ build:windows:
         $env:PATH = "$np;$env:PATH"
       }
 
-      # --- Rust MSVC 工具链（镜像未预装；显式装 default toolchain，规避既有 settings）---
-      $cargoBin = Join-Path $env:USERPROFILE '.cargo\bin\rustc.exe'
-      if (-not (Test-Path $cargoBin)) {
+      # --- Rust MSVC 工具链（镜像未预装；CARGO_HOME=$CI_PROJECT_DIR/.cargo，故 bin 在项目目录下）---
+      $cargoBinDir = Join-Path $env:CI_PROJECT_DIR '.cargo\bin'
+      $rustcPath = Join-Path $cargoBinDir 'rustc.exe'
+      if (-not (Test-Path $rustcPath)) {
         Write-Host '==> rustup 安装 stable-x86_64-pc-windows-msvc =='
         $rb = Join-Path $env:TEMP 'rustup-init.exe'
         if (-not (Test-Path $rb)) {
           Invoke-WebRequest -Uri 'https://win.rustup.rs/x86_64' -OutFile $rb
         }
         & $rb -y --profile minimal
-        $rustup = Join-Path $env:USERPROFILE '.cargo\bin\rustup.exe'
-        & $rustup toolchain install stable-x86_64-pc-windows-msvc
-        & $rustup default stable-x86_64-pc-windows-msvc
+        $rustupExe = Join-Path $cargoBinDir 'rustup.exe'
+        & $rustupExe toolchain install stable-x86_64-pc-windows-msvc
+        & $rustupExe default stable-x86_64-pc-windows-msvc
       }
-      $env:PATH = "$env:USERPROFILE\.cargo\bin;$env:PATH"
+      $env:PATH = "$cargoBinDir;$env:PATH"
 
       # --- python3（版本脚本依赖；缺则建 shim 调 python）---
       $py3 = Get-Command python3 -ErrorAction SilentlyContinue
@@ -316,7 +317,9 @@ build:windows:
         if ($pyexe) {
           $shimDir = Join-Path $env:TEMP 'ppshim'
           New-Item -ItemType Directory -Force -Path $shimDir | Out-Null
-          Set-Content -Path (Join-Path $shimDir 'python3.cmd') -Value "@echo off`r`n`\"$($pyexe.Source)`\" %*"
+          $shim = Join-Path $shimDir 'python3.cmd'
+          '@echo off' | Out-File -Encoding ascii -FilePath $shim
+          ('"{0}" %*' -f $pyexe.Source) | Out-File -Encoding ascii -FilePath $shim -Append
           $env:PATH = "$shimDir;$env:PATH"
           Write-Host "python3 shim -> $($pyexe.Source)"
         }
