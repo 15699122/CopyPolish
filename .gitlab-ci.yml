@@ -263,8 +263,7 @@ build:windows:
   timeout: 60 minutes
   needs: []
   tags:
-    - windows
-    - x86_64
+    - saas-windows-medium-amd64
   script:
     # 环境检查
     - node --version

@@ -17,7 +17,13 @@
 返回 MCP/OAuth 协议响应而非 404 即为已开启。
 
 本项目使用的 GitLab 项目地址为
-`https://gitlab.com/Olivaceum/chinese_copywriting_formatter`。
+`https://gitlab.com/olivaceum-group/chinese_copywriting_formatter`
+（Olivaceum-group，Ultimate 试用中）。
+
+## 使用约束
+
+GitLab MCP Server 仅支持 OAuth 2.0 认证，**不能使用 Personal Access Token**
+连接（PAT 仅用于本仓库 git 推送与 REST API 运维）。
 
 ## 2. Cline 配置（首选：原生 Streamable HTTP）
 
@@ -68,6 +74,13 @@
 ```
 
 要求 Node.js ≥ 20（本项目已固定 24.19.0）。
+
+> **FAQ：能否用 Personal Access Token 配置 MCP Server？**
+> **不能。** GitLab MCP Server 仅支持 OAuth 2.0（DCR 或预注册的
+> scope 为 `mcp` 的 OAuth Application），官方不支持通过
+> `Authorization: Bearer glpat-...` header 直接传 PAT 认证。
+> PAT（如本机 `~/.git-credentials` 中保存的那个）只用于 git 推送
+> 与 REST/GraphQL API 运维操作，与 MCP 会话互不相干。
 
 ## 4. 验收清单
 
