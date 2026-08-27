@@ -193,7 +193,7 @@ npm ci --prefix frontend
 
 默认在 `dev` 分支开发，`master` 只保留已验证的稳定代码：
 
-使用 Cline Act Mode 修改本地文件时，完成实现与必要验证后应自动同步本次修改结果至 Markdown 文档，并同步到 GitHub 远程仓库的相应分支：
+使用 Cline Act Mode 修改本地文件时，完成实现与必要验证后应自动同步本次修改结果至 Markdown 文档，并同步到 GitHub 主仓库的相应分支：
 
 1. 先检查 `git status --short --branch`，确认当前分支、远程跟踪分支与待提交文件；
 2. 查看 diff，确保提交范围只包含本次任务相关更改；
@@ -201,7 +201,7 @@ npm ci --prefix frontend
 4. 若本次修改不改变已有文档描述，不做无意义改写，但必须在最终结果中明确说明“已审阅 Markdown 文档，确认无需更新”；文档更新应与代码修改一起纳入本次 diff、验证、提交与推送；
 5. 运行与本次修改相关的必要验证；
 6. 使用清晰的 commit message 提交；
-7. 推送到当前分支对应的远程分支（通常为 `origin/<当前分支>`，例如 `dev -> origin/dev`）；
+7. 推送到 GitHub 主仓库的对应分支（`origin/<当前分支>`，例如 `dev -> origin/dev`）；GitLab 仅接收 Release workflow 推送的 `v*` tag；
 8. 推送后再次检查 `git status --short --branch`，确认本地分支与远程分支已同步。
 
 ```bash
@@ -324,22 +324,23 @@ git diff --check
 
 ## 持续集成
 
-当前 CI/CD 主路径为根目录 `.gitlab-ci.yml`；`.github/workflows/ci.yml` 与
-`.github/workflows/release.yml` 暂保留为 GitHub 镜像阶段的备用路径，待 GitLab
-Release 与 GitHub Release 同步稳定后降级为手动触发：
+当前 CI/CD 主路径由 GitHub Actions 编排；根目录 `.gitlab-ci.yml` 是 GitLab 的
+build-only 配置。GitHub 负责开发门禁、Release tag、构建编排、Windows smoke 和公开 Release；
+GitLab 只负责 Linux/Windows 构建及内部构建 Release：
 
-- `.gitlab-ci.yml` 在 GitLab `dev`、`master` 与 MR 上运行快速验证；tag 流水线只在 Windows SaaS runner 构建 Windows 便携版，再由 `publish:windows` 上传；Linux 三项安装包由本地 `scripts/build_release_local.sh` 构建并上传，最后手动运行 `release:finalize` 汇总五个资产并创建 GitLab Release；
+- `.gitlab-ci.yml` 只响应 GitHub Actions 推送的合法 `v*` tag；`build:linux` 和 `build:windows` 在 GitLab 上并行构建，`package:assemble` 校验五项资产，`release:gitlab` 创建内部 GitLab Release；
 
-- `ci.yml` 在 GitHub `dev`、`master` 与 PR 上运行同等快速验证；GitLab 成为主 CI 后仅作为备用/过渡检查；
-- `release.yml` 仍可在推送 `v*` tag 时运行完整 GitHub 发布流水线，也支持 workflow_dispatch；迁移完成后不得与 GitLab tag Release 同时自动创建同一 Release，应改为手动 fallback；
-- Windows SaaS job 以 `--no-bundle` 构建无边框便携 `.exe`，以临时根目录打包为只含 exe/DLL 的 `.7z` 后上传 `windows-portable`（不生成任何安装器——WiX MSI 无法处理中文产品名，且产品定位为免安装便携版）；Linux `.deb` / `.rpm` / `.AppImage` 由本地 Linux worktree 构建并通过 `scripts/upload_gitlab_linux_assets.sh` 上传。项目不支持 macOS。发布类 artifact 仅作短期传递，长期下载一律以 GitLab/GitHub Release assets 为准；
-- `windows-smoke` job（windows-latest）：直接下载 `windows-build` 上传的同一份 `CopyPolish.exe` 做 GUI 冒烟——启动进程 → 轮询等待主窗口句柄出现（最长 60 秒）→ 保持 10 秒验证稳定性 → 强制结束进程；在 GitLab SaaS runner 的 GUI smoke 验收完成前，可继续作为过渡门禁。
+- `ci.yml` 在 GitHub `dev`、`master` 与 PR 上运行快速验证；
+- `release.yml` 由 GitHub tag 触发，推送同一 tag 到 GitLab，等待 GitLab 内部构建 Release，下载并校验五项资产，在 GitHub Windows runner 上执行 smoke，最后创建公开 GitHub Release；
+- `release-fallback.yml` 仅支持 `workflow_dispatch`，在 GitLab 构建服务不可用时使用 GitHub Actions 全平台构建并发布；
+- GitLab Windows SaaS job 以 `--no-bundle` 构建无边框便携 `.exe`，以临时根目录打包为只含 exe/DLL 的 `.7z`；Linux `.deb` / `.rpm` / `.AppImage` 由 GitLab Linux job 构建。项目不支持 macOS。GitLab artifacts 和 Generic Package 仅作为构建中间物，公开下载一律使用 GitHub Release assets；
+- GitHub `windows-smoke` 直接下载 GitLab 生成的 `CopyPolish.exe`，验证主窗口和稳定运行。
 
-GitLab SaaS Windows runner 当前使用标签 `saas-windows-medium-amd64`，每个 job 使用全新 Windows VM，默认 shell 为 Windows PowerShell 5.1。镜像预装 Node 21.x、Git 与 7-Zip，但未预装 Rust；`.gitlab-ci.yml` 在 job 内安装 Node 24.19.0、Rust 1.98.0 MSVC、Python 3 shim，并设置 `PYTHONIOENCODING=utf-8`。如需使用 PowerShell 7，只能在 job 内安装后通过 `pwsh -File` 调用，不能通过项目 YAML 修改 SaaS runner 的底层 shell。
+GitLab SaaS Windows runner 当前使用标签 `saas-windows-medium-amd64`，每个 job 使用全新 Windows VM，默认 shell 为 Windows PowerShell 5.1。镜像预装 Node 21.x、Git、Python 3 和 7-Zip，但未预装 Rust；`scripts/ci/build_windows_gitlab.ps1` 在 job 内安装 Node 24.19.0、Rust 1.98.0 MSVC，并设置 `PYTHONIOENCODING=utf-8`。如需使用 PowerShell 7，只能在 job 内安装后通过 `pwsh -File` 调用，不能通过项目 YAML 修改 SaaS runner 的底层 shell。
 
 - 存储治理：GitHub Actions artifacts 仅作为 job 间传递与短期人工验收的临时副本（保留 1–3 天），长期可下载来源一律以 GitHub Release assets 为准；本地 `src-tauri/target/` 是可随时删除的可再生构建缓存（受 `.gitignore` 覆盖），不提交、不视为源码。系统保留各 workflow 最近一次成功与失败 run 用于诊断，其余已完成的旧 run 可安全删除。
 
-除 GitHub Actions 自动构建外，项目同样支持**本地构建 + 手动上传 GitHub Release** 的备用发布路径；两种模式共享相同的验证门槛、版本脚本、资产命名与人工验收标准，操作步骤见 [manual-release.md](release/manual-release.md)。`prepare_release_version.py` 可在 CI runner 或隔离的本地发布工作区（独立 clone / Git worktree）执行，禁止在待提交的日常开发工作区直接运行。
+- 除 GitHub 主编排流程外，项目同样支持**仅手动触发**的 GitHub Actions fallback 和**本地构建 + 手动上传 GitHub Release** 的恢复路径；三种模式共享相同的验证门槛、版本脚本、资产命名与人工验收标准，操作步骤见 [manual-release.md](release/manual-release.md)。`prepare_release_version.py` 可在 CI runner 或隔离的本地发布工作区执行，禁止在待提交的日常开发工作区直接运行。
 
 CI/Release 会打印 Node/npm/Rust/Cargo/系统版本，便于核对本地与 Runner 环境差异。
 

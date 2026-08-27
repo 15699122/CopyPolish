@@ -9,8 +9,8 @@
 3. [roadmap.md](roadmap.md)：发布后的持续开发路线图和未完成事项；
 4. [release/manual-release.md](release/manual-release.md)：本地构建并手动上传 GitHub Release 的操作 Runbook；
 5. [benchmarks/unicode-baseline.md](benchmarks/unicode-baseline.md)：Unicode 边界层引入前后的编译、体积和性能基线；
-6. [development/gitlab-mcp.md](development/gitlab-mcp.md)：GitLab 迁移后 Cline 接入 GitLab MCP Server 的配置、验收与安全规则。
-7. [development/gitlab-migration.md](development/gitlab-migration.md)：GitLab 主仓库迁移、CI/CD、Windows SaaS runner 与 GitHub 同步计划。
+6. [development/gitlab-mcp.md](development/gitlab-mcp.md)：Cline 接入 GitLab Build Service MCP Server 的配置、验收与安全规则。
+7. [development/gitlab-migration.md](development/gitlab-migration.md)：GitLab Build Service、Windows SaaS runner 与 GitHub Release 编排计划。
 
 ## 文档职责
 
@@ -21,8 +21,8 @@
 | `v0.5.0-release-plan.md` | `v0.5.0` 发布门槛、验收和发布状态 | 当前版本发布流程中持续更新 |
 | `roadmap.md` | 未完成的中长期开发工作 | 规划或任务状态变化时 |
 | `release/manual-release.md` | 本地发布的可操作步骤与故障排查 | 发布流程或脚本变化时 |
-| `development/gitlab-mcp.md` | GitLab MCP Server 在 Cline 中的接入、验收与安全边界 | GitLab 迁移或 MCP 配置变化时 |
-| `development/gitlab-migration.md` | GitLab 迁移整体计划、进度、技术决策与 GitLab CI/CD 说明 | GitLab 迁移或 CI/CD 结构变化时 |
+| `development/gitlab-mcp.md` | GitLab Build Service MCP Server 在 Cline 中的接入、验收与安全边界 | GitLab MCP 或构建服务变化时 |
+| `development/gitlab-migration.md` | GitLab Build Service、GitHub Release 编排、进度和技术决策 | 构建服务或 Release 编排变化时 |
 | `benchmarks/unicode-baseline.md` | 可重复的性能与体积测量记录 | 基准重新测量时 |
 
 `v0.5.0` 正式发布完成后，版本计划文档应迁入 `archive/release-plans/`，并从路线图中移除已完成的 P0 发布闭环。历史 Python 实现见 [`reference/README.md`](../reference/README.md)，不参与当前构建、测试或行为定义。

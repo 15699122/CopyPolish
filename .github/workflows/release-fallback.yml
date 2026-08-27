@@ -1,0 +1,312 @@
+name: release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing v* tag to release
+        required: true
+        type: string
+      prerelease:
+        description: Mark GitHub Release as pre-release
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+
+      - name: Verify version consistency
+        run: python3 scripts/check_version.py "${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}"
+
+      # 把 tag 的完整版本（含预发布后缀）写入构建配置，
+      # 使打包产物的 getVersion() 与 GitHub tag 一致。
+      - name: Sync full release version from tag
+        run: python3 scripts/prepare_release_version.py "${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}"
+
+      # 纯 Rust 测试不链接 GTK/WebKitGTK，无需安装 Tauri Linux 系统依赖。
+      - name: Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.98.0
+          components: rustfmt, clippy
+
+      - name: Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Print tool versions
+        run: |
+          node --version
+          npm --version
+          rustc --version
+          cargo --version
+          python3 --version
+          uname -a
+          cat /etc/os-release
+
+      - name: Rust tests (default, pure-Rust build)
+        working-directory: src-tauri
+        run: cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test
+
+      - name: Patch formatting check
+        run: git diff --check
+
+      - name: Frontend typecheck, tests & build
+        working-directory: frontend
+        run: |
+          npm ci
+          npm test -- --run
+          npm run build
+
+  # Linux：构建 deb/rpm/AppImage 并上传 bundle。
+  # 与 Windows 拆分为独立 job，使两条构建流水线互不阻塞。
+  linux-build:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+
+      # 打包前同步 tag 的完整版本（含预发布后缀）到构建配置。
+      - name: Sync full release version from tag
+        run: python3 scripts/prepare_release_version.py "${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}"
+
+      - name: Install dependencies (Linux)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.98.0
+
+      - name: Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Print tool versions
+        run: |
+          node --version
+          npm --version
+          rustc --version
+          cargo --version
+
+      - name: Build bundles
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run tauri build
+
+      # 上传 Tauri bundle（deb/rpm/AppImage）。产物为已压缩格式，关闭二次压缩；
+      # 仅在同一次 workflow 内供 release job 使用，保留 3 天即可。
+      - uses: actions/upload-artifact@v7
+        with:
+          name: bundle-ubuntu-latest
+          path: |
+            src-tauri/target/release/bundle/**
+          if-no-files-found: error
+          retention-days: 3
+          compression-level: 0
+
+  # Windows：仅构建便携版 exe 并打包 .7z，上传后由 windows-smoke 复用同一份产物做 GUI 冒烟，
+  # 不再像旧流程那样在 smoke job 里完整重新编译一次 Tauri。
+  windows-build:
+    needs: test
+    runs-on: windows-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+
+      # 打包前同步 tag 的完整版本（含预发布后缀）到构建配置。
+      - name: Sync full release version from tag
+        shell: bash
+        run: python3 scripts/prepare_release_version.py "${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}"
+
+      - name: Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.98.0
+
+      - name: Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Print tool versions
+        shell: bash
+        run: |
+          node --version
+          npm --version
+          rustc --version
+          cargo --version
+
+      - name: Build app (skip bundling)
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run tauri build -- --no-bundle
+
+      - name: Package Windows portable (exe + 7z)
+        shell: pwsh
+        run: |
+          $exe = "src-tauri/target/release/chinese-copywriting-formatter.exe"
+          if (-not (Test-Path $exe)) { Write-Error "Executable not found: $exe" }
+          $staging = Join-Path $PWD "windows-portable-staging"
+          New-Item -ItemType Directory -Force -Path $staging | Out-Null
+          Copy-Item $exe (Join-Path $staging "CopyPolish.exe")
+          # 若未来构建产出旁置 DLL，连同 exe 一起带入；不引入目录层级。
+          Get-ChildItem (Split-Path $exe) -Filter *.dll -File -ErrorAction SilentlyContinue |
+            Copy-Item -Destination $staging
+          $sevenZip = (Get-Command 7z -ErrorAction SilentlyContinue).Source
+          if (-not $sevenZip) { $sevenZip = "<program-files-path> }
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          $archive = Join-Path $PWD "dist\windows-portable.7z"
+          $files = Get-ChildItem $staging -File | ForEach-Object { $_.Name }
+          Push-Location $staging
+          try {
+            & $sevenZip a -t7z -mx=9 $archive $files
+          } finally {
+            Pop-Location
+          }
+          if ($LASTEXITCODE -ne 0) { Write-Error "7z failed with exit code $LASTEXITCODE"; exit 1 }
+          New-Item -ItemType Directory -Force -Path dist/windows | Out-Null
+          Move-Item $archive "dist/windows/CopyPolish-windows-x64.7z" -Force
+          Copy-Item (Join-Path $staging "CopyPolish.exe") "dist/windows/CopyPolish.exe"
+          Remove-Item $staging -Recurse -Force
+          Get-ChildItem dist/windows
+
+      # exe/.7z 为已压缩内容，关闭二次压缩；除 job 传递外还用于短期人工验收，保留 3 天，
+      # 长期下载一律以 GitHub Release assets 为准。
+      - uses: actions/upload-artifact@v7
+        with:
+          name: windows-portable
+          path: |
+            dist/windows/CopyPolish.exe
+            dist/windows/CopyPolish-windows-x64.7z
+          if-no-files-found: error
+          retention-days: 3
+          compression-level: 0
+
+      # 构建失败时上传日志辅助排查；时效短，仅保留 1 天。
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: build-log-windows-latest
+          path: |
+            src-tauri/target/release/**/*.log
+            frontend/npm-debug.log*
+          if-no-files-found: ignore
+          retention-days: 1
+
+  # Windows GUI 冒烟测试：直接复用 windows-build 上传的同一份便携版产物，
+  # 不再重复安装工具链与完整编译 Tauri，显著节省 Windows runner minutes。
+  windows-smoke:
+    needs: windows-build
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - name: Download windows-portable artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: windows-portable
+          path: dist/windows
+
+      - name: Launch and verify main window
+        shell: pwsh
+        run: |
+          $exe = "dist/windows/CopyPolish.exe"
+          if (-not (Test-Path $exe)) { Write-Error "Executable not found: $exe"; exit 1 }
+          $p = Start-Process -FilePath $exe -PassThru
+          try {
+            # 等待 WebView2 初始化并创建主窗口。
+            $deadline = (Get-Date).AddSeconds(60)
+            while ((Get-Date) -lt $deadline) {
+              if ($p.HasExited) {
+                Write-Error "App exited early with code $($p.ExitCode)"; exit 1
+              }
+              $p.Refresh()
+              if ($p.MainWindowHandle -ne 0) { break }
+              Start-Sleep -Seconds 2
+            }
+            if ($p.HasExited) { Write-Error "App exited before showing window"; exit 1 }
+            if ($p.MainWindowHandle -eq 0) {
+              Write-Error "Main window did not appear within 60s"; exit 1
+            }
+            Write-Host "Smoke OK: process $($p.Id) alive, window '$($p.MainWindowTitle)' handle=$($p.MainWindowHandle)"
+            # 再保持 10 秒确认稳定运行不崩溃。
+            Start-Sleep -Seconds 10
+            $p.Refresh()
+            if ($p.HasExited) { Write-Error "App exited during stability wait"; exit 1 }
+            Write-Host "Stability OK"
+          } finally {
+            if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force }
+          }
+
+  release:
+    needs: [test, linux-build, windows-build, windows-smoke]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: dist
+
+      - name: Collect release files (ASCII names)
+        run: |
+          mkdir -p release-files
+          cp dist/windows-portable/CopyPolish.exe release-files/
+          cp dist/windows-portable/CopyPolish-windows-x64.7z release-files/
+          find dist/bundle-ubuntu-latest -name '*.deb' -exec cp {} release-files/CopyPolish_linux_amd64.deb \;
+          find dist/bundle-ubuntu-latest -name '*.rpm' -exec cp {} release-files/CopyPolish-linux-x86_64.rpm \;
+          find dist/bundle-ubuntu-latest -name '*.AppImage' -exec cp {} release-files/CopyPolish_linux_amd64.AppImage \;
+          ls -la release-files
+
+      # 自动生成 Release Notes；预发布 tag（含 "-"）或手动勾选时标记为 prerelease 且不占用 latest。
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          IS_PRERELEASE: ${{ github.event_name == 'workflow_dispatch' && inputs.prerelease == true || github.event_name == 'push' && contains(github.ref_name, '-') }}
+        run: |
+          FLAGS=""
+          if [ "$IS_PRERELEASE" = "true" ]; then
+            FLAGS="--prerelease"
+          else
+            FLAGS="--latest"
+          fi
+          gh release create "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$RELEASE_TAG" \
+            --generate-notes \
+            $FLAGS \
+            release-files/*
+
+      - name: Verify version consistency
+        run: python3 scripts/check_version.py "${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}"
