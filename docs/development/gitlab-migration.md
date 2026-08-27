@@ -4,8 +4,9 @@
 仅面向维护者；Cline 接入 GitLab MCP 见 [gitlab-mcp.md](gitlab-mcp.md)。
 
 > 现状速览（2026-08-27）：GitLab 已是主仓库与主 CI，GitHub 为只读镜像与第二个下载入口；
-> 普通 CI（test:rust / test:frontend）已在 GitLab 全绿；Windows SaaS runner 可用；
-> 尚未打通完整 tag Release、push mirror 与 GitHub Release 同步。
+> 普通 CI（test:rust / test:frontend）已在 GitLab 全绿；Windows SaaS runner 已成功调度；
+> `v0.5.0-pre6` 的 Linux 构建已成功，Windows 构建仍在修复 PowerShell/Python CI 环境兼容性；
+> push mirror 与 GitHub Release 同步尚未配置。
 
 ## 1. 架构与目标
 
@@ -40,7 +41,7 @@ GitLab（主仓库：olivaceum-group/chinese_copywriting_formatter）
 
 - `dev`：默认开发分支，三端（本地 / GitHub / GitLab）已同步；
 - `master`：稳定分支，与既有流程不变；
-- `ci/windows-probe`：Windows SaaS Runner 探测临时分支，成果归并后删除，不推 GitHub。
+- `ci/windows-probe`：Windows SaaS Runner 探测临时分支，已完成探测并删除，不推 GitHub。
 
 ## 3. Tag 差异记录
 
@@ -63,6 +64,7 @@ GitLab 比 GitHub 多以下内容（这些 tag 在 GitHub 从未存在）：
    - **Rust 未预装**（`rustc` / `cargo` 不存在）；
    - Git for Windows 已预装（`2.51.2.windows.1`）；7-Zip 需要 job 内确认/安装。
 4. **不能「像 GitHub 一样随身完整工具缓存」的原因**：SaaS runner 每 job 新建临时 VM（Custom executor + autoscaler，job 结束即销毁），工具链与 `.cargo/` 无法跨 job 持久化；且镜像未预装 Rust。因此 `build:windows` 必须在 job 内显式自装 Rust + 对齐 Node 24.19.0，不依赖缓存，按「全新 VM」设计。Windows job 还必须把 `CARGO_HOME` / `RUSTUP_HOME` 放在 `%TEMP%`，不能放在仓库目录，否则 rustup 生成的 `.cargo` 会使发布脚本的干净工作区检查失败。
+5. GitLab SaaS Windows runner 默认以 Windows PowerShell 5.1 执行 job。当前通过 `PYTHONIOENCODING=utf-8` 解决 Python 中文输出问题；如继续遇到 5.1 兼容性问题，再在 job 内安装 PowerShell 7 并用 `pwsh -File` 执行独立脚本，但不能通过项目 YAML 修改 SaaS runner 的底层 shell。
 
 ## 5. GitLab CI/CD 说明
 
@@ -90,8 +92,8 @@ GitLab 为主，GitHub 为镜像，不做双向写：
 
 ## 7. 当前待办（按优先级）
 
-- [ ] **`build:windows` 自装工具链**（rustup 装 Rust + MSVC，装 Node 24.19.0）落地到 dev 并验证一次 tag 流水线；
-- [ ] 清理临时分支 `ci/windows-probe`（本地 + GitLab）及其临时 `workflow:rules` 放行；
+- [x] **`build:windows` 自装工具链基础部分**（rustup 装 Rust + MSVC，装 Node 24.19.0、Python 3 shim、7-Zip）已落地到 dev；SaaS runner 已成功执行工具链安装，待完成 Windows 资产构建验证；
+- [x] 清理临时分支 `ci/windows-probe`（本地 + GitLab）及其临时 `workflow:rules` 放行；
 - [ ] tag 对齐决策：是否将 GitLab 独有的 `v0.5.0` / `v0.5.0-pre5` / backup tag 补推 GitHub；
 - [ ] 配置 GitLab → GitHub push to；
 - [ ] 新增 `release:github` 同步 job，并配置 `GITHUB_RELEASE_TOKEN` / `GITHUB_REPOSITORY` CI/CD Variable；

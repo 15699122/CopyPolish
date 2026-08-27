@@ -10,6 +10,7 @@
 4. [release/manual-release.md](release/manual-release.md)：本地构建并手动上传 GitHub Release 的操作 Runbook；
 5. [benchmarks/unicode-baseline.md](benchmarks/unicode-baseline.md)：Unicode 边界层引入前后的编译、体积和性能基线；
 6. [development/gitlab-mcp.md](development/gitlab-mcp.md)：GitLab 迁移后 Cline 接入 GitLab MCP Server 的配置、验收与安全规则。
+7. [development/gitlab-migration.md](development/gitlab-migration.md)：GitLab 主仓库迁移、CI/CD、Windows SaaS runner 与 GitHub 同步计划。
 
 ## 文档职责
 
