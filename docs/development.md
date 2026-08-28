@@ -311,7 +311,7 @@ git diff --check
 ## 后续计划
 
 1. 真实 Windows 机器人工验收：下载 CI 的 `windows-portable` artifact，运行 `.exe`，输入 `在LeanCloud上，花了5000元` → 应输出 `在 LeanCloud 上，花了 5000 元`；验证设置弹窗 13 条规则、开关即时重排、设置文件持久化、高 DPI 显示。
-2. 正式发布 `v0.5.0`：人工复核 Release 资产、Release Notes、版本号和 latest 标记。
+2. 创建并验证 GUI 修复后的 `v0.5.0-pre11`，随后再进行 Windows 真机验收；正式发布 `v0.5.0` 前人工复核 Release 资产、Release Notes、版本号和 latest 标记。
 3. `v0.5.0` 发布后的中长期工作（复杂排版与 Unicode 基础能力增强（多行/Markdown/特殊单位/数学符号）、Unicode 引擎升级、ICU4X 评估、E2E、性能基准、其余 hooks 拆分等）统一在 [roadmap.md](roadmap.md) 跟踪，其中复杂排版增强的详细阶段计划见其 §5。本地构建自动化脚本与快捷键总开关/自定义绑定已完成并合入 `dev`。
 
 ## 图标
