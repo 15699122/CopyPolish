@@ -1,0 +1,8 @@
+# SOPS configuration for CopyPolish / chinese_copywriting_formatter
+# Age (age-encryption.org) recipient: this is the PUBLIC key (safe to commit to a private repo).
+# The matching AGE-SECRET-KEY private key lives ONLY at ~/.config/sops/age/keys.txt (never committed).
+
+creation_rules:
+  # Encrypt secrets/*.env files: all values encrypted, key names + "export" kept in plaintext.
+  - path_regex: secrets/.*\.env$
+    age: age1lclqdq2wrt0u3fwwtka92ktacyguw8qk4wfwvkzuxfnnrhz4u5as4fum4m

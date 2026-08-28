@@ -28,3 +28,14 @@ src-tauri/gen/
 
 # 运行时用户设置（exe 同目录 rules.yaml）
 /rules.yaml
+
+# SOPS / age 明文副本（仅提交加密的 secrets/*.env）
+secrets/*.env.plain
+secrets/*.env.dec
+secrets/*.env.clear
+*.dec
+*.plain
+
+# age 私钥不得提交
+keys.txt
+*.agekey

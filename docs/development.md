@@ -10,7 +10,8 @@
 
 - [roadmap.md](roadmap.md)：`v0.5.0` 发布后的中长期开发路线图（快捷键配置、Unicode 引擎升级、ICU4X 评估、E2E、性能基准、hooks 拆分等）；
 - [README.md](README.md)：维护者文档导航；
-- [manual-release.md](release/manual-release.md)：本地构建与手动上传 GitHub Release 的操作 Runbook（备用发布路径）。
+- [manual-release.md](release/manual-release.md)：本地构建与手动上传 GitHub Release 的操作 Runbook（备用发布路径）；
+- [secrets-management.md](secrets-management.md)：SOPS/age 凭据加载、轮换和灾难恢复。
 
 > 历史说明：项目早期为 Python + customtkinter 桌面 GUI（入口 `chinese_copywriting_formatter.py`，曾使用 `rules.yaml` 保存设置）。该路线已于 2026-08 彻底移除，相关文件（`gui/`、`python/formatter_bridge.py`、`run.sh`、`packaging/`、PyInstaller 工作流等）均不再存在。当前 Rust 应用使用新的 `rules.yaml` 设置实现，并通过同目录旧版 `ccw-formatter-settings.json` 进行一次性迁移；不复用旧 Python 的读写逻辑。
 
@@ -310,9 +311,9 @@ git diff --check
 
 ## 后续计划
 
-1. `v0.5.0-pre11` 已完成 GitLab 构建、GitHub Pre-release 复核和 Windows 10/11 真机验收；当前 `dev` 最新提交为 `be9f85c`，相对 `pre11` 仅包含发布状态文档更新；正式发布前处理 GitLab 历史 `v0.5.0` tag 与最终提交之间的冲突。
+1. `v0.5.0-pre11` 已完成 GitLab 构建、GitHub Pre-release 复核和 Windows 10/11 真机验收；当前维护分支已包含 GitLab 密钥管理文档与 SOPS 文件；正式发布前处理 GitLab 历史 `v0.5.0` tag 与最终提交之间的冲突。
 2. 正式发布 `v0.5.0` 前，复核最终 Release 资产、Release Notes、版本号和 latest 标记；不得直接复用指向旧提交 `9524d37` 的 GitLab 历史 tag。
-3. `v0.5.0` 发布后的中长期工作（复杂排版与 Unicode 基础能力增强（多行/Markdown/特殊单位/数学符号）、Unicode 引擎升级、ICU4X 评估、E2E、性能基准、其余 hooks 拆分等）统一在 [roadmap.md](roadmap.md) 跟踪，其中复杂排版增强的详细阶段计划见其 §5。本地构建自动化脚本与快捷键总开关/自定义绑定已完成并合入 `dev`。
+3. `v0.5.0` 发布后的中长期工作（复杂排版与 Unicode 基础能力增强（多行/Markdown/特殊单位/数学符号）、Unicode 引擎升级、ICU4X 评估、E2E、性能基准、其余 hooks 拆分和自动 secret scanning 等）统一在 [roadmap.md](roadmap.md) 跟踪，其中复杂排版增强的详细阶段计划见其 §5。本地构建自动化脚本、快捷键总开关/自定义绑定和 SOPS 文件迁移已完成。
 
 ## 图标
 
@@ -337,6 +338,7 @@ GitLab SaaS Windows runner 当前使用标签 `saas-windows-medium-amd64`，每�
 - 存储治理：GitHub Actions 暂停期间不产生新的 Actions artifacts；GitLab artifacts 和 Generic Package 仅作为构建中间物，手动下载并校验后再上传到目标 Release；本地 `src-tauri/target/` 是可随时删除的可再生构建缓存（受 `.gitignore` 覆盖），不提交、不视为源码。
 
 - 当前只支持**本地构建 + 手动发布**和**GitLab 构建 + 手动整理/发布**两条路径；两种可用模式共享相同的验证门槛、版本脚本、资产命名与人工验收标准，操作步骤见 [manual-release.md](release/manual-release.md)。`prepare_release_version.py` 可在隔离的本地发布工作区执行，禁止在待提交的日常开发工作区直接运行。
+- GitLab PAT、Deploy Token 和 Project Token 由项目根目录的 SOPS 加密文件管理；加载方式、接收者和恢复流程见 [secrets-management.md](secrets-management.md)。`CI_JOB_TOKEN` 仅在 CI job 内使用，GitLab MCP 继续使用 OAuth，不读取这些文件。
 
 CI/Release 会打印 Node/npm/Rust/Cargo/系统版本，便于核对本地与 Runner 环境差异。
 
