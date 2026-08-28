@@ -105,3 +105,30 @@ SOPS_AGE_KEY="$(grep -E '^AGE-SECRET-KEY' /path/to/backup/key)" \
 - 令牌轮换后必须重新加密文件、验证新私钥/接收者可解密，并及时吊销旧令牌；
 - `CI_JOB_TOKEN` 只由 GitLab CI 在 job 内提供，不复制到长期凭据文件；
 - 个人配置仓库仅保留迁移历史，不再作为本项目凭据的运行时来源。
+
+## 自动检查门禁
+
+提交前或发布前可运行：
+
+```bash
+python3 scripts/security_check.py
+python3 scripts/security_check.py --require-sops
+```
+
+检查内容：
+
+- Git 跟踪文件中的高置信度 GitLab/GitHub/AWS token、私钥和明文凭据赋值；
+- `secrets/tokens.env` 的 SOPS 版本、MAC、age recipient 和加密值结构；
+- 本机安装 sops 时，额外执行 `sops filestatus` 并确认文件处于加密状态。
+
+脚本不会解密文件，也不会输出匹配到的凭据内容。GitLab tag pipeline 的
+`security:check` job 使用结构校验和明文扫描作为构建前门禁；该 job 仅随合法
+`v*` tag pipeline 执行，普通开发分支仍应在提交前本地运行检查。维护者本地应优先
+使用 `--require-sops` 执行更强校验。
+
+### 凭据暴露后的处理
+
+若 token 曾出现在进程参数、终端输出、日志或第三方工具记录中，应立即将其视为
+泄露：先在 GitLab 中吊销/轮换，再用新的加密值更新 `secrets/tokens.env`，最后运行
+`python3 scripts/security_check.py --require-sops` 验证加密文件状态。不得用扫描脚本
+替代 token 吊销或轮换操作。
