@@ -174,4 +174,4 @@ copypolish-tui --help
 - [docs/roadmap.md](docs/roadmap.md)：后续开发路线图；
 - [docs/secrets-management.md](docs/secrets-management.md)：维护者凭据的 SOPS/age 管理与恢复指南。
 
-当前 `v0.5.0-pre11` 已完成 GitLab 跨平台构建、资产校验、GitHub Pre-release 发布及 Windows 10/11 真机验收。正式版本 tag `v0.5.0` 在本地、GitHub 和 GitLab 均指向提交 `5102323`；GitLab Pipeline `#2799117439` 已于 2026-08-28 成功完成。GitHub `v0.5.0` 正式 Release 当前仍为 Draft，已上传 Windows 两项资产、Linux `.deb` / `.rpm` 与 `SHA256SUMS`，Linux AppImage 尚未上传；当前 latest 仍为 `v0.4.0`，因此暂不应将 `v0.5.0` 视为已发布正式版。
+当前 `v0.5.0-pre11` 已完成 GitLab 跨平台构建、资产校验、GitHub Pre-release 发布及 Windows 10/11 真机验收。正式版本 tag `v0.5.0` 在本地、GitHub 和 GitLab 均指向提交 `5102323`；GitLab Pipeline `#2799117439` 已于 2026-08-28 成功完成。GitHub `v0.5.0` Release 当前已上传完整 6 个文件（5 个平台资产和 `SHA256SUMS`），但仍为 Draft，尚未发布为正式版；当前 latest 仍为 `v0.4.0`，Release Notes 和 latest 状态仍需最终人工复核。

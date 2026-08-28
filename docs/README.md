@@ -28,4 +28,4 @@
 | `benchmarks/unicode-baseline.md` | 可重复的性能与体积测量记录 | 基准重新测量时 |
 | `secrets-management.md` | SOPS 加密凭据、age 接收者、令牌轮换与灾难恢复 | 凭据结构或恢复流程变化时 |
 
-`v0.5.0` 发布计划已先行迁入 `archive/release-plans/` 保存历史上下文；正式 Release 仍处于 Draft，待补齐 AppImage、完成 Release Notes 复核并将其发布为 latest 后，再将路线图中的 P0 发布闭环标记完成。历史 Python 实现已从当前工作树移除；如需追溯，请通过 Git 历史查看，不参与当前构建、测试或行为定义。
+`v0.5.0` 发布计划已先行迁入 `archive/release-plans/` 保存历史上下文；正式 Release 当前已具备完整 6 个文件，但仍处于 Draft，待完成 Release Notes 复核并将其发布为 latest 后，再将路线图中的 P0 发布闭环标记完成。历史 Python 实现已从当前工作树移除；如需追溯，请通过 Git 历史查看，不参与当前构建、测试或行为定义。
