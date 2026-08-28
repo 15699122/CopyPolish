@@ -4,7 +4,7 @@
 
 ## `v0.5.0` 发布基线
 
-`v0.5.0` 的发布计划与验收清单已归档至 [archive/release-plans/v0.5.0-release-plan.md](archive/release-plans/v0.5.0-release-plan.md)。当前正式 tag 在本地、GitHub 和 GitLab 均指向提交 `5102323`，GitLab Pipeline `#2799117439` 已于 2026-08-28 成功完成。后续开发按 [roadmap.md](roadmap.md) 执行；新增规则仍须先补黄金样例和组合回归测试。
+`v0.5.0` 的发布计划与验收清单已归档至 [archive/release-plans/v0.5.0-release-plan.md](archive/release-plans/v0.5.0-release-plan.md)。当前正式 tag 在本地、GitHub 和 GitLab 均指向提交 `5102323`，GitLab Pipeline `#2799117439` 已于 2026-08-28 成功完成；GitHub `v0.5.0` Release 当前为 Draft，已上传 4 个发布资产及 `SHA256SUMS`，尚缺 `CopyPolish_linux_amd64.AppImage`，当前 latest 仍为 `v0.4.0`。后续开发按 [roadmap.md](roadmap.md) 执行；正式 Release 门槛完成前不将其视为已发布版本。
 
 其他文档入口：
 
@@ -123,7 +123,7 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
 - **已完成的 Span/Edit 基础**：结构与语义 span 扫描、重叠仲裁、UTF-8 安全 `TextEdit`、非重叠编辑逆序应用、单位/数学边界编辑规划。
 - **已完成**：span-aware 混合管线已正式接管 `format_text`，并与全部稳定 fixture 逐例一致；普通测试 `tests.rs::span_aware_pipeline_matches_production_on_stable_fixtures` 持续比较新生产入口与旧 placeholder 路径。URL/邮箱、硬换行、引用式链接、未闭合反引号、LaTeX command/定界数学、数学复合单位及 inline placeholder 边界均已纳入 span 对照。
 - **未完成**：旧 placeholder 路径清理、`structure-precedence.yaml` pending 基线的最终迁移、非边界规则的 TextEdit/可编辑区间策略，以及性能基准。
-- **未完成**：完整单位词典、温度规则独立 stable key、Unicode 等价识别/默认关闭规范化、1 MB 长文本性能基准和真实 Tauri E2E；`v0.5.0-pre11` 已完成真实 Windows 10/11 验收，正式 tag `v0.5.0` 已在本地、GitHub 和 GitLab 对齐到 `5102323`，发布结果归档见 `docs/archive/release-plans/v0.5.0-release-plan.md`。
+- **未完成**：完整单位词典、温度规则独立 stable key、Unicode 等价识别/默认关闭规范化、1 MB 长文本性能基准、真实 Tauri E2E 和 `v0.5.0` 正式 Release 收尾；`v0.5.0-pre11` 已完成真实 Windows 10/11 验收，正式 tag `v0.5.0` 已在本地、GitHub 和 GitLab 对齐到 `5102323`，但 GitHub Release 仍为 Draft，发布结果归档见 `docs/archive/release-plans/v0.5.0-release-plan.md`。
 - **当前验证基线**：Rust 单元测试 72 项、前端 Vitest 33 项；fmt、Clippy、前端构建和 diff 检查均纳入本地/CI 验证。
 
 ## 用户设置持久化
@@ -312,8 +312,8 @@ git diff --check
 ## 后续计划
 
 1. `v0.5.0-pre11` 已完成 GitLab 构建、GitHub Pre-release 复核和 Windows 10/11 真机验收；当前维护分支已包含 GitLab 密钥管理文档与 SOPS 文件。
-2. 正式 tag `v0.5.0` 当前在本地、GitHub 和 GitLab 均指向 `5102323`；Pipeline `#2799117439` 已成功完成。正式 Release 的资产、Release Notes、版本号和 latest 标记仍需维护者在发布页完成最终复核。
-3. `v0.5.0` 发布后的中长期工作（复杂排版与 Unicode 基础能力增强（多行/Markdown/特殊单位/数学符号）、Unicode 引擎升级、ICU4X 评估、E2E、性能基准、其余 hooks 拆分和自动 secret scanning 等）统一在 [roadmap.md](roadmap.md) 跟踪，其中复杂排版增强的详细阶段计划见其 §5。本地构建自动化脚本、快捷键总开关/自定义绑定和 SOPS 文件迁移已完成。
+2. 正式 tag `v0.5.0` 当前在本地、GitHub 和 GitLab 均指向 `5102323`；Pipeline `#2799117439` 已成功完成。GitHub `v0.5.0` Release 当前为 Draft，已上传 4 个发布资产和 `SHA256SUMS`，仍缺 AppImage；当前 latest 为 `v0.4.0`。
+3. 下一发布操作是补传 `CopyPolish_linux_amd64.AppImage`，重新核对六项文件与 SHA256，人工审阅 Release Notes，然后将 Draft 发布并明确设为 latest。正式发布完成后，再进入 [roadmap.md](roadmap.md) 跟踪的中长期工作（复杂排版与 Unicode 基础能力增强、Unicode 引擎升级、ICU4X 评估、E2E、性能基准、其余 hooks 拆分和自动 secret scanning 等）。
 
 ## 图标
 

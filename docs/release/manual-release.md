@@ -265,7 +265,7 @@ CopyPolish_linux_amd64.AppImage
 
 ### 8.1 发布资产来源
 
-当前标准流程由 GitLab tag pipeline 构建并汇总全部五项平台资产及 `SHA256SUMS`。维护者下载后执行完整校验，再使用 GitHub CLI 创建公开 Release；不再维护本地分阶段上传 Linux 资产的备用脚本。
+当前标准流程由 GitLab tag pipeline 构建并汇总全部五项平台资产及 `SHA256SUMS`。维护者下载后执行完整校验，再使用 GitHub CLI 或 GitHub Releases 页面完成公开 Release；上传前不得将不完整资产集标记为正式版。当前 `v0.5.0` Draft 已有 4 个资产和 `SHA256SUMS`，仍需补传 AppImage。
 
 若从 GitLab Package Registry 下载 AppImage 遇到网络错误，应先解决认证或网络问题；在五项资产齐全前不要创建 GitHub Release。下载前可确认以下 URL 对应文件返回 HTTP 200：
 
@@ -323,12 +323,14 @@ gh release create vX.Y.Z-preN \
 
 ## 11. 发布后复核与回滚原则
 
-- [ ] tag、Release 标题、应用内"关于"版本三者一致（预发布带 pre 后缀）；
-- [ ] 五个资产齐全且命名正确；
-- [ ] 正式版标记 latest，预发布标记 prerelease 且不占用 latest；
+- [x] tag、Release 标题、应用内"关于"版本三者一致（预发布带 pre 后缀）；
+- [ ] 五个资产齐全且命名正确；当前缺少 `CopyPolish_linux_amd64.AppImage`；
+- [ ] 正式版标记 latest，预发布标记 prerelease 且不占用 latest；当前 latest 仍为 `v0.4.0`；
 - [ ] Release Notes 经人工审阅：覆盖本次用户可感知的变化，不重复上一版内容，保留固定说明（便携版命名、设置迁移、已知限制等）；
-- [ ] Windows 资产经过实际下载并运行验证；
+- [x] Windows 资产已从 GitLab 下载并完成 SHA256 校验，Windows 10/11 真机验收已完成；
 - [ ] 发布结果同步回对应版本计划归档（如 `docs/archive/release-plans/v0.5.0-release-plan.md`）。
+
+> 安全提醒：若 token 曾出现在命令行参数、进程列表或日志中，必须立即轮换/吊销该 token，并使用新的 SOPS 加密凭据继续操作。
 
 回滚原则：GitHub Release 可编辑资产列表与 Notes，但**不要删除已发布的 tag**；发现严重问题时优先发预发布修复版，而不是撤回历史 Release。
 
