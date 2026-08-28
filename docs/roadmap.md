@@ -310,7 +310,7 @@ frontend/src/hooks/
 - 建立 Node/Rust/Tauri/React 升级 runbook 与预发布 tag 验证流程；
 - [x] 完成 age + sops 密钥管理方案、灾难恢复文档和项目文件迁移：`.sops.yaml`、加密的 `secrets/tokens.env`、`scripts/load_tokens.sh`；
 - [x] 增加 SOPS/age 明文副本的 `.gitignore` 防护，并从个人配置仓库移除本项目凭据文件；
-- [ ] 增加自动 secret scanning 和 SOPS 元数据校验门禁；
+- [x] 增加自动 secret scanning 和 SOPS 元数据校验门禁：`scripts/security_check.py` 已接入 GitLab tag pipeline 的 `security` stage；
 - [ ] 完成离线备份恢复演练并记录结果；
 - [ ] 增加第二 age 接收者，建立令牌最小权限、轮换和吊销清单。
 

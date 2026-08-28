@@ -313,7 +313,8 @@ git diff --check
 
 1. `v0.5.0-pre11` 已完成 GitLab 构建、GitHub Pre-release 复核和 Windows 10/11 真机验收；当前维护分支已包含 GitLab 密钥管理文档与 SOPS 文件。
 2. 正式 tag `v0.5.0` 当前在本地、GitHub 和 GitLab 均指向 `5102323`；Pipeline `#2799117439` 已成功完成。GitHub `v0.5.0` Release（ID `378455261`）已正式发布并标记为 latest，6 个文件均已上传。
-3. `v0.5.0` 发布闭环已完成，后续进入 [roadmap.md](roadmap.md) 跟踪的中长期工作（复杂排版与 Unicode 基础能力增强、Unicode 引擎升级、ICU4X 评估、E2E、性能基准、其余 hooks 拆分和自动 secret scanning 等）。
+3. `v0.5.0` 发布闭环已完成，后续进入 [roadmap.md](roadmap.md) 跟踪的中长期工作（复杂排版与 Unicode 基础能力增强、Unicode 引擎升级、ICU4X 评估、E2E、性能基准和其余 hooks 拆分等）。自动 secret scanning 与 SOPS 元数据校验已由 `security:check` 门禁覆盖。
+4. 安全门禁已增加：`scripts/security_check.py` 扫描 Git 跟踪文件中的高置信度明文凭据模式，并验证 `secrets/tokens.env` 的 SOPS/age 元数据；`.gitlab-ci.yml` 的 `security:check` 在 tag 构建前执行。该门禁不解密凭据。
 
 ## 图标
 

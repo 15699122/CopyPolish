@@ -265,7 +265,7 @@ CopyPolish_linux_amd64.AppImage
 
 ### 8.1 发布资产来源
 
-当前标准流程由 GitLab tag pipeline 构建并汇总全部五项平台资产及 `SHA256SUMS`。维护者下载后执行完整校验，再使用 GitHub CLI 或 GitHub Releases 页面完成公开 Release；上传前不得将不完整资产集标记为正式版。当前 `v0.5.0` Draft 已具备完整 6 个文件，但仍需完成 Release Notes 复核并发布为 latest。
+当前标准流程由 GitLab tag pipeline 构建并汇总全部五项平台资产及 `SHA256SUMS`。维护者下载后执行完整校验，再使用 GitHub CLI 或 GitHub Releases 页面完成公开 Release；上传前不得将不完整资产集标记为正式版。`v0.5.0` 已完成正式发布；后续版本仍须在资产完整且校验通过后再发布。
 
 若从 GitLab Package Registry 下载 AppImage 遇到网络错误，应先解决认证或网络问题；在五项资产齐全前不要创建 GitHub Release。下载前可确认以下 URL 对应文件返回 HTTP 200：
 
