@@ -310,7 +310,7 @@ git diff --check
 
 ## 后续计划
 
-1. `v0.5.0-pre11` 已完成 GitLab 构建、GitHub Pre-release 复核和 Windows 10/11 真机验收；正式发布前处理 GitLab 历史 `v0.5.0` tag 与最终提交之间的冲突。
+1. `v0.5.0-pre11` 已完成 GitLab 构建、GitHub Pre-release 复核和 Windows 10/11 真机验收；当前 `dev` 最新提交为 `be9f85c`，相对 `pre11` 仅包含发布状态文档更新；正式发布前处理 GitLab 历史 `v0.5.0` tag 与最终提交之间的冲突。
 2. 正式发布 `v0.5.0` 前，复核最终 Release 资产、Release Notes、版本号和 latest 标记；不得直接复用指向旧提交 `9524d37` 的 GitLab 历史 tag。
 3. `v0.5.0` 发布后的中长期工作（复杂排版与 Unicode 基础能力增强（多行/Markdown/特殊单位/数学符号）、Unicode 引擎升级、ICU4X 评估、E2E、性能基准、其余 hooks 拆分等）统一在 [roadmap.md](roadmap.md) 跟踪，其中复杂排版增强的详细阶段计划见其 §5。本地构建自动化脚本与快捷键总开关/自定义绑定已完成并合入 `dev`。
 
