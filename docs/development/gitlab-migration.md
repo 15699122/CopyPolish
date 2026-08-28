@@ -5,7 +5,7 @@
 
 > GitHub 是源码与开发协作主平台；GitHub Actions 自 2026-08-28 起暂时停用。
 > GitLab 仅在维护者手动推送 `v*` tag 后负责 Linux/Windows 构建与内部构建 Release；公开 Release 由维护者手动整理和创建。
-> GitHub `dev` 已同步至提交 `356d0a0`；当前待完成 GitLab 凭据、远程 Lint、验证 tag 和人工发布验收。
+> GitHub `dev` 已同步至提交 `7593614`；GitLab Git/API 认证与远程 CI Lint 已于 2026-08-28 验证通过，当前待完成验证 tag、构建产物验收和人工发布验收。
 
 ## 1. 架构与目标
 
@@ -97,10 +97,11 @@ GitHub 为主，GitLab 为 Build Service，不做双向写：
 - [x] GitLab CI 已改为仅响应 Release tag；
 - [x] GitLab Linux/Windows 构建与内部 Release job 已落地；
 - [x] GitHub Actions 构建/发布 workflow 已暂时停用并移至 `.github/workflows-disabled/`；
-- [x] `dev` 已提交并推送到 GitHub `origin/dev`（提交 `356d0a0`）；
+- [x] `dev` 已提交并推送到 GitHub `origin/dev`（提交 `7593614`）；
 - [ ] 按 gitlab-mcp.md 完成 Build Service 只读验收；
-- [ ] 手动确认 GitLab 项目、tag 推送权限和 GitLab Windows SaaS runner 可用；当前不需要配置 GitHub bridge Secret；
-- [ ] 重新认证 GitLab API，执行远程 CI Lint；当前本地 GitLab HTTPS/API 凭据已失效；
+- [x] 手动确认 GitLab 项目、tag 推送权限和 GitLab Windows SaaS runner 可用；当前不需要配置 GitHub bridge Secret；
+- [x] GitLab Git/API 认证已验证；项目 API、pipeline 查询和 Package Registry 读取正常；
+- [x] GitLab 远程 CI Lint 已通过（`valid=true`、无 errors、无 warnings）；
 - [ ] 如需恢复 GitHub Actions，再处理账户计费/额度阻塞并恢复 `.github/workflows-disabled/` 下的 workflow；
 - [ ] 创建 `v0.5.0-pre8`，将同一 tag 手动推送到 GitLab，验收 GitLab 双平台构建和内部 Release；
 - [ ] 手动下载并核对五项资产与 GitLab `SHA256SUMS` 一致，再手动创建公开 Release；
