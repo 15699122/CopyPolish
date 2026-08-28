@@ -56,7 +56,7 @@ GitLab 相比 GitHub 当前仍多以下内容：
 - `v0.5.0-pre7`
 - `backup/pre-merge-ub-into-dev-20260825-142543`
 
-`v0.5.0` 当前在本地、GitHub 和 GitLab 均解析到提交 `5102323`，同名 tag 不再存在跨平台指向冲突。GitLab Pipeline `#2799117439` 已于 2026-08-28 成功完成；正式 Release 的资产、Release Notes 和 latest 状态仍需按发布 Runbook 完成最终人工复核。`pre5`～`pre7` 与 backup tag 仍不作为当前正式发布基线。
+`v0.5.0` 当前在本地、GitHub 和 GitLab 均解析到提交 `5102323`，同名 tag 不再存在跨平台指向冲突。GitLab Pipeline `#2799117439` 已于 2026-08-28 成功完成，五项 GitLab 资产及 `SHA256SUMS` 已校验通过；GitHub `v0.5.0` Release 当前仍为 Draft，已上传 4 个资产和 `SHA256SUMS`，缺少 AppImage，latest 仍为 `v0.4.0`。`pre5`～`pre7` 与 backup tag 仍不作为当前正式发布基线。
 
 ## 4. 已定技术决策
 
@@ -111,8 +111,14 @@ GitHub 为主，GitLab 为 Build Service，不做双向写：
 - [x] 使用已校验的 GitLab 资产创建公开 GitHub `v0.5.0-pre11` Pre-release，并完成 GitHub 五项资产二次复核；
 - [x] 完成真实 Windows 10/11 GUI/DPI/WebView2 人工验收，未发现明显问题。
 - [x] Pipeline `#2799117439` 于 2026-08-28 完成且无错误；对应的 SOPS/age 密钥管理方案已审阅。
+- [x] 从 Pipeline `#2799117439` 获取五项正式资产并通过 `SHA256SUMS` 校验；
+- [ ] 将五项资产和 `SHA256SUMS` 全部上传至 GitHub `v0.5.0` Draft，并发布为 latest；当前仍缺 AppImage，GitHub latest 仍为 `v0.4.0`。
 - [x] 将 `.sops.yaml`、加密的 `secrets/tokens.env` 和 `scripts/load_tokens.sh` 迁入当前项目，并保留明文副本防护。
 - [x] 从个人配置仓库删除上述三个项目凭据文件，并完成删除提交推送（源仓库提交 `f20090c`）。
+
+### 发布凭据安全事件（2026-08-28）
+
+资产下载过程中曾有 GitLab token 出现在进程参数中。该 token 必须按已泄露凭据处理：立即吊销或轮换，使用新的 SOPS 加密值更新 `secrets/tokens.env`，并验证新凭据可用；不得继续复用旧 token。
 
 ### 凭据边界
 
