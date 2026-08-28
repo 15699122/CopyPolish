@@ -5,13 +5,12 @@
 ## 推荐阅读顺序
 
 1. [development.md](development.md)：当前架构、目录职责、开发环境、验证命令和实现约束；
-2. [v0.5.0-release-plan.md](v0.5.0-release-plan.md)：当前仍在进行的 `v0.5.0` 正式发布门槛与 Windows 验收清单；
-3. [roadmap.md](roadmap.md)：发布后的持续开发路线图和未完成事项；
-4. [release/manual-release.md](release/manual-release.md)：本地构建并手动上传 GitHub Release 的操作 Runbook；
-5. [benchmarks/unicode-baseline.md](benchmarks/unicode-baseline.md)：Unicode 边界层引入前后的编译、体积和性能基线；
-6. [development/gitlab-mcp.md](development/gitlab-mcp.md)：Cline 接入 GitLab Build Service MCP Server 的配置、验收与安全规则。
-7. [development/gitlab-migration.md](development/gitlab-migration.md)：GitLab Build Service、Windows SaaS runner 与 GitHub Release 编排状态。
-8. [secrets-management.md](secrets-management.md)：age + sops 密钥管理、令牌轮换与灾难恢复。
+2. [roadmap.md](roadmap.md)：发布后的持续开发路线图和未完成事项；
+3. [release/manual-release.md](release/manual-release.md)：本地构建并手动上传 GitHub Release 的操作 Runbook；
+4. [benchmarks/unicode-baseline.md](benchmarks/unicode-baseline.md)：Unicode 边界层引入前后的编译、体积和性能基线；
+5. [development/gitlab-mcp.md](development/gitlab-mcp.md)：Cline 接入 GitLab Build Service MCP Server 的配置、验收与安全规则。
+6. [development/gitlab-migration.md](development/gitlab-migration.md)：GitLab Build Service、Windows SaaS runner 与 GitHub Release 编排状态。
+7. [secrets-management.md](secrets-management.md)：age + sops 密钥管理、令牌轮换与灾难恢复。
 
 ## 文档职责
 
@@ -19,7 +18,7 @@
 | --- | --- | --- |
 | `../README.md` | 用户功能、使用方式、规则、限制和下载说明 | 用户可见行为变化时 |
 | `development.md` | 当前实现、开发流程、测试、CI 和工程约束 | 架构或开发流程变化时 |
-| `v0.5.0-release-plan.md` | `v0.5.0` 发布门槛、验收和发布状态 | 当前版本发布流程中持续更新 |
+| `archive/release-plans/v0.5.0-release-plan.md` | `v0.5.0` 发布门槛、验收和发布结果归档 | 正式发布完成后只追加更正 |
 | `roadmap.md` | 未完成的中长期开发工作 | 规划或任务状态变化时 |
 | `release/manual-release.md` | 本地发布的可操作步骤与故障排查 | 发布流程或脚本变化时 |
 | `development/gitlab-mcp.md` | GitLab Build Service MCP Server 在 Cline 中的接入、验收与安全边界 | GitLab MCP 或构建服务变化时 |

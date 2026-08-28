@@ -2,9 +2,9 @@
 
 本文档面向后续维护者，记录当前项目结构、架构边界、开发运行方式、测试命令、打包方式和已知注意事项。普通用户使用说明请参阅 [README.md](../README.md)。
 
-## `v0.5.0` 正式发布计划
+## `v0.5.0` 发布基线
 
-当前 `v0.5.0` 正式发布的开发、测试、Windows 验收和发布门槛统一记录在 [v0.5.0-release-plan.md](v0.5.0-release-plan.md)。后续开发应按该计划的阶段顺序执行；在黄金样例回归测试体系建立前，不新增格式化规则或大型 UI 功能。维护者文档总入口见 [docs/README.md](README.md)。
+`v0.5.0` 的发布计划与验收清单已归档至 [archive/release-plans/v0.5.0-release-plan.md](archive/release-plans/v0.5.0-release-plan.md)。当前正式 tag 在本地、GitHub 和 GitLab 均指向提交 `5102323`，GitLab Pipeline `#2799117439` 已于 2026-08-28 成功完成。后续开发按 [roadmap.md](roadmap.md) 执行；新增规则仍须先补黄金样例和组合回归测试。
 
 其他文档入口：
 
@@ -76,7 +76,7 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
 ├── docs/
 │   ├── README.md                  # 维护者文档导航
 │   ├── development.md             # 开发者文档（本文件）
-│   ├── v0.5.0-release-plan.md     # v0.5.0 发布计划与验收门槛
+│   ├── archive/release-plans/      # 已完成版本的发布计划与验收归档
 │   ├── roadmap.md                 # v0.5.0 后的中长期开发路线图
 │   ├── release/manual-release.md  # 本地构建与手动上传 Release Runbook
 │   └── benchmarks/                # 性能与体积基准记录
@@ -123,7 +123,7 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
 - **已完成的 Span/Edit 基础**：结构与语义 span 扫描、重叠仲裁、UTF-8 安全 `TextEdit`、非重叠编辑逆序应用、单位/数学边界编辑规划。
 - **已完成**：span-aware 混合管线已正式接管 `format_text`，并与全部稳定 fixture 逐例一致；普通测试 `tests.rs::span_aware_pipeline_matches_production_on_stable_fixtures` 持续比较新生产入口与旧 placeholder 路径。URL/邮箱、硬换行、引用式链接、未闭合反引号、LaTeX command/定界数学、数学复合单位及 inline placeholder 边界均已纳入 span 对照。
 - **未完成**：旧 placeholder 路径清理、`structure-precedence.yaml` pending 基线的最终迁移、非边界规则的 TextEdit/可编辑区间策略，以及性能基准。
-- **未完成**：完整单位词典、温度规则独立 stable key、Unicode 等价识别/默认关闭规范化、1 MB 长文本性能基准、真实 Tauri E2E 和正式 `v0.5.0` 发布；`v0.5.0-pre11` 已完成真实 Windows 10/11 验收，正式发布前仍必须处理 GitLab 历史 `v0.5.0` tag 与最终提交之间的冲突，具体决策见 `docs/v0.5.0-release-plan.md`。
+- **未完成**：完整单位词典、温度规则独立 stable key、Unicode 等价识别/默认关闭规范化、1 MB 长文本性能基准和真实 Tauri E2E；`v0.5.0-pre11` 已完成真实 Windows 10/11 验收，正式 tag `v0.5.0` 已在本地、GitHub 和 GitLab 对齐到 `5102323`，发布结果归档见 `docs/archive/release-plans/v0.5.0-release-plan.md`。
 - **当前验证基线**：Rust 单元测试 72 项、前端 Vitest 33 项；fmt、Clippy、前端构建和 diff 检查均纳入本地/CI 验证。
 
 ## 用户设置持久化
@@ -311,8 +311,8 @@ git diff --check
 
 ## 后续计划
 
-1. `v0.5.0-pre11` 已完成 GitLab 构建、GitHub Pre-release 复核和 Windows 10/11 真机验收；当前维护分支已包含 GitLab 密钥管理文档与 SOPS 文件；正式发布前处理 GitLab 历史 `v0.5.0` tag 与最终提交之间的冲突。
-2. 正式发布 `v0.5.0` 前，复核最终 Release 资产、Release Notes、版本号和 latest 标记；不得直接复用指向旧提交 `9524d37` 的 GitLab 历史 tag。
+1. `v0.5.0-pre11` 已完成 GitLab 构建、GitHub Pre-release 复核和 Windows 10/11 真机验收；当前维护分支已包含 GitLab 密钥管理文档与 SOPS 文件。
+2. 正式 tag `v0.5.0` 当前在本地、GitHub 和 GitLab 均指向 `5102323`；Pipeline `#2799117439` 已成功完成。正式 Release 的资产、Release Notes、版本号和 latest 标记仍需维护者在发布页完成最终复核。
 3. `v0.5.0` 发布后的中长期工作（复杂排版与 Unicode 基础能力增强（多行/Markdown/特殊单位/数学符号）、Unicode 引擎升级、ICU4X 评估、E2E、性能基准、其余 hooks 拆分和自动 secret scanning 等）统一在 [roadmap.md](roadmap.md) 跟踪，其中复杂排版增强的详细阶段计划见其 §5。本地构建自动化脚本、快捷键总开关/自定义绑定和 SOPS 文件迁移已完成。
 
 ## 图标
