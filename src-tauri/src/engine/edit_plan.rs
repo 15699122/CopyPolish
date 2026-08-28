@@ -1,14 +1,21 @@
 //! TextEdit 计划与冲突仲裁。
 //!
-//! 本模块是 Span → TextEdit 迁移基础设施，当前不接管生产 pipeline。编辑使用
-//! 原文 UTF-8 字节区间，先校验边界，再按优先级仲裁，最后从后向前应用。
+//! 本模块是 Span → TextEdit 迁移基础设施。标点/名词规则已经通过本模块接入
+//! 生产 pipeline；编辑使用原文 UTF-8 字节区间，先校验边界，再按优先级仲裁，
+//! 最后从后向前应用。
 
 use super::model::RuleSelection;
+use super::registry::{execution_rules, RulePhase};
 use super::semantic_tokens::scan_math_expressions;
 use super::semantic_tokens::scan_semantic_tokens;
 use super::spans::{scan_all_spans, SpanKind, SpanPriority, TextSpan};
 use super::tokenizer::{classify, CharKind};
 use super::unicode_boundaries::{units, BoundaryStrategy, ScriptClass};
+
+const EDITABLE_PHASES: &[RulePhase] = &[
+    RulePhase::PunctuationNormalization,
+    RulePhase::NamingNormalization,
+];
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum EditPriority {
@@ -117,6 +124,79 @@ pub(crate) fn apply_edits(text: &str, edits: &[TextEdit]) -> Result<String, Stri
         output.replace_range(edit.start..edit.end, &edit.replacement);
     }
     Ok(output)
+}
+
+fn selection_enabled(selection: &RuleSelection, key: &str) -> bool {
+    match selection {
+        RuleSelection::All => true,
+        RuleSelection::Defaults => super::registry::enabled_defaults()
+            .iter()
+            .any(|item| item == key),
+        RuleSelection::Only { keys } => keys.iter().any(|item| item == key),
+        RuleSelection::None => false,
+    }
+}
+
+fn editable_line_ranges(text: &str, spans: &[TextSpan]) -> Vec<(usize, usize)> {
+    let opaque: Vec<(usize, usize)> = spans
+        .iter()
+        .filter(|span| {
+            span.priority == SpanPriority::OpaqueStructure || span.kind == SpanKind::ChemicalFormula
+        })
+        .map(|span| (span.start, span.end))
+        .collect();
+    let mut ranges = Vec::new();
+    let mut line_start = 0usize;
+    for line in text.split_inclusive('\n') {
+        let line_end = line_start + line.len();
+        let content_end = line_end.saturating_sub(usize::from(line.ends_with('\n')));
+        let mut cursor = line_start;
+        for &(start, end) in opaque.iter().filter(|&&(start, _)| start < content_end) {
+            if end <= line_start || start >= content_end {
+                continue;
+            }
+            let start = start.max(line_start);
+            if cursor < start {
+                ranges.push((cursor, start));
+            }
+            cursor = cursor.max(end.min(content_end));
+        }
+        if cursor < content_end {
+            ranges.push((cursor, content_end));
+        }
+        line_start = line_end;
+    }
+    ranges
+}
+
+/// 在可编辑文本区间内按规则生成并应用 TextEdit。
+///
+/// 首批迁移只覆盖标点规范化和名词规范化阶段。这些规则不应改写结构/语义
+/// span，因此每个编辑都限定在单行可编辑区间内；结构边界规则仍由 pipeline
+/// 的内部保护层负责，避免改变既有边界空格语义。
+pub(crate) fn apply_editable_rules(
+    text: &str,
+    selection: &RuleSelection,
+) -> Result<String, String> {
+    let mut current = text.to_string();
+    for rule in execution_rules().into_iter().filter(|rule| {
+        EDITABLE_PHASES.contains(&rule.phase) && selection_enabled(selection, rule.key())
+    }) {
+        let spans = scan_all_spans(&current);
+        let edits: Vec<TextEdit> = editable_line_ranges(&current, &spans)
+            .into_iter()
+            .filter_map(|(start, end)| {
+                let original = &current[start..end];
+                let replacement = (rule.apply)(original);
+                (replacement != original).then(|| {
+                    TextEdit::new(&current, start, end, replacement, EditPriority::Editable)
+                        .expect("editable line range must be valid")
+                })
+            })
+            .collect();
+        current = apply_edits(&current, &arbitrate_edits(edits))?;
+    }
+    Ok(current)
 }
 
 /// 为已经仲裁的语义 span 生成边界编辑计划。
@@ -584,11 +664,11 @@ fn previous_char_range(text: &str, index: usize) -> Option<(usize, usize, char)>
         .map(|(start, ch)| (start, index, ch))
 }
 
-/// 测试对照入口：对原文仅应用单位/数学语义边界编辑。
+/// 测试入口：对原文仅应用单位/数学语义边界编辑。
 ///
-/// 这是 roadmap §5.7「编辑计划与旧 placeholder 路径逐例 diff 对照」的语义
-/// 编辑入口；生产 `format_text` 已使用 span-aware 混合管线，但本函数目前仍只
-/// 覆盖单位/数学语义边界。随迁移推进，温标、全角标点清理等规则将逐步纳入编辑计划。
+/// 该函数目前只覆盖单位/数学语义边界；标点/名词规则由
+/// `apply_editable_rules` 通过同一 TextEdit 基础设施接入生产路径。随迁移推进，
+/// 温标、全角标点清理和其余边界规则将逐步纳入编辑计划。
 #[cfg_attr(not(test), allow(dead_code))]
 pub(crate) fn format_units_and_math_via_edits(text: &str, selection: &RuleSelection) -> String {
     apply_edits(

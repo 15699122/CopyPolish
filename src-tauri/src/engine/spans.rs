@@ -160,8 +160,8 @@ pub(crate) fn scan_semantic_spans(text: &str) -> Vec<TextSpan> {
 
 /// 扫描当前保护层已经支持的结构 span。
 ///
-/// 这是结构保护的统一扫描入口，结果会被生产 span-aware 管线消费；完整
-/// placeholder → TextEdit 迁移仍在进行。
+/// 这是结构保护的统一扫描入口，结果会被生产 span-aware 管线消费；保护结构
+/// 当前仍通过内部 placeholder 承载，规则编辑逐步迁移到 TextEdit。
 pub(crate) fn scan_structure_spans(text: &str) -> Vec<TextSpan> {
     let mut spans = Vec::new();
     scan_front_matter_spans(text, &mut spans);
