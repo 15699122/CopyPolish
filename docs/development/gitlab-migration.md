@@ -56,7 +56,7 @@ GitLab 相比 GitHub 当前仍多以下内容：
 - `v0.5.0-pre7`
 - `backup/pre-merge-ub-into-dev-20260825-142543`
 
-`v0.5.0` 当前在本地、GitHub 和 GitLab 均解析到提交 `5102323`，同名 tag 不再存在跨平台指向冲突。GitLab Pipeline `#2799117439` 已于 2026-08-28 成功完成，五项 GitLab 资产及 `SHA256SUMS` 已校验通过；GitHub `v0.5.0` Release 当前仍为 Draft，6 个文件均已上传，但尚未发布，latest 仍为 `v0.4.0`。`pre5`～`pre7` 与 backup tag 仍不作为当前正式发布基线。
+`v0.5.0` 当前在本地、GitHub 和 GitLab 均解析到提交 `5102323`，同名 tag 不再存在跨平台指向冲突。GitLab Pipeline `#2799117439` 已于 2026-08-28 成功完成，五项 GitLab 资产及 `SHA256SUMS` 已校验通过；GitHub `v0.5.0` Release（ID `378455261`）已于 2026-08-28 13:54:11 UTC 正式发布，6 个文件均已上传并标记为 latest。`pre5`～`pre7` 与 backup tag 仍不作为当前正式发布基线。
 
 ## 4. 已定技术决策
 
@@ -113,7 +113,7 @@ GitHub 为主，GitLab 为 Build Service，不做双向写：
 - [x] Pipeline `#2799117439` 于 2026-08-28 完成且无错误；对应的 SOPS/age 密钥管理方案已审阅。
 - [x] 从 Pipeline `#2799117439` 获取五项正式资产并通过 `SHA256SUMS` 校验；
 - [x] 将五项资产和 `SHA256SUMS` 全部上传至 GitHub `v0.5.0` Draft；
-- [ ] 将 GitHub `v0.5.0` Draft 发布为正式版并设为 latest；当前 latest 仍为 `v0.4.0`。
+- [x] 将 GitHub `v0.5.0` Draft 发布为正式版并设为 latest；当前 latest 为 `v0.5.0`。
 - [x] 将 `.sops.yaml`、加密的 `secrets/tokens.env` 和 `scripts/load_tokens.sh` 迁入当前项目，并保留明文副本防护。
 - [x] 从个人配置仓库删除上述三个项目凭据文件，并完成删除提交推送（源仓库提交 `f20090c`）。
 
