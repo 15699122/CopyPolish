@@ -1,4 +1,4 @@
-# GitLab.com SaaS Windows runner 的 Windows 便携版构建。
+﻿# GitLab.com SaaS Windows runner 的 Windows 便携版构建。
 #
 # 该脚本由 .gitlab-ci.yml 调用，默认兼容 Windows PowerShell 5.1；
 # 它也可以由 PowerShell 7（pwsh）执行。所有工具链都放在临时目录，
@@ -22,7 +22,7 @@ function Invoke-Native {
     Write-Host "== $Description =="
     & $Command
     if ($LASTEXITCODE -ne 0) {
-        throw "$Description 失败，退出码 $LASTEXITCODE"
+        throw "$Description failed with exit code $LASTEXITCODE"
     }
 }
 
@@ -50,19 +50,19 @@ $vswhereCandidates = @(
 ) | Where-Object { $_ -and (Test-Path $_) }
 $vswhere = $vswhereCandidates | Select-Object -First 1
 if (-not $vswhere) {
-    throw "未找到 vswhere.exe，无法确认 Visual Studio Build Tools / Windows SDK。"
+    throw "vswhere.exe was not found; Visual Studio Build Tools / Windows SDK cannot be verified."
 }
 
 $vsPath = & $vswhere -latest -products * `
     -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
     -property installationPath
 if (-not $vsPath) {
-    throw "未找到带 VC.Tools.x86.x64 的 Visual Studio 安装。"
+    throw "No Visual Studio installation with VC.Tools.x86.x64 was found."
 }
 
 $vsDevCmd = Join-Path $vsPath "Common7\Tools\VsDevCmd.bat"
 if (-not (Test-Path $vsDevCmd)) {
-    throw "未找到 VsDevCmd.bat: $vsDevCmd"
+    throw "VsDevCmd.bat was not found: $vsDevCmd"
 }
 
 # 将 VsDevCmd 设置的环境变量导入当前 PowerShell 进程。
@@ -75,7 +75,7 @@ cmd.exe /s /c "`"$vsDevCmd`" -arch=x64 -host_arch=x64 && set" |
 
 foreach ($tool in @("cl.exe", "link.exe", "rc.exe", "mt.exe")) {
     if (-not (Resolve-CommandPath $tool)) {
-        throw "MSVC/Windows SDK 工具不可用: $tool"
+        throw "MSVC/Windows SDK tool is unavailable: $tool"
     }
 }
 
@@ -93,7 +93,7 @@ if ($nodeVersion -ne "v24.19.0") {
     $env:PATH = "$NodeRoot;$env:PATH"
 }
 if ((node --version).Trim() -ne "v24.19.0") {
-    throw "Node 版本不匹配，期望 v24.19.0，实际 $((node --version).Trim())"
+    throw "Node version mismatch; expected v24.19.0, got $((node --version).Trim())"
 }
 
 # ---- Rust 1.98.0 MSVC --------------------------------------------------------
@@ -108,17 +108,17 @@ if (-not (Test-Path (Join-Path $cargoBin "rustc.exe"))) {
 }
 $env:PATH = "$cargoBin;$env:PATH"
 if ((rustc --version) -notmatch "1\.98\.0") {
-    throw "Rust 版本不匹配：$(rustc --version)"
+    throw "Rust version mismatch: $(rustc --version)"
 }
 if ((rustc -vV) -notmatch "host: x86_64-pc-windows-msvc") {
-    throw "Rust host 不是 x86_64-pc-windows-msvc：$(rustc -vV)"
+    throw "Rust host is not x86_64-pc-windows-msvc: $(rustc -vV)"
 }
 
 # ---- Python / 7-Zip -----------------------------------------------------------
 $python = Resolve-CommandPath "python.exe"
-if (-not $python) { throw "未找到 python.exe" }
+if (-not $python) { throw "python.exe was not found" }
 $sevenZip = Resolve-CommandPath "7z.exe"
-if (-not $sevenZip) { throw "未找到 7z.exe" }
+if (-not $sevenZip) { throw "7z.exe was not found" }
 
 Write-Host "Node: $(node --version), npm: $(npm --version)"
 Write-Host "Rust: $(rustc --version)"
@@ -126,22 +126,22 @@ Write-Host "Python: $(& $python --version 2>&1)"
 Write-Host "7-Zip: $sevenZip"
 
 # ---- 版本与构建 ---------------------------------------------------------------
-Invoke-Native "同步版本 $Tag" { & $python "$RepoRoot\scripts\prepare_release_version.py" $Tag }
-Invoke-Native "校验版本 $Tag" { & $python "$RepoRoot\scripts\check_version.py" $Tag }
+Invoke-Native "Sync version $Tag" { & $python "$RepoRoot\scripts\prepare_release_version.py" $Tag }
+Invoke-Native "Verify version $Tag" { & $python "$RepoRoot\scripts\check_version.py" $Tag }
 
 Push-Location (Join-Path $RepoRoot "frontend")
 try {
-    Invoke-Native "安装前端依赖" { npm ci }
+    Invoke-Native "Install frontend dependencies" { npm ci }
     # 关键：沿用已成功的 GitHub 命令。这里的第二个 -- 只传给 Tauri，
     # 不会把 --no-bundle 误传给 cargo build。
-    Invoke-Native "构建 Tauri Windows exe" { npm run tauri build -- --no-bundle }
+    Invoke-Native "Build Tauri Windows exe" { npm run tauri build -- --no-bundle }
 }
 finally {
     Pop-Location
 }
 
 $exePath = Join-Path $RepoRoot "src-tauri\target\release\chinese-copywriting-formatter.exe"
-if (-not (Test-Path $exePath)) { throw "找不到构建产物: $exePath" }
+if (-not (Test-Path $exePath)) { throw "Build output was not found: $exePath" }
 
 # ---- 便携版打包 ---------------------------------------------------------------
 $dist = Join-Path $RepoRoot "dist\windows"
@@ -158,7 +158,7 @@ Push-Location $staging
 try {
     $files = Get-ChildItem -File | ForEach-Object { $_.Name }
     & $sevenZip a -t7z -mx=9 $archive $files
-    if ($LASTEXITCODE -ne 0) { throw "7-Zip 失败，退出码 $LASTEXITCODE" }
+    if ($LASTEXITCODE -ne 0) { throw "7-Zip failed with exit code $LASTEXITCODE" }
 }
 finally {
     Pop-Location
@@ -166,6 +166,6 @@ finally {
 Copy-Item (Join-Path $staging "CopyPolish.exe") (Join-Path $dist "CopyPolish.exe") -Force
 
 & $python "$RepoRoot\scripts\verify_release_assets.py" $Tag --dist-dir $dist --platform windows
-if ($LASTEXITCODE -ne 0) { throw "Windows 资产校验失败" }
+if ($LASTEXITCODE -ne 0) { throw "Windows asset verification failed" }
 Remove-Item -Recurse -Force $staging
 Get-ChildItem $dist
