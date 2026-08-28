@@ -4,17 +4,18 @@
 
 ## 1. 优先级原则
 
-1. 先完成 `v0.5.0` 预发布闭环（GUI 修复、Windows 真机验收、Pre-release 复核），再启动功能扩展；
+1. 先完成 `v0.5.0` 预发布闭环（GUI 修复、Windows 真机验收、Pre-release 复核），再处理正式发布；
 2. 每项改动先补测试与文档，再改实现；
 3. 大型依赖（如 ICU4X）先做 Spike 评估，确认体积/性能/跨平台收益后才正式接入。
 
 ## 2. P0：v0.5.0 预发布与正式发布闭环
 
-- 为已完成 GitLab 构建的 `v0.5.0-pre10` 补建 GitHub Pre-release，并自动生成、人工复核 Release Notes；
-- 发布 GUI 修复后的 `v0.5.0-pre11`，覆盖主页输入/输出等高和设置页主题三列布局；
-- Windows 10/11 真机人工验收（清单见 v0.5.0-release-plan.md 第 12 节）；
-- 正式 Release 资产、Release Notes 与 latest 标记复核；
-- 未闭环前不新增大型规则或 UI 重构。
+- [x] 为已完成 GitLab 构建的 `v0.5.0-pre10` 补建 GitHub Pre-release，并完成资产复核；
+- [x] 发布 GUI 修复后的 `v0.5.0-pre11`，覆盖主页输入/输出等高和设置页主题三列布局；
+- [x] 完成 Windows 10/11 真机人工验收，未发现明显问题；
+- [ ] 处理 GitLab 历史 `v0.5.0` tag 与最终正式提交之间的冲突；
+- [ ] 正式 Release 资产、Release Notes 与 latest 标记复核；
+- [x] 预发布闭环完成后再启动正式发布准备，继续禁止在正式发布前新增大型规则或 UI 重构。
 
 ## 3. P1：本地构建与手动发布能力
 
