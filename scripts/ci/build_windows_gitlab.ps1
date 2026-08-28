@@ -110,8 +110,9 @@ $env:PATH = "$cargoBin;$env:PATH"
 if ((rustc --version) -notmatch "1\.98\.0") {
     throw "Rust version mismatch: $(rustc --version)"
 }
-if ((rustc -vV) -notmatch "host: x86_64-pc-windows-msvc") {
-    throw "Rust host is not x86_64-pc-windows-msvc: $(rustc -vV)"
+$rustHost = (rustc -vV | Select-String '^host:' | Select-Object -First 1).Line.Trim()
+if ($rustHost -ne "host: x86_64-pc-windows-msvc") {
+    throw "Rust host mismatch: $rustHost"
 }
 
 # ---- Python / 7-Zip -----------------------------------------------------------
