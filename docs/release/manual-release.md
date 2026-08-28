@@ -1,6 +1,6 @@
 # CopyPolish 本地构建与手动发布指南
 
-本指南描述 GitHub 主平台编排 GitLab Build Service、下载构建资产并创建 GitHub Release 的完整流程。GitLab 负责 Linux/Windows 构建和内部构建 Release；GitHub 负责开发、tag、验收和公开 Release。中长期发布相关维护项见 [roadmap.md](../roadmap.md)。
+本指南描述当前暂时停用 GitHub Actions 后，使用本地构建或 GitLab Build Service 完成构建、资产校验和手动发布的流程。GitHub 仍负责源码和协作；构建由本地环境或 GitLab 完成，公开 Release 可使用 GitHub 网页/CLI 手动创建。中长期发布相关维护项见 [roadmap.md](../roadmap.md)。
 
 > 提示：`scripts/build_release_local.sh`（Linux）、`scripts/build_release_local.ps1`（Windows）与 `scripts/verify_release_assets.py`（产物校验）封装了本指南的核心步骤；仍需遵守下文的干净发布工作区与人工验收要求，首次使用前请先通读本指南。
 
@@ -8,16 +8,18 @@
 
 | 模式 | 用途 | 说明 |
 | --- | --- | --- |
-| GitHub → GitLab 构建 → GitHub Release | 当前主路线 | GitHub tag 触发编排；GitLab 构建 Linux/Windows；GitHub 下载资产、执行 smoke 并创建公开 Release |
-| GitHub Actions 全平台 fallback | 备用路线 | GitLab Build Service、SaaS runner 或桥接 token 不可用时，手动运行 `release-fallback.yml` |
-| 全部资产本地构建 + GitHub 手动上传 | 最后恢复路径 | CI、网络或平台服务不可用时使用 |
+| GitLab 构建 + 手动整理/发布 | 当前主路线之一 | 手动将合法 `v*` tag 推送到 GitLab；GitLab 构建 Linux/Windows、生成内部资产；维护者下载、校验并手动发布 |
+| 本地 Linux/Windows 构建 + 手动发布 | 当前主路线之一 | 在对应原生平台构建全部资产，执行统一校验后手动上传到 GitHub 或 GitLab Release |
+| GitHub Actions | 暂时停用 | `.github/workflows/` 当前为空；原 workflow 保存在 `.github/workflows-disabled/`，不得依赖其自动构建或发布 |
 
 原则：
 
-- 本地发布**不替代** CI：手动上传前必须完成本地等价验证，或确认对应 commit 的 CI 已通过；
+- 当前 GitHub Actions 暂停期间，本地验证和 GitLab pipeline 是构建门禁；手动上传前必须保留验证日志和资产校验结果；
 - 每个 Release 必须能追溯到一个明确的 Git commit 与 Git tag；
 - 未经过 `prepare_release_version.py` 同步版本的二进制不得作为 Release 资产上传；
 - Windows 资产必须在 Windows 上构建，Linux 资产必须在 Linux 上构建（本项目未配置交叉编译）。
+
+GitLab 手动构建的关键约束：GitLab `.gitlab-ci.yml` 只响应合法 `v*` tag。创建 tag 后，需要将 tag（以及其所需对象）推送到 GitLab；不需要、也不应将 `dev` / `master` 分支日常同步到 GitLab。GitLab 构建完成后，不能依赖已停用的 GitHub workflow 下载资产或执行 Windows smoke，必须由维护者手动下载、校验并验收。
 
 ## 2. 发布前置条件
 
@@ -287,7 +289,7 @@ export GITLAB_PROJECT_ID=85804438
 https://gitlab.com/api/v4/projects/85804438/packages/generic/copypolish/vX.Y.Z[-suffix]/CopyPolish_linux_amd64.AppImage
 ```
 
-GitHub Release workflow 会强制下载并校验全部五项资产，缺少 AppImage 时应保持失败，这是预期的安全门禁。
+手动发布前必须下载并校验全部五项资产，缺少 AppImage 时不得继续发布，这是预期的安全门禁。
 
 > 不要把 `GITLAB_TOKEN` 写入 remote URL、脚本、仓库文件或提交历史。PAT 仅用于本次上传和 GitLab API 操作；GitLab MCP Server 仍使用 OAuth，不接受 PAT。
 
