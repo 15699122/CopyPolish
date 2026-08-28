@@ -5,7 +5,7 @@
 
 > GitHub 是源码与开发协作主平台；GitHub Actions 已从当前源码树移除。
 > GitLab 仅在维护者手动推送 `v*` tag 后负责 Linux/Windows 构建与内部构建 Release；公开 Release 由维护者手动整理和创建。
-> GitHub `dev` 当前为提交 `01f1082`；`v0.5.0-pre10` 指向 `4cd68ae`，已完成 GitLab 构建、资产校验及 GitHub Pre-release 发布。GUI 等高与主题三列布局已合入 `dev`，后续跨平台构建版本使用 `v0.5.0-pre11`。
+> GitHub `dev` 当前为提交 `a016751`；`v0.5.0-pre10` 指向 `4cd68ae`，`v0.5.0-pre11` 指向 `a016751`，已完成 GitLab 构建、资产校验及 GitHub Pre-release 发布。GUI 等高、主题三列布局和 Windows 10/11 真机验收均已完成。
 
 ## 1. 架构与目标
 
@@ -97,7 +97,7 @@ GitHub 为主，GitLab 为 Build Service，不做双向写：
 - [x] GitLab CI 已改为仅响应 Release tag；
 - [x] GitLab Linux/Windows 构建与内部 Release job 已落地；
 - [x] GitHub Actions 构建/发布 workflow 已从当前源码树移除；
-- [x] `dev` 已提交并推送到 GitHub `origin/dev`（当前提交 `01f1082`）；
+- [x] `dev` 已提交并推送到 GitHub `origin/dev`（当前提交 `a016751`）；
 - [ ] 按 gitlab-mcp.md 完成 Build Service 只读验收；
 - [x] 手动确认 GitLab 项目、tag 推送权限和 GitLab Windows SaaS runner 可用；当前不需要配置 GitHub bridge Secret；
 - [x] GitLab Git/API 认证已验证；项目 API、pipeline 查询和 Package Registry 读取正常；
@@ -106,7 +106,10 @@ GitHub 为主，GitLab 为 Build Service，不做双向写：
 - [x] 创建并推送 `v0.5.0-pre10`；GitLab pipeline `2798399242` 的 Linux/Windows 构建、资产汇总和内部 Release 全部成功；
 - [x] 从 GitLab Generic Package 下载五项资产，重新执行 SHA256 和 `verify_release_assets.py --platform all` 校验，全部通过；
 - [x] 使用已校验的 GitLab 资产创建公开 GitHub `v0.5.0-pre10` Pre-release，并完成 GitHub 资产二次 SHA256 校验；
-- [ ] 完成真实 Windows GUI/DPI/WebView2 人工验收。
+- [x] 创建并推送 `v0.5.0-pre11`；GitLab pipeline `2798723858` 的 Linux/Windows 构建、资产汇总和内部 Release 全部成功；
+- [x] 从 GitLab Generic Package 下载 `v0.5.0-pre11` 五项资产，执行 SHA256 和 `verify_release_assets.py --platform all` 校验，全部通过；
+- [x] 使用已校验的 GitLab 资产创建公开 GitHub `v0.5.0-pre11` Pre-release，并完成 GitHub 五项资产二次复核；
+- [x] 完成真实 Windows 10/11 GUI/DPI/WebView2 人工验收，未发现明显问题。
 
 ## 8. Windows 人工验收（保持既有约束）
 

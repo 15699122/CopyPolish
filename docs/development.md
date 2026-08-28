@@ -122,7 +122,7 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
 - **已完成的 Span/Edit 基础**：结构与语义 span 扫描、重叠仲裁、UTF-8 安全 `TextEdit`、非重叠编辑逆序应用、单位/数学边界编辑规划。
 - **已完成**：span-aware 混合管线已正式接管 `format_text`，并与全部稳定 fixture 逐例一致；普通测试 `tests.rs::span_aware_pipeline_matches_production_on_stable_fixtures` 持续比较新生产入口与旧 placeholder 路径。URL/邮箱、硬换行、引用式链接、未闭合反引号、LaTeX command/定界数学、数学复合单位及 inline placeholder 边界均已纳入 span 对照。
 - **未完成**：旧 placeholder 路径清理、`structure-precedence.yaml` pending 基线的最终迁移、非边界规则的 TextEdit/可编辑区间策略，以及性能基准。
-- **未完成**：完整单位词典、温度规则独立 stable key、Unicode 等价识别/默认关闭规范化、1 MB 长文本性能基准、真实 Tauri E2E、Windows 10/11 真机验收和正式 `v0.5.0` 发布；此外，正式发布前必须处理 GitLab 历史 `v0.5.0` tag 与最终提交之间的冲突，具体决策见 `docs/v0.5.0-release-plan.md`。
+- **未完成**：完整单位词典、温度规则独立 stable key、Unicode 等价识别/默认关闭规范化、1 MB 长文本性能基准、真实 Tauri E2E 和正式 `v0.5.0` 发布；`v0.5.0-pre11` 已完成真实 Windows 10/11 验收，正式发布前仍必须处理 GitLab 历史 `v0.5.0` tag 与最终提交之间的冲突，具体决策见 `docs/v0.5.0-release-plan.md`。
 - **当前验证基线**：Rust 单元测试 72 项、前端 Vitest 33 项；fmt、Clippy、前端构建和 diff 检查均纳入本地/CI 验证。
 
 ## 用户设置持久化
@@ -310,8 +310,8 @@ git diff --check
 
 ## 后续计划
 
-1. 真实 Windows 机器人工验收：下载 CI 的 `windows-portable` artifact，运行 `.exe`，输入 `在LeanCloud上，花了5000元` → 应输出 `在 LeanCloud 上，花了 5000 元`；验证设置弹窗 13 条规则、开关即时重排、设置文件持久化、高 DPI 显示。
-2. 创建并验证 GUI 修复后的 `v0.5.0-pre11`，随后再进行 Windows 真机验收；正式发布 `v0.5.0` 前人工复核 Release 资产、Release Notes、版本号和 latest 标记。
+1. `v0.5.0-pre11` 已完成 GitLab 构建、GitHub Pre-release 复核和 Windows 10/11 真机验收；正式发布前处理 GitLab 历史 `v0.5.0` tag 与最终提交之间的冲突。
+2. 正式发布 `v0.5.0` 前，复核最终 Release 资产、Release Notes、版本号和 latest 标记；不得直接复用指向旧提交 `9524d37` 的 GitLab 历史 tag。
 3. `v0.5.0` 发布后的中长期工作（复杂排版与 Unicode 基础能力增强（多行/Markdown/特殊单位/数学符号）、Unicode 引擎升级、ICU4X 评估、E2E、性能基准、其余 hooks 拆分等）统一在 [roadmap.md](roadmap.md) 跟踪，其中复杂排版增强的详细阶段计划见其 §5。本地构建自动化脚本与快捷键总开关/自定义绑定已完成并合入 `dev`。
 
 ## 图标
