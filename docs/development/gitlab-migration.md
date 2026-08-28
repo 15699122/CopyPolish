@@ -5,7 +5,7 @@
 
 > GitHub 是源码与开发协作主平台；GitHub Actions 已从当前源码树移除。
 > GitLab 仅在维护者手动推送 `v*` tag 后负责 Linux/Windows 构建与内部构建 Release；公开 Release 由维护者手动整理和创建。
-> GitHub `dev` 当前为提交 `a016751`；`v0.5.0-pre10` 指向 `4cd68ae`，`v0.5.0-pre11` 指向 `a016751`，已完成 GitLab 构建、资产校验及 GitHub Pre-release 发布。GUI 等高、主题三列布局和 Windows 10/11 真机验收均已完成。
+> GitHub `dev` 当前为提交 `aaae346`；`v0.5.0-pre10` 指向 `4cd68ae`，`v0.5.0-pre11` 指向 `a016751`，已完成 GitLab 构建、资产校验及 GitHub Pre-release 发布。GUI 等高、主题三列布局和 Windows 10/11 真机验收均已完成。
 
 ## 1. 架构与目标
 
@@ -97,7 +97,7 @@ GitHub 为主，GitLab 为 Build Service，不做双向写：
 - [x] GitLab CI 已改为仅响应 Release tag；
 - [x] GitLab Linux/Windows 构建与内部 Release job 已落地；
 - [x] GitHub Actions 构建/发布 workflow 已从当前源码树移除；
-- [x] `dev` 已提交并推送到 GitHub `origin/dev`（当前提交 `a016751`）；
+- [x] `dev` 已提交并推送到 GitHub `origin/dev`（当前提交 `aaae346`）；
 - [ ] 按 gitlab-mcp.md 完成 Build Service 只读验收；
 - [x] 手动确认 GitLab 项目、tag 推送权限和 GitLab Windows SaaS runner 可用；当前不需要配置 GitHub bridge Secret；
 - [x] GitLab Git/API 认证已验证；项目 API、pipeline 查询和 Package Registry 读取正常；
