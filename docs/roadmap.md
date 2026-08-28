@@ -1,10 +1,10 @@
 # CopyPolish 后续开发路线图
 
-本文档跟踪 `v0.5.0` 正式发布后的中长期开发工作；`v0.5.0` 发布门槛与验收仍以 [v0.5.0-release-plan.md](v0.5.0-release-plan.md) 为准，本地构建与手动发布操作见 [manual-release.md](release/manual-release.md)。
+本文件跟踪 `v0.5.0` 正式发布后的中长期开发工作；历史发布门槛与结果见 [archive/release-plans/v0.5.0-release-plan.md](archive/release-plans/v0.5.0-release-plan.md)，本地构建与手动发布操作见 [manual-release.md](release/manual-release.md)。
 
 ## 1. 优先级原则
 
-1. 先完成 `v0.5.0` 预发布闭环（GUI 修复、Windows 真机验收、Pre-release 复核），再处理正式发布；
+1. 先完成 `v0.5.0` 发布结果复核与文档归档，再处理正式发布后的持续开发；
 2. 每项改动先补测试与文档，再改实现；
 3. 大型依赖（如 ICU4X）先做 Spike 评估，确认体积/性能/跨平台收益后才正式接入。
 
@@ -13,7 +13,7 @@
 - [x] 为已完成 GitLab 构建的 `v0.5.0-pre10` 补建 GitHub Pre-release，并完成资产复核；
 - [x] 发布 GUI 修复后的 `v0.5.0-pre11`，覆盖主页输入/输出等高和设置页主题三列布局；
 - [x] 完成 Windows 10/11 真机人工验收，未发现明显问题；
-- [ ] 处理 GitLab 历史 `v0.5.0` tag 与最终正式提交之间的冲突；
+- [x] 处理 GitLab 历史 `v0.5.0` tag 与最终正式提交之间的冲突；本地、GitHub 和 GitLab 的 tag 均指向 `5102323`；
 - [ ] 正式 Release 资产、Release Notes 与 latest 标记复核；
 - [x] 预发布闭环完成后再启动正式发布准备，继续禁止在正式发布前新增大型规则或 UI 重构。
 

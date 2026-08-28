@@ -279,7 +279,7 @@ https://gitlab.com/api/v4/projects/85804438/packages/generic/copypolish/vX.Y.Z[-
 
 ## 9. Windows 真机人工验收
 
-正式发布前，在真实 Windows 10/11 环境运行本地构建的 `CopyPolish.exe` 完成 [v0.5.0-release-plan.md](../v0.5.0-release-plan.md) 第 12 节的全部人工验收项，至少包括：
+正式发布前，在真实 Windows 10/11 环境运行本地构建的 `CopyPolish.exe` 完成 [v0.5.0-release-plan.md](../archive/release-plans/v0.5.0-release-plan.md) 第 12 节的全部人工验收项，至少包括：
 
 - 启动、WebView2、无边框窗口拖动与最小化/最大化/关闭、最小尺寸 800×600；
 - 100%–200% DPI 布局；
@@ -328,7 +328,7 @@ gh release create vX.Y.Z-preN \
 - [ ] 正式版标记 latest，预发布标记 prerelease 且不占用 latest；
 - [ ] Release Notes 经人工审阅：覆盖本次用户可感知的变化，不重复上一版内容，保留固定说明（便携版命名、设置迁移、已知限制等）；
 - [ ] Windows 资产经过实际下载并运行验证；
-- [ ] 发布结果同步回对应版本计划文档（如 `v0.5.0-release-plan.md`）。
+- [ ] 发布结果同步回对应版本计划归档（如 `docs/archive/release-plans/v0.5.0-release-plan.md`）。
 
 回滚原则：GitHub Release 可编辑资产列表与 Notes，但**不要删除已发布的 tag**；发现严重问题时优先发预发布修复版，而不是撤回历史 Release。
 

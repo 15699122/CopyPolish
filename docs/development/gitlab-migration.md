@@ -43,7 +43,7 @@ GitLab Build Service
 
 分支：
 
-- `dev`：GitHub 开发分支，本地 upstream 为 `origin/dev`；GitHub 仓库当前默认分支实际为 `master`，后续需决定是否调整为 `dev`；
+- `dev`：GitHub 开发分支，本地 upstream 为 `origin/dev`；当前与 `master` 的内容基线需在发布收尾后保持同步；
 - `master`：稳定分支，与既有流程不变；
 - GitLab 不维护日常开发分支，只保留维护者手动推送的 Release tag。
 
@@ -56,7 +56,7 @@ GitLab 相比 GitHub 当前仍多以下内容：
 - `v0.5.0-pre7`
 - `backup/pre-merge-ub-into-dev-20260825-142543`
 
-`v0.5.0` 是 GitLab 上的历史 tag（当前指向 `9524d37`），但当前正式版仍未完成 Windows 真机验收，不应同步为 GitHub 正式 Release。正式发布前必须处理该同名 tag 冲突：要么清理/归档 GitLab 历史 tag 后从最终提交重新构建，要么改走隔离发布工作区的本地跨平台构建；不得让同名 tag 在两个构建平台指向不同提交而不留记录。`pre5`～`pre7` 仅在确认 commit 对齐后补推 GitHub；backup tag 不同步。
+`v0.5.0` 当前在本地、GitHub 和 GitLab 均解析到提交 `5102323`，同名 tag 不再存在跨平台指向冲突。GitLab Pipeline `#2799117439` 已于 2026-08-28 成功完成；正式 Release 的资产、Release Notes 和 latest 状态仍需按发布 Runbook 完成最终人工复核。`pre5`～`pre7` 与 backup tag 仍不作为当前正式发布基线。
 
 ## 4. 已定技术决策
 
@@ -97,7 +97,7 @@ GitHub 为主，GitLab 为 Build Service，不做双向写：
 - [x] GitLab CI 已改为仅响应 Release tag；
 - [x] GitLab Linux/Windows 构建与内部 Release job 已落地；
 - [x] GitHub Actions 构建/发布 workflow 已从当前源码树移除；
-- [x] `dev` 已提交并推送到 GitHub `origin/dev`（当前提交 `be9f85c`）；
+- [x] `dev` 已提交并推送到 GitHub `origin/dev`（发布 tag 基线为 `5102323`）；
 - [ ] 按 gitlab-mcp.md 完成 Build Service 只读验收；
 - [x] 手动确认 GitLab 项目、tag 推送权限和 GitLab Windows SaaS runner 可用；当前不需要配置 GitHub bridge Secret；
 - [x] GitLab Git/API 认证已验证；项目 API、pipeline 查询和 Package Registry 读取正常；
@@ -122,7 +122,7 @@ GitHub 为主，GitLab 为 Build Service，不做双向写：
 
 ## 8. Windows 人工验收（保持既有约束）
 
-即便 SaaS runner 构建成功，正式发布前仍须在真实 Windows 10/11 完成人工验收（清单见 `../v0.5.0-release-plan.md` 第 12 节）：WebView2、无边框窗口、DPI、默认样例 `在LeanCloud上，花了5000元` → `在 LeanCloud 上，花了 5000 元`、规则 / 设置持久化。
+即便 SaaS runner 构建成功，正式发布前仍须在真实 Windows 10/11 完成人工验收（历史清单见 `../archive/release-plans/v0.5.0-release-plan.md` 第 12 节）：WebView2、无边框窗口、DPI、默认样例 `在LeanCloud上，花了5000元` → `在 LeanCloud 上，花了 5000 元`、规则 / 设置持久化。
 
 ## 9. 风险与备注
 
