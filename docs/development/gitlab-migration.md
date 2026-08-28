@@ -5,7 +5,7 @@
 
 > GitHub 是源码与开发协作主平台；GitHub Actions 已从当前源码树移除。
 > GitLab 仅在维护者手动推送 `v*` tag 后负责 Linux/Windows 构建与内部构建 Release；公开 Release 由维护者手动整理和创建。
-> GitHub `dev` 当前为提交 `f0b1c09`；`v0.5.0-pre10` 指向 `4cd68ae`，已完成 GitLab 构建、资产校验及 GitHub Pre-release 发布。GUI 等高与主题三列布局已合入 `dev`，后续跨平台构建版本使用 `v0.5.0-pre11`。
+> GitHub `dev` 当前为提交 `01f1082`；`v0.5.0-pre10` 指向 `4cd68ae`，已完成 GitLab 构建、资产校验及 GitHub Pre-release 发布。GUI 等高与主题三列布局已合入 `dev`，后续跨平台构建版本使用 `v0.5.0-pre11`。
 
 ## 1. 架构与目标
 
@@ -56,7 +56,7 @@ GitLab 相比 GitHub 当前仍多以下内容：
 - `v0.5.0-pre7`
 - `backup/pre-merge-ub-into-dev-20260825-142543`
 
-`v0.5.0` 是 GitLab 上的历史 tag，但当前正式版仍未完成 Windows 真机验收，不应同步为 GitHub 正式 Release。`pre5`～`pre7` 仅在确认 commit 对齐后补推 GitHub；backup tag 不同步。
+`v0.5.0` 是 GitLab 上的历史 tag（当前指向 `9524d37`），但当前正式版仍未完成 Windows 真机验收，不应同步为 GitHub 正式 Release。正式发布前必须处理该同名 tag 冲突：要么清理/归档 GitLab 历史 tag 后从最终提交重新构建，要么改走隔离发布工作区的本地跨平台构建；不得让同名 tag 在两个构建平台指向不同提交而不留记录。`pre5`～`pre7` 仅在确认 commit 对齐后补推 GitHub；backup tag 不同步。
 
 ## 4. 已定技术决策
 
@@ -97,7 +97,7 @@ GitHub 为主，GitLab 为 Build Service，不做双向写：
 - [x] GitLab CI 已改为仅响应 Release tag；
 - [x] GitLab Linux/Windows 构建与内部 Release job 已落地；
 - [x] GitHub Actions 构建/发布 workflow 已从当前源码树移除；
-- [x] `dev` 已提交并推送到 GitHub `origin/dev`（提交 `f0b1c09`）；
+- [x] `dev` 已提交并推送到 GitHub `origin/dev`（当前提交 `01f1082`）；
 - [ ] 按 gitlab-mcp.md 完成 Build Service 只读验收；
 - [x] 手动确认 GitLab 项目、tag 推送权限和 GitLab Windows SaaS runner 可用；当前不需要配置 GitHub bridge Secret；
 - [x] GitLab Git/API 认证已验证；项目 API、pipeline 查询和 Package Registry 读取正常；

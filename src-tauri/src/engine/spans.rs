@@ -1,7 +1,7 @@
 //! 统一文本 span 模型与重叠仲裁。
 //!
-//! 本模块暂不替换现有占位符管线，只为后续 TextSpan/TextEdit 重构提供稳定的
-//! 优先级和重叠规则。仲裁结果按原文位置排序，调用方可以安全地按字节区间消费。
+//! 本模块为 span-aware 混合管线提供统一的优先级和重叠规则，并为后续
+//! TextEdit 全量迁移提供稳定基础。仲裁结果按原文位置排序，调用方可以安全地按字节区间消费。
 
 use super::semantic_tokens::scan_math_expressions;
 use super::tokenizer::detect_chemical_formulas;
@@ -160,7 +160,8 @@ pub(crate) fn scan_semantic_spans(text: &str) -> Vec<TextSpan> {
 
 /// 扫描当前保护层已经支持的结构 span。
 ///
-/// 这是后续 placeholder → TextEdit 迁移的只读入口；当前不改变生产 pipeline。
+/// 这是结构保护的统一扫描入口，结果会被生产 span-aware 管线消费；完整
+/// placeholder → TextEdit 迁移仍在进行。
 pub(crate) fn scan_structure_spans(text: &str) -> Vec<TextSpan> {
     let mut spans = Vec::new();
     scan_front_matter_spans(text, &mut spans);
