@@ -114,7 +114,7 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
  15. Unicode 等价识别与输出规范化分离：识别层把 `µ/μ`、`Å/Å` 视为等价语义，输出层默认不改写用户原文；如提供统一表示，须作为独立、默认关闭的规范化规则并评估 NFKC 影响。
  16. 复杂输入测试应至少覆盖结构保护、语义 token、普通文本规则三层同时命中的场景；新增规则或保护层改动必须补充复杂组合 fixture、规则选择组合、优先级和幂等性测试。当前 `structure-precedence.yaml` 作为 pending 基线记录行内代码与单位/数学扫描的优先级冲突，不能把该差异误标为稳定行为。
 
-## 当前开发进度摘要（2026-08-26）
+## 当前开发进度摘要（2026-08-28）
 
 - **已完成**：阶段 A 测试分层、阶段 B Unicode grapheme 边界、阶段 C 第一批有限单位词典/语义 token、阶段 D 首批 Markdown 保护能力。
 - **已完成**：快捷键总开关与自定义绑定（roadmap §4 阶段 A/B；持久化、冲突校验、IME 防护、恢复默认）。
@@ -122,7 +122,7 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
 - **已完成的 Span/Edit 基础**：结构与语义 span 扫描、重叠仲裁、UTF-8 安全 `TextEdit`、非重叠编辑逆序应用、单位/数学边界编辑规划。
 - **已完成**：span-aware 混合管线已正式接管 `format_text`，并与全部稳定 fixture 逐例一致；普通测试 `tests.rs::span_aware_pipeline_matches_production_on_stable_fixtures` 持续比较新生产入口与旧 placeholder 路径。URL/邮箱、硬换行、引用式链接、未闭合反引号、LaTeX command/定界数学、数学复合单位及 inline placeholder 边界均已纳入 span 对照。
 - **未完成**：旧 placeholder 路径清理、`structure-precedence.yaml` pending 基线的最终迁移、非边界规则的 TextEdit/可编辑区间策略，以及性能基准。
-- **未完成**：完整单位词典、温度规则独立 stable key、Unicode 等价识别/默认关闭规范化、1 MB 长文本性能基准、真实 Tauri E2E、Windows 10/11 真机验收和正式 `v0.5.0` 发布。
+- **未完成**：完整单位词典、温度规则独立 stable key、Unicode 等价识别/默认关闭规范化、1 MB 长文本性能基准、真实 Tauri E2E、Windows 10/11 真机验收和正式 `v0.5.0` 发布；此外，正式发布前必须处理 GitLab 历史 `v0.5.0` tag 与最终提交之间的冲突，具体决策见 `docs/v0.5.0-release-plan.md`。
 - **当前验证基线**：Rust 单元测试 72 项、前端 Vitest 33 项；fmt、Clippy、前端构建和 diff 检查均纳入本地/CI 验证。
 
 ## 用户设置持久化

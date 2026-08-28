@@ -88,10 +88,6 @@ fn load_passing_golden_cases() -> Vec<(String, GoldenCase)> {
 fn load_pending_baseline_cases() -> Vec<(String, GoldenCase)> {
     [
         (
-            "markdown-inline.yaml",
-            include_str!("../../tests/fixtures/markdown-inline.yaml"),
-        ),
-        (
             "markdown-blocks.yaml",
             include_str!("../../tests/fixtures/markdown-blocks.yaml"),
         ),

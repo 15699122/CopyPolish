@@ -21,11 +21,11 @@ pub mod pipeline;
 pub mod protection;
 pub mod registry;
 mod rule_impls;
-// TextEdit 迁移脚手架；当前由模块内单元测试验证，尚未接管生产 pipeline。
+// TextEdit 迁移模块；当前由模块内单元测试和语义对照测试验证，尚未覆盖全部规则。
 #[allow(dead_code)]
 pub(crate) mod edit_plan;
 pub(crate) mod semantic_tokens;
-// Span/edit 重构的迁移脚手架；当前由模块内单元测试验证，尚未接管生产 pipeline。
+// Span/edit 基础模块；span-aware 混合管线已接管生产入口，完整 TextEdit 迁移仍在进行。
 #[allow(dead_code)]
 pub(crate) mod spans;
 pub mod tokenizer;

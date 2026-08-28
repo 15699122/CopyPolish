@@ -586,9 +586,9 @@ fn previous_char_range(text: &str, index: usize) -> Option<(usize, usize, char)>
 
 /// 测试对照入口：对原文仅应用单位/数学语义边界编辑。
 ///
-/// 这是 roadmap §5.7「编辑计划与旧 placeholder 路径逐例 diff 对照」的新路径
-/// 侧；生产 `format_text` 尚未使用本函数。随迁移推进，逐步把温标、全角标点
-/// 清理等规则纳入编辑计划后，本函数覆盖面将与生产管线收敛。
+/// 这是 roadmap §5.7「编辑计划与旧 placeholder 路径逐例 diff 对照」的语义
+/// 编辑入口；生产 `format_text` 已使用 span-aware 混合管线，但本函数目前仍只
+/// 覆盖单位/数学语义边界。随迁移推进，温标、全角标点清理等规则将逐步纳入编辑计划。
 #[cfg_attr(not(test), allow(dead_code))]
 pub(crate) fn format_units_and_math_via_edits(text: &str, selection: &RuleSelection) -> String {
     apply_edits(

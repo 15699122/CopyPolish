@@ -120,14 +120,14 @@ frontend/src/hooks/useShortcuts.ts # 监听、启停、IME 防护、动作分发
 - 数学表达式与中文之间的精确空格、HTML block 内可见文本是否完全冻结等尚未完成产品决策的行为，不在决策前作为唯一正确输出；
 - 阶段 C/D 完成对应实现后，pending 案例必须迁移到稳定黄金回归集，并补充幂等性断言；
 - 阶段 A 已完成：上述 fixture 已补齐，稳定黄金样例与 pending 基线已在 `src-tauri/src/engine/tests.rs` 中分离，并已加入稳定样例幂等性测试；Rust、前端和 diff 检查均已纳入验证流程。
-- 阶段 A 后续维护已新增复杂组合、规则交互、结构优先级及换行/幂等性 fixture；其中结构优先级样例暂作为 pending 基线，已记录“行内代码应优先于单位/数学扫描”的当前差异，待 span/edit 重构后迁移到稳定黄金回归集。
+- 阶段 A 后续维护已新增复杂组合、规则交互、结构优先级及换行/幂等性 fixture；结构优先级样例仍作为 pending 基线保留，用于记录旧 placeholder 路径与 span-aware 生产路径之间的迁移差异。
 
 #### 阶段 A 当前验收结果
 
 - 稳定黄金 fixture 与 pending baseline 已在 `engine/tests.rs` 分离；
 - 已增加 `complex-compositions.yaml`、`rule-interactions.yaml`、`structure-precedence.yaml`、`newline-and-idempotence.yaml`；
 - 已覆盖默认规则、单规则、复杂规则组合、换行风格、幂等性和结构优先级差异；
-- 当前 Rust 全量测试为 66 项，pending 基线不阻断 CI，但必须持续保留可观测差异。
+- 当前默认 Rust feature 全量测试为 72 项，启用 `tui` feature 时为 113 项；pending 基线不阻断 CI，但必须持续保留可观测差异。
 
 ### 5.4 阶段 B：`unicode-segmentation` 与统一字符边界层（P1）✅ 已在 `unicode-boundaries` 分支实现
 
@@ -199,9 +199,9 @@ frontend/src/hooks/useShortcuts.ts # 监听、启停、IME 防护、动作分发
 #### 阶段 D 当前限制
 
 - 当前保护实现仍是手写扫描器、有限 `fancy-regex` 与 placeholder 的混合模式；
-- `spans.rs` 已能扫描首批块级/行内结构并与语义 span 仲裁，但尚未接管 `protection.rs` 或 `pipeline.rs`；
-- `edit_plan.rs` 已能规划并应用测试用 TextEdit，但尚未替换现有逐行规则管线；
-- 行内代码优先于单位/数学扫描的目标行为仍由 `structure-precedence.yaml` 作为 pending 基线冻结；
+- `spans.rs` 已扫描首批块级/行内结构并与语义 span 仲裁，span-aware 混合管线已经接管生产 `format_text`；后续工作是继续收敛保护层和清理旧 placeholder 路径；
+- `edit_plan.rs` 已能规划并应用 UTF-8 安全的 TextEdit，但尚未替换全部逐行字符串规则；
+- 行内代码优先于单位/数学扫描的 4 个案例已由生产路径验证，但其中“行内代码内含单位/数学内容”的案例仍与旧 placeholder 路径存在差异，`structure-precedence.yaml` 暂作为 pending 基线保留；
 - 不将当前能力宣称为完整 CommonMark/HTML 解析器。
 
 ### 5.7 R2/R3：规则调度与 Span/Edit 迁移基础（P1/P2，进行中）
@@ -221,16 +221,11 @@ frontend/src/hooks/useShortcuts.ts # 监听、启停、IME 防护、动作分发
 
 #### 未完成
 
-- 将结构/语义 span 正式接入现有保护层；✅ 已完成：`format_text_span_aware` 已通过全量稳定 fixture 等价性验证并接入生产 `format_text`；
-- 结构保护还原迁移的三类已确认差异（2026-08-26 对照输出）：
-  a) inline placeholder 周边 CJK 空格：生产管线对行内代码 / 链接 / 图片 / 行内 HTML / 化学式占位符两侧补空格；
-  b) HTML block 的 span 覆盖缺口：✅ 已修复——`scan_html_block_spans` 此前计算 span 终点时漏掉中间行长度与换行符，导致块内正文漏出 span；已修正并新增回归测试 `spans.rs::html_block_span_covers_interior_lines`；
-  c) 未闭合结构的特殊还原（如 `[文档]（` 全角括号替换）；
-- 将 `TextEdit` 正式接入 `format_text`；✅ 混合管线已接入生产入口并通过全量稳定 fixture 等价性验证；旧 placeholder 路径暂保留用于回归，待观察期后清理；
-- 将 `spacing.number-unit`、温标和数学边界迁移为 span-aware edits；✅ 已完成并通过语义 fixture 对照；全角标点清理仍待纳入混合管线的规则选择/编辑计划；
+- 继续清理迁移期遗留的旧 placeholder 路径；
+- 将非边界规则和全角标点清理迁移到统一的 TextEdit / 可编辑区间策略；
 - 移除普通/数学多套 placeholder 编号约定；
-- 解决所有结构优先级 pending 案例并迁移为稳定黄金 fixture；
-- 增加编辑计划与旧 placeholder 路径的逐例 diff 对照；✅ 已完成并扩展至**全部稳定黄金 fixture**：语义 EditPlan 对照测试 `tests.rs::edit_plan_path_matches_placeholder_pipeline_on_semantic_fixtures` 已收窄为单位/数学边界职责并通过；混合管线全量等价性测试为 `tests.rs::span_aware_pipeline_matches_production_on_stable_fixtures`，已恢复为普通测试并通过全部稳定 fixture。当前没有未处理的混合管线输出差异；`format_text` 已切换到混合管线，后续重点是旧 placeholder 清理、`structure-precedence.yaml` 最终迁移及性能验证；
+- 整理结构优先级 fixture：确认 span-aware 生产路径符合预期后，继续保留 `structure-precedence.yaml` pending 基线，直到旧 placeholder 路径清理完成或对照测试改为只验证生产路径；
+- 保持并扩展编辑计划与旧 placeholder 路径的逐例 diff 对照；当前 `structure-precedence.yaml` 仍记录一项迁移期差异：生产 span-aware 路径保持行内代码内部完整，而旧 placeholder 路径会误改其中的单位内容；
 - 建立 10 KB/100 KB/1 MB 性能和内存基线。
 
 ### 5.8 阶段 E：Unicode 等价识别与输出规范化（P2）
@@ -329,12 +324,11 @@ frontend/src/hooks/
 ```text
 P0  §2 发布闭环
  ↓
-P1  §3 本地构建脚本（可选） → §4 快捷键开关 → §4 自定义快捷键
+P1  §3 本地构建脚本（可选）
  ↓
 P1  §5
-     阶段 A（测试先行：复杂排版/Markdown/单位/数学/Unicode 边界样例）
-     → 阶段 B（unicode-segmentation 封装与小范围替换）
-     → 阶段 C（单位词典与语义 token / 温度 / 数学符号分类）
+     阶段 C 收尾（单位/温度/数学语义边界）
+     → R2/R3 收尾（旧 placeholder 清理、TextEdit 扩展、fixture 整理）
  ↓
 P2  §5 阶段 D（Markdown 块级扫描器）→ 阶段 E（Unicode 等价规范化，默认关）
  → §8 性能基准 ⇄ §7 E2E → §6 ICU4X Spike → §9 hooks 重构 → §10/§11 持续维护

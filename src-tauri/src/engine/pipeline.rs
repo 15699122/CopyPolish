@@ -117,12 +117,12 @@ fn restore_newlines(text: &str, newline: &str) -> String {
 // ---------------------------------------------------------------------------
 // span 感知混合管线（roadmap §5.7 R3 收尾的探索入口）。
 //
-// 这是「placeholder → TextEdit」重构的对照骨架：用 scan_all_spans 划定的
-// 不可编辑区间替代 protection 的部分占位符，然后对可编辑区间复用现有
+// 这是「placeholder → TextEdit」重构的 span-aware 混合实现：用 scan_all_spans
+// 划定的不可编辑区间替代 protection 的部分占位符，然后对可编辑区间复用现有
 // execution_rules 纯函数规则。当前已接入生产 format_text；旧 placeholder 管线
 // 暂时保留为迁移期对照实现；
 // URL / 邮箱、硬换行、引用式链接、未闭合反引号及数学复合单位等结构已纳入
-// span 扫描和对照门禁，后续重点转为生产入口切换与旧 placeholder 清理。
+// span 扫描和对照门禁，后续重点转为旧 placeholder 清理、完整 TextEdit 迁移和性能验证。
 // ---------------------------------------------------------------------------
 
 fn enabled_set(req: &FormatRequest) -> HashSet<String> {
