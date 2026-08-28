@@ -59,6 +59,8 @@ def check_versions(tag: str, errors: list[str]) -> None:
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
     )
     if result.returncode != 0:
         detail = (result.stdout + result.stderr).strip()
@@ -97,6 +99,8 @@ def check_7z_root_layout(archive: Path, errors: list[str]) -> None:
         [seven_zip, "l", "-slt", str(archive)],
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
     )
     if result.returncode != 0:
         fail(errors, f".7z 列表读取失败: {archive} :: {(result.stderr or '').strip()}")

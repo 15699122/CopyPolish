@@ -5,7 +5,7 @@
 
 > GitHub 是源码与开发协作主平台；GitHub Actions 自 2026-08-28 起暂时停用。
 > GitLab 仅在维护者手动推送 `v*` tag 后负责 Linux/Windows 构建与内部构建 Release；公开 Release 由维护者手动整理和创建。
-> GitHub `dev` 已同步至提交 `633f5d6`；GitLab Git/API 认证与远程 CI Lint 已于 2026-08-28 验证通过，当前待完成 Windows 构建修复后的验证 tag、构建产物验收和人工发布验收。
+> GitHub `dev` 已同步至提交 `4cd68ae`；GitLab Git/API 认证与远程 CI Lint 已于 2026-08-28 验证通过，`v0.5.0-pre10` 已完成 GitLab 全链路构建与资产校验，当前仅待真实 Windows GUI/DPI/WebView2 人工验收。
 
 ## 1. 架构与目标
 
@@ -82,7 +82,7 @@ stage 顺序：`build → package → release`。
 - `build:linux`：GitLab Linux runner 安装 Tauri GTK/WebKit 依赖，构建并校验 deb/rpm/AppImage；
 - `build:windows`：Windows SaaS runner 通过 `scripts/ci/build_windows_gitlab.ps1` 自装并核验 MSVC/Rust/Node/Python/7-Zip，构建并校验 exe/.7z；
 - `package:assemble`：合并两平台 artifacts，运行 `verify_release_assets.py --platform all` 并生成 SHA256SUMS；
-- `release:gitlab`：上传六个构建文件到 Generic Package Registry，创建内部 GitLab Release；公开 Release 仍由 GitHub Actions 创建。
+- `release:gitlab`：上传六个构建文件到 Generic Package Registry，创建内部 GitLab Release；公开 Release 当前由维护者手动整理和创建。
 
 版本脚本复用既有：`check_version.py` / `prepare_release_version.py` / `verify_release_assets.py`。
 
@@ -97,14 +97,15 @@ GitHub 为主，GitLab 为 Build Service，不做双向写：
 - [x] GitLab CI 已改为仅响应 Release tag；
 - [x] GitLab Linux/Windows 构建与内部 Release job 已落地；
 - [x] GitHub Actions 构建/发布 workflow 已暂时停用并移至 `.github/workflows-disabled/`；
-- [x] `dev` 已提交并推送到 GitHub `origin/dev`（提交 `633f5d6`）；
+- [x] `dev` 已提交并推送到 GitHub `origin/dev`（提交 `4cd68ae`）；
 - [ ] 按 gitlab-mcp.md 完成 Build Service 只读验收；
 - [x] 手动确认 GitLab 项目、tag 推送权限和 GitLab Windows SaaS runner 可用；当前不需要配置 GitHub bridge Secret；
 - [x] GitLab Git/API 认证已验证；项目 API、pipeline 查询和 Package Registry 读取正常；
 - [x] GitLab 远程 CI Lint 已通过（`valid=true`、无 errors、无 warnings）；
 - [ ] 如需恢复 GitHub Actions，再处理账户计费/额度阻塞并恢复 `.github/workflows-disabled/` 下的 workflow；
-- [ ] 创建新的验证 tag，修复 Windows 构建后验收 GitLab 双平台构建和内部 Release；`v0.5.0-pre8`/`pre9` 已分别因资产缺失和 Windows host 检查问题失败；
-- [ ] 手动下载并核对五项资产与 GitLab `SHA256SUMS` 一致，再手动创建公开 Release；
+- [x] 创建并推送 `v0.5.0-pre10`；GitLab pipeline `2798399242` 的 Linux/Windows 构建、资产汇总和内部 Release 全部成功；
+- [x] 从 GitLab Generic Package 下载五项资产，重新执行 SHA256 和 `verify_release_assets.py --platform all` 校验，全部通过；
+- [ ] 手动创建公开 GitHub Release；
 - [ ] 完成真实 Windows GUI/DPI/WebView2 人工验收。
 
 ## 8. Windows 人工验收（保持既有约束）
