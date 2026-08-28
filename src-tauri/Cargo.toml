@@ -35,8 +35,7 @@ ratatui = { version = "0.29", optional = true }
 crossterm = { version = "0.28", optional = true }
 unicode-width = { version = "0.2", optional = true }
 
-# 说明：应用为纯 Rust 实现。仓库 reference/ 目录下的 Python 文件仅作历史参考，
-# 不参与构建、打包或测试门禁。
+# 说明：应用为纯 Rust 实现，历史 Python 参考实现不参与构建、打包或测试门禁。
 
 [[bin]]
 name = "copypolish-tui"

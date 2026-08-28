@@ -170,8 +170,8 @@ export function SettingsDialog({
           <div className="space-y-6 pb-4">
             <div className="space-y-2">
               <h3 className="text-sm font-semibold">主题</h3>
-              <div className="space-y-1.5" data-testid="theme-options">
-                <label className="flex w-fit min-w-0 cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-accent">
+              <div className="grid w-full grid-cols-[1.35fr_1fr_1fr] gap-1.5" data-testid="theme-options">
+                <label className="flex w-full min-w-0 cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-accent">
                   <input
                     type="checkbox"
                     checked={followingSystem}
@@ -181,34 +181,32 @@ export function SettingsDialog({
                   />
                   <span className="text-sm">跟随系统</span>
                 </label>
-                <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
-                  {([
-                    ["light", "浅色"],
-                    ["dark", "深色"],
-                  ] as const).map(([value, label]) => (
-                    <label
-                      key={value}
-                      className={cn(
-                        "flex min-w-0 items-center gap-1.5 rounded-md px-2 py-1.5 transition-colors",
-                        !followingSystem && "cursor-pointer hover:bg-accent",
-                        !followingSystem && theme === value && "bg-accent text-accent-foreground",
-                        followingSystem && "cursor-not-allowed opacity-50",
-                      )}
-                    >
-                      <input
-                        type="radio"
-                        name="theme"
-                        value={value}
-                        checked={theme === value}
-                        disabled={followingSystem}
-                        onChange={() => onThemeChange(value)}
-                        data-testid={`theme-${value}`}
-                        className="h-4 w-4 shrink-0"
-                      />
-                      <span className="truncate text-sm">{label}</span>
-                    </label>
-                  ))}
-                </div>
+                {([
+                  ["light", "浅色"],
+                  ["dark", "深色"],
+                ] as const).map(([value, label]) => (
+                  <label
+                    key={value}
+                    className={cn(
+                      "flex w-full min-w-0 items-center gap-1.5 rounded-md px-2 py-1.5 transition-colors",
+                      !followingSystem && "cursor-pointer hover:bg-accent",
+                      !followingSystem && theme === value && "bg-accent text-accent-foreground",
+                      followingSystem && "cursor-not-allowed opacity-50",
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      name="theme"
+                      value={value}
+                      checked={theme === value}
+                      disabled={followingSystem}
+                      onChange={() => onThemeChange(value)}
+                      data-testid={`theme-${value}`}
+                      className="h-4 w-4 shrink-0"
+                    />
+                    <span className="truncate text-sm">{label}</span>
+                  </label>
+                ))}
               </div>
               <div className="space-y-1.5" data-testid="ui-scale-settings">
                 <h4 className="text-xs font-medium text-muted-foreground">缩放</h4>

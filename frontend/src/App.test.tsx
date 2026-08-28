@@ -226,6 +226,8 @@ describe("App 主流程", () => {
     expect(screen.getByTestId("settings-actions")).toBeInTheDocument();
     // 主题：跟随系统为勾选框，浅色/深色为单选项（默认勾选跟随时禁用）。
     expect(screen.getByTestId("theme-options")).toBeInTheDocument();
+    expect(screen.getByTestId("theme-options")).toHaveClass("grid-cols-[1.35fr_1fr_1fr]");
+    expect(screen.getByTestId("theme-options").children).toHaveLength(3);
     expect(screen.getByTestId("theme-system")).toBeInTheDocument();
     expect(screen.getByTestId("theme-system")).toHaveAttribute("type", "checkbox");
     expect(screen.getByTestId("theme-system")).toBeChecked();
@@ -452,8 +454,13 @@ describe("App 主流程", () => {
     }
 
     // 输出滚动容器与输入 textarea 的内容内边距保持一致（px-3 py-2）。
-    const outputScroller = screen.getByTestId("output-text").parentElement!;
+    const outputScroller = screen.getByTestId("output-scroller");
     expect(outputScroller).toHaveClass("px-3", "py-2");
+    expect(screen.getByTestId("scaled-app-content").firstElementChild).toHaveClass(
+      "grid-rows-2",
+      "lg:grid-cols-2",
+      "lg:grid-rows-1",
+    );
 
     await user.selectOptions(screen.getByTestId("editor-font-size-select"), "large");
     expect(document.documentElement.style.getPropertyValue("--editor-font-size")).toBe("16px");

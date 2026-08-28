@@ -1,6 +1,6 @@
 # CopyPolish 本地构建与手动发布指南
 
-本指南描述当前暂时停用 GitHub Actions 后，使用本地构建或 GitLab Build Service 完成构建、资产校验和手动发布的流程。GitHub 仍负责源码和协作；构建由本地环境或 GitLab 完成，公开 Release 可使用 GitHub 网页/CLI 手动创建。中长期发布相关维护项见 [roadmap.md](../roadmap.md)。
+本指南描述当前使用本地构建或 GitLab Build Service 完成构建、资产校验和 GitHub 手动发布的流程。GitHub 负责源码、tag 和公开 Release；构建由本地环境或 GitLab 完成。中长期发布相关维护项见 [roadmap.md](../roadmap.md)。
 
 > 提示：`scripts/build_release_local.sh`（Linux）、`scripts/build_release_local.ps1`（Windows）与 `scripts/verify_release_assets.py`（产物校验）封装了本指南的核心步骤；仍需遵守下文的干净发布工作区与人工验收要求，首次使用前请先通读本指南。
 
@@ -10,7 +10,7 @@
 | --- | --- | --- |
 | GitLab 构建 + 手动整理/发布 | 当前主路线之一 | 手动将合法 `v*` tag 推送到 GitLab；GitLab 构建 Linux/Windows、生成内部资产；维护者下载、校验并手动发布 |
 | 本地 Linux/Windows 构建 + 手动发布 | 当前主路线之一 | 在对应原生平台构建全部资产，执行统一校验后手动上传到 GitHub 或 GitLab Release |
-| GitHub Actions | 暂时停用 | `.github/workflows/` 当前为空；原 workflow 保存在 `.github/workflows-disabled/`，不得依赖其自动构建或发布 |
+| GitHub Actions | 当前不使用 | workflow 已从源码树移除，不得依赖 GitHub runner 自动构建或发布 |
 
 原则：
 
@@ -19,7 +19,7 @@
 - 未经过 `prepare_release_version.py` 同步版本的二进制不得作为 Release 资产上传；
 - Windows 资产必须在 Windows 上构建，Linux 资产必须在 Linux 上构建（本项目未配置交叉编译）。
 
-GitLab 手动构建的关键约束：GitLab `.gitlab-ci.yml` 只响应合法 `v*` tag。创建 tag 后，需要将 tag（以及其所需对象）推送到 GitLab；不需要、也不应将 `dev` / `master` 分支日常同步到 GitLab。GitLab 构建完成后，不能依赖已停用的 GitHub workflow 下载资产或执行 Windows smoke，必须由维护者手动下载、校验并验收。
+GitLab 手动构建的关键约束：GitLab `.gitlab-ci.yml` 只响应合法 `v*` tag。创建 tag 后，需要将 tag（以及其所需对象）推送到 GitLab；不需要、也不应将 `dev` / `master` 分支日常同步到 GitLab。GitLab 构建完成后，必须由维护者手动下载、校验并完成 Windows smoke 验收。
 
 ## 2. 发布前置条件
 
@@ -262,28 +262,11 @@ CopyPolish-linux-x86_64.rpm
 CopyPolish_linux_amd64.AppImage
 ```
 
-### 8.1 Linux 本地构建恢复路径
+### 8.1 发布资产来源
 
-标准主流程不需要本地上传 Linux 资产：GitHub 的 Release workflow 会把同一 tag 推送到 GitLab，由 GitLab Linux job 构建。以下脚本仅在 GitLab Linux runner 不可用时作为恢复路径使用：
+当前标准流程由 GitLab tag pipeline 构建并汇总全部五项平台资产及 `SHA256SUMS`。维护者下载后执行完整校验，再使用 GitHub CLI 创建公开 Release；不再维护本地分阶段上传 Linux 资产的备用脚本。
 
-```bash
-export GITLAB_TOKEN='临时 PAT 或仅允许写入 Package Registry 的 Deploy Token'
-export GITLAB_PROJECT_ID=85804438
-
-./scripts/upload_gitlab_linux_assets.sh vX.Y.Z[-suffix] dist
-```
-
-脚本会在上传前检查：
-
-- 使用隔离发布 worktree（上传脚本允许版本同步产生的预期改动）；
-- 本地版本号与 tag 一致；
-- 三个 Linux 文件存在且非空；
-- 本地 tag commit 与 GitLab tag commit 一致；
-- 远端同名文件若已存在，则必须与本地文件字节一致，否则拒绝覆盖。
-
-主流程中，GitLab 的 `release:gitlab` 会自动创建内部构建 Release；GitHub workflow 随后下载同一批资产，运行 SHA 校验和 Windows smoke，最后创建公开 GitHub Release。
-
-若恢复路径中的 AppImage 上传遇到网络错误，可以暂时跳过它；在五项资产齐全前不要创建 GitHub Release。手动上传完成后，确认以下 URL 对应文件返回 HTTP 200：
+若从 GitLab Package Registry 下载 AppImage 遇到网络错误，应先解决认证或网络问题；在五项资产齐全前不要创建 GitHub Release。下载前可确认以下 URL 对应文件返回 HTTP 200：
 
 ```text
 https://gitlab.com/api/v4/projects/85804438/packages/generic/copypolish/vX.Y.Z[-suffix]/CopyPolish_linux_amd64.AppImage

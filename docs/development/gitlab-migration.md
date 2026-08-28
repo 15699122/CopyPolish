@@ -3,9 +3,9 @@
 本文记录 GitHub 主平台与 GitLab Build Service 之间的构建编排、当前进度、已定决策、CI/CD 运行方式与后续待办。
 仅面向维护者；Cline 接入 GitLab MCP 见 [gitlab-mcp.md](gitlab-mcp.md)。
 
-> GitHub 是源码与开发协作主平台；GitHub Actions 自 2026-08-28 起暂时停用。
+> GitHub 是源码与开发协作主平台；GitHub Actions 已从当前源码树移除。
 > GitLab 仅在维护者手动推送 `v*` tag 后负责 Linux/Windows 构建与内部构建 Release；公开 Release 由维护者手动整理和创建。
-> GitHub `dev` 已同步至提交 `4cd68ae`；GitLab Git/API 认证与远程 CI Lint 已于 2026-08-28 验证通过，`v0.5.0-pre10` 已完成 GitLab 全链路构建与资产校验，当前仅待真实 Windows GUI/DPI/WebView2 人工验收。
+> GitHub `dev` 当前为提交 `1c23d58`；`v0.5.0-pre10` 指向 `4cd68ae`，已完成 GitLab 全链路构建与资产校验，GitHub Release 尚待资产凭据可用后创建。GUI 等高与主题三列布局将在后续 `v0.5.0-pre11` 中发布。
 
 ## 1. 架构与目标
 
@@ -43,20 +43,20 @@ GitLab Build Service
 
 分支：
 
-- `dev`：GitHub 默认开发分支，本地 upstream 为 `origin/dev`；
+- `dev`：GitHub 开发分支，本地 upstream 为 `origin/dev`；GitHub 仓库当前默认分支实际为 `master`，后续需决定是否调整为 `dev`；
 - `master`：稳定分支，与既有流程不变；
-- GitLab 不维护日常开发分支，只保留 GitHub workflow 推送的 Release tag。
+- GitLab 不维护日常开发分支，只保留维护者手动推送的 Release tag。
 
 ## 3. Tag 差异记录
 
-GitLab 比 GitHub 多以下内容（这些 tag 在 GitHub 从未存在）：
+GitLab 相比 GitHub 当前仍多以下内容：
 
-- `v0.5.0`
 - `v0.5.0-pre5`
+- `v0.5.0-pre6`
+- `v0.5.0-pre7`
 - `backup/pre-merge-ub-into-dev-20260825-142543`
 
-即本地 / GitLab 拥有既有版本历史的完整来源，GitHub 只有到 `v0.5.0-pre4` 的记录。
-是否补推 GitHub 属待办决策（见 §7）。
+`v0.5.0` 是 GitLab 上的历史 tag，但当前正式版仍未完成 Windows 真机验收，不应同步为 GitHub 正式 Release。`pre5`～`pre7` 仅在确认 commit 对齐后补推 GitHub；backup tag 不同步。
 
 ## 4. 已定技术决策
 
@@ -86,26 +86,26 @@ stage 顺序：`build → package → release`。
 
 版本脚本复用既有：`check_version.py` / `prepare_release_version.py` / `verify_release_assets.py`。
 
-## 6. GitHub → GitLab 构建编排（代码已落地，待外部 Secret 与首轮验收）
+## 6. GitHub → GitLab 构建编排（当前手动发布流程）
 
 GitHub 为主，GitLab 为 Build Service，不做双向写：
 
-- 已停用 `.github/workflows/release.yml`、`.github/workflows/release-fallback.yml` 及 `.github/workflows/ci.yml`；原文件保存在 `.github/workflows-disabled/`；
+- GitHub Actions workflow 已移除；公开 Release 由维护者根据 GitLab 资产手动创建；
 - GitLab 构建改为维护者手动创建并推送 `v*` tag，随后在 GitLab 查看 pipeline、下载资产并手动校验；
-- `scripts/ci/push_tag_to_gitlab.sh`、`wait_for_gitlab_pipeline.py` 和 `download_gitlab_release_assets.py` 保留为未来恢复自动桥接时使用，当前不属于发布必经路径；
+- GitHub→GitLab 自动桥接脚本已移除；tag 同步由维护者按发布 Runbook 执行；
 - [x] `dev` 本地 upstream 已切换为 `origin/dev`（GitHub）；
 - [x] GitLab CI 已改为仅响应 Release tag；
 - [x] GitLab Linux/Windows 构建与内部 Release job 已落地；
-- [x] GitHub Actions 构建/发布 workflow 已暂时停用并移至 `.github/workflows-disabled/`；
-- [x] `dev` 已提交并推送到 GitHub `origin/dev`（提交 `4cd68ae`）；
+- [x] GitHub Actions 构建/发布 workflow 已从当前源码树移除；
+- [x] `dev` 已提交并推送到 GitHub `origin/dev`（提交 `1c23d58`）；
 - [ ] 按 gitlab-mcp.md 完成 Build Service 只读验收；
 - [x] 手动确认 GitLab 项目、tag 推送权限和 GitLab Windows SaaS runner 可用；当前不需要配置 GitHub bridge Secret；
 - [x] GitLab Git/API 认证已验证；项目 API、pipeline 查询和 Package Registry 读取正常；
 - [x] GitLab 远程 CI Lint 已通过（`valid=true`、无 errors、无 warnings）；
-- [ ] 如需恢复 GitHub Actions，再处理账户计费/额度阻塞并恢复 `.github/workflows-disabled/` 下的 workflow；
+- [x] 当前不再保留停用的 GitHub Actions workflow 副本；如未来恢复自动化，应以新的设计和独立评审为准；
 - [x] 创建并推送 `v0.5.0-pre10`；GitLab pipeline `2798399242` 的 Linux/Windows 构建、资产汇总和内部 Release 全部成功；
 - [x] 从 GitLab Generic Package 下载五项资产，重新执行 SHA256 和 `verify_release_assets.py --platform all` 校验，全部通过；
-- [ ] 手动创建公开 GitHub Release；
+- [ ] 使用已校验的 GitLab 资产创建公开 GitHub `v0.5.0-pre10` Release；
 - [ ] 完成真实 Windows GUI/DPI/WebView2 人工验收。
 
 ## 8. Windows 人工验收（保持既有约束）

@@ -56,7 +56,7 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
 
 - `frontend/`：React + Vite + TypeScript + Tailwind v4 + shadcn/ui 界面已落地。
 - `src-tauri/src/engine/`：纯 Rust 可扩展引擎（注册表 + 保护层 + 化学式识别），无 Python/PyO3 运行时依赖，也不受固定规则数量约束。
-- `reference/`：历史 Python 引擎与规则目录仅作归档保留，不参与构建、打包与测试门禁。
+- 历史 Python 引擎已从当前工作树移除；如需追溯请通过 Git 历史查看，不参与构建、打包与测试门禁。
 - 设置 Dialog 使用稳定响应式布局：在视口安全边距内居中并限制最大宽高，固定 header/footer + 原生 `overflow-y-auto` 内容滚动；不再模拟 Dialog 内部拖动/缩放，主 Tauri 窗口仍可拖动和 resize。
 - 设置 Dialog 支持主题切换（“跟随系统”为勾选框：勾选时浅色/深色单选项禁用，取消勾选时按 `prefers-color-scheme` 立即回退到显式 light/dark）、主界面缩放与编辑器字号下拉框、界面字体预设（含恢复默认）、Footer 显示完整应用版本 / 保存状态 / 设置文件路径（点状下划线仅作用于路径文本，“设置文件：”标签无下划线；路径截断时悬停或键盘聚焦展示完整值）。
 - 主窗口最小尺寸为 `800×600`，用于避免布局过度压缩。
@@ -79,9 +79,6 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
 │   ├── roadmap.md                 # v0.5.0 后的中长期开发路线图
 │   ├── release/manual-release.md  # 本地构建与手动上传 Release Runbook
 │   └── benchmarks/                # 性能与体积基准记录
-├── reference/                     # 历史参考资产（不参与构建、打包与测试门禁）
-│   ├── ccw_engine.py              # 历史 Python 实现
-│   └── rule_catalog.yaml          # 历史规则元数据
 ├── frontend/                      # React/Vite/TS/Tailwind v4/shadcn-ui 界面
 │   └── src/App.tsx                # 主界面：双栏编辑、设置 Dialog、防抖实时排版
 ├── scripts/
@@ -156,8 +153,8 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
 - 设置 Dialog 的版本号通过 `getAppVersion()` 读取：打包环境使用 Tauri `getVersion()`，浏览器预览使用 Vite 从 `frontend/package.json` 注入的 `__APP_VERSION__` 回退值，避免重复维护版本常量。
 - 设置弹窗 Footer 保持与主界面一致的 `py-4` 纵向内边距；桌面端单行显示版本/保存状态/设置路径与操作按钮，小屏或较长保存错误时采用 flex-wrap 响应式换行。
 - 预发布版本一致性：release 工作流在测试校验后调用 `scripts/prepare_release_version.py <tag>`，把 tag 的完整版本（如 `v0.5.0-pre1` → `0.5.0-pre1`）写入 package.json / package-lock.json / tauri.conf.json / Cargo.toml / Cargo.lock，仅作用于构建工作区（CI runner 或本地隔离发布 worktree），不回写源码提交；`check_version.py` 同时接受源码基础版本与同步后的完整版本两种状态。
-- 主界面输入框与输出框共享 `--app-font-family`、`--editor-font-size` 和 `--editor-line-height`；textarea 基础组件不再自带 `text-base`/`md:text-sm` 字号工具类，保证 `.editor-text` 的字号变量对输入框与输出框同时生效。主界面内容通过 `--app-ui-scale` 缩放。设置文件路径在 Footer 中单行截断，保留 `title` 和 `aria-label`，不再显示自定义悬停浮层；灰色点状下划线仅作用于路径文本。输入框 placeholder 固定为「请在这里粘贴或输入文字」。
-- 设置窗口的“字体”部分通过下拉框支持字号预设（13/14/16/18px），“主题”部分通过下拉框支持主界面缩放预设（80/90/100/110/125%）。旧 `rules.yaml` 缺少新字段时回退为标准字号与 100% 缩放。
+- 主界面输入框与输出框共享 `--app-font-family`、`--editor-font-size` 和 `--editor-line-height`；textarea 基础组件不再自带 `text-base`/`md:text-sm` 字号工具类，保证 `.editor-text` 的字号变量对输入框与输出框同时生效。主界面内容通过 `--app-ui-scale` 缩放，并使用等高网格行约束输入/输出卡片，避免 textarea 与 `pre` 的固有高度差异造成上下布局不一致。设置文件路径在 Footer 中单行截断，保留 `title` 和 `aria-label`，不再显示自定义悬停浮层；灰色点状下划线仅作用于路径文本。输入框 placeholder 固定为「请在这里粘贴或输入文字」。
+- 设置窗口的“主题”部分将“跟随系统”“浅色”“深色”三个选项放在同一行，其中“跟随系统”列略宽以容纳复选框和中文标签；“字体”部分通过下拉框支持字号预设（13/14/16/18px），主界面缩放预设为 80/90/100/110/125%。旧 `rules.yaml` 缺少新字段时回退为标准字号与 100% 缩放。
 - 设置窗口中的规则列表仅做展示排序（默认开启在上、默认关闭在下，组内保持注册表顺序），不改变 Rust 注册表数组顺序与 pipeline 执行顺序。
 - 设置加载提醒包括旧版本设置迁移、旧设置损坏、主设置损坏后的备份恢复、主/备份均损坏以及备份损坏但主设置可用等状态；提醒会显示在主界面提示条和设置文件区域。
 - 测试约定：所有设置读写测试一律使用系统临时目录中的唯一随机文件（PID + 计数器），禁止写仓库内固定路径。
@@ -306,7 +303,7 @@ git diff --check
 ## 重要实现约束
 
 1. 前端只能通过 `frontend/src/lib/tauri.ts` 的封装访问后端，不直接 `invoke`。
-2. `reference/` 仅作历史参考，不定义 Rust 引擎行为；详见 `reference/README.md`。
+2. Rust 引擎是当前唯一行为事实来源；历史 Python 实现不在当前工作树中。
 3. 改动规则定义时，只需更新 `src-tauri/src/engine/registry.rs`、对应规则实现及 Rust 回归测试；前端通过 command 动态读取 metadata。
 4. 打包资源变更需同步 `tauri.conf.json` 的 `bundle.resources` 并做安装态 smoke。
 5. Tailwind 优先使用间距刻度类（如 `min-h-130` = 130 × 0.25rem），仅当数值不在刻度上时才用 `[...]` 任意值写法，避免 lint 警告。
@@ -324,22 +321,22 @@ git diff --check
 
 ## 持续集成
 
-当前 GitHub Actions 暂时停用。根目录 `.gitlab-ci.yml` 是当前可用的 GitLab
+当前 GitHub Actions 不在源码树中。根目录 `.gitlab-ci.yml` 是当前可用的 GitLab
 build-only 配置，本地构建脚本是另一条可用路径。GitHub 只负责源码和协作；
 GitLab 负责可选的 Linux/Windows 构建及内部构建 Release，公开 Release 由维护者手动整理和创建：
 
 - `.gitlab-ci.yml` 只响应手动推送到 GitLab 的合法 `v*` tag；`build:linux` 和 `build:windows` 在 GitLab 上并行构建，`package:assemble` 校验五项资产，`release:gitlab` 创建内部 GitLab Release；
 
-- `.github/workflows/ci.yml`、`release.yml` 和 `release-fallback.yml` 已暂时移至 `.github/workflows-disabled/`，GitHub 不会自动运行这些构建/发布流程；
+- GitHub Actions workflow 已移除；GitHub 不会自动运行构建/发布流程；
 - GitLab 构建完成后，维护者需从 GitLab 下载五项资产和 `SHA256SUMS`，在本地再次校验并执行 Windows 人工 smoke；
 - GitLab Windows SaaS job 以 `--no-bundle` 构建无边框便携 `.exe`，以临时根目录打包为只含 exe/DLL 的 `.7z`；Linux `.deb` / `.rpm` / `.AppImage` 由 GitLab Linux job 构建。项目不支持 macOS。GitLab artifacts 和 Generic Package 仅作为构建中间物，公开下载一律由维护者手动上传至目标 Release；
-- GitHub Actions 暂停期间，不执行 GitHub runner 上的 `windows-smoke`；维护者必须在真实 Windows 10/11 环境手动启动并验收 GitLab 或本地生成的 `CopyPolish.exe`。
+- 当前不执行 GitHub runner 上的 `windows-smoke`；维护者必须在真实 Windows 10/11 环境手动启动并验收 GitLab 或本地生成的 `CopyPolish.exe`。
 
 GitLab SaaS Windows runner 当前使用标签 `saas-windows-medium-amd64`，每个 job 使用全新 Windows VM，默认 shell 为 Windows PowerShell 5.1。镜像预装 Node 21.x、Git、Python 3 和 7-Zip，但未预装 Rust；`scripts/ci/build_windows_gitlab.ps1` 在 job 内安装 Node 24.19.0、Rust 1.98.0 MSVC，并设置 `PYTHONIOENCODING=utf-8`。如需使用 PowerShell 7，只能在 job 内安装后通过 `pwsh -File` 调用，不能通过项目 YAML 修改 SaaS runner 的底层 shell。
 
 - 存储治理：GitHub Actions 暂停期间不产生新的 Actions artifacts；GitLab artifacts 和 Generic Package 仅作为构建中间物，手动下载并校验后再上传到目标 Release；本地 `src-tauri/target/` 是可随时删除的可再生构建缓存（受 `.gitignore` 覆盖），不提交、不视为源码。
 
-- 当前只支持**本地构建 + 手动发布**和**GitLab 构建 + 手动整理/发布**两条路径；停用的 GitHub workflow 仅作为恢复副本保存在 `.github/workflows-disabled/`。两种可用模式共享相同的验证门槛、版本脚本、资产命名与人工验收标准，操作步骤见 [manual-release.md](release/manual-release.md)。`prepare_release_version.py` 可在隔离的本地发布工作区执行，禁止在待提交的日常开发工作区直接运行。
+- 当前只支持**本地构建 + 手动发布**和**GitLab 构建 + 手动整理/发布**两条路径；两种可用模式共享相同的验证门槛、版本脚本、资产命名与人工验收标准，操作步骤见 [manual-release.md](release/manual-release.md)。`prepare_release_version.py` 可在隔离的本地发布工作区执行，禁止在待提交的日常开发工作区直接运行。
 
 CI/Release 会打印 Node/npm/Rust/Cargo/系统版本，便于核对本地与 Runner 环境差异。
 
