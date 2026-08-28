@@ -1,7 +1,6 @@
 // engine/tests.rs —— 引擎单元测试（迁移自旧 rust_engine.rs，并新增
 // 化学式识别、注册表扩展性与旧 key 迁移的回归测试）。
 
-use super::pipeline::{format_text_legacy, format_text_span_aware};
 use super::*;
 
 #[derive(serde::Deserialize)]
@@ -76,28 +75,12 @@ fn load_passing_golden_cases() -> Vec<(String, GoldenCase)> {
             include_str!("../../tests/fixtures/rule-interactions.yaml"),
         ),
         (
-            "newline-and-idempotence.yaml",
-            include_str!("../../tests/fixtures/newline-and-idempotence.yaml"),
-        ),
-    ]
-    .into_iter()
-    .flat_map(|(file, yaml)| parse_fixture(file, yaml))
-    .collect()
-}
-
-fn load_pending_baseline_cases() -> Vec<(String, GoldenCase)> {
-    [
-        (
-            "markdown-blocks.yaml",
-            include_str!("../../tests/fixtures/markdown-blocks.yaml"),
-        ),
-        (
-            "punctuation-contexts.yaml",
-            include_str!("../../tests/fixtures/punctuation-contexts.yaml"),
-        ),
-        (
             "structure-precedence.yaml",
             include_str!("../../tests/fixtures/structure-precedence.yaml"),
+        ),
+        (
+            "newline-and-idempotence.yaml",
+            include_str!("../../tests/fixtures/newline-and-idempotence.yaml"),
         ),
     ]
     .into_iter()
@@ -144,39 +127,6 @@ fn golden_fixtures_cover_every_registered_rule() {
             rule.key()
         );
     }
-}
-
-#[test]
-fn pending_baselines_are_loadable_and_expose_unimplemented_behavior() {
-    let cases = load_pending_baseline_cases();
-    assert!(
-        !cases.is_empty(),
-        "pending baseline suite must not be empty"
-    );
-
-    let mismatches: Vec<String> = cases
-        .iter()
-        .filter_map(|(file, case)| {
-            let request = FormatRequest {
-                text: case.input.clone(),
-                selection: case.selection.clone(),
-            };
-            let actual = format_text(&request).unwrap_or_else(|error| {
-                panic!("fixture {file} / {} failed to format: {error}", case.name)
-            });
-            (actual != case.expected).then(|| {
-                format!(
-                    "{file} / {}\n  expected: {:?}\n  actual:   {:?}",
-                    case.name, case.expected, actual
-                )
-            })
-        })
-        .collect();
-
-    assert!(
-        !mismatches.is_empty(),
-        "pending baseline unexpectedly has no current gaps; review and promote it to passing fixtures"
-    );
 }
 
 #[test]
@@ -917,12 +867,12 @@ fn chemical_detection_unaffected_by_boundary_layer() {
     assert_eq!(&sample[spans[0].0..spans[0].1], "Fe²⁺");
 }
 
-/// 语义编辑计划路径与生产 placeholder 路径的逐例对照（roadmap §5.7）。
+/// 语义编辑计划路径与生产路径的逐例对照。
 ///
 /// 本测试只覆盖 EditPlan 当前职责范围内的计量单位/数学边界 fixture；
-/// 完整 span-aware 混合管线的全量等价性由下方独立测试负责。
+/// 其余生产规则由黄金 fixture 和生产入口直接验证。
 #[test]
-fn edit_plan_path_matches_placeholder_pipeline_on_semantic_fixtures() {
+fn semantic_edit_plan_matches_production_on_semantic_fixtures() {
     use super::edit_plan::format_units_and_math_via_edits;
 
     let semantic_fixtures = [
@@ -952,40 +902,4 @@ fn edit_plan_path_matches_placeholder_pipeline_on_semantic_fixtures() {
             );
         }
     }
-}
-
-/// span 感知混合管线与生产 placeholder 管线在全部稳定 fixture 上的输出一致。
-///
-/// 混合管线以统一 span 划分不可编辑区间，并在可编辑区间复用现有纯函数规则；
-/// 该测试是 R3 生产接管前的等价性门禁。
-#[test]
-fn span_aware_pipeline_matches_production_on_stable_fixtures() {
-    let all_cases = load_passing_golden_cases();
-    assert!(
-        !all_cases.is_empty(),
-        "stable fixture suite must not be empty"
-    );
-    let mut mismatches: Vec<String> = Vec::new();
-    for (file, case) in &all_cases {
-        let request = FormatRequest {
-            text: case.input.clone(),
-            selection: case.selection.clone(),
-        };
-        let production = format_text_legacy(&request)
-            .unwrap_or_else(|e| panic!("fixture {file} / {} legacy failed: {e}", case.name));
-        let span_aware = format_text_span_aware(&request)
-            .unwrap_or_else(|e| panic!("fixture {file} / {} span-aware failed: {e}", case.name));
-        if production != span_aware {
-            mismatches.push(format!(
-                "{file} / {}\n  production: {:?}\n  span-aware: {:?}",
-                case.name, production, span_aware
-            ));
-        }
-    }
-    assert!(
-        mismatches.is_empty(),
-        "span-aware pipeline diverged from production on {} case(s):\n{}",
-        mismatches.len(),
-        mismatches.join("\n")
-    );
 }
