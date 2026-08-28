@@ -2,15 +2,12 @@
 
 本文档面向后续维护者，记录当前项目结构、架构边界、开发运行方式、测试命令、打包方式和已知注意事项。普通用户使用说明请参阅 [README.md](../README.md)。
 
-## `v0.5.0` 发布基线
-
-`v0.5.0` 的发布计划与验收清单已归档至 [archive/release-plans/v0.5.0-release-plan.md](archive/release-plans/v0.5.0-release-plan.md)。正式 tag 在本地、GitHub 和 GitLab 均指向提交 `5102323`，GitLab Pipeline `#2799117439` 已成功完成；GitHub `v0.5.0` Release（ID `378455261`）已于 2026-08-28 13:54:11 UTC 正式发布，包含完整 6 个文件并标记为 latest。后续开发按 [roadmap.md](roadmap.md) 执行。
+当前工程的后续工作统一记录在 [roadmap.md](roadmap.md)；已完成版本的计划与验收记录保存在 [archive/release-plans/](archive/release-plans/)。
 
 其他文档入口：
 
-- [roadmap.md](roadmap.md)：`v0.5.0` 发布后的中长期开发路线图（快捷键配置、Unicode 引擎升级、ICU4X 评估、E2E、性能基准、hooks 拆分等）；
-- [README.md](README.md)：维护者文档导航；
-- [manual-release.md](release/manual-release.md)：本地构建与手动上传 GitHub Release 的操作 Runbook（备用发布路径）；
+- [README.md](README.md)：文档导航；
+- [release/manual-release.md](release/manual-release.md)：本地或 GitLab 构建与手动发布 Runbook；
 - [secrets-management.md](secrets-management.md)：SOPS/age 凭据加载、轮换和灾难恢复。
 
 > 历史说明：项目早期为 Python + customtkinter 桌面 GUI（入口 `chinese_copywriting_formatter.py`，曾使用 `rules.yaml` 保存设置）。该路线已于 2026-08 彻底移除，相关文件（`gui/`、`python/formatter_bridge.py`、`run.sh`、`packaging/`、PyInstaller 工作流等）均不再存在。当前 Rust 应用使用新的 `rules.yaml` 设置实现，并通过同目录旧版 `ccw-formatter-settings.json` 进行一次性迁移；不复用旧 Python 的读写逻辑。
@@ -32,8 +29,8 @@ Tauri 2
     │   ├── protection.rs      Markdown / LaTeX / URL / 邮箱保护层
     │   ├── tokenizer.rs       字符分类 + 化学式识别
     │   ├── unicode_boundaries.rs  UAX #29 grapheme 边界层（roadmap §5）
-    │   ├── spans.rs            结构/语义 span 扫描与优先级仲裁脚手架
-    │   ├── edit_plan.rs        UTF-8 安全 TextEdit 规划与冲突仲裁脚手架
+    │   ├── spans.rs             结构/语义 span 扫描与优先级仲裁
+    │   ├── edit_plan.rs         UTF-8 安全 TextEdit 规划与冲突仲裁
     │   ├── rule_impls.rs      各条规则的纯函数实现
     │   ├── model.rs           RuleMeta / FormatRequest
     │   └── tests.rs           引擎单元测试
@@ -49,7 +46,7 @@ Tauri 2
 - **用户设置**：保存在 exe 相同目录的 `rules.yaml`（YAML；见下文），首次运行自动迁移旧版 `ccw-formatter-settings.json`；读取与保存时通过 `normalize_rule_keys` 把旧版中文 key 迁移为稳定 key 并丢弃未知 key。
 - **化学式识别**：tokenizer 保守识别含 Unicode 上下标、电荷标记或水合物连接符的片段（`Fe²⁺`、`SO₄²⁻`、`FeCl₂·4H₂O` 等），在规则处理前转为占位符整体保护，为后续新规则提供可靠判定单元。
 - **Unicode 边界层**（roadmap §5）：`unicode_boundaries.rs` 基于 `unicode-segmentation` 提供 extended grapheme cluster 切分与保守分类（`Han / Latin / Digit / Other`）。中英插空与中数插空两条规则以 grapheme 为判定单位——emoji ZWJ 序列、肤色修饰符、组合附加符不会被切断；Han 范围表集中维护并已覆盖 CJK Extension B。`BoundaryStrategy::LegacyChars` 仅供新旧策略对比测试，生产固定使用 Graphemes；化学式检测不经过该层，仍沿用保守正则 + 字节区间。Kana/Hangul 首期归为 `Other` 不触发插空，行为由 `tests/fixtures/unicode-boundaries.yaml` 冻结；性能基线见 [unicode-baseline.md](benchmarks/unicode-baseline.md)。
-- **规则调度与迁移基础设施**：`registry.rs` 已使用 `RulePhase` 与 `before/after` 依赖进行稳定拓扑排序，并拒绝未知依赖、重复 key 和循环依赖。`spans.rs` 已提供结构/语义 span 扫描与优先级仲裁；`edit_plan.rs` 已提供 UTF-8 安全的 `TextEdit` 创建、冲突仲裁、逆序应用和单位/数学边界规划。span-aware 混合管线已接入生产 `format_text`；旧 placeholder pipeline 暂保留为迁移期等价性回归路径。
+- **规则调度与迁移基础设施**：`registry.rs` 已使用 `RulePhase` 与 `before/after` 依赖进行稳定拓扑排序，并拒绝未知依赖、重复 key 和循环依赖。`spans.rs` 已提供结构/语义 span 扫描与优先级仲裁；`edit_plan.rs` 已提供 UTF-8 安全的 `TextEdit` 创建、冲突仲裁、逆序应用和单位/数学边界规划，并通过 `apply_editable_rules` 把标点/名词规范化阶段以可编辑区间 TextEdit 接入生产。span-aware 管线已成为唯一生产 `format_text` 路径；保护层当前仍使用内部占位符承载不可编辑 span，剩余边界规则与全角标点清理的完整 TextEdit 化仍在路线图中。
 
 ## 当前开发状态
 
@@ -109,11 +106,11 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
 9. 复杂排版增强（多行文本、特殊单位 `μm/µm`、`Å/Å`、`Ω`、数学符号 `∂/±/≤`、Markdown 结构、Unicode 边界）按 `docs/roadmap.md` §5 的阶段推进，遵循「测试先行、保守保护、能力分层、不默认改写原文」；阶段 A（测试先行）优先于任何新规则或保护层改动落地。
 10. 单位识别采用有限词典 + 复合语法（`unit_lexicon.rs` / `semantic_tokens.rs`），当前覆盖 `cm`、`cL`、`hPa` 等显式常用单位；不把正则直接扩展为 `\p{L}+`，避免把自然语言英文、变量名、产品名误判为单位。
 11. 阶段 C 第一批已将 `spacing.number-unit` 接入有限单位词典：支持 `μm/µm`、`Å/Å`、`Ω/kΩ`、`°C/°F` 与常见复合科学单位；`semantic_tokens.rs` 同时提供明确数学表达式的保守扫描（`∂f/∂x`、`x≤y`、`a≈b`、`3±0.5`、`2×3`），表达式内部保护、仅在 Han 直接边界补空格，不在全角标点后添加额外空格。单位扫描不使用 look-around，边界通过 Rust 字节区间检查完成。
-12. Markdown 安全处理：检测到明显 Markdown 标记时默认启用安全模式（宁漏格式化、不破坏结构）；当前采用“手写扫描器 + 有限 `fancy-regex` + 占位符”的混合保护层，块级（front matter / fenced、缩进代码 / HTML 注释 / 表格分隔行 / 引用式链接定义）与行内（任意长度反引号 / 链接平衡括号 / HTML 标签 / 美元定界行内与展示数学 / 转义字符）保护保持「保护 → 仅格式化可编辑区间 → 还原」的管线。后续重构目标是统一为可仲裁的 span / edit plan，而不是继续堆叠正则。
+12. Markdown 安全处理：检测到明显 Markdown 标记时默认启用安全模式（宁漏格式化、不破坏结构）；当前采用“手写扫描器 + 有限 `fancy-regex` + 内部占位符”的混合保护层，块级（front matter / fenced、缩进代码 / HTML 注释 / 表格分隔行 / 引用式链接定义）与行内（任意长度反引号 / 链接平衡括号 / HTML 标签 / 美元定界行内与展示数学 / 转义字符）保护保持「保护 → 仅格式化可编辑区间 → 还原」的管线。结构 span 的扫描和仲裁已统一，后续重点是将剩余规则输出迁移为 TextEdit，而不是继续堆叠正则。
 13. `registry.rs` 的 `RulePhase` 与 `before/after` 是规则调度的显式元数据：pipeline 通过 `execution_rules()` 做稳定拓扑排序，同 phase 使用注册表顺序作为 tie-break；未知依赖、重复 key 和循环依赖会被拒绝。`rules()` 仍用于稳定的 UI 展示顺序。
-- 14. `spans.rs` 提供统一 `SpanKind` / `SpanPriority` / `TextSpan` 与重叠仲裁；当前已汇总化学式、有限单位、Unicode 数学 token，以及 fenced code、front matter、HTML block/comment、引用式链接定义、缩进代码、表格分隔行、行内代码、Markdown 链接、URL/邮箱、硬换行、LaTeX command/定界数学和美元数学等结构 span。`edit_plan.rs` 提供 UTF-8 安全的 `TextEdit` 创建、冲突仲裁、逆序应用和语义边界编辑规划；span-aware 混合管线已接管生产 `format_text`，旧 placeholder pipeline 仅用于迁移期等价性回归。
+- 14. `spans.rs` 提供统一 `SpanKind` / `SpanPriority` / `TextSpan` 与重叠仲裁；当前已汇总化学式、有限单位、Unicode 数学 token，以及 fenced code、front matter、HTML block/comment、引用式链接定义、缩进代码、表格分隔行、行内代码、Markdown 链接、URL/邮箱、硬换行、LaTeX command/定界数学和美元数学等结构 span。`edit_plan.rs` 提供 UTF-8 安全的 `TextEdit` 创建、冲突仲裁、逆序应用和语义边界编辑规划，并通过 `apply_editable_rules` 将标点/名词规范化阶段接入生产；span-aware 管线已接管生产 `format_text`，结构优先级 fixture 已纳入稳定回归。
  15. Unicode 等价识别与输出规范化分离：识别层把 `µ/μ`、`Å/Å` 视为等价语义，输出层默认不改写用户原文；如提供统一表示，须作为独立、默认关闭的规范化规则并评估 NFKC 影响。
- 16. 复杂输入测试应至少覆盖结构保护、语义 token、普通文本规则三层同时命中的场景；新增规则或保护层改动必须补充复杂组合 fixture、规则选择组合、优先级和幂等性测试。当前 `structure-precedence.yaml` 作为 pending 基线记录行内代码与单位/数学扫描的优先级冲突，不能把该差异误标为稳定行为。
+- 16. 复杂输入测试应至少覆盖结构保护、语义 token、普通文本规则三层同时命中的场景；新增规则或保护层改动必须补充复杂组合 fixture、规则选择组合、优先级和幂等性测试。`structure-precedence.yaml` 已作为稳定黄金 fixture，结构 span 优先级由生产管线直接验证。
 
 ## 当前开发进度摘要（2026-08-28）
 
@@ -121,10 +118,11 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
 - **已完成**：快捷键总开关与自定义绑定（roadmap §4 阶段 A/B；持久化、冲突校验、IME 防护、恢复默认）。
 - **已完成的调度重构基础**：`RulePhase`、`before/after` 依赖、稳定拓扑排序、依赖图错误检测。
 - **已完成的 Span/Edit 基础**：结构与语义 span 扫描、重叠仲裁、UTF-8 安全 `TextEdit`、非重叠编辑逆序应用、单位/数学边界编辑规划。
-- **已完成**：span-aware 混合管线已正式接管 `format_text`，并与全部稳定 fixture 逐例一致；普通测试 `tests.rs::span_aware_pipeline_matches_production_on_stable_fixtures` 持续比较新生产入口与旧 placeholder 路径。URL/邮箱、硬换行、引用式链接、未闭合反引号、LaTeX command/定界数学、数学复合单位及 inline placeholder 边界均已纳入 span 对照。
-- **未完成**：旧 placeholder 路径清理、`structure-precedence.yaml` pending 基线的最终迁移、非边界规则的 TextEdit/可编辑区间策略，以及性能基准。
-- **未完成**：完整单位词典、温度规则独立 stable key、Unicode 等价识别/默认关闭规范化、1 MB 长文本性能基准和真实 Tauri E2E；`v0.5.0-pre11` 已完成真实 Windows 10/11 验收，`v0.5.0` 正式 tag 和 Release 已完成发布，结果归档见 `docs/archive/release-plans/v0.5.0-release-plan.md`。
-- **当前验证基线**：Rust 单元测试 72 项、前端 Vitest 33 项；fmt、Clippy、前端构建和 diff 检查均纳入本地/CI 验证。
+- **已完成**：span-aware 管线已成为唯一生产 `format_text` 路径；结构优先级 fixture 已迁入稳定黄金回归；旧 placeholder 生产管线和新旧全量等价测试已移除。URL/邮箱、硬换行、引用式链接、未闭合反引号、LaTeX command/定界数学、数学复合单位及 inline placeholder 边界均由生产路径测试覆盖。
+- **已完成**：标点规范化和名词规范化阶段已通过 `apply_editable_rules` 在可编辑区间以 TextEdit 方式接入生产；结构 span 与化学式在编辑时保持不可改写。
+- **未完成**：剩余非边界规则与全角标点清理迁移到 TextEdit/可编辑区间策略，以及性能基准。
+- **未完成**：完整单位词典、温度规则独立 stable key、Unicode 等价识别/默认关闭规范化、1 MB 长文本性能基准和真实 Tauri E2E；已完成版本的发布结果归档见 `docs/archive/release-plans/`。
+- **验证要求**：Rust 测试、TUI feature 测试、前端测试与构建、fmt、Clippy、安全扫描和 diff 检查均应在相关改动后执行；具体命令见本文“验证命令”章节。
 
 ## 用户设置持久化
 
@@ -282,7 +280,7 @@ copypolish-tui --help   # 完整参数说明
 cargo fmt --manifest-path src-tauri/Cargo.toml --check
 cargo check --manifest-path src-tauri/Cargo.toml
 cargo test --manifest-path src-tauri/Cargo.toml          # Rust 引擎与设置测试
-npm test --prefix frontend                                # vitest 组件测试（jsdom，10 项）
+npm test --prefix frontend                                # Vitest 组件测试（jsdom）
 npm run build --prefix frontend                           # tsc + vite
 ```
 
@@ -309,12 +307,11 @@ git diff --check
 4. 打包资源变更需同步 `tauri.conf.json` 的 `bundle.resources` 并做安装态 smoke。
 5. Tailwind 优先使用间距刻度类（如 `min-h-130` = 130 × 0.25rem），仅当数值不在刻度上时才用 `[...]` 任意值写法，避免 lint 警告。
 
-## 后续计划
+## 当前维护重点
 
-1. `v0.5.0-pre11` 已完成 GitLab 构建、GitHub Pre-release 复核和 Windows 10/11 真机验收；当前维护分支已包含 GitLab 密钥管理文档与 SOPS 文件。
-2. 正式 tag `v0.5.0` 当前在本地、GitHub 和 GitLab 均指向 `5102323`；Pipeline `#2799117439` 已成功完成。GitHub `v0.5.0` Release（ID `378455261`）已正式发布并标记为 latest，6 个文件均已上传。
-3. `v0.5.0` 发布闭环已完成，后续进入 [roadmap.md](roadmap.md) 跟踪的中长期工作（复杂排版与 Unicode 基础能力增强、Unicode 引擎升级、ICU4X 评估、E2E、性能基准和其余 hooks 拆分等）。自动 secret scanning 与 SOPS 元数据校验已由 `security:check` 门禁覆盖。
-4. 安全门禁已增加：`scripts/security_check.py` 扫描 Git 跟踪文件中的高置信度明文凭据模式，并验证 `secrets/tokens.env` 的 SOPS/age 元数据；`.gitlab-ci.yml` 的 `security:check` 在 tag 构建前执行。该门禁不解密凭据。
+后续开发按 [roadmap.md](roadmap.md) 的里程碑执行。当前优先级是完成 Span/Edit 单一路径、补齐工程门禁与性能基线，然后推进真实 Tauri E2E 和前端状态拆分。
+
+安全门禁由 `scripts/security_check.py` 实现：扫描 Git 跟踪文件中的高置信度明文凭据模式，并验证 `secrets/tokens.env` 的 SOPS/age 元数据；`.gitlab-ci.yml` 的 `security:check` 在 tag 构建前执行。该门禁不解密凭据。
 
 ## 图标
 
