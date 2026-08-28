@@ -3,10 +3,9 @@
 本文记录 GitHub 主平台与 GitLab Build Service 之间的构建编排、当前进度、已定决策、CI/CD 运行方式与后续待办。
 仅面向维护者；Cline 接入 GitLab MCP 见 [gitlab-mcp.md](gitlab-mcp.md)。
 
-> 现状速览（2026-08-27）：GitHub 是源码、开发协作、tag 和公开 Release 的主平台；
-> GitLab 仅接收 GitHub Release workflow 推送的 `v*` tag，并负责 Linux/Windows 构建与内部构建 Release。
-> GitLab build-only CI、GitHub tag bridge 和 GitHub Release 编排已落地到 `dev`；
-> GitHub `dev` 已于 2026-08-27 同步至提交 `1985c82`；尚待配置 bridge Secret、解除 GitHub Actions 账户计费阻塞，并使用新的验证 tag 完成完整 GitHub → GitLab → GitHub 链路验收。
+> GitHub 是源码与开发协作主平台；GitHub Actions 自 2026-08-28 起暂时停用。
+> GitLab 仅在维护者手动推送 `v*` tag 后负责 Linux/Windows 构建与内部构建 Release；公开 Release 由维护者手动整理和创建。
+> GitHub `dev` 已同步至提交 `356d0a0`；当前待完成 GitLab 凭据、远程 Lint、验证 tag 和人工发布验收。
 
 ## 1. 架构与目标
 
@@ -30,9 +29,9 @@ GitLab Build Service
 
 原则：
 
-- GitHub 是唯一日常写入源；开发、Issue、Pull Request、tag 和公开 Release 均在 GitHub 完成；
-- GitLab 只接收 GitHub Release workflow 推送的 `v*` tag，不接收 `dev` / `master` 日常同步；
-- GitLab CI 只负责跨平台构建和内部构建 Release，GitHub Actions 负责发布编排和最终公开 Release；
+- GitHub 是唯一日常写入源；开发、Issue、Pull Request 和源码协作均在 GitHub 完成；
+- GitLab 不接收 `dev` / `master` 日常同步，仅在需要构建时由维护者手动接收同一提交的 `v*` tag；
+- GitLab CI 负责跨平台构建和内部构建 Release；公开 Release 由维护者手动整理和创建；
 - GitLab MCP 只用于 Build Service 状态和日志诊断，不进入发布关键路径（见 gitlab-mcp.md）。
 
 ## 2. 远程仓库现状
@@ -91,24 +90,20 @@ stage 顺序：`build → package → release`。
 
 GitHub 为主，GitLab 为 Build Service，不做双向写：
 
-- `release.yml` 通过 `scripts/ci/push_tag_to_gitlab.sh` 推送精确 tag；
-- `wait_for_gitlab_pipeline.py` 验证 GitLab pipeline SHA 与 GitHub tag SHA 相同并等待成功；
-- `download_gitlab_release_assets.py` 下载并验证 GitLab 内部 Release 资产；
-- GitHub Windows runner 对 GitLab 生成的 exe 执行 GUI smoke，随后创建公开 GitHub Release；
-- `release-fallback.yml` 仅手动触发，在 GitLab Build Service 不可用时由 GitHub 全平台构建。
+- 已停用 `.github/workflows/release.yml`、`.github/workflows/release-fallback.yml` 及 `.github/workflows/ci.yml`；原文件保存在 `.github/workflows-disabled/`；
+- GitLab 构建改为维护者手动创建并推送 `v*` tag，随后在 GitLab 查看 pipeline、下载资产并手动校验；
+- `scripts/ci/push_tag_to_gitlab.sh`、`wait_for_gitlab_pipeline.py` 和 `download_gitlab_release_assets.py` 保留为未来恢复自动桥接时使用，当前不属于发布必经路径；
 - [x] `dev` 本地 upstream 已切换为 `origin/dev`（GitHub）；
 - [x] GitLab CI 已改为仅响应 Release tag；
 - [x] GitLab Linux/Windows 构建与内部 Release job 已落地；
-- [x] GitHub 主 Release workflow 已加入 tag bridge、pipeline 等待、资产下载、SHA 校验和 Windows smoke；
-- [x] `release-fallback.yml` 已改为仅手动触发；
-- [x] `dev` 已提交并推送到 GitHub `origin/dev`（提交 `1985c82`）；
+- [x] GitHub Actions 构建/发布 workflow 已暂时停用并移至 `.github/workflows-disabled/`；
+- [x] `dev` 已提交并推送到 GitHub `origin/dev`（提交 `356d0a0`）；
 - [ ] 按 gitlab-mcp.md 完成 Build Service 只读验收；
-- [ ] 在 GitHub 配置 `GITLAB_PROJECT_ID`、`GITLAB_REPOSITORY_URL` 和 `GITLAB_RELEASE_BRIDGE_TOKEN`；
+- [ ] 手动确认 GitLab 项目、tag 推送权限和 GitLab Windows SaaS runner 可用；当前不需要配置 GitHub bridge Secret；
 - [ ] 重新认证 GitLab API，执行远程 CI Lint；当前本地 GitLab HTTPS/API 凭据已失效；
-- [ ] 解除 GitHub Actions 账户计费/额度阻塞；截至 2026-08-28，提交 `9e20233` 对应 run `33093906114` 在 runner 启动前失败，GitHub 报告近期付款失败或需要提高 spending limit；
-- [ ] 解除计费阻塞后重新运行 `ci.yml`，确认远程测试状态；当前失败不是代码 step 失败（无 steps、runner_id=0、billable time=0）；
-- [ ] 创建 `v0.5.0-pre8`，验收 GitHub tag bridge、GitLab 双平台构建和 GitHub 公开 Release；
-- [ ] 核对 GitHub 下载的五项资产与 GitLab SHA256SUMS 一致；
+- [ ] 如需恢复 GitHub Actions，再处理账户计费/额度阻塞并恢复 `.github/workflows-disabled/` 下的 workflow；
+- [ ] 创建 `v0.5.0-pre8`，将同一 tag 手动推送到 GitLab，验收 GitLab 双平台构建和内部 Release；
+- [ ] 手动下载并核对五项资产与 GitLab `SHA256SUMS` 一致，再手动创建公开 Release；
 - [ ] 完成真实 Windows GUI/DPI/WebView2 人工验收。
 
 ## 8. Windows 人工验收（保持既有约束）

@@ -201,7 +201,7 @@ npm ci --prefix frontend
 4. 若本次修改不改变已有文档描述，不做无意义改写，但必须在最终结果中明确说明“已审阅 Markdown 文档，确认无需更新”；文档更新应与代码修改一起纳入本次 diff、验证、提交与推送；
 5. 运行与本次修改相关的必要验证；
 6. 使用清晰的 commit message 提交；
-7. 推送到 GitHub 主仓库的对应分支（`origin/<当前分支>`，例如 `dev -> origin/dev`）；GitLab 仅接收 Release workflow 推送的 `v*` tag；
+7. 推送到 GitHub 主仓库的对应分支（`origin/<当前分支>`，例如 `dev -> origin/dev`）；GitLab 不接收日常分支同步，仅在需要 GitLab 构建时手动推送对应的 `v*` tag；
 8. 推送后再次检查 `git status --short --branch`，确认本地分支与远程分支已同步。
 
 ```bash
@@ -215,7 +215,7 @@ git push origin dev
 gh pr create --base master --head dev
 ```
 
-稳定发布仅从 `master` 创建 `v*` tag；后端引擎或其他重大功能变更应先从 `dev` 推送预发布 tag（如 `v0.5.0-pre2`，tag 可指向 `dev` 提交），Release 会自动标记为 pre-release、不占用 latest。Release 名称应直接使用 tag 名称（例如 `v0.5.0-pre2`），不要额外添加 `CopyPolish` 前缀；Release Notes 由 GitHub 自动生成后再人工审阅：
+稳定发布仅从 `master` 创建 `v*` tag；后端引擎或其他重大功能变更应先从 `dev` 创建预发布 tag（如 `v0.5.0-pre2`）。GitHub Actions 暂停期间，tag 不会自动触发 GitHub 构建或发布；若使用 GitLab 构建，必须另外将同一 tag 手动推送到 GitLab，并在构建完成后手动创建/更新 Release。Release 名称应直接使用 tag 名称，不要额外添加 `CopyPolish` 前缀；Release Notes 需要人工审阅。
 
 ```bash
 git switch dev
@@ -324,23 +324,22 @@ git diff --check
 
 ## 持续集成
 
-当前 CI/CD 主路径由 GitHub Actions 编排；根目录 `.gitlab-ci.yml` 是 GitLab 的
-build-only 配置。GitHub 负责开发门禁、Release tag、构建编排、Windows smoke 和公开 Release；
-GitLab 只负责 Linux/Windows 构建及内部构建 Release：
+当前 GitHub Actions 暂时停用。根目录 `.gitlab-ci.yml` 是当前可用的 GitLab
+build-only 配置，本地构建脚本是另一条可用路径。GitHub 只负责源码和协作；
+GitLab 负责可选的 Linux/Windows 构建及内部构建 Release，公开 Release 由维护者手动整理和创建：
 
-- `.gitlab-ci.yml` 只响应 GitHub Actions 推送的合法 `v*` tag；`build:linux` 和 `build:windows` 在 GitLab 上并行构建，`package:assemble` 校验五项资产，`release:gitlab` 创建内部 GitLab Release；
+- `.gitlab-ci.yml` 只响应手动推送到 GitLab 的合法 `v*` tag；`build:linux` 和 `build:windows` 在 GitLab 上并行构建，`package:assemble` 校验五项资产，`release:gitlab` 创建内部 GitLab Release；
 
-- `ci.yml` 在 GitHub `dev`、`master` 与 PR 上运行快速验证；
-- `release.yml` 由 GitHub tag 触发，推送同一 tag 到 GitLab，等待 GitLab 内部构建 Release，下载并校验五项资产，在 GitHub Windows runner 上执行 smoke，最后创建公开 GitHub Release；
-- `release-fallback.yml` 仅支持 `workflow_dispatch`，在 GitLab 构建服务不可用时使用 GitHub Actions 全平台构建并发布；
-- GitLab Windows SaaS job 以 `--no-bundle` 构建无边框便携 `.exe`，以临时根目录打包为只含 exe/DLL 的 `.7z`；Linux `.deb` / `.rpm` / `.AppImage` 由 GitLab Linux job 构建。项目不支持 macOS。GitLab artifacts 和 Generic Package 仅作为构建中间物，公开下载一律使用 GitHub Release assets；
-- GitHub `windows-smoke` 直接下载 GitLab 生成的 `CopyPolish.exe`，验证主窗口和稳定运行。
+- `.github/workflows/ci.yml`、`release.yml` 和 `release-fallback.yml` 已暂时移至 `.github/workflows-disabled/`，GitHub 不会自动运行这些构建/发布流程；
+- GitLab 构建完成后，维护者需从 GitLab 下载五项资产和 `SHA256SUMS`，在本地再次校验并执行 Windows 人工 smoke；
+- GitLab Windows SaaS job 以 `--no-bundle` 构建无边框便携 `.exe`，以临时根目录打包为只含 exe/DLL 的 `.7z`；Linux `.deb` / `.rpm` / `.AppImage` 由 GitLab Linux job 构建。项目不支持 macOS。GitLab artifacts 和 Generic Package 仅作为构建中间物，公开下载一律由维护者手动上传至目标 Release；
+- GitHub Actions 暂停期间，不执行 GitHub runner 上的 `windows-smoke`；维护者必须在真实 Windows 10/11 环境手动启动并验收 GitLab 或本地生成的 `CopyPolish.exe`。
 
 GitLab SaaS Windows runner 当前使用标签 `saas-windows-medium-amd64`，每个 job 使用全新 Windows VM，默认 shell 为 Windows PowerShell 5.1。镜像预装 Node 21.x、Git、Python 3 和 7-Zip，但未预装 Rust；`scripts/ci/build_windows_gitlab.ps1` 在 job 内安装 Node 24.19.0、Rust 1.98.0 MSVC，并设置 `PYTHONIOENCODING=utf-8`。如需使用 PowerShell 7，只能在 job 内安装后通过 `pwsh -File` 调用，不能通过项目 YAML 修改 SaaS runner 的底层 shell。
 
-- 存储治理：GitHub Actions artifacts 仅作为 job 间传递与短期人工验收的临时副本（保留 1–3 天），长期可下载来源一律以 GitHub Release assets 为准；本地 `src-tauri/target/` 是可随时删除的可再生构建缓存（受 `.gitignore` 覆盖），不提交、不视为源码。系统保留各 workflow 最近一次成功与失败 run 用于诊断，其余已完成的旧 run 可安全删除。
+- 存储治理：GitHub Actions 暂停期间不产生新的 Actions artifacts；GitLab artifacts 和 Generic Package 仅作为构建中间物，手动下载并校验后再上传到目标 Release；本地 `src-tauri/target/` 是可随时删除的可再生构建缓存（受 `.gitignore` 覆盖），不提交、不视为源码。
 
-- 除 GitHub 主编排流程外，项目同样支持**仅手动触发**的 GitHub Actions fallback 和**本地构建 + 手动上传 GitHub Release** 的恢复路径；三种模式共享相同的验证门槛、版本脚本、资产命名与人工验收标准，操作步骤见 [manual-release.md](release/manual-release.md)。`prepare_release_version.py` 可在 CI runner 或隔离的本地发布工作区执行，禁止在待提交的日常开发工作区直接运行。
+- 当前只支持**本地构建 + 手动发布**和**GitLab 构建 + 手动整理/发布**两条路径；停用的 GitHub workflow 仅作为恢复副本保存在 `.github/workflows-disabled/`。两种可用模式共享相同的验证门槛、版本脚本、资产命名与人工验收标准，操作步骤见 [manual-release.md](release/manual-release.md)。`prepare_release_version.py` 可在隔离的本地发布工作区执行，禁止在待提交的日常开发工作区直接运行。
 
 CI/Release 会打印 Node/npm/Rust/Cargo/系统版本，便于核对本地与 Runner 环境差异。
 
