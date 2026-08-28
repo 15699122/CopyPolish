@@ -1,345 +1,155 @@
-# CopyPolish 后续开发路线图
+# CopyPolish 后续开发计划
 
-本文件跟踪 `v0.5.0` 正式发布后的中长期开发工作；历史发布门槛与结果见 [archive/release-plans/v0.5.0-release-plan.md](archive/release-plans/v0.5.0-release-plan.md)，本地构建与手动发布操作见 [manual-release.md](release/manual-release.md)。
+本文只跟踪**尚未完成**的工作。当前架构与验证方式见 [development.md](development.md)，发布操作见 [release/manual-release.md](release/manual-release.md)，已完成版本的计划与验收记录见 [archive/](archive/)。
 
-## 1. 优先级原则
+## 1. 规划原则
 
-1. `v0.5.0` 正式 Release 已完成后，转入中长期持续开发；
-2. 每项改动先补测试与文档，再改实现；
-3. 大型依赖（如 ICU4X）先做 Spike 评估，确认体积/性能/跨平台收益后才正式接入。
+1. 正确性和结构保护优先于新增规则；
+2. 先建立可观测基线与回归测试，再替换实现；
+3. 默认不改写可能影响语义的 Unicode 表示；
+4. 大型依赖和跨平台能力先做独立 Spike，记录体积、性能和维护成本；
+5. 每个里程碑必须同时包含实现、测试、文档和可复现验证结果。
 
-## 2. P0：v0.5.0 预发布与正式发布闭环
+## 2. 当前基线与主要风险
 
-- [x] 为已完成 GitLab 构建的 `v0.5.0-pre10` 补建 GitHub Pre-release，并完成资产复核；
-- [x] 发布 GUI 修复后的 `v0.5.0-pre11`，覆盖主页输入/输出等高和设置页主题三列布局；
-- [x] 完成 Windows 10/11 真机人工验收，未发现明显问题；
-- [x] 处理 GitLab 历史 `v0.5.0` tag 与最终正式提交之间的冲突；本地、GitHub 和 GitLab 的 tag 均指向 `5102323`；
-- [x] 正式 Release 资产、Release Notes 与 latest 标记复核；Release ID `378455261` 已于 2026-08-28 13:54:11 UTC 发布，完整 6 个文件已上传并标记为 latest；
-- [x] 预发布闭环完成后再启动正式发布准备，继续禁止在正式发布前新增大型规则或 UI 重构。
+当前生产入口已经使用 span-aware 混合管线，规则注册表、阶段依赖、结构/语义 span 和 UTF-8 安全 TextEdit 基础设施均已落地。桌面 GUI 与实验性 TUI 共用 Rust 引擎和 `rules.yaml`。
 
-## 3. P1：本地构建与手动发布能力
+主要风险：
 
-- GitHub 作为源码与公开 Release 平台；GitLab 仅作为手动推送 tag 后的 Linux/Windows Build Service；GitHub Actions 当前不在源码树中；
-- 本地构建 + 手动上传为正式支持的备用发布方式（Runbook：[manual-release.md](release/manual-release.md)）；
-- 已提供本地发布自动化脚本：
-  - `scripts/build_release_local.ps1`（Windows 版本同步、构建、DLL 收集、`.7z` 打包）；
-  - `scripts/build_release_local.sh`（Linux 构建与资产命名）;
-  - `scripts/verify_release_assets.py`（校验 tag、版本一致性、资产存在性与命名、7z 目录结构）。
-- 脚本约束：要求干净发布工作区；默认不创建 tag、不推送、不上传；产物写入被忽略的 `dist/`。
+- 保护层仍使用内部 placeholder 承载不可编辑 span，非边界规则尚未全部转换为 TextEdit；
+- Markdown/HTML 保护仍是保守扫描器与有限正则的组合，不是完整语法解析器；
+- 长文本基准曾暴露 `fancy-regex` 回溯上限，尚未建立持续性能门禁；
+- 真实 Tauri 桌面链路缺少自动化 E2E；
+- 前端核心状态仍集中在 `App.tsx`，异步格式化和设置保存逻辑可维护性有限；
+- 安全恢复演练、第二 age 接收者和依赖审计尚未闭环。
 
-## 4. P1：快捷键配置与冲突规避
+## 3. P0：工程门禁与发布可靠性
 
-快捷键配置已于 2026-08 合入 `dev`：原硬编码于 `frontend/src/App.tsx` 的全局 keydown 监听已重构为 `lib/shortcuts.ts` + `hooks/useShortcuts.ts`，支持总开关、自定义绑定、冲突校验与 IME 防护。以下为设计约束的最终落地记录：
+- [ ] 增加常规开发分支 CI：前端测试/构建、Rust fmt/clippy/test、TUI feature 测试、安全扫描和 diff 检查；
+- [ ] 清理 Dependabot 中没有实际 workflow 可维护的 GitHub Actions 配置，或在恢复常规 CI 后重新启用；
+- [ ] 增加 Markdown 相对链接检查，阻止删除或移动文档后留下死链；
+- [ ] 将发布前检查封装为单一入口，减少本地 Runbook、GitLab job 与手工命令漂移；
+- [ ] 完成一次离线 age 私钥恢复演练并记录结果；
+- [ ] 增加第二 age 接收者，整理令牌的最小权限、轮换和吊销清单。
 
-### 阶段 A：快捷键总开关 ✅ 已完成
+验收：在干净 clone 中可以用文档命令完成全部检查，失败信息能定位到具体门禁。
 
-- 新增持久化设置字段 `shortcuts.enabled: bool`（Rust `UserSettings` + YAML 序列化 + 前端类型 + localStorage 回退同步）；
-- 关闭时不注册/不执行应用自定义快捷键；
-- 保留 Radix Dialog 原生 `Esc` 关闭行为；
-- 仅在窗口聚焦且事件确实匹配已启用动作时调用 `preventDefault()`。
+## 4. P0：完成 Span/Edit 迁移
 
-### 阶段 B：自定义快捷键 ✅ 已完成（Comma 作为默认值的历史兼容例外，自定义录制按白名单限制）
-
-| 动作 key | 默认值 |
-| --- | --- |
-| `format_now` | `CtrlOrCmd+Enter` |
-| `copy_output` | `CtrlOrCmd+Shift+C` |
-| `open_settings` | `CtrlOrCmd+Comma` |
-
-设计约束：
-
-- 存储语义组合键 `CtrlOrCmd`，用 `KeyboardEvent.code` 识别按键；
-- 自定义绑定必须包含 `CtrlOrCmd`（可额外附加 Shift/Alt）；禁止单字母/数字/标点绑定；`CtrlOrCmd+Comma` 作为默认值的历史兼容例外保留；
-- 动作间禁止重复绑定，冲突给出明确校验错误；
-- 维护高风险系统组合键黑名单；
-- 输入法组合态（`event.isComposing`，兼容 `keyCode === 229`）不触发；
-- 提供恢复默认按钮；冲突/保存状态通过 `aria-live` 反馈。
+- [x] 审阅 `structure-precedence.yaml`，确认 span-aware 输出是产品预期；
+- [x] 将结构优先级样例迁入稳定黄金回归，不再作为 pending 差异观察；
+- [ ] 把剩余非边界规则和全角标点清理迁移到可编辑区间/TextEdit 策略；标点/名词阶段已完成首批迁移；
+- [x] 移除普通/数学多套 placeholder 编号和旧 placeholder pipeline；
+- [x] 删除仅用于新旧路径等价对照的测试，改为生产路径行为测试；
+- [x] 验证稳定 fixture、换行风格、幂等性和未知规则 key 行为不变。
 
-代码落点：
-
-```text
-frontend/src/lib/shortcuts.ts     # schema、序列化、冲突判断、默认值
-frontend/src/hooks/useShortcuts.ts # 监听、启停、IME 防护、动作分发
-```
+验收：代码中只保留一条可执行格式化管线，结构保护优先级由 span 仲裁统一解释；剩余 placeholder 仅作为内部保护实现，不再存在第二套生产 pipeline。
 
-### 测试要求
-
-总开关关闭后全部失效；默认/自定义组合键触发；重复绑定拒绝；单键拒绝；IME 组合中不触发；未匹配组合键不阻止文本输入；配置重启恢复；恢复默认持久化。
+## 5. P1：复杂排版与 Unicode 能力
 
-## 5. P1/P2：复杂排版与 Unicode 基础能力增强
-
-复杂排版增强分多个阶段推进，涵盖多行文本、Markdown 结构、特殊单位（`μm` / `Å` / `Ω` 等）、数学符号（`∂` / `±` / `≤` 等）、标点与 Unicode 边界。整体遵循「测试先行、保守保护、能力分层、不默认改写原文」原则，新增规则须符合 §10 准入流程，且保护层改动须同步 §7 的 fixture 覆盖要求。
-
-### 5.1 现状限制
-
-- 阶段 B 已解决 grapheme cluster 边界问题；当前剩余限制是语义分类仍分散在 tokenizer、unit lexicon 和规则实现中；
-- 单位词典已覆盖首批 Unicode、SI、温标和复合单位，但仍是有限词典，不是完整计量单位语法；
-- Markdown 保护已覆盖路线图首批结构，但仍是“扫描器 + 有限正则 + 占位符”的保守子集，不等同于完整 Markdown/HTML 语法解析；
-- pipeline 已按 `RulePhase` + `before/after` 依赖做稳定拓扑排序，同 phase 使用注册表顺序作为 tie-break；Span/Edit 的基础优先级与冲突仲裁已完成，span-aware 混合管线已接管生产保护层与格式化 pipeline；
-- `spans.rs` 已提供统一语义/结构 span 与重叠仲裁基础，`edit_plan.rs` 已提供 UTF-8 安全的 TextEdit 仲裁/应用及语义边界规划基础；两者已通过全部稳定 fixture 等价性验证并接入生产，旧 placeholder 路径仅保留作迁移期回归；
-- 复杂输入的组合 fixture、规则容斥矩阵和长文本性能基线仍需继续补齐。
-
-### 5.2 阶段总览
-
-| 阶段 | 优先级 | 内容 | 状态 |
-| --- | --- | --- | --- |
-| A | P0 | 测试先行：补齐复杂排版 fixture，并区分稳定回归与待实现基线 | ✅ 已完成（稳定/待实现基线已分离） |
-| B | P1 | `unicode-segmentation` 与统一字符边界层 | ✅ 已完成（见 5.4） |
-| C | P1 | 单位词典与语义 token（特殊单位 / 温度 / 数学符号分类） | 🚧 进行中 |
-| D | P2 | Markdown 块级扫描器与行内保护扩展 | 🚧 进行中（已完成 YAML/front matter、HTML block/注释、表格分隔行、引用式链接、反引号、嵌套括号链接、行内 HTML、转义标记、硬换行和美元数学保护） |
-| E | P2 | Unicode 等价识别与输出规范化（默认关闭） | 规划 |
-| F | P2 | 性能基准与边界回归纳入 CI | 规划 |
-
-当前开发主线为 `dev`。阶段 A–B 已完成，阶段 C–D 的第一批功能已落地；R2/R3 是在不改变现有用户输出的前提下，为后续 Span/Edit 迁移建立调度和编辑基础设施。
-
-### 5.3 阶段 A：测试先行（P0，先行于任何新规则/保护层改动）
-
-不引入新依赖，先沉淀行为基线：
-
-1. 新增失败型黄金样例，覆盖以下场景并明确「应保护」还是「应格式化」：
-   - Markdown：多反引号行内代码、表格分隔行、引用式链接定义、YAML front matter、HTML 注释、硬换行（行尾两空格 / 反斜杠）；
-   - 特殊单位：`μm/µm`、`Å/Å`、`Ω/kΩ`、`°C/°F`、`‰`、`mg·mL⁻¹`、`kg·m⁻³`；
-   - 数学符号：`∂f/∂x`、`x≤y`、`±`、`×`、`≈`；
-   - Unicode 边界：CJK Extension B 及后续、ZWJ emoji、组合附加符、`U+00A0` / `U+202F` 空白、`U+2028` / `U+2029` 分隔符。
-2. 建议将现有混合 fixture 拆分为独立文件并新增：
-   ```text
-   src-tauri/tests/fixtures/
-   ├── markdown-blocks.yaml
-   ├── markdown-inline.yaml
-   ├── unicode-boundaries.yaml
-   ├── measurements.yaml
-   ├── mathematical-symbols.yaml
-   ├── punctuation-contexts.yaml
-   └── regressions.yaml
-   ```
-3. 每个样例同时覆盖：单规则、默认规则组合、Markdown 保护组合、幂等性、LF / CRLF / CR 保留、长文本性能回归。
-
-阶段 A 的测试分层约束：
-
-- 当前已实现的行为进入稳定黄金回归集，必须通过 `cargo test` 与 CI；阶段 C 第一批计量单位案例已从 pending 基线迁移到稳定集；
-- 阶段 C/D 尚未实现但已经确认目标的行为进入 pending 基线，只要求 fixture 可解析并记录当前差异，不得让 CI 长期失败；阶段 C 第一批数学表达式案例已迁移到稳定黄金集；
-- 数学表达式与中文之间的精确空格、HTML block 内可见文本是否完全冻结等尚未完成产品决策的行为，不在决策前作为唯一正确输出；
-- 阶段 C/D 完成对应实现后，pending 案例必须迁移到稳定黄金回归集，并补充幂等性断言；
-- 阶段 A 已完成：上述 fixture 已补齐，稳定黄金样例与 pending 基线已在 `src-tauri/src/engine/tests.rs` 中分离，并已加入稳定样例幂等性测试；Rust、前端和 diff 检查均已纳入验证流程。
-- 阶段 A 后续维护已新增复杂组合、规则交互、结构优先级及换行/幂等性 fixture；结构优先级样例仍作为 pending 基线保留，用于记录旧 placeholder 路径与 span-aware 生产路径之间的迁移差异。
-
-#### 阶段 A 当前验收结果
-
-- 稳定黄金 fixture 与 pending baseline 已在 `engine/tests.rs` 分离；
-- 已增加 `complex-compositions.yaml`、`rule-interactions.yaml`、`structure-precedence.yaml`、`newline-and-idempotence.yaml`；
-- 已覆盖默认规则、单规则、复杂规则组合、换行风格、幂等性和结构优先级差异；
-- 当前默认 Rust feature 全量测试为 72 项，启用 `tui` feature 时为 113 项；pending 基线不阻断 CI，但必须持续保留可观测差异。
-
-### 5.4 阶段 B：`unicode-segmentation` 与统一字符边界层（P1）✅ 已在 `unicode-boundaries` 分支实现
-
-- 轻量 Rust crate（UAX #29 Grapheme / Word / Sentence 边界，MIT/Apache-2.0）；
-- 新建独立封装层 `src-tauri/src/engine/unicode_boundaries.rs`，不立即全面替换 tokenizer；
-- 提供语义 API（`is_han_grapheme`、`script_of`、`is_latin_or_greek_letter`、`is_numeric`），规则不各自引入边界判断；
-- 适用场景：
-  - 按 grapheme cluster 遍历，避免切断 emoji 组合序列与组合字符；
-  - 为选区格式化、光标映射提供稳定边界；
-  - 补充 Unicode 边界回归样例（emoji ZWJ、CJK Extension B、Kana/Hangul 混排、组合附加符等）。
-- 改造原则：
-  1. 保护层优先顺序不变：化学式 → Markdown/LaTeX/URL/邮箱 → Unicode 边界 → 规则管线 → 还原；
-  2. 既有黄金 fixture 必须全部通过，新行为只新增样例不改旧预期；
-  3. 通过内部策略开关保留新旧实现对比期；
-  4. 引入前后记录编译时间、二进制体积与 10 KB / 100 KB / 1 MB 性能基线。
-
-范围说明：UAX #29 是通用边界规则，不等于中文语义分词，不替代现有格式化规则系统。
-
-### 5.5 阶段 C：单位词典与语义 token（P1）
-
-当前进度：已完成第一批有限单位词典与语义 token 基础设施，并将既有 `spacing.number-unit` 迁移到该层。当前实现覆盖 Unicode 微米/埃/欧姆、常见 ASCII/SI 单位、厘米/厘升/百帕、温标与复合科学单位，且保留 `μ/µ`、`Å/Å` 的原始输出写法；普通英文单词、变量名和已由保护层处理的化学式不会被当作计量单位。数学表达式已完成首批保守扫描与保护。
-
-- 已实现：`src-tauri/src/engine/unit_lexicon.rs`、`semantic_tokens.rs`；
-- 已迁移：`spacing.number-unit` stable key 继续保留，内部改用有限词典扫描；
-- 已覆盖：`μm/µm`、`Å/Å`、`Ω/kΩ`、`cm/cL/hPa`、`°C/°F`、`mg·mL⁻¹`、`kg·m⁻³` 及普通英文/化学式反例；
-- 待完成：继续扩充完整单位词典、评估是否需要独立的温度规则 stable key；当前已支持有限范围的 `/` 复合单位（如 `mg/mL`、`m/s`、`kg/m³`），已将第一批 `measurements.yaml` 与 `mathematical-symbols.yaml` 案例迁移到稳定黄金回归集，并完成明确数学表达式的首批保守识别。
-- 约束：继续禁止使用 `\p{L}+` 作为通用单位识别；不默认做 Unicode 等价字符规范化；不改变化学式保护层优先级。
-
-#### 阶段 C 未完成项
-
-- 完整单位词典和更完整复合单位语法；
-- 温度表示的独立 stable key 评估及与 `spacing.temperature-cjk` 的最终兼容方案；
-- `MathExpression` 的更完整语法边界；
-- 将语义边界从当前规则函数迁移到统一 TextEdit 计划，并补充旧/新路径输出对照；✅ 已建立并验证混合管线（`pipeline.rs::format_text_span_aware`：OpaqueStructure span 划分不可编辑区间 + 可编辑区间复用纯函数规则），全部稳定 fixture 已与生产路径逐例一致；对照测试 `tests::span_aware_pipeline_matches_production_on_stable_fixtures` 已恢复为普通测试门禁。URL/邮箱、硬换行、引用式链接、未闭合反引号、LaTeX command/定界数学、数学复合单位及 inline placeholder 边界均已纳入 span 对照；✅ `format_text` 已正式切换到混合管线，旧 placeholder 路径暂保留为迁移期等价性回归；剩余工作是清理旧路径、迁移非边界规则并完成性能验证；
-
-- 不使用「任意 Unicode 字母都可当单位」的宽泛 regex，改用**有限词典 + 复合语法**：
-  - 基础单位：`m` / `g` / `s` / `L` / `mol` / `K` / `Pa` / `Hz` / `N` / `J` / `W` / `V` / `A` / `Ω` / `dB` / `rad` / `rpm` / `px` 等；显式常用项包括 `cm` / `cL` / `hPa`；
-  - 常用前缀：`k` / `M` / `G` / `m` / `μ` / `µ` / `n` / `p`；
-  - 非 SI 单位：`℃` / `℉` / `°C` / `°F` / `Å` / `Å` / `mmHg` / `eV`；
-  - 复合连接：`/`、`·`、`⋅`、Unicode 上下标。
-- 新增 `src-tauri/src/engine/semantic_tokens.rs` 与 `unit_lexicon.rs`，识别不可拆的语义片段：
-  - `Measurement`：`10 μm`、`20 kΩ`、`5 Å`；
-  - `Temperature`：`4℃`、`4 °C`、`32℉`；
-  - `ScientificUnit`：`mg·mL⁻¹`、`mol·L⁻¹`、`kg·m⁻³`；
-  - `MathExpression`：保守识别 `∂f/∂x`、`x≤y`、`a≈b`、`3±0.5`、`2×3`，避免一般文本被过量保护。
-- 新规则建议（默认开关须按 §10 流程评估）：
-  | 规则 key | 名称 | 建议默认 |
-  | --- | --- | --- |
-  | `spacing.measurement-boundaries` | 数值、计量单位与中文之间使用正确空格 | 开启 |
-  | `spacing.scientific-unit-boundaries` | 科学复合单位与中文之间使用正确空格 | 开启 |
-  | `spacing.temperature-notation` | 温度表示与中文之间使用正确空格 | 开启 |
-  | `text.unicode-unit-equivalence` | 统一等价单位字符表示 | 关闭 |
-- 兼容既有 `spacing.temperature-cjk`（`℃`/`℉`）：新规则纳入 `°C`/`°F` 时，通过 legacy key 映射或稳定 key 保持用户设置兼容。
-
-### 5.6 阶段 D：Markdown 块级扫描器与行内保护扩展（P2）
-
-- 在保留占位符机制前提下，将管线从「所有非空行均规则处理」调整为「只格式化可编辑文本区间」；
-- 块级扫描器首批识别：YAML front matter、fenced / indented code block、HTML 注释与 HTML block、表格分隔行、引用式链接定义；生产 placeholder 保护已覆盖这些首批结构，Span 层也已完成对应只读扫描，统一迁移仍待 R3 后续阶段；
-- 行内保护扩展：
-  - 任意长度反引号 delimiter（`` ` `` / `` `` ` `` / `` ``` `` 等）；当前已完成同长度 delimiter 的行内代码保护；
-  - Markdown 链接的平衡括号与引用式链接；当前已完成嵌套括号链接/图片保护；
-  - HTML inline tag；当前已完成常见行内标签和自闭合标签保护；
-  - 行内数学与转义字符；当前已完成美元定界行内/展示数学、常见转义 Markdown 标记与硬换行保护；
-- 用小型状态机替代堆叠 `fancy-regex`（尤其反引号与括号嵌套）；
-- 产品策略：
-  - 检测到明显 Markdown 标记时默认启用「Markdown 安全模式」（宁漏格式化、不破坏结构）；
-  - 把「识别等价性」与「输出改写」分离：识别可视为等价，改写默认关闭。
-
-#### 阶段 D 当前限制
-
-- 当前保护实现仍是手写扫描器、有限 `fancy-regex` 与 placeholder 的混合模式；
-- `spans.rs` 已扫描首批块级/行内结构并与语义 span 仲裁，span-aware 混合管线已经接管生产 `format_text`；后续工作是继续收敛保护层和清理旧 placeholder 路径；
-- `edit_plan.rs` 已能规划并应用 UTF-8 安全的 TextEdit，但尚未替换全部逐行字符串规则；
-- 行内代码优先于单位/数学扫描的 4 个案例已由生产路径验证，但其中“行内代码内含单位/数学内容”的案例仍与旧 placeholder 路径存在差异，`structure-precedence.yaml` 暂作为 pending 基线保留；
-- 不将当前能力宣称为完整 CommonMark/HTML 解析器。
-
-### 5.7 R2/R3：规则调度与 Span/Edit 迁移基础（P1/P2，进行中）
-
-#### 已完成
-
-- `RulePhase`：标点规范化、名词规范化、结构边界、文本边界、最终清理；
-- `RuleDef.before/after` 依赖元数据；
-- 稳定拓扑排序，同 phase 使用注册表顺序作为 tie-break；
-- 未知依赖、重复 key、循环依赖测试；
-- `SpanKind` / `SpanPriority` / `TextSpan`；
-- 语义 span：化学式、Measurement、Temperature、ScientificUnit、MathExpression；
-- 结构 span：fenced code、front matter、HTML block/comment、引用式链接定义、缩进代码、表格分隔行、行内代码、Markdown 链接、URL/邮箱、硬换行、LaTeX command/定界数学、美元数学；
-- span 重叠仲裁：结构 > 语义原子 > 可编辑文本；
-- `TextEdit` UTF-8 边界校验、编辑冲突仲裁、逆序应用；
-- 单位和数学边界的测试用编辑计划。
-
-#### 未完成
-
-- 继续清理迁移期遗留的旧 placeholder 路径；
-- 将非边界规则和全角标点清理迁移到统一的 TextEdit / 可编辑区间策略；
-- 移除普通/数学多套 placeholder 编号约定；
-- 整理结构优先级 fixture：确认 span-aware 生产路径符合预期后，继续保留 `structure-precedence.yaml` pending 基线，直到旧 placeholder 路径清理完成或对照测试改为只验证生产路径；
-- 保持并扩展编辑计划与旧 placeholder 路径的逐例 diff 对照；当前 `structure-precedence.yaml` 仍记录一项迁移期差异：生产 span-aware 路径保持行内代码内部完整，而旧 placeholder 路径会误改其中的单位内容；
-- 建立 10 KB/100 KB/1 MB 性能和内存基线。
-
-### 5.8 阶段 E：Unicode 等价识别与输出规范化（P2）
-
-- 识别阶段可把 `µ/μ`、`Å/Å` 视为等价语义；
-- 输出阶段不擅自用 NFKC 改写用户原文（如 `µm` → `μm`、`Å` → `Å`）；
-- 若需统一表示，须作为独立、默认关闭的 Unicode 规范化规则，并评估对数学字母、全角符号的影响（与 §6 ICU4X 规范化评估对齐）。
-
-### 5.9 阶段 F：性能基准与边界回归（P2）
-
-- 基准输入：10 KB / 100 KB / 1 MB × {纯中文、中英数混排、Markdown / URL / LaTeX 密集、emoji 与组合字符密集、CJK 扩展区密集}；
-- 记录耗时、峰值内存、保护层正则占比与规则数增长退化趋势；
-- 重点剖析 `protection.rs` fancy-regex 调用次数、占位符替换复杂度；
-- 目标：1 MB 文本不阻塞 UI，无旧结果覆盖，有明确处理反馈（与 §8 对齐）。
-
-### 5.10 不建议直接采用的做法
-
-1. 不把单位正则直接扩展为 `\p{L}+`——会把自然语言英文、变量名、产品名误判为单位；
-2. 不对全文默认做 NFKC——可能改变 `Å`、兼容字符、数学字母、全角符号等原文语义；
-3. 不通过继续堆叠 `fancy-regex` 解析完整 Markdown——嵌套 / 跨行 / 表格 / HTML 适合状态机或 AST；
-4. 不把所有特殊符号都当作「中英文之间加空格」依据——`∂` / `±` / `≤` / `×` 等数学符号间距规范与计量单位不同；
-5. 不为「Markdown 安全」而保护整篇文档——只保护确定的语法块与行内不可改写区域，让普通叙述文本继续接受排版。
-
-## 6. P2：ICU4X 技术验证
-
-- **不引入 ICU C/C++**（FFI、原生依赖、打包复杂度不可接受）；仅评估纯 Rust 的 ICU4X；
-- 以独立分支 / feature flag 做 Spike，候选模块：
-  - Script / General Category 属性（替代手写 Unicode 区间）；
-  - Unicode 规范化（NFC/NFKC——可能改变用户原文，必须显式规则化，绝不默认启用）；
-  - 分词与断行（仅在行为与产品规则一致时采用）。
-- 评估记录项：二进制体积增量、编译时间、长文本性能、Windows/Linux 打包影响、新旧输出 diff、locale 数据加载方式；
-- 只有明确解决现存问题的模块才进入正式依赖。
-
-## 7. P2：真实 Tauri E2E 测试
-
-- 优先评估 tauri-driver (WebDriver) 方案，测试真实桌面链路而非 mock；
-- 首批场景：启动可用性、真实引擎输出、"全不选"输出恒等、规则切换即时重排、设置临时目录写入与重启恢复、损坏设置提醒、全部快捷键（含开关关闭态）；
-- E2E 使用注入的临时设置目录，禁止污染真实 `rules.yaml`；
-- 初期作为 nightly / 手动工作流，稳定后纳入 PR 门禁；Linux 与 Windows 至少各保一条真实链路。
-
-## 8. P2：性能基准与优化
-
-- Rust 侧 benchmark：10 KB / 100 KB / 1 MB × {纯中文、中英数混排、Markdown/URL/LaTeX 密集、emoji 与组合字符密集、CJK 扩展区密集}；
-- 记录耗时、峰值内存、保护层正则占比、规则数增长的退化趋势；
-- 重点剖析 `protection.rs` fancy-regex 调用次数、占位符替换复杂度、前端防抖积压；
-- 第一阶段目标：1 MB 文本不阻塞 UI、无旧结果覆盖、有明确处理反馈；SLA 在取得基线数据后再定。
-
-## 9. P2：前端 hooks 重构
-
-拆分顺序（行为不变前提下）：
+### 5.1 Markdown/HTML 状态机收敛
+
+- [ ] 优先替换容易触发回溯或嵌套歧义的 `fancy-regex`：反引号、平衡括号链接、HTML block；
+- [ ] 明确未闭合 fenced code、嵌套链接、引用式链接、HTML 可见文本和 LaTeX 嵌套环境的产品策略；
+- [ ] 补齐 Unicode 域名 URL、括号包裹 URL 和复杂化学式歧义回归；
+- [ ] 保持“宁漏格式化、不破坏结构”，不把整篇 Markdown 文档全部冻结。
+
+### 5.2 单位与数学语义
+
+- [ ] 评估是否继续扩展有限单位词典；禁止用宽泛 `\\p{L}+` 代替语义词典；
+- [ ] 明确数学表达式与中文之间的空格策略，再将争议案例加入稳定基线；
+- [ ] 评估温度相关规则 key 是否需要合并；如变更必须提供 legacy key 迁移；
+- [ ] 新规则必须遵循第 9 节准入流程。
+
+### 5.3 Unicode 等价识别
+
+- [ ] 允许识别层把 `µ/μ`、`Å/Å` 等视为等价语义；
+- [ ] 输出规范化必须作为独立且默认关闭的规则；
+- [ ] 禁止默认全文 NFKC，避免改变数学字母、兼容字符和全角符号。
+
+## 6. P1：ICU4X 技术验证
+
+仅评估纯 Rust ICU4X，不引入 ICU C/C++ FFI。
+
+- [ ] 在独立分支或 feature flag 下评估 Script/General Category 是否能替代手写 Unicode 区间；
+- [ ] 记录二进制体积、编译时间、10 KB/100 KB/1 MB 性能和跨平台打包影响；
+- [ ] 对比现有黄金样例输出，任何默认行为变化都必须单独评审；
+- [ ] 只有明确解决现存问题且成本可接受的模块才进入正式依赖。
+
+## 7. P1：真实 Tauri E2E
+
+- [ ] Spike `tauri-driver` 或当前 Tauri 2 支持的 WebDriver 路径；
+- [ ] 覆盖启动、真实引擎输出、全不选恒等、规则切换、快捷键开关、设置保存与重启恢复；
+- [ ] 使用临时设置目录，禁止污染真实 `rules.yaml`；
+- [ ] 覆盖损坏设置恢复和不可写目录错误；
+- [ ] Linux 与 Windows 至少各保留一条真实链路，稳定后纳入合并门禁。
+
+## 8. P1：性能基准与长文本体验
+
+- [ ] 重跑并扩展 `benchmarks/unicode-baseline.md` 的 10 KB/100 KB/1 MB 五类语料；
+- [ ] 记录耗时、峰值内存、正则调用热点和规则数量增长趋势；
+- [ ] 可控处理 `fancy-regex` 回溯上限，错误不得导致旧结果覆盖新输入；
+- [ ] 评估 worker thread、可取消任务和动态 debounce；
+- [ ] 基于实测数据设定 UI 响应目标，再决定是否加入性能回归门禁。
+
+## 9. P1：规则扩展准入
+
+每条新规则必须同时具备：
+
+1. `registry.rs` 中稳定 key、展示名、默认状态和 legacy 别名策略；
+2. 纯函数实现及明确执行阶段/依赖；
+3. 单规则黄金样例、组合样例、保护层样例和幂等性断言；
+4. 争议性与默认开关说明；
+5. `README.md` 规则表同步；
+6. 对设置迁移、TUI 和前端动态元数据的兼容验证。
+
+## 10. P1：前端可维护性
+
+按行为不变原则逐步拆分：
 
 ```text
 frontend/src/hooks/
-├── useFormatter.ts       # 输入/输出、动态防抖、请求序号竞态防护、耗时统计
-├── useUserSettings.ts    # 初始化读取、保存队列、提醒状态、五类设置模型
-├── useThemeAndFont.ts    # system/light/dark、matchMedia、CSS variables
-├── useShortcuts.ts       # 快捷键监听与分发（随路线图 §4 一并落地）
-└── useWindowControls.ts  # Tauri 窗口控制，浏览器预览安全回退
+├── useFormatter.ts
+├── useUserSettings.ts
+├── useThemeAndFont.ts
+├── useShortcuts.ts       # 已存在
+└── useWindowControls.ts
 ```
 
-`App.tsx` 只保留组件编排；hooks 不直接 `invoke`，继续经由 `lib/tauri.ts`。
+- [ ] 优先抽离格式化请求序号、竞态防护、耗时和错误状态；
+- [ ] 再抽离设置初始化、保存队列、恢复提醒和主题/字体副作用；
+- [ ] `App.tsx` 最终只保留组件编排；
+- [ ] hooks 不直接调用 `invoke`，继续通过 `frontend/src/lib/tauri.ts`；
+- [ ] 清理当前前端测试中的 React `act` warning 与 Node localStorage warning；
+- [ ] 处理 Vite 配置中 `__dirname` 对未来 native config loader 的兼容警告。
 
-## 10. P2：规则边界扩展准入流程
+## 11. P2：依赖与安全维护
 
-在黄金样例体系之上新增规则时，每条必须同时具备：
+- [ ] 确定 `cargo audit`、`npm audit` 的高危阻断策略；
+- [ ] 生成并维护第三方许可证清单；
+- [ ] 评估收紧 `tauri.conf.json` CSP，并完成桌面 smoke；
+- [ ] 建立 Node/Rust/Tauri/React 升级 Runbook；
+- [ ] 定期验证 `scripts/security_check.py --require-sops` 和令牌轮换流程。
 
-1. `registry.rs` 注册稳定 key / 展示名 / 默认状态 / legacy 别名策略；
-2. `rule_impls.rs` 纯函数实现；
-3. 单规则黄金样例 + 与其他规则及保护层的组合回归样例；
-4. 幂等性验证（二次格式化不再变化）；
-5. 争议性评估与默认开关依据；
-6. README 规则表同步。
+## 12. P2：TUI 后续工作
 
-优先补齐的保护层边界：嵌套 Markdown 链接/引用、反引号数量不一致、LaTeX 嵌套环境、Unicode 域名 URL、括号包裹 URL、更复杂化学式歧义。
+TUI MVP 已完成，后续仅在不分散桌面主线资源时推进：
 
-## 11. P2：依赖、安全与发布维护
-
-- `cargo audit`、`npm audit`（明确高危阻断阈值）、许可证清单；
-- 审查并评估收紧 `tauri.conf.json` 中当前为 `null` 的 CSP（改动需桌面端 smoke 回归）；
-- Dependabot 已覆盖 npm / Cargo / GitHub Actions（周更，target dev 分支），保持合并前 CI 必过；
-- 建立 Node/Rust/Tauri/React 升级 runbook 与预发布 tag 验证流程；
-- [x] 完成 age + sops 密钥管理方案、灾难恢复文档和项目文件迁移：`.sops.yaml`、加密的 `secrets/tokens.env`、`scripts/load_tokens.sh`；
-- [x] 增加 SOPS/age 明文副本的 `.gitignore` 防护，并从个人配置仓库移除本项目凭据文件；
-- [x] 增加自动 secret scanning 和 SOPS 元数据校验门禁：`scripts/security_check.py` 已接入 GitLab tag pipeline 的 `security` stage；
-- [ ] 完成离线备份恢复演练并记录结果；
-- [ ] 增加第二 age 接收者，建立令牌最小权限、轮换和吊销清单。
-
-## 12. Ratatui TUI（已完成 MVP）
-
-终端入口 `copypolish-tui`（`tui` feature）已随 §5 引擎能力一并落地，与桌面 GUI 共用引擎和 `rules.yaml`：
-
-- [x] Phase 0–2：双栏输入/输出预览、动态规则面板、`All/Defaults/Only/None` 完整语义、帮助覆盖层；
-- [x] Phase 3：grapheme 安全多行编辑（emoji ZWJ / 组合字符 / CJK Extension B）、输出滚动、格式化耗时与错误提示；
-- [x] Phase 4：OSC 52 剪贴板复制（零系统依赖）、共享 `rules.yaml` 读写（只动 `enabled` 与 `last_input`）、stdin/stdout 非交互模式与 `--no-config`；
-- [ ] 后续可选：真实终端跨平台 smoke（Windows Terminal / SSH 无剪贴板降级）、大文本 debounce 与 worker thread 化、发布资产评估（独立 `CopyPolish-TUI-*` 二进制）。
-
-实施细节见 `docs/development.md` 的“终端版（Ratatui TUI）”章节。
+- [ ] Windows Terminal、Linux 终端和 SSH 环境 smoke；
+- [ ] OSC 52 不可用时的明确降级提示；
+- [ ] 大文本 debounce/后台任务；
+- [ ] 评估是否发布独立 `CopyPolish-TUI-*` 资产。
 
 ## 13. 推荐执行顺序
 
 ```text
-P0  §2 发布闭环
- ↓
-P1  §3 本地构建脚本（可选）
- ↓
-P1  §5
-     阶段 C 收尾（单位/温度/数学语义边界）
-     → R2/R3 收尾（旧 placeholder 清理、TextEdit 扩展、fixture 整理）
- ↓
-P2  §5 阶段 D（Markdown 块级扫描器）→ 阶段 E（Unicode 等价规范化，默认关）
- → §8 性能基准 ⇄ §7 E2E → §6 ICU4X Spike → §9 hooks 重构 → §10/§11 持续维护
+里程碑 A：§3 工程门禁 + §4 Span/Edit 单路径
+    ↓
+里程碑 B：§8 性能基线 + §5 Markdown/语义收敛
+    ↓
+里程碑 C：§7 真实 E2E + §10 前端状态拆分
+    ↓
+里程碑 D：§6 ICU4X Spike + §9/§11/§12 持续维护
 ```
 
-> 注：§5 阶段 A（测试先行）优先于任何新规则或保护层改动落地，以守住既有的黄金样例回归体系。
-
-每完成一项，更新本文档对应章节的状态标记，并按 `docs/development.md` 的文档同步约定更新 README / development.md。
+每完成一项，只更新本文件的待办状态；若架构或命令发生变化，再同步更新 `development.md`。已完成且只具历史意义的过程记录移入 `archive/` 或由 Git 历史保留。

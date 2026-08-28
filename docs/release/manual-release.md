@@ -92,7 +92,7 @@ npm run tauri --prefix frontend -- build -- --no-bundle
 
 产物位于 `src-tauri/target/release/chinese-copywriting-formatter.exe`。
 
-打包规范（与 `release.yml` 一致）：
+打包规范（与 GitLab Windows 构建脚本保持一致）：
 
 1. 将 exe 重命名为 `CopyPolish.exe` 放入临时 staging 目录；
 2. 将构建输出同目录存在的旁置 DLL 一并复制进 staging 根目录；
@@ -323,12 +323,12 @@ gh release create vX.Y.Z-preN \
 
 ## 11. 发布后复核与回滚原则
 
-- [x] tag、Release 标题、应用内"关于"版本三者一致（预发布带 pre 后缀）；
-- [x] 五个资产齐全且命名正确；`SHA256SUMS` 也已上传；
-- [x] 正式版标记 latest，预发布标记 prerelease 且不占用 latest；`v0.5.0` 已正式发布并成为 latest；
-- [x] Release Notes 已根据 `v0.4.0` → `v0.5.0` 更新范围完成人工审阅；
-- [x] Windows 资产已从 GitLab 下载并完成 SHA256 校验，Windows 10/11 真机验收已完成；
-- [x] 发布结果同步回对应版本计划归档（`docs/archive/release-plans/v0.5.0-release-plan.md`）。
+- [ ] tag、Release 标题、应用内版本三者一致（预发布带 pre 后缀）；
+- [ ] 五个资产齐全且命名正确；`SHA256SUMS` 也已上传；
+- [ ] 正式版标记 latest，预发布标记 prerelease 且不占用 latest；
+- [ ] Release Notes 已人工审阅并与本次改动范围一致；
+- [ ] Windows 资产已从 GitLab 下载并完成 SHA256 校验，Windows 10/11 真机验收已完成；
+- [ ] 发布结果已同步回对应版本的归档计划。
 
 > 安全提醒：若 token 曾出现在命令行参数、进程列表或日志中，必须立即轮换/吊销该 token，并使用新的 SOPS 加密凭据继续操作。
 

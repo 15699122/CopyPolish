@@ -3,7 +3,7 @@
 //
 // 按 10 KB / 100 KB / 1 MB × {纯中文、中英数混排、Markdown/URL/LaTeX 密集、
 // emoji 与组合字符密集、CJK 扩展区密集} 输出 format_text 耗时，
-// 用于记录引入 unicode-segmentation 前后的性能对比（见 docs/unicode-baseline.md）。
+// 用于记录引入 unicode-segmentation 前后的性能对比（见 docs/benchmarks/unicode-baseline.md）。
 
 use chinese_copywriting_formatter_lib::engine::{format_text, FormatRequest, RuleSelection};
 use std::time::Instant;

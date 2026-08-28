@@ -109,7 +109,7 @@ Windows 版依赖系统的 WebView2 Evergreen Runtime。Windows 10/11 通常已�
 
 例如 `$E=mc^2$`、代码块中的符号、链接地址、化学式通常不会被规则拆开或替换。
 
-> 仍在增强：Markdown 保护目前是保守子集，不等同于完整 CommonMark/HTML 解析器；更复杂的嵌套结构、Markdown 状态机统一化、Unicode 等价识别、性能基准和规则组合边界仍按 [docs/roadmap.md](docs/roadmap.md) §5 分阶段推进。当前版本继续遵循「宁漏格式化、不破坏结构」原则。
+> 仍在增强：Markdown 保护目前是保守子集，不等同于完整 CommonMark/HTML 解析器；后续工作与优先级见 [docs/roadmap.md](docs/roadmap.md)。当前版本继续遵循「宁漏格式化、不破坏结构」原则。
 
 ## 用户设置
 
@@ -170,8 +170,8 @@ copypolish-tui --help
 
 - [docs/README.md](docs/README.md)：开发者文档导航与阅读顺序；
 - [docs/development.md](docs/development.md)：开发说明（架构、验证命令、CI/Release、实现约束）；
-- [docs/release/manual-release.md](docs/release/manual-release.md)：本地构建与手动上传 GitHub Release 指南；
-- [docs/roadmap.md](docs/roadmap.md)：后续开发路线图；
+- [docs/roadmap.md](docs/roadmap.md)：按优先级整理的后续开发计划；
+- [docs/release/manual-release.md](docs/release/manual-release.md)：构建、验收与手动发布 Runbook；
 - [docs/secrets-management.md](docs/secrets-management.md)：维护者凭据的 SOPS/age 管理与恢复指南。
 
-`v0.5.0` 已于 2026-08-28 正式发布。正式 tag 在本地、GitHub 和 GitLab 均指向提交 `5102323`；GitLab Pipeline `#2799117439` 已成功完成，GitHub Release 已上传完整 6 个文件并标记为 Latest。`v0.5.0-pre11` 的 Windows 10/11 真机验收已完成。
+已完成版本的发布计划与验收记录保存在 `docs/archive/`，不作为当前开发任务清单。
