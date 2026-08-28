@@ -4,19 +4,21 @@
 
 ## 1. 优先级原则
 
-1. 先完成 `v0.5.0` 发布闭环（Windows 真机验收、正式 Release 复核），再启动功能扩展；
+1. 先完成 `v0.5.0` 预发布闭环（GUI 修复、Windows 真机验收、Pre-release 复核），再启动功能扩展；
 2. 每项改动先补测试与文档，再改实现；
 3. 大型依赖（如 ICU4X）先做 Spike 评估，确认体积/性能/跨平台收益后才正式接入。
 
-## 2. P0：v0.5.0 发布闭环
+## 2. P0：v0.5.0 预发布与正式发布闭环
 
+- 为已完成 GitLab 构建的 `v0.5.0-pre10` 补建 GitHub Pre-release，并自动生成、人工复核 Release Notes；
+- 发布 GUI 修复后的 `v0.5.0-pre11`，覆盖主页输入/输出等高和设置页主题三列布局；
 - Windows 10/11 真机人工验收（清单见 v0.5.0-release-plan.md 第 12 节）；
 - 正式 Release 资产、Release Notes 与 latest 标记复核；
 - 未闭环前不新增大型规则或 UI 重构。
 
 ## 3. P1：本地构建与手动发布能力
 
-- GitHub Actions 保持为标准 CI、Release 编排与可复现发布路径；GitLab 仅作为由 GitHub tag workflow 调用的 Linux/Windows Build Service；
+- GitHub 作为源码与公开 Release 平台；GitLab 仅作为手动推送 tag 后的 Linux/Windows Build Service；GitHub Actions 当前不在源码树中；
 - 本地构建 + 手动上传为正式支持的备用发布方式（Runbook：[manual-release.md](release/manual-release.md)）；
 - 已提供本地发布自动化脚本：
   - `scripts/build_release_local.ps1`（Windows 版本同步、构建、DLL 收集、`.7z` 打包）；

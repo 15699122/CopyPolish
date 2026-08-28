@@ -172,3 +172,5 @@ copypolish-tui --help
 - [docs/development.md](docs/development.md)：开发说明（架构、验证命令、CI/Release、实现约束）；
 - [docs/release/manual-release.md](docs/release/manual-release.md)：本地构建与手动上传 GitHub Release 指南；
 - [docs/roadmap.md](docs/roadmap.md)：后续开发路线图。
+
+当前 `v0.5.0-pre10` 已完成 GitLab 跨平台构建和资产校验，GitHub Pre-release 正在按发布流程补建；GUI 修复后的版本将使用新的 `v0.5.0-pre11` tag。

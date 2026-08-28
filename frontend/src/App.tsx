@@ -587,7 +587,7 @@ return (
         style={{ zoom: "var(--app-ui-scale, 1)" }}
         data-testid="scaled-app-content"
       >
-        <div className="grid h-full min-h-0 gap-4 p-4 lg:grid-cols-2">
+        <div className="grid h-full min-h-0 grid-rows-2 gap-4 p-4 lg:grid-cols-2 lg:grid-rows-1">
         <Card className="flex h-full min-h-0 min-w-0 flex-col">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">原始文案</CardTitle>
@@ -632,7 +632,10 @@ return (
             </CardDescription>
           </CardHeader>
           <CardContent className="flex min-h-0 min-w-0 flex-1 flex-col">
-            <div className="relative min-h-0 w-full flex-1 overflow-auto rounded-md border bg-background px-3 py-2">
+            <div
+              className="relative min-h-0 w-full flex-1 overflow-auto rounded-md border bg-background px-3 py-2"
+              data-testid="output-scroller"
+            >
               {!output && !error && (
                 <div
                   className="pointer-events-none absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-muted-foreground"
