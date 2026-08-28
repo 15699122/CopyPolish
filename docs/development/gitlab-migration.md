@@ -112,7 +112,7 @@ GitHub 为主，GitLab 为 Build Service，不做双向写：
 - [x] 完成真实 Windows 10/11 GUI/DPI/WebView2 人工验收，未发现明显问题。
 - [x] Pipeline `#2799117439` 于 2026-08-28 完成且无错误；对应的 SOPS/age 密钥管理方案已审阅。
 - [x] 将 `.sops.yaml`、加密的 `secrets/tokens.env` 和 `scripts/load_tokens.sh` 迁入当前项目，并保留明文副本防护。
-- [ ] 从个人配置仓库删除上述三个项目凭据文件，并完成删除提交推送。
+- [x] 从个人配置仓库删除上述三个项目凭据文件，并完成删除提交推送（源仓库提交 `f20090c`）。
 
 ### 凭据边界
 
