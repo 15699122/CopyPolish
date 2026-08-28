@@ -307,7 +307,12 @@ frontend/src/hooks/
 - `cargo audit`、`npm audit`（明确高危阻断阈值）、许可证清单；
 - 审查并评估收紧 `tauri.conf.json` 中当前为 `null` 的 CSP（改动需桌面端 smoke 回归）；
 - Dependabot 已覆盖 npm / Cargo / GitHub Actions（周更，target dev 分支），保持合并前 CI 必过；
-- 建立 Node/Rust/Tauri/React 升级 runbook 与预发布 tag 验证流程。
+- 建立 Node/Rust/Tauri/React 升级 runbook 与预发布 tag 验证流程；
+- [x] 完成 age + sops 密钥管理方案、灾难恢复文档和项目文件迁移：`.sops.yaml`、加密的 `secrets/tokens.env`、`scripts/load_tokens.sh`；
+- [x] 增加 SOPS/age 明文副本的 `.gitignore` 防护，并从个人配置仓库移除本项目凭据文件；
+- [ ] 增加自动 secret scanning 和 SOPS 元数据校验门禁；
+- [ ] 完成离线备份恢复演练并记录结果；
+- [ ] 增加第二 age 接收者，建立令牌最小权限、轮换和吊销清单。
 
 ## 12. Ratatui TUI（已完成 MVP）
 

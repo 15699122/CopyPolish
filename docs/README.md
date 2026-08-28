@@ -11,6 +11,7 @@
 5. [benchmarks/unicode-baseline.md](benchmarks/unicode-baseline.md)：Unicode 边界层引入前后的编译、体积和性能基线；
 6. [development/gitlab-mcp.md](development/gitlab-mcp.md)：Cline 接入 GitLab Build Service MCP Server 的配置、验收与安全规则。
 7. [development/gitlab-migration.md](development/gitlab-migration.md)：GitLab Build Service、Windows SaaS runner 与 GitHub Release 编排状态。
+8. [secrets-management.md](secrets-management.md)：age + sops 密钥管理、令牌轮换与灾难恢复。
 
 ## 文档职责
 
@@ -24,5 +25,6 @@
 | `development/gitlab-mcp.md` | GitLab Build Service MCP Server 在 Cline 中的接入、验收与安全边界 | GitLab MCP 或构建服务变化时 |
 | `development/gitlab-migration.md` | GitLab Build Service、GitHub Release 编排、进度和技术决策 | 构建服务或 Release 编排变化时 |
 | `benchmarks/unicode-baseline.md` | 可重复的性能与体积测量记录 | 基准重新测量时 |
+| `secrets-management.md` | SOPS 加密凭据、age 接收者、令牌轮换与灾难恢复 | 凭据结构或恢复流程变化时 |
 
 `v0.5.0` 正式发布完成后，版本计划文档应迁入 `archive/release-plans/`，并从路线图中移除已完成的 P0 发布闭环。历史 Python 实现已从当前工作树移除；如需追溯，请通过 Git 历史查看，不参与当前构建、测试或行为定义。

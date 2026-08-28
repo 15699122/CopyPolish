@@ -5,7 +5,7 @@
 
 > GitHub 是源码与开发协作主平台；GitHub Actions 已从当前源码树移除。
 > GitLab 仅在维护者手动推送 `v*` tag 后负责 Linux/Windows 构建与内部构建 Release；公开 Release 由维护者手动整理和创建。
-> GitHub `dev` 当前为提交 `be9f85c`；`v0.5.0-pre10` 指向 `4cd68ae`，`v0.5.0-pre11` 指向 `a016751`，已完成 GitLab 构建、资产校验及 GitHub Pre-release 发布。GUI 等高、主题三列布局和 Windows 10/11 真机验收均已完成。当前 `dev` 相对 `pre11` 仅包含发布状态文档更新。
+> GitHub `dev` 的已发布基线为提交 `be9f85c`；当前维护分支还包含 GitLab 密钥管理文档与 SOPS 文件。`v0.5.0-pre10` 指向 `4cd68ae`，`v0.5.0-pre11` 指向 `a016751`，已完成 GitLab 构建、资产校验及 GitHub Pre-release 发布。GUI 等高、主题三列布局和 Windows 10/11 真机验收均已完成。
 
 ## 1. 架构与目标
 
@@ -30,7 +30,7 @@ GitLab Build Service
 原则：
 
 - GitHub 是唯一日常写入源；开发、Issue、Pull Request 和源码协作均在 GitHub 完成；
-- GitLab 不接收 `dev` / `master` 日常同步，仅在需要构建时由维护者手动接收同一提交的 `v*` tag；
+- GitLab 不作为日常开发协作平台；发布构建使用维护者确认过的 `v*` tag，当前 `master` 也可能因 Build Service 文档/配置维护而包含同步提交；
 - GitLab CI 负责跨平台构建和内部构建 Release；公开 Release 由维护者手动整理和创建；
 - GitLab MCP 只用于 Build Service 状态和日志诊断，不进入发布关键路径（见 gitlab-mcp.md）。
 
@@ -110,6 +110,15 @@ GitHub 为主，GitLab 为 Build Service，不做双向写：
 - [x] 从 GitLab Generic Package 下载 `v0.5.0-pre11` 五项资产，执行 SHA256 和 `verify_release_assets.py --platform all` 校验，全部通过；
 - [x] 使用已校验的 GitLab 资产创建公开 GitHub `v0.5.0-pre11` Pre-release，并完成 GitHub 五项资产二次复核；
 - [x] 完成真实 Windows 10/11 GUI/DPI/WebView2 人工验收，未发现明显问题。
+- [x] Pipeline `#2799117439` 于 2026-08-28 完成且无错误；对应的 SOPS/age 密钥管理方案已审阅。
+- [x] 将 `.sops.yaml`、加密的 `secrets/tokens.env` 和 `scripts/load_tokens.sh` 迁入当前项目，并保留明文副本防护。
+- [ ] 从个人配置仓库删除上述三个项目凭据文件，并完成删除提交推送。
+
+### 凭据边界
+
+- 项目级 GitLab PAT、Deploy Token 和 Project Token 由根目录的 SOPS 加密文件管理，操作说明见 [../secrets-management.md](../secrets-management.md)；
+- GitLab CI 的 `CI_JOB_TOKEN` 只在 job 内使用，不复制到 `secrets/tokens.env`；
+- GitLab MCP 使用 OAuth，不读取项目 SOPS 文件；GitHub Release 凭据也不得写入项目密钥文件。
 
 ## 8. Windows 人工验收（保持既有约束）
 

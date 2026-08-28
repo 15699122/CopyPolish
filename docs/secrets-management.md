@@ -3,6 +3,21 @@
 本工程中的敏感配置项（如 GitLab 部署 token 等）使用 [sops](https://github.com/getsops/sops) 与 [age](https://age-encryption.org/) 管理，而非明文或临时拼凑的 gpg 方案。
 
 - `secrets/tokens.env` — **sops 加密**的 env 文件（值形如 `ENC[AES256_GCM,...]`）。
+- `scripts/load_tokens.sh` — 检查 `sops`、解密并将变量注入当前 shell，不把明文写入磁盘。
+
+## 当前落地状态
+
+密钥管理文件已从个人 Cline 配置仓库迁入本项目：
+
+- `.sops.yaml` 已提交，仅包含 age 公钥接收者；
+- `secrets/tokens.env` 已提交，业务变量值保持 SOPS 加密；
+- `scripts/load_tokens.sh` 已提交并保持可执行权限（`755`）；
+- 个人配置仓库不再持有本项目的这些凭据文件。
+
+当前加密文件包含 GitLab 运维所需变量（变量名可见，变量值不可见）：
+`GITLAB_DEPLOY_TOKEN`、`GITLAB_PAT`、`GITLAB_PROJECT_TOKEN`、`GITLAB_DEPLOY_USER`。
+
+使用前需要本机安装 `sops`，并持有与 `.sops.yaml` 接收者匹配的 age 私钥。CI 内置的 `CI_JOB_TOKEN`、GitLab MCP OAuth 凭据和 GitHub Release 凭据不写入该文件。
 - `.sops.yaml` — 配置；声明 age 接收者（`age1...` **公钥**）以及需要加密的文件。
 
 ## 工作原理
@@ -30,7 +45,20 @@ sops -e -i secrets/tokens.env      # 切勿提交明文状态
 source scripts/load_tokens.sh
 ```
 
-`eval "$(sops --decrypt ...)"` 会把变量注入当前 shell——不落盘任何内容。sops 依序从 `$SOPS_AGE_KEY`、`$AGE_KEY`、`~/.config/sops/age/keys.txt` 查找 age 私钥。
+脚本会把 `sops --decrypt` 的结果暂存在当前 shell 的变量中，解密成功后才执行 `eval`，随后清理临时变量；不会把明文写入文件。sops 依序从 `$SOPS_AGE_KEY`、`$AGE_KEY`、`~/.config/sops/age/keys.txt` 查找 age 私钥。
+
+可先检查文件状态，不显示密钥值：
+
+```bash
+sops filestatus secrets/tokens.env
+```
+
+加载后只应验证变量是否存在，禁止打印变量值或将其写入日志：
+
+```bash
+source scripts/load_tokens.sh
+test -n "${GITLAB_PAT:-}"
+```
 
 ## 添加其它接收者（如同事 / CI）
 
@@ -71,3 +99,9 @@ SOPS_AGE_KEY="$(grep -E '^AGE-SECRET-KEY' /path/to/backup/key)" \
 ## 安全约定
 
 切勿提交令牌、凭据、明文密钥副本（`.plain`、`.dec`）、会话、日志、缓存或数据库。切勿提交 age **私钥**（`~/.config/sops/age/keys.txt`）。
+
+- 只提交 SOPS 加密后的 `secrets/tokens.env`，不提交临时明文副本；
+- 不将 PAT 写入 remote URL、命令参数、脚本、Release Notes 或构建日志；
+- 令牌轮换后必须重新加密文件、验证新私钥/接收者可解密，并及时吊销旧令牌；
+- `CI_JOB_TOKEN` 只由 GitLab CI 在 job 内提供，不复制到长期凭据文件；
+- 个人配置仓库仅保留迁移历史，不再作为本项目凭据的运行时来源。

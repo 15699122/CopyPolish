@@ -1,6 +1,6 @@
 # CopyPolish 本地构建与手动发布指南
 
-本指南描述当前使用本地构建或 GitLab Build Service 完成构建、资产校验和 GitHub 手动发布的流程。GitHub 负责源码、tag 和公开 Release；构建由本地环境或 GitLab 完成。中长期发布相关维护项见 [roadmap.md](../roadmap.md)。
+本指南描述当前使用本地构建或 GitLab Build Service 完成构建、资产校验和 GitHub 手动发布的流程。GitHub 负责源码、tag 和公开 Release；构建由本地环境或 GitLab 完成。凭据加载与恢复见 [secrets-management.md](../secrets-management.md)；中长期发布相关维护项见 [roadmap.md](../roadmap.md)。
 
 > 提示：`scripts/build_release_local.sh`（Linux）、`scripts/build_release_local.ps1`（Windows）与 `scripts/verify_release_assets.py`（产物校验）封装了本指南的核心步骤；仍需遵守下文的干净发布工作区与人工验收要求，首次使用前请先通读本指南。
 
@@ -27,6 +27,7 @@ GitLab 手动构建的关键约束：GitLab `.gitlab-ci.yml` 只响应合法 `v*
 - Linux 需要 Tauri 系统依赖：`libwebkit2gtk-4.1-dev`、`libappindicator3-dev`、`librsvg2-dev`、`patchelf`；
 - Windows 需要 WebView2 工具链（Tauri CLI 自动处理）；
 - `gh` CLI（可选，用于命令行创建 Release；也可用网页手动上传）。
+- `sops` 与 age 私钥（仅在需要使用项目加密凭据时；安装和恢复见 [secrets-management.md](../secrets-management.md)）。
 
 ## 3. 使用干净发布工作区
 
@@ -274,7 +275,7 @@ https://gitlab.com/api/v4/projects/85804438/packages/generic/copypolish/vX.Y.Z[-
 
 手动发布前必须下载并校验全部五项资产，缺少 AppImage 时不得继续发布，这是预期的安全门禁。
 
-> 不要把 `GITLAB_TOKEN` 写入 remote URL、脚本、仓库文件或提交历史。PAT 仅用于本次上传和 GitLab API 操作；GitLab MCP Server 仍使用 OAuth，不接受 PAT。
+> 不要把 `GITLAB_TOKEN` 或任何 PAT 写入 remote URL、脚本、仓库文件、命令参数、构建日志或提交历史。项目凭据使用 `source scripts/load_tokens.sh` 加载；GitLab MCP Server 仍使用 OAuth，不接受 PAT，GitLab CI 的 `CI_JOB_TOKEN` 仅在 job 内使用。
 
 ## 9. Windows 真机人工验收
 

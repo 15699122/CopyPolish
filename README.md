@@ -171,6 +171,7 @@ copypolish-tui --help
 - [docs/README.md](docs/README.md)：开发者文档导航与阅读顺序；
 - [docs/development.md](docs/development.md)：开发说明（架构、验证命令、CI/Release、实现约束）；
 - [docs/release/manual-release.md](docs/release/manual-release.md)：本地构建与手动上传 GitHub Release 指南；
-- [docs/roadmap.md](docs/roadmap.md)：后续开发路线图。
+- [docs/roadmap.md](docs/roadmap.md)：后续开发路线图；
+- [docs/secrets-management.md](docs/secrets-management.md)：维护者凭据的 SOPS/age 管理与恢复指南。
 
-当前 `v0.5.0-pre10` 已完成 GitLab 跨平台构建、资产校验及 GitHub Pre-release 发布；GUI 修复已合入开发分支，后续跨平台构建版本将使用新的 `v0.5.0-pre11` tag。
+当前 `v0.5.0-pre11` 已完成 GitLab 跨平台构建、资产校验、GitHub Pre-release 发布及 Windows 10/11 真机验收；正式版 `v0.5.0` 仍需先处理 GitLab 历史同名 tag 冲突。
