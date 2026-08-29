@@ -921,4 +921,37 @@ mod tests {
             "<div class=\"notice\">\n在GitHub上发布5000元\n</DIV>"
         );
     }
+
+    #[test]
+    fn markdown_link_span_covers_nested_parentheses() {
+        let text = "前缀[文档](https://example.com/foo_(bar_(baz)))后缀";
+        let span = scan_structure_spans(text)
+            .into_iter()
+            .find(|span| span.kind == SpanKind::MarkdownLink)
+            .expect("nested markdown link span must be detected");
+        assert_eq!(
+            &text[span.start..span.end],
+            "[文档](https://example.com/foo_(bar_(baz)))"
+        );
+    }
+
+    #[test]
+    fn inline_code_span_requires_matching_delimiter_length() {
+        let text = "前缀``代码`内容``后缀";
+        let span = scan_structure_spans(text)
+            .into_iter()
+            .find(|span| span.kind == SpanKind::InlineCode)
+            .expect("inline code span must be detected");
+        assert_eq!(&text[span.start..span.end], "``代码`内容``");
+    }
+
+    #[test]
+    fn unclosed_inline_code_only_protects_delimiter_run() {
+        let text = "前缀```未闭合后缀";
+        let span = scan_structure_spans(text)
+            .into_iter()
+            .find(|span| span.kind == SpanKind::InlineCode)
+            .expect("unclosed delimiter span must be detected");
+        assert_eq!(&text[span.start..span.end], "```");
+    }
 }

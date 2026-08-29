@@ -49,7 +49,8 @@
 
 ### 5.1 Markdown/HTML 状态机收敛
 
-- [ ] 优先替换容易触发回溯或嵌套歧义的 `fancy-regex`：反引号、平衡括号链接、HTML block；
+- [x] 反引号、平衡括号链接和 HTML block 已由 span 扫描器覆盖，并补齐嵌套括号、任意长度 delimiter、未闭合 delimiter 与大小写混合 HTML 闭合标签回归；
+- [ ] 继续减少旧 `fancy-regex` 保护路径的依赖，重点验证扫描器与保护层在边界失败时的行为等价性；
 - [ ] 明确未闭合 fenced code、嵌套链接、引用式链接、HTML 可见文本和 LaTeX 嵌套环境的产品策略；
 - [ ] 补齐 Unicode 域名 URL、括号包裹 URL 和复杂化学式歧义回归；
 - [ ] 保持“宁漏格式化、不破坏结构”，不把整篇 Markdown 文档全部冻结。
