@@ -64,19 +64,10 @@ python3 scripts/check_version.py vX.Y.Z[-suffix]
 
 ## 5. 发布前统一验证
 
-在发布工作区执行与 CI 对齐的完整验证：
+在发布工作区执行与 CI 对齐的完整验证。统一入口会依次执行版本校验、前端、Rust/TUI、性能、安全和 Markdown 门禁：
 
 ```bash
-npm ci --prefix frontend
-npm test --prefix frontend -- --run
-npm run build --prefix frontend
-
-cargo fmt --manifest-path src-tauri/Cargo.toml --check
-cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
-cargo test --manifest-path src-tauri/Cargo.toml
-
-git diff --check
-python3 scripts/check_version.py vX.Y.Z[-suffix]
+python3 scripts/verify.py --profile release --tag vX.Y.Z[-suffix]
 ```
 
 任一失败都不得继续构建与发布。
@@ -169,19 +160,10 @@ WSL 可以执行不依赖 Windows GUI 的验证：
 ```bash
 cd "$WSL_REPO-release"
 
-npm ci --prefix frontend
-npm test --prefix frontend -- --run
-npm run build --prefix frontend
-
-cargo fmt --manifest-path src-tauri/Cargo.toml --check
-cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
-cargo test --manifest-path src-tauri/Cargo.toml
-
-git diff --check
-python3 scripts/check_version.py vX.Y.Z[-suffix]
+python3 scripts/verify.py --profile release --tag vX.Y.Z[-suffix]
 ```
 
-这些命令验证前端、纯 Rust 引擎、设置测试和版本一致性；它们**不等于** Windows Tauri Release 构建。最终 Windows 产物仍必须由 Windows 主机工具链生成并在 Windows 上启动验收。
+该命令验证前端、纯 Rust 引擎、TUI、性能、安全、文档和版本一致性；它**不等于** Windows Tauri Release 构建。最终 Windows 产物仍必须由 Windows 主机工具链生成并在 Windows 上启动验收。
 
 ### 7.5 从 WSL 调用 Windows 主机构建
 

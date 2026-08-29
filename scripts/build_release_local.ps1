@@ -30,17 +30,10 @@ if ($dirty) {
 
 Write-Host "== 同步 tag 完整版本 ($Tag) =="
 python3 "$RepoRoot\scripts\prepare_release_version.py" $Tag
-python3 "$RepoRoot\scripts\check_version.py" $Tag
 
 if (-not $SkipVerify) {
     Write-Host "== 发布前统一验证（与 CI 对齐）=="
-    npm ci --prefix frontend
-    npm test --prefix frontend -- --run
-    npm run build --prefix frontend
-    cargo fmt --manifest-path src-tauri/Cargo.toml --check
-    cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
-    cargo test --manifest-path src-tauri/Cargo.toml
-    git diff --check
+    python3 "$RepoRoot\scripts\verify.py" --profile release --tag $Tag
 }
 else {
     Write-Host "== 跳过验证（-SkipVerify）=="

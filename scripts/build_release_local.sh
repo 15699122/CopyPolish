@@ -43,17 +43,10 @@ fi
 
 echo "== 同步 tag 完整版本 ($TAG) =="
 python3 "$REPO_ROOT/scripts/prepare_release_version.py" "$TAG"
-python3 "$REPO_ROOT/scripts/check_version.py" "$TAG"
 
 if [[ "$SKIP_VERIFY" -ne 1 ]]; then
     echo "== 发布前统一验证（与 CI 对齐）=="
-    npm ci --prefix "$REPO_ROOT/frontend"
-    npm test --prefix "$REPO_ROOT/frontend" -- --run
-    npm run build --prefix "$REPO_ROOT/frontend"
-    cargo fmt --manifest-path "$REPO_ROOT/src-tauri/Cargo.toml" --check
-    cargo clippy --manifest-path "$REPO_ROOT/src-tauri/Cargo.toml" --all-targets -- -D warnings
-    cargo test --manifest-path "$REPO_ROOT/src-tauri/Cargo.toml"
-    git -C "$REPO_ROOT" diff --check
+    python3 "$REPO_ROOT/scripts/verify.py" --profile release --tag "$TAG"
 else
     echo "== 跳过验证（--skip-verify）=="
 fi
