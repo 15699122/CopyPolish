@@ -16,7 +16,7 @@
 
 主要风险：
 
-- 保护层仍使用内部 placeholder 承载不可编辑 span，非边界规则尚未全部转换为 TextEdit；
+- 保护层仍使用内部 placeholder 承载不可编辑 span（TextEdit 应用层已覆盖全部规则阶段，剩余工作是减少占位符依赖、让语义边缘空格完全脱离占位符路径）；
 - Markdown/HTML 保护仍是保守扫描器与有限正则的组合，不是完整语法解析器；
 - 长文本基准曾暴露 `fancy-regex` 回溯上限，尚未建立持续性能门禁；
 - 真实 Tauri 桌面链路缺少自动化 E2E；
@@ -38,7 +38,7 @@
 
 - [x] 审阅 `structure-precedence.yaml`，确认 span-aware 输出是产品预期；
 - [x] 将结构优先级样例迁入稳定黄金回归，不再作为 pending 差异观察；
-- [ ] 把剩余非边界规则和全角标点清理迁移到可编辑区间/TextEdit 策略；标点/名词阶段已完成首批迁移；
+- [x] 把剩余结构边界与文本边界规则迁移到 TextEdit 策略；全部规则阶段（标点/名词/结构边界/文本边界/清理）现均经 `edit_plan.rs` 的 TextEdit 应用层执行，保护层行循环已删除；
 - [x] 移除普通/数学多套 placeholder 编号和旧 placeholder pipeline；
 - [x] 删除仅用于新旧路径等价对照的测试，改为生产路径行为测试；
 - [x] 验证稳定 fixture、换行风格、幂等性和未知规则 key 行为不变。

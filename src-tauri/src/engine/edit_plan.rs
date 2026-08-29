@@ -1,8 +1,9 @@
 //! TextEdit 计划与冲突仲裁。
 //!
-//! 本模块是 Span → TextEdit 迁移基础设施。标点/名词规则已经通过本模块接入
-//! 生产 pipeline；编辑使用原文 UTF-8 字节区间，先校验边界，再按优先级仲裁，
-//! 最后从后向前应用。
+//! 本模块是 Span → TextEdit 迁移基础设施。标点/名词规范化阶段通过
+//! `apply_editable_rules`、全角标点清理阶段通过 `apply_protected_text_rules`
+//! 接入生产 pipeline；编辑使用原文 UTF-8 字节区间，先校验边界，再按优先级
+//! 仲裁，最后从后向前应用。
 
 use super::model::RuleSelection;
 use super::registry::{execution_rules, RulePhase};
@@ -15,6 +16,16 @@ use super::unicode_boundaries::{units, BoundaryStrategy, ScriptClass};
 const EDITABLE_PHASES: &[RulePhase] = &[
     RulePhase::PunctuationNormalization,
     RulePhase::NamingNormalization,
+];
+
+/// 结构边界、文本边界与 FinalCleanup 阶段在受保护文本（占位符已就位）上执行：
+/// 这些规则可能互相生成新的处理边界（如直角引号转换产生新的全角标点），
+/// 因此保持 `execution_rules()` 的全局顺序逐条应用；占位符行与空行跳过，
+/// 其余整行作为可编辑区间生成 TextEdit。
+const PROTECTED_TEXT_PHASES: &[RulePhase] = &[
+    RulePhase::StructureBoundary,
+    RulePhase::TextBoundary,
+    RulePhase::FinalCleanup,
 ];
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -194,6 +205,51 @@ pub(crate) fn apply_editable_rules(
                 })
             })
             .collect();
+        current = apply_edits(&current, &arbitrate_edits(edits))?;
+    }
+    Ok(current)
+}
+
+/// 在受保护文本上按行应用结构边界、文本边界与 FinalCleanup 阶段规则（TextEdit 形式）。
+///
+/// 调用时机：保护占位符就位之后、行内占位符补空格之前。规则按
+/// `execution_rules()` 的全局顺序逐条应用（StructureBoundary → TextBoundary →
+/// FinalCleanup，同阶段保持注册表顺序），与迁移前保护层行循环的执行顺序一致。
+/// 占位符文本不含会被这些规则改写的边界，整行占位符与空行直接跳过，
+/// 其余行作为单一可编辑区间生成编辑。
+pub(crate) fn apply_protected_text_rules(
+    text: &str,
+    selection: &RuleSelection,
+) -> Result<String, String> {
+    let rules: Vec<&super::registry::RuleDef> = execution_rules()
+        .into_iter()
+        .filter(|rule| {
+            PROTECTED_TEXT_PHASES.contains(&rule.phase) && selection_enabled(selection, rule.key())
+        })
+        .collect();
+    if rules.is_empty() {
+        return Ok(text.to_string());
+    }
+
+    let mut current = text.to_string();
+    for rule in rules {
+        let mut cursor = 0usize;
+        let mut edits = Vec::new();
+        for line in current.split('\n') {
+            let start = cursor;
+            let end = cursor + line.len();
+            cursor = end + 1;
+            if line.trim().is_empty() || super::protection::is_placeholder_line(line) {
+                continue;
+            }
+            let replacement = (rule.apply)(line);
+            if replacement != line {
+                edits.push(
+                    TextEdit::new(&current, start, end, replacement, EditPriority::Editable)
+                        .expect("whole-line range must be a valid edit"),
+                );
+            }
+        }
         current = apply_edits(&current, &arbitrate_edits(edits))?;
     }
     Ok(current)
@@ -685,9 +741,17 @@ fn next_char_range(text: &str, index: usize) -> Option<(usize, usize, char)> {
 
 #[cfg(test)]
 mod tests {
+    use super::super::model::RuleSelection;
     use super::{
-        apply_edits, arbitrate_edits, plan_semantic_boundary_edits, EditPriority, TextEdit,
+        apply_edits, apply_protected_text_rules, arbitrate_edits, plan_semantic_boundary_edits,
+        EditPriority, TextEdit,
     };
+
+    fn only(key: &str) -> RuleSelection {
+        RuleSelection::Only {
+            keys: vec![key.to_string()],
+        }
+    }
 
     fn edit(
         text: &str,
@@ -773,5 +837,48 @@ mod tests {
         // ASCII 温标：Han↔Digit 与 Latin↔Han 边界插空；Unicode 温标符号
         // （℃）经边缘处理与后续汉字之间插空——与生产管线行为一致。
         assert_eq!(output, "样品 25°C 保存，4℃ 冷藏");
+    }
+
+    /// FinalCleanup 迁移回归：全角标点两侧空格按行移除，多行各自独立生效。
+    #[test]
+    fn final_cleanup_removes_spaces_around_fullwidth_punct_per_line() {
+        let selection = only(super::super::registry::keys::SPACING_NO_SPACE_AROUND_FW_PUNCT);
+        let text = "你好， 世界！ 继续\n第二行 ：测试\n英文 line stays";
+        let output = apply_protected_text_rules(text, &selection).unwrap();
+        assert_eq!(output, "你好，世界！继续\n第二行：测试\n英文 line stays");
+    }
+
+    /// 幂等性：清理结果再跑一次不再变化。
+    #[test]
+    fn final_cleanup_is_idempotent() {
+        let selection = only(super::super::registry::keys::SPACING_NO_SPACE_AROUND_FW_PUNCT);
+        let text = "你好， 世界 ！ 继续";
+        let once = apply_protected_text_rules(text, &selection).unwrap();
+        let twice = apply_protected_text_rules(&once, &selection).unwrap();
+        assert_eq!(once, twice);
+    }
+
+    /// 规则选择为 None 时清理必须完全不生效。
+    #[test]
+    fn final_cleanup_respects_selection_none() {
+        let text = "你好， 世界";
+        let output = apply_protected_text_rules(text, &RuleSelection::None).unwrap();
+        assert_eq!(output, text);
+    }
+
+    /// 文本边界规则同样经 `apply_protected_text_rules` 生效（受保护文本路径）。
+    #[test]
+    fn text_boundary_rules_apply_via_protected_text_path() {
+        let selection = only(super::super::registry::keys::SPACING_CJK_LATIN);
+        let output = apply_protected_text_rules("在GitHub上发布", &selection).unwrap();
+        assert_eq!(output, "在 GitHub 上发布");
+    }
+
+    /// 结构边界规则（直角引号）同样经受保护文本路径生效。
+    #[test]
+    fn structure_boundary_rules_apply_via_protected_text_path() {
+        let selection = only(super::super::registry::keys::PUNCT_CORNER_QUOTES);
+        let output = apply_protected_text_rules("说“你好”", &selection).unwrap();
+        assert_eq!(output, "说「你好」");
     }
 }

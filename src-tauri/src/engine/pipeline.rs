@@ -1,25 +1,20 @@
 // engine/pipeline.rs
 // =============================================================================
-// 格式化主流程：
+// 格式化主流程（全部规则执行已收敛到 TextEdit 应用层）：
 //   1. 归一化换行符（处理后还原）；
-//   2. 保护层：先化学式，再 Markdown / LaTeX / URL / 邮箱；
-//   3. 缩进代码行整行占位；
-//   4. 在可编辑区间通过 TextEdit 应用标点/名词规则；
-//   5. 对受保护结构外的文本应用剩余规则；
-//   6. 行内占位符补边界空格 -> 还原全部占位符。
+//   2. 在可编辑区间通过 TextEdit 应用标点/名词规范化规则；
+//   3. 保护层：不透明结构 span（含化学式）转为内部占位符；
+//   4. 在受保护文本上通过 TextEdit 应用结构边界/文本边界/清理规则；
+//   5. 行内占位符补边界空格 -> 还原全部占位符。
 //
 // 规则选择由 `RuleSelection` 显式表达；未知 key 安全忽略。
 // =============================================================================
 
-use std::collections::HashSet;
-
-use super::edit_plan::apply_editable_rules;
-use super::model::{FormatRequest, RuleSelection};
+use super::edit_plan::{apply_editable_rules, apply_protected_text_rules};
+use super::model::FormatRequest;
 use super::protection::{
-    is_placeholder_line, placeholder, restore, space_around_inline_placeholders,
-    space_around_math_placeholders,
+    placeholder, restore, space_around_inline_placeholders, space_around_math_placeholders,
 };
-use super::registry::{execution_rules, rules};
 use super::spans::{scan_all_spans, TextSpan};
 
 /// 格式化文本的正式入口。
@@ -48,19 +43,10 @@ fn restore_newlines(text: &str, newline: &str) -> String {
 // ---------------------------------------------------------------------------
 // span 感知格式化管线。
 //
-// 用 scan_all_spans 划定不可编辑区间，再对可编辑区间复用现有规则函数。
-// 当前保护层仍使用内部占位符承载不可编辑 span；后续将继续把非边界规则
-// 迁移到 edit_plan.rs 的 TextEdit 模型。
+// 用 scan_all_spans 划定不可编辑区间：可编辑规则在原文上以 TextEdit 应用，
+// 其余规则在受保护文本上以 TextEdit 应用。占位符仅用于承载不可编辑 span；
+// 全部规则执行已收敛到 edit_plan.rs 的 TextEdit 模型。
 // ---------------------------------------------------------------------------
-
-fn enabled_set(req: &FormatRequest) -> HashSet<String> {
-    match &req.selection {
-        RuleSelection::All => rules().iter().map(|rule| rule.key().to_string()).collect(),
-        RuleSelection::Defaults => super::registry::enabled_defaults().into_iter().collect(),
-        RuleSelection::Only { keys } => keys.iter().cloned().collect(),
-        RuleSelection::None => HashSet::new(),
-    }
-}
 
 /// 把“不透明结构”span 替代入内部保护占位符，返回受控文本与占位符表。
 /// 语义原子（测量/温度/科学单位/数学）不占位——它们应作为普通文本参与
@@ -142,41 +128,17 @@ fn protect_spans(text: &str, spans: &[TextSpan]) -> ProtectedSpans {
 
 /// 用 span 划分不可编辑区间，再格式化可编辑内容。
 fn format_text_impl(req: &FormatRequest) -> Result<String, String> {
-    let enabled = enabled_set(req);
     let (text, newline) = normalize_newlines(&req.text);
+
+    // 标点/名词规范化：原文上的可编辑区间 TextEdit。
     let text = apply_editable_rules(&text, &req.selection)?;
 
     let spans = scan_all_spans(&text);
     let protected_spans = protect_spans(&text, &spans);
-    let protected = protected_spans.text;
 
-    let registered = execution_rules();
-    let mut out: Vec<String> = Vec::new();
-    for line in protected.split('\n') {
-        if line.trim().is_empty() {
-            out.push(String::new());
-            continue;
-        }
-        if is_placeholder_line(line) {
-            out.push(line.to_string());
-            continue;
-        }
-        let mut current = line.to_string();
-        for rule in &registered {
-            if enabled.contains(rule.key())
-                && !matches!(
-                    rule.phase,
-                    super::registry::RulePhase::PunctuationNormalization
-                        | super::registry::RulePhase::NamingNormalization
-                )
-            {
-                current = (rule.apply)(&current);
-            }
-        }
-        out.push(current);
-    }
-
-    let formatted = out.join("\n");
+    // 结构边界/文本边界/清理规则：受保护文本上的 TextEdit，
+    // 顺序与迁移前保护层行循环一致，随后补占位符边缘空格并还原。
+    let formatted = apply_protected_text_rules(&protected_spans.text, &req.selection)?;
     let formatted = space_around_inline_placeholders(&formatted, &protected_spans.inline);
     let formatted = space_around_math_placeholders(&formatted, &protected_spans.math);
     let restored = restore(&formatted, &protected_spans.all);
