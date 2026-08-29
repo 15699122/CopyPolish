@@ -80,6 +80,7 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
 ├── frontend/                      # React/Vite/TS/Tailwind v4/shadcn-ui 界面
 │   └── src/App.tsx                # 主界面：双栏编辑、设置 Dialog、防抖实时排版
 ├── scripts/
+│   ├── verify.py                 # 统一验证入口（CI / 本地 / 发布脚本）
 │   ├── check_version.py           # 版本一致性校验（CI 与本地共用）
 │   └── prepare_release_version.py # 发布时把 tag 完整版本写入构建配置
 ├── src-tauri/
@@ -275,29 +276,20 @@ copypolish-tui --help   # 完整参数说明
 
 ## 验证命令
 
+统一验证入口为 `scripts/verify.py`。它集中维护 Rust、TUI、前端、性能、安全和 Markdown 检查命令；CI 与本地发布脚本只选择 profile，不再复制门禁命令。`checks` 适用于轻量环境，`security` 只运行凭据/SOPS 检查，`rust` 包含 Rust/TUI/性能门禁，`release` 另外先校验指定 tag 版本。
+
 开发提交前建议至少运行：
 
 ```bash
-cargo fmt --manifest-path src-tauri/Cargo.toml --check
-cargo check --manifest-path src-tauri/Cargo.toml
-cargo test --manifest-path src-tauri/Cargo.toml          # Rust 引擎与设置测试
-npm test --prefix frontend                                # Vitest 组件测试（jsdom）
-npm run build --prefix frontend                           # tsc + vite
+python3 scripts/verify.py --profile rust
+python3 scripts/verify.py --profile frontend
+python3 scripts/verify.py --profile checks
 ```
 
 与 CI 对齐的快速验证命令：
 
 ```bash
-npm ci --prefix frontend
-npm test --prefix frontend -- --run
-npm run build --prefix frontend
-cargo fmt --manifest-path src-tauri/Cargo.toml --check
-cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
-cargo test --manifest-path src-tauri/Cargo.toml
-cargo clippy --manifest-path src-tauri/Cargo.toml --features tui --all-targets -- -D warnings
-cargo test --manifest-path src-tauri/Cargo.toml --features tui
-cargo build --manifest-path src-tauri/Cargo.toml --features tui --bin copypolish-tui
-git diff --check
+python3 scripts/verify.py --profile ci
 ```
 
 ## 重要实现约束
@@ -312,14 +304,21 @@ git diff --check
 
 后续开发按 [roadmap.md](roadmap.md) 的里程碑执行。当前优先级是维护工程门禁与性能基线、推进复杂 Markdown/HTML 状态机化，然后推进真实 Tauri E2E 和前端状态拆分。
 
-性能门禁由 `scripts/check_performance.py` 实现：它运行 release 版 `unicode_baseline`
-示例，只检查 1 MB 五类语料是否超过宽松的数量级回退阈值（普通语料 500 ms、
-Markdown/LaTeX 密集语料 5 s）。该门禁用于捕获明显回退，不替代
-`docs/benchmarks/unicode-baseline.md` 中的详细基准和峰值 RSS 测量。
+性能门禁由统一入口 `python3 scripts/verify.py --profile rust` 调用
+`scripts/check_performance.py`，运行 release 版 `unicode_baseline` 示例，只检查 1 MB
+五类语料是否超过宽松的数量级回退阈值（普通语料 500 ms、Markdown/LaTeX 密集语料
+5 s）。该门禁用于捕获明显回退，不替代 `docs/benchmarks/unicode-baseline.md` 中的
+详细基准和峰值 RSS 测量。
 
-安全门禁由 `scripts/security_check.py` 实现：扫描 Git 跟踪文件中的高置信度明文凭据模式，并验证 `secrets/tokens.env` 的 SOPS/age 元数据；`.gitlab-ci.yml` 的 `security:check` 在 tag 构建前执行。该门禁不解密凭据。
+安全门禁由 `scripts/verify.py --profile security` 或 `--profile checks` 调用
+`scripts/security_check.py` 实现：扫描 Git 跟踪文件中的高置信度明文凭据模式，并验证
+`secrets/tokens.env` 的 SOPS/age 元数据；`.gitlab-ci.yml` 的 `security:check` 在 tag
+构建前执行 `security` profile。该门禁不解密凭据。
 
-常规分支 CI 由 `.github/workflows/ci.yml` 承担（push/PR 到 `dev`/`master`）：Rust fmt/clippy/test（默认 + `tui` feature 与 TUI 构建）、前端 vitest/build、安全扫描与 Markdown 相对链接检查（`scripts/check_md_links.py`）。Rust 工具链由 `rust-toolchain.toml` 固定，Node 版本由 `.nvmrc` 固定。
+常规分支 CI 由 `.github/workflows/ci.yml` 承担（push/PR 到 `dev`/`master`），各 job
+分别调用 `verify.py` 的 `rust`、`frontend`、`checks` profile；GitLab tag pipeline
+调用 `security` / `release` profile。Rust 工具链由 `rust-toolchain.toml` 固定，Node
+版本由 `.nvmrc` 固定。
 
 > **已知阻塞（2026-08-29）**：GitHub Actions 账户存在计费阻塞，远程 workflow 一律启动即失败。在账户设置中解除前，`ci.yml` 中的命令应通过本地 Runbook 手工执行；`scripts/check_md_links.py` 与 `scripts/security_check.py` 可直接本地运行。
 
