@@ -230,6 +230,17 @@ fn registry_dependency_graph_is_valid() {
 }
 
 #[test]
+fn temperature_rule_keeps_independent_stable_key_without_legacy_alias() {
+    let rule = rules()
+        .iter()
+        .find(|rule| rule.key() == keys::SPACING_TEMPERATURE_CJK)
+        .expect("temperature rule must be registered");
+    assert_eq!(rule.key(), keys::SPACING_TEMPERATURE_CJK);
+    assert!(rule.meta.default);
+    assert!(rule.legacy.is_empty());
+}
+
+#[test]
 fn registry_dependency_graph_rejects_unknown_and_cyclic_edges() {
     use super::registry::{resolve_execution_order, RuleDef, RulePhase};
 
