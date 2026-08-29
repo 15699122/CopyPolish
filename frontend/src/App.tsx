@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Check, Copy, Eraser } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ import { useClipboardStatus } from "@/hooks/useClipboardStatus";
 import { useSettingsActions } from "@/hooks/useSettingsActions";
 import { useSettingsPersistence } from "@/hooks/useSettingsPersistence";
 import { useSettingsLoader } from "@/hooks/useSettingsLoader";
+import { useSettingsDialog } from "@/hooks/useSettingsDialog";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import { useThemeAndFont } from "@/hooks/useThemeAndFont";
 import { useWindowControls } from "@/hooks/useWindowControls";
@@ -44,8 +45,8 @@ const SLOW_FORMAT_THRESHOLD_MS = 100;
 export default function App() {
   const [rules, setRules] = useState<Rule[]>([]);
   const [cleared, setCleared] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const settingsTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const { open: settingsOpen, triggerRef: settingsTriggerRef, onOpenChange: onSettingsOpenChange } =
+    useSettingsDialog();
 
   const getRuleSelection = useMemo(
     () => (selected: string[]): RuleSelection => {
@@ -192,7 +193,7 @@ export default function App() {
     onCopyOutput: () => {
       void copyOutput();
     },
-    onOpenSettings: () => setSettingsOpen(true),
+    onOpenSettings: () => onSettingsOpenChange(true),
   });
 
   useThemeAndFont({ theme, font, editorFontSize, uiScale });
@@ -200,13 +201,6 @@ export default function App() {
   const { onMinimize, onToggleMaximize, onClose, onHeaderMouseDown } = useWindowControls({
     onError: reportError,
   });
-
-  function onSettingsOpenChange(open: boolean) {
-    setSettingsOpen(open);
-    if (!open) {
-      window.setTimeout(() => settingsTriggerRef.current?.focus(), 0);
-    }
-  }
 
   function onClear() {
     setInput("");
