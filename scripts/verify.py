@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import shutil
 import subprocess
 import sys
@@ -108,12 +109,39 @@ def security_commands() -> list[tuple[str, list[str]]]:
     return [("Secret and SOPS checks", command(sys.executable, "scripts/security_check.py"))]
 
 
+def run_rust_audit() -> None:
+    print("== Rust dependency audit ==", flush=True)
+    result = subprocess.run(
+        ["cargo", "audit", "--file", str(ROOT / "src-tauri" / "Cargo.lock"), "--json"],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0 and not result.stdout.strip():
+        if result.stderr:
+            print(result.stderr, file=sys.stderr, end="")
+        raise subprocess.CalledProcessError(result.returncode, result.args)
+    try:
+        report = json.loads(result.stdout)
+    except json.JSONDecodeError as error:
+        print(result.stdout, end="")
+        print(f"Rust dependency audit returned invalid JSON: {error}", file=sys.stderr)
+        raise subprocess.CalledProcessError(result.returncode or 1, result.args) from error
+
+    vulnerabilities = report.get("vulnerabilities", {})
+    warnings = report.get("warnings", {})
+    vulnerability_count = vulnerabilities.get("count", 0)
+    warning_count = sum(len(items) for items in warnings.values())
+    print(f"RustSec vulnerabilities: {vulnerability_count}")
+    print(f"Allowed RustSec warnings: {warning_count}")
+    if vulnerability_count:
+        print("Rust dependency audit found security vulnerabilities", file=sys.stderr)
+        raise subprocess.CalledProcessError(1, result.args)
+
+
 def audit_commands() -> list[tuple[str, list[str]]]:
     return [
-        (
-            "Rust dependency audit",
-            command("cargo", "audit", "--file", str(ROOT / "src-tauri" / "Cargo.lock")),
-        ),
         (
             "Frontend dependency audit",
             command(
@@ -167,6 +195,8 @@ def main() -> int:
         groups = [frontend_commands(), rust_commands(), checks_commands()]
 
     try:
+        if args.profile == "audit":
+            run_rust_audit()
         for group in groups:
             for description, args_list in group:
                 run(description, args_list)

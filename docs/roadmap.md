@@ -126,8 +126,8 @@ frontend/src/hooks/
 
 ## 11. P2：依赖与安全维护
 
-- [x] 确定 `cargo audit`、`npm audit` 的高危阻断策略：`critical` / `high` 级别阻断发布，`moderate` / `low` 仅记录并进入维护队列；统一入口为 `python3 scripts/verify.py --profile audit`，工具缺失或审计源不可访问时失败，不将未完成审计误报为通过；
-- [ ] 生成并维护第三方许可证清单；
+- [x] 确定 `cargo audit`、`npm audit` 的高危阻断策略：`critical` / `high` 级别阻断发布，`moderate` / `low` 仅记录并进入维护队列；统一入口为 `python3 scripts/verify.py --profile audit`，工具缺失或审计源不可访问时失败，不将未完成审计误报为通过；本次 npm 审计为 0 vulnerabilities，Rust 审计完成并发现 20 个已允许的 unmaintained / unsound warning，纳入后续依赖维护队列；
+- [x] 生成并维护第三方许可证清单：`docs/licenses.md` 由 `scripts/generate_licenses.py` 从 Cargo metadata 和前端已安装依赖元数据生成，当前覆盖 432 个 Rust 依赖条目和 164 个 npm 依赖条目，缺失许可证字段为 0；
 - [ ] 评估收紧 `tauri.conf.json` CSP，并完成桌面 smoke；
 - [ ] 建立 Node/Rust/Tauri/React 升级 Runbook；
 - [ ] 定期验证 `scripts/security_check.py --require-sops` 和令牌轮换流程。
