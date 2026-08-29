@@ -110,7 +110,7 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
 13. Markdown 安全处理：检测到明显 Markdown 标记时默认启用安全模式（宁漏格式化、不破坏结构）；当前采用“手写扫描器 + 有限 `fancy-regex` + 内部占位符”的混合保护层，块级（front matter / fenced、缩进代码 / HTML 注释 / 表格分隔行 / 引用式链接定义）与行内（任意长度反引号 / 链接平衡括号 / HTML 标签 / 美元定界行内与展示数学 / 转义字符）保护保持「保护 → 仅格式化可编辑区间 → 还原」的管线。结构 span 的扫描和仲裁已统一，后续重点是将剩余规则输出迁移为 TextEdit，而不是继续堆叠正则。
 14. Markdown/HTML 边界失败策略必须遵循“宁漏格式化、不破坏结构”：未闭合 fenced code 不吞掉后续正文，未闭合行内反引号只保护 delimiter run；同一行内的嵌套链接按转义感知的括号/方括号平衡扫描，无法闭合时保留普通文本；引用式链接的使用和定义分别保护。行内 HTML 只保护标签及已闭合元素，标签之间的可见文本继续格式化，块级 HTML 则整体保护；支持的 LaTeX 定界符、环境和带参数 command 按完整结构保护，未闭合结构不扩大保护范围。上述策略由 `markdown-protection.yaml`、结构 span 测试和生产路径测试共同冻结。
 15. `registry.rs` 的 `RulePhase` 与 `before/after` 是规则调度的显式元数据：pipeline 通过 `execution_rules()` 做稳定拓扑排序，同 phase 使用注册表顺序作为 tie-break；未知依赖、重复 key 和循环依赖会被拒绝。`rules()` 仍用于稳定的 UI 展示顺序。
-16. Unicode 等价识别与输出规范化分离：识别层把 `µ/μ`、`Å/Å` 视为等价语义，输出层默认不改写用户原文；如提供统一表示，须作为独立、默认关闭的规范化规则并评估 NFKC 影响。
+16. Unicode 等价识别与输出规范化分离：`semantic_tokens.rs` 通过 canonical unit key 把 `µ/μ`、`Å/Å` 视为等价语义，识别层不改写原始字符；如提供统一表示，须作为独立、默认关闭的规范化规则并评估 NFKC 影响。
 17. 复杂输入测试应至少覆盖结构保护、语义 token、普通文本规则三层同时命中的场景；新增规则或保护层改动必须补充复杂组合 fixture、规则选择组合、优先级和幂等性测试。`structure-precedence.yaml` 已作为稳定黄金 fixture，结构 span 优先级由生产管线直接验证。
 
 ## 当前开发进度摘要（2026-08-29）
@@ -122,7 +122,7 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
 - **已完成**：span-aware 管线已成为唯一生产 `format_text` 路径；结构优先级 fixture 已迁入稳定黄金回归；旧 placeholder 生产管线和新旧全量等价测试已移除。URL/邮箱、硬换行、引用式链接、未闭合反引号、LaTeX command/定界数学、数学复合单位及 inline placeholder 边界均由生产路径测试覆盖。
 - **已完成**：标点规范化和名词规范化阶段已通过 `apply_editable_rules` 在可编辑区间以 TextEdit 方式接入生产；结构 span 与化学式在编辑时保持不可改写。
 - **已完成**：全部规则阶段均通过 `edit_plan.rs` 的 TextEdit 应用层执行；1 MB 长文本性能基准、峰值 RSS 和数量级性能回归门禁已建立，详见 `docs/benchmarks/unicode-baseline.md`。
-- **进行中**：完整单位词典、温度规则独立 stable key、Unicode 等价识别/默认关闭规范化、旧 `fancy-regex` 保护路径收敛和真实 Tauri E2E；已完成版本的发布结果归档见 `docs/archive/release-plans/`。
+- **进行中**：完整单位词典、默认关闭的 Unicode 输出规范化、旧 `fancy-regex` 保护路径收敛和真实 Tauri E2E；已完成版本的发布结果归档见 `docs/archive/release-plans/`。
 - **验证要求**：Rust 测试、TUI feature 测试、前端测试与构建、fmt、Clippy、安全扫描和 diff 检查均应在相关改动后执行；具体命令见本文“验证命令”章节。
 
 ## 用户设置持久化
