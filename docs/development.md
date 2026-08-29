@@ -185,7 +185,7 @@ nvm use
 npm ci --prefix frontend
 ```
 
-依赖更新不在普通 CI 构建中自动执行；Dependabot 会为 npm、Cargo 和 GitHub Actions 依赖创建独立 PR，合并前必须通过 CI。
+依赖更新不在普通 CI 构建中自动执行；Dependabot 会为 npm、Cargo 和 GitHub Actions 依赖创建独立 PR，合并前必须通过 CI。完整升级、兼容性验证和回滚流程见 [upgrade-runbook.md](upgrade-runbook.md)。
 
 ## 分支开发流程
 
