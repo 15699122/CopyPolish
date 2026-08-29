@@ -855,10 +855,24 @@ pub fn space_around_math_placeholders(text: &str, placeholders: &[(String, Strin
 }
 
 /// 按创建顺序的逆序还原占位符，保证嵌套内容（如链接中的 URL）正确还原。
+///
+/// 实现为单遍正则替换 + 哈希查找：占位符编号互不重叠、值来自原文切片
+/// （不含占位符 token），因此一遍替换与逐个 `replace` 的逆序循环等价；
+/// 后者对 1 MB 级文本是 O(placeholders × len) 的热点（roadmap §8）。
 pub fn restore(text: &str, placeholders: &[(String, String)]) -> String {
-    let mut current = text.to_string();
-    for (ph, val) in placeholders.iter().rev() {
-        current = current.replace(ph.as_str(), val);
+    static PH_RE: OnceLock<Regex> = OnceLock::new();
+    if placeholders.is_empty() {
+        return text.to_string();
     }
-    current
+    let map: std::collections::HashMap<&str, &str> = placeholders
+        .iter()
+        .map(|(ph, val)| (ph.as_str(), val.as_str()))
+        .collect();
+    let re = PH_RE
+        .get_or_init(|| Regex::new(&format!("{PH_START}CCWPROTECTED\\d+\\u{{E001}}")).unwrap());
+    re.replace_all(text, |caps: &regex::Captures| {
+        let token: &str = caps[0].as_ref();
+        map.get(token).copied().unwrap_or(token).to_string()
+    })
+    .to_string()
 }
