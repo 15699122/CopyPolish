@@ -315,6 +315,8 @@ git diff --check
 
 常规分支 CI 由 `.github/workflows/ci.yml` 承担（push/PR 到 `dev`/`master`）：Rust fmt/clippy/test（默认 + `tui` feature 与 TUI 构建）、前端 vitest/build、安全扫描与 Markdown 相对链接检查（`scripts/check_md_links.py`）。Rust 工具链由 `rust-toolchain.toml` 固定，Node 版本由 `.nvmrc` 固定。
 
+> **已知阻塞（2026-08-29）**：GitHub Actions 账户存在计费阻塞，远程 workflow 一律启动即失败。在账户设置中解除前，`ci.yml` 中的命令应通过本地 Runbook 手工执行；`scripts/check_md_links.py` 与 `scripts/security_check.py` 可直接本地运行。
+
 ## 图标
 
 完整桌面图标集（ico/各尺寸 PNG）由 Tauri CLI 从 `icons/icon.png` 生成：

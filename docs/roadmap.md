@@ -25,7 +25,7 @@
 
 ## 3. P0：工程门禁与发布可靠性
 
-- [x] 增加常规开发分支 CI：GitHub Actions（`.github/workflows/ci.yml`）在 push/PR 到 `dev`/`master` 时运行 Rust fmt/clippy/test（默认 + TUI feature 与 TUI 构建）、前端 vitest/build、secret/SOPS 安全扫描和 Markdown 链接检查；`git diff --check` 在本地 Runbook 中保留；
+- [x] 增加常规开发分支 CI：GitHub Actions（`.github/workflows/ci.yml`）在 push/PR 到 `dev`/`master` 时运行 Rust fmt/clippy/test（默认 + TUI feature 与 TUI 构建）、前端 vitest/build、secret/SOPS 安全扫描和 Markdown 链接检查；`git diff --check` 在本地 Runbook 中保留。**当前阻塞**：GitHub Actions 账户存在计费阻塞，workflow 会在启动后立即失败（与本仓库内容无关）；需在账户设置中解除计费阻塞后 CI 才能真正生效，在此之前本地 Runbook 仍是权威门禁；
 - [x] Dependabot 的 GitHub Actions 生态配置已随常规 CI 恢复而重新生效；
 - [x] 增加 Markdown 相对链接检查：`scripts/check_md_links.py`（已在 CI `checks` job 中启用），阻止删除或移动文档后留下死链；
 - [ ] 将发布前检查封装为单一入口，减少本地 Runbook、GitLab job 与手工命令漂移；
