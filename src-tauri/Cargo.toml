@@ -23,9 +23,6 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_yaml = "0.9"
 regex = "1"
-# 保护层正则需要 lookbehind / backreference（LaTeX 转义 $、fenced code 缩进回引等），
-# regex crate 不支持，使用 fancy-regex。
-fancy-regex = "0.19"
 # UAX #29 文本边界（grapheme cluster），roadmap §5：
 # 为中英/中数插空规则提供不被 emoji ZWJ、组合附加符切断的判定单位。
 unicode-segmentation = "1.12"

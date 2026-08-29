@@ -8,7 +8,7 @@
 
 ## 汇总
 
-- Rust 依赖：432 条（含不同版本的同名包）；
+- Rust 依赖：431 条（含不同版本的同名包）；
 - npm 依赖：164 条；
 - 许可证字段缺失：0 条。
 
@@ -33,7 +33,7 @@
 | `CC0-1.0` | 1 |
 | `CC0-1.0 OR MIT-0 OR Apache-2.0` | 1 |
 | `ISC` | 6 |
-| `MIT` | 240 |
+| `MIT` | 239 |
 | `MIT OR Apache-2.0` | 202 |
 | `MIT OR Apache-2.0 OR LGPL-2.1-or-later` | 2 |
 | `MIT OR Apache-2.0 OR Zlib` | 2 |
@@ -132,7 +132,6 @@
 | `embed_plist` | `1.2.2` | `MIT OR Apache-2.0` |
 | `equivalent` | `1.0.2` | `Apache-2.0 OR MIT` |
 | `erased-serde` | `0.4.10` | `MIT OR Apache-2.0` |
-| `fancy-regex` | `0.19.0` | `MIT` |
 | `fastrand` | `2.5.0` | `Apache-2.0 OR MIT` |
 | `fdeflate` | `0.3.7` | `MIT OR Apache-2.0` |
 | `field-offset` | `0.3.6` | `MIT OR Apache-2.0` |
