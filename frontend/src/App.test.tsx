@@ -3,7 +3,7 @@
  * mock 掉 @/lib/tauri，专注 UI 行为：
  * 输入→实时排版、设置弹窗规则开关与持久化、清除输入、启动时恢复用户设置。
  */
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { act, render, screen, waitFor, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -74,8 +74,17 @@ function mockFormat(transform: (text: string) => string) {
 async function setup() {
   const user = userEvent.setup();
   render(<App />);
-  // 等待初始化（getRules/getUserSettings）完成。
-  await waitFor(() => expect(mocks.getRules).toHaveBeenCalled());
+  // 等待初始化及设置恢复 effect 完成，避免异步状态更新落在未等待的 act scope 中。
+  await waitFor(() => {
+    expect(mocks.getRules).toHaveBeenCalled();
+    expect(mocks.getEnabledDefaults).toHaveBeenCalled();
+    expect(mocks.getUserSettings).toHaveBeenCalled();
+    expect(mocks.getAppVersion).toHaveBeenCalled();
+  });
+  await act(async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+  });
   return { user };
 }
 

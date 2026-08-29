@@ -160,6 +160,7 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
 - 设置窗口中的规则列表仅做展示排序（默认开启在上、默认关闭在下，组内保持注册表顺序），不改变 Rust 注册表数组顺序与 pipeline 执行顺序。
 - 设置加载提醒包括旧版本设置迁移、旧设置损坏、主设置损坏后的备份恢复、主/备份均损坏以及备份损坏但主设置可用等状态；提醒会显示在主界面提示条和设置文件区域。
 - 测试约定：所有设置读写测试一律使用系统临时目录中的唯一随机文件（PID + 计数器），禁止写仓库内固定路径。
+- 前端测试环境：Vitest setup 直接提供进程内内存 `localStorage`，避免 Node 24+ 未配置 `--localstorage-file` 时的 experimental warning；Vite 配置使用 `import.meta.dirname`，避免 native config loader 兼容性 warning。当前 React 19 仅在全局快捷键测试中仍有一条异步 `act` 环境告警，测试结果不受影响，待后续专项定位。
 - 该文件已加入 `.gitignore`（根目录 `/rules.yaml`）。
 
 ## 开发环境
