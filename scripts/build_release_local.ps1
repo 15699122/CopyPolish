@@ -41,7 +41,7 @@ else {
 
 Write-Host "== 构建 Windows 便携 exe =="
 npm ci --prefix frontend
-npm run tauri --prefix frontend -- build -- --no-bundle
+npm run tauri --prefix frontend -- build --no-bundle
 
 $ExePath = "src-tauri\target\release\chinese-copywriting-formatter.exe"
 if (-not (Test-Path $ExePath)) {

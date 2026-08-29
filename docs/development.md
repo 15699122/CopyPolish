@@ -227,7 +227,7 @@ git push origin v0.5.0-pre2
 ```bash
 cd frontend && npm run tauri dev       # 开发运行
 cd frontend && npm run tauri build     # Linux deb/rpm/AppImage
-cd frontend && npm run tauri build -- --no-bundle  # Windows 便携 exe（不生成安装器）
+cd frontend && npm run tauri build --no-bundle  # Windows 便携 exe（不生成安装器）
 ```
 
 构建产物位置：
@@ -324,6 +324,14 @@ python3 scripts/verify.py --profile ci
 审计结果和许可证信息分别记录在依赖升级的提交差异中；许可证清单由
 `python3 scripts/generate_licenses.py` 生成到 `docs/licenses.md`。依赖升级后应重新执行生成脚本，
 审阅包版本、许可证字段和缺失项，并将清单变化与依赖锁文件一起提交。
+
+### Tauri CSP 与桌面 smoke
+
+`src-tauri/tauri.conf.json` 为生产构建配置最小 CSP：本地资源使用 `self`、`customprotocol:` 和
+`asset:`，后端通信仅允许 Tauri IPC；对象加载被禁止，未加入外部 CDN、字体或业务域名。开发构建
+通过独立 `devCsp` 允许 `http://localhost:1420` 和 `ws://localhost:1421`。修改 CSP 后应从
+`frontend` 目录运行 `npm run tauri -- build --no-bundle --ci` 完成 Linux release smoke；不要额外
+添加 `--`，否则参数可能被转交给 Cargo。
 
 常规分支 CI 由 `.github/workflows/ci.yml` 承担（push/PR 到 `dev`/`master`），各 job
 分别调用 `verify.py` 的 `rust`、`frontend`、`checks` profile；GitLab tag pipeline
