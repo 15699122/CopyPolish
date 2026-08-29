@@ -435,11 +435,22 @@ fn html_block_opening_tag(line: &str) -> Option<&'static str> {
 fn find_html_block_end(lines: &[&str], start: usize, tag: &str) -> Option<usize> {
     let closing = format!("</{tag}");
     for (index, line) in lines.iter().enumerate().skip(start) {
-        if line.to_ascii_lowercase().contains(&closing) {
+        if contains_ascii_case_insensitive(line, &closing) {
             return Some(index);
         }
     }
     None
+}
+
+fn contains_ascii_case_insensitive(haystack: &str, needle: &str) -> bool {
+    let needle = needle.as_bytes();
+    !needle.is_empty()
+        && haystack.as_bytes().windows(needle.len()).any(|window| {
+            window
+                .iter()
+                .zip(needle)
+                .all(|(left, right)| left.eq_ignore_ascii_case(right))
+        })
 }
 
 /// 保护 Markdown 表格分隔行，避免分隔符中的短横线被标点规则改写。

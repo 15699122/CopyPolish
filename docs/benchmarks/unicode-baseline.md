@@ -65,11 +65,11 @@ ERR 为引擎既有 fancy-regex 回溯上限，与本次改动无关。
 | --- | --- | --- | --- |
 | 纯中文 | ~1.4 ms | ~12.6 ms | ~127 ms |
 | 中英数混排 | ~1.4 ms | ~14.8 ms | ~160 ms（此前 ERR） |
-| Markdown/LaTeX 密集 | ~3.6 ms | ~34 ms | ~1.66 s（此前约 4.9 s） |
+| Markdown/LaTeX 密集 | ~3.2 ms | ~37.6 ms | ~1.59 s（此前约 4.9 s） |
 | emoji/组合字符密集 | ~1.6 ms | ~12.8 ms | ~138 ms |
 | CJK Ext-B 密集 | ~1.2 ms | ~13.4 ms | ~140 ms |
 
 结论：常规语料 1 MB 内均在 ~160 ms 以内；不再出现 ERR 或 panic。Markdown/LaTeX
-密集语料已由此前约 4.9 s 降至约 1.66 s，但仍是主要热点。保护阶段 release profiling
+密集语料已由此前约 4.9 s 降至约 1.59 s，但仍是主要热点。保护阶段 release profiling
 约为 `scan_all_spans 591 ms`、`protect_spans 109 ms`、行内占位符间距 `19 ms`、
 还原 `9 ms`；后续应优先减少结构扫描重复遍历，并继续推进 roadmap §5 的状态机化。
