@@ -9,7 +9,8 @@
 3. [release/manual-release.md](release/manual-release.md)：构建、资产校验、人工验收和公开发布 Runbook；
 4. [secrets-management.md](secrets-management.md)：age + SOPS 凭据管理、轮换和恢复；
 5. [benchmarks/unicode-baseline.md](benchmarks/unicode-baseline.md)：Unicode 边界层的历史性能与体积基线；
-6. [development/gitlab-mcp.md](development/gitlab-mcp.md)：可选的 GitLab Build Service 诊断工具说明。
+6. [upgrade-runbook.md](upgrade-runbook.md)：Node、Rust、Tauri、React/Vite 升级和回滚流程；
+7. [development/gitlab-mcp.md](development/gitlab-mcp.md)：可选的 GitLab Build Service 诊断工具说明。
 
 ## 文档职责
 
@@ -20,6 +21,7 @@
 | `roadmap.md` | 尚未完成的开发工作及其验收标准 | 优先级或任务状态变化时 |
 | `release/manual-release.md` | 与版本无关、可重复执行的发布步骤 | 发布流程、脚本或资产变化时 |
 | `secrets-management.md` | 加密凭据、接收者、轮换与灾难恢复 | 凭据结构或恢复流程变化时 |
+| `upgrade-runbook.md` | Node、Rust、Tauri、React/Vite 升级、验收和回滚 | 工具链、依赖或升级门禁变化时 |
 | `benchmarks/` | 可重复测量的方法和结果 | 基准重新测量时 |
 | `archive/` | 已完成版本的计划、验收和历史决策 | 只追加必要更正，不承载新任务 |
 
