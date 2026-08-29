@@ -75,9 +75,9 @@ mod tests {
     #[test]
     fn recognizes_finite_unicode_and_compound_units() {
         let spans = scan_measurements(
-            "10μm 10µm 10Å 10Å 20kΩ 3mg·mL⁻¹ 2kg·m⁻³ 3mg/mL 2kg/m³ 4mol/L 25°C 10cm 20cL 1013hPa",
+            "10μm 10µm 10Å 10Å 20kΩ 3mg·mL⁻¹ 2kg·m⁻³ 3mg/mL 2kg/m³ 4mol/L 25°C 10cm 20cL 1013hPa 5km 2kHz 4kPa 8kW",
         );
-        assert_eq!(spans.len(), 14);
+        assert_eq!(spans.len(), 18);
     }
 
     #[test]

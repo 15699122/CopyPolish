@@ -55,6 +55,12 @@
   input: 长度10cm，容量20cL，气压1013hPa
   expected: 长度 10 cm，容量 20 cL，气压 1013 hPa
 
+- name: 小写千进制前缀与常见单位整体保留并插空
+  selection:
+    mode: defaults
+  input: 速度5km，频率2kHz，压力4kPa，功率8kW
+  expected: 速度 5 km，频率 2 kHz，压力 4 kPa，功率 8 kW
+
 - name: 千分号与中文边界保持
   selection:
     mode: defaults
