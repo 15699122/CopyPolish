@@ -121,8 +121,9 @@ frontend/src/hooks/
 - [ ] 再抽离设置初始化、保存队列、恢复提醒和主题/字体副作用；
 - [ ] `App.tsx` 最终只保留组件编排；
 - [x] hooks 不直接调用 `invoke`，`useFormatter` 继续通过 `frontend/src/lib/tauri.ts` 的 `formatText` 封装访问后端；
-- [ ] 清理当前前端测试中的 React `act` warning 与 Node localStorage warning；
-- [ ] 处理 Vite 配置中 `__dirname` 对未来 native config loader 的兼容警告。
+- [ ] 清理当前前端测试中的 React `act` warning；当前仅剩快捷键测试中的 React 19 异步 document listener 告警，行为测试本身 36/36 通过；
+- [x] 清理 Node localStorage warning：测试 setup 直接使用进程内内存存储，避免 Node 24+ `--localstorage-file` experimental warning；
+- [x] 处理 Vite 配置中 `__dirname` 对未来 native config loader 的兼容警告：改用 `import.meta.dirname`。
 
 ## 11. P2：依赖与安全维护
 
