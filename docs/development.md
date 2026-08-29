@@ -105,7 +105,7 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
 7. `spacing.cjk-latin` 除直接中英相邻外，还处理 Markdown 单星强调片段 `*word*`（word 仅含 ASCII 字母）与 CJK 或比较运算符 `<`/`>`/`=` 相邻的边界；与英文字母/数字相邻（如 `a*b*c`）及 `**粗体**` 不受影响。调整边界字符集时须同步更新 spacing.yaml 黄金样例与幂等用例。
 8. `spacing.cjk-latin` 另处理以 Unicode 上标结尾的科学单位片段（如 `mg·mL⁻¹`：字母开头、可含 `·` 连接段、以上标字符结尾）与相邻中文之间的空格；片段内部不改写，化学式在保护层已转为占位符不会进入该规则。浏览器预览的 `fallbackFormat` 只提供最小空格/标点演示，不承诺完整复现桌面端单位和数学边界；桌面端 Rust 引擎是行为事实来源。
 9. 复杂排版增强（多行文本、特殊单位 `μm/µm`、`Å/Å`、`Ω`、数学符号 `∂/±/≤`、Markdown 结构、Unicode 边界）按 `docs/roadmap.md` §5 的阶段推进，遵循「测试先行、保守保护、能力分层、不默认改写原文」；阶段 A（测试先行）优先于任何新规则或保护层改动落地。
-10. 单位识别采用有限词典 + 复合语法（`unit_lexicon.rs` / `semantic_tokens.rs`），当前覆盖 `cm`、`cL`、`hPa`、`km`、`kHz`、`kPa`、`kW` 等显式常用单位；不把正则直接扩展为 `\p{L}+`，避免把自然语言英文、变量名、产品名误判为单位。
+10. 单位识别采用有限词典 + 复合语法（`unit_lexicon.rs` / `semantic_tokens.rs`），当前覆盖 `cm`、`cL`、`hPa`、`km`、`kHz`、`kPa`、`kW`、`mM`、`μM`、`mmol`、`μmol`、`mAh`、`kWh` 等显式常用单位；不把正则直接扩展为 `\p{L}+`，避免把自然语言英文、变量名、产品名误判为单位。
 11. 阶段 C 第一批已将 `spacing.number-unit` 接入有限单位词典：支持 `μm/µm`、`Å/Å`、`Ω/kΩ`、`°C/°F` 与常见复合科学单位；`semantic_tokens.rs` 同时提供明确数学表达式的保守扫描（`∂f/∂x`、`x≤y`、`a≈b`、`3±0.5`、`2×3`），表达式内部保护、仅在 Han 直接边界补空格，不在全角标点后添加额外空格。该数学边界策略由 `mathematical-symbols.yaml` 和生产路径测试冻结；单位扫描不使用 look-around，边界通过 Rust 字节区间检查完成。
 12. 温度规则保持独立 stable key `spacing.temperature-cjk`，负责 `℃/℉/°C/°F` 与相邻中文之间的空格；它默认启用且当前无 legacy alias，不与 `spacing.number-unit` 合并。若未来调整 key，必须新增明确的 legacy key 迁移和设置兼容测试。
 13. Markdown 安全处理：检测到明显 Markdown 标记时默认启用安全模式（宁漏格式化、不破坏结构）；当前采用“手写扫描器 + 标准 `regex` + 内部占位符”的混合保护层，块级（front matter / fenced、缩进代码 / HTML 注释 / 表格分隔行 / 引用式链接定义）与行内（任意长度反引号 / 链接平衡括号 / HTML 标签 / 美元定界行内与展示数学 / 转义字符）保护保持「保护 → 仅格式化可编辑区间 → 还原」的管线。结构 span 的扫描和仲裁已统一，默认关闭的 Unicode 输出规范化规则也只作用于保护后的可编辑文本，避免改写代码、LaTeX 和 Markdown 结构。

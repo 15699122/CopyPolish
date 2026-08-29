@@ -341,6 +341,13 @@ fn formats_unicode_and_compound_measurements_without_word_false_positives() {
         "速度 5 km，频率 2 kHz，压力 4 kPa，功率 8 kW"
     );
     assert_eq!(
+        format_text(&req(
+            "缓冲液浓度5mM，药物2μM，加入3mmol和4μmol，电池容量6mAh，能量7kWh"
+        ))
+        .unwrap(),
+        "缓冲液浓度 5 mM，药物 2 μM，加入 3 mmol 和 4 μmol，电池容量 6 mAh，能量 7 kWh"
+    );
+    assert_eq!(
         format_text(&req("浓度30mg·mL⁻¹，密度2kg·m⁻³")).unwrap(),
         "浓度 30 mg·mL⁻¹，密度 2 kg·m⁻³"
     );
