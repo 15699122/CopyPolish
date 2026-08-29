@@ -309,7 +309,12 @@ git diff --check
 
 ## 当前维护重点
 
-后续开发按 [roadmap.md](roadmap.md) 的里程碑执行。当前优先级是完成 Span/Edit 单一路径、补齐工程门禁与性能基线，然后推进真实 Tauri E2E 和前端状态拆分。
+后续开发按 [roadmap.md](roadmap.md) 的里程碑执行。当前优先级是维护工程门禁与性能基线、推进复杂 Markdown/HTML 状态机化，然后推进真实 Tauri E2E 和前端状态拆分。
+
+性能门禁由 `scripts/check_performance.py` 实现：它运行 release 版 `unicode_baseline`
+示例，只检查 1 MB 五类语料是否超过宽松的数量级回退阈值（普通语料 500 ms、
+Markdown/LaTeX 密集语料 5 s）。该门禁用于捕获明显回退，不替代
+`docs/benchmarks/unicode-baseline.md` 中的详细基准和峰值 RSS 测量。
 
 安全门禁由 `scripts/security_check.py` 实现：扫描 Git 跟踪文件中的高置信度明文凭据模式，并验证 `secrets/tokens.env` 的 SOPS/age 元数据；`.gitlab-ci.yml` 的 `security:check` 在 tag 构建前执行。该门禁不解密凭据。
 
