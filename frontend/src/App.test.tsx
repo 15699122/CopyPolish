@@ -549,7 +549,8 @@ describe("快捷键配置", () => {
     expect(screen.queryByTestId("settings-dialog")).toBeNull();
 
     // 重新开启后恢复监听。
-    await user.click(toggle);
+    await user.click(screen.getByTestId("open-settings"));
+    await user.click(screen.getByTestId("shortcuts-toggle"));
     await waitFor(() =>
       expect(mocks.saveUserSettings).toHaveBeenCalledWith(
         expect.objectContaining({

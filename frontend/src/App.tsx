@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { AppTitleBar } from "@/components/AppTitleBar";
 import { SettingsDialog } from "@/components/SettingsDialog";
 import { useFormatter } from "@/hooks/useFormatter";
+import { useSettingsPersistence } from "@/hooks/useSettingsPersistence";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import { useThemeAndFont } from "@/hooks/useThemeAndFont";
 import { useWindowControls } from "@/hooks/useWindowControls";
@@ -23,7 +24,6 @@ import {
   getSettingsPath,
   getUserSettings,
   isTauri,
-  saveUserSettings,
   DEFAULT_SHORTCUT_SETTINGS,
   type Rule,
   type RuleSelection,
@@ -35,6 +35,7 @@ import {
   type ShortcutBindings,
   type ThemeMode,
   type UiScale,
+  type UserSettings,
 } from "@/lib/tauri";
 
 export const APP_NAME = "文案净排";
@@ -55,8 +56,6 @@ export default function App() {
   const [cleared, setCleared] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const settingsTriggerRef = useRef<HTMLButtonElement | null>(null);
-
-  const settingsDebounceRef = useRef<number | null>(null);
 
   const getRuleSelection = useMemo(
     () => (selected: string[]): RuleSelection => {
@@ -83,11 +82,6 @@ export default function App() {
 
   const enabledSet = useMemo(() => new Set(enabled), [enabled]);
 
-  // 设置持久化状态：saving / saved / error，用于在设置弹窗中给出可见反馈。
-  const [settingsStatus, setSettingsStatus] = useState<
-    "idle" | "saving" | "saved" | "error"
-  >("idle");
-  const [settingsError, setSettingsError] = useState<string | null>(null);
   const [settingsLoadNotices, setSettingsLoadNotices] = useState<SettingsLoadNotice[]>([]);
   const [settingsPath, setSettingsPath] = useState<string | null>(null);
   const [appVersion, setAppVersion] = useState(__APP_VERSION__);
@@ -105,15 +99,7 @@ export default function App() {
     DEFAULT_SHORTCUT_SETTINGS.bindings,
   );
 
-  function currentSettings(next: Partial<{
-    enabled: string[];
-    last_input: string;
-    theme: ThemeMode;
-    font: FontFamily;
-    editor_font_size: EditorFontSize;
-    ui_scale: UiScale;
-    shortcuts: { enabled: boolean; bindings: ShortcutBindings };
-  }> = {}) {
+  function currentSettings(next: Partial<UserSettings> = {}): UserSettings {
     return {
       enabled,
       last_input: input,
@@ -129,27 +115,11 @@ export default function App() {
     };
   }
 
-  function persistSettings(nextEnabled: string[], nextInput: string) {
-    if (!hydratedRef.current) return;
-    setSettingsStatus("saving");
-    saveUserSettings(currentSettings({ enabled: nextEnabled, last_input: nextInput }))
-      .then(() => {
-        setSettingsStatus("saved");
-        setSettingsError(null);
-      })
-      .catch((e) => {
-        // 持久化失败不打断排版主流程，但必须让用户看到原因。
-        setSettingsStatus("error");
-        setSettingsError(String(e));
-      });
-  }
-
-  function schedulePersist(nextEnabled: string[], nextInput: string) {
-    if (settingsDebounceRef.current !== null) window.clearTimeout(settingsDebounceRef.current);
-    settingsDebounceRef.current = window.setTimeout(() => {
-      persistSettings(nextEnabled, nextInput);
-    }, NORMAL_DEBOUNCE_MS);
-  }
+  const { settingsStatus, settingsError, persistSettings, schedulePersist } = useSettingsPersistence({
+    getSettings: currentSettings,
+    isHydrated: () => hydratedRef.current,
+    debounceMs: NORMAL_DEBOUNCE_MS,
+  });
 
   // 初始化：加载规则与默认启用集；随后恢复上次保存的用户设置（若有）。
   useEffect(() => {
@@ -218,9 +188,6 @@ export default function App() {
     })();
     return () => {
       cancelled = true;
-      if (settingsDebounceRef.current !== null) {
-        window.clearTimeout(settingsDebounceRef.current);
-      }
     };
         // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -246,7 +213,7 @@ export default function App() {
   function onInputChange(value: string) {
     setInput(value);
     scheduleFormat(value, enabled);
-    schedulePersist(enabled, value);
+    schedulePersist({ enabled, last_input: value });
   }
 
   function onToggleRule(key: string) {
@@ -258,21 +225,21 @@ export default function App() {
     }
     setEnabled(next);
     scheduleFormat(input, next, 0); // 规则变更后立即重排
-    persistSettings(next, input);
+    persistSettings({ enabled: next, last_input: input });
   }
 
   function onSetAll(on: boolean) {
     const next = on ? rules.map((r) => r.key) : [];
     setEnabled(next);
     scheduleFormat(input, next, 0);
-    persistSettings(next, input);
+    persistSettings({ enabled: next, last_input: input });
   }
 
   function onResetDefaults() {
     const next = rules.filter((r) => r.default).map((r) => r.key);
     setEnabled(next);
     scheduleFormat(input, next, 0);
-    persistSettings(next, input);
+    persistSettings({ enabled: next, last_input: input });
   }
 
   async function onCopy() {
@@ -301,21 +268,12 @@ export default function App() {
     clearError();
     setCleared(true);
     window.setTimeout(() => setCleared(false), 1200);
-    persistSettings(enabled, "");
+    persistSettings({ enabled, last_input: "" });
   }
 
   function onThemeChange(nextTheme: ThemeMode) {
     setTheme(nextTheme);
-    setSettingsStatus("saving");
-    saveUserSettings(currentSettings({ theme: nextTheme }))
-      .then(() => {
-        setSettingsStatus("saved");
-        setSettingsError(null);
-      })
-      .catch((e) => {
-        setSettingsStatus("error");
-        setSettingsError(String(e));
-      });
+    persistSettings({ theme: nextTheme });
   }
 
   // “跟随系统”勾选框：勾选时进入 system 模式；取消勾选时
@@ -331,16 +289,7 @@ export default function App() {
 
   function onFontChange(nextFont: FontFamily) {
     setFont(nextFont);
-    setSettingsStatus("saving");
-    saveUserSettings(currentSettings({ font: nextFont }))
-      .then(() => {
-        setSettingsStatus("saved");
-        setSettingsError(null);
-      })
-      .catch((e) => {
-        setSettingsStatus("error");
-        setSettingsError(String(e));
-      });
+    persistSettings({ font: nextFont });
   }
 
   function onResetFont() {
@@ -349,65 +298,23 @@ export default function App() {
 
   function onEditorFontSizeChange(nextSize: EditorFontSize) {
     setEditorFontSize(nextSize);
-    setSettingsStatus("saving");
-    saveUserSettings(currentSettings({ editor_font_size: nextSize }))
-      .then(() => {
-        setSettingsStatus("saved");
-        setSettingsError(null);
-      })
-      .catch((e) => {
-        setSettingsStatus("error");
-        setSettingsError(String(e));
-      });
+    persistSettings({ editor_font_size: nextSize });
   }
 
   function onUiScaleChange(nextScale: UiScale) {
     setUiScale(nextScale);
-    setSettingsStatus("saving");
-    saveUserSettings(currentSettings({ ui_scale: nextScale }))
-      .then(() => {
-        setSettingsStatus("saved");
-        setSettingsError(null);
-      })
-      .catch((e) => {
-        setSettingsStatus("error");
-        setSettingsError(String(e));
-      });
+    persistSettings({ ui_scale: nextScale });
   }
 
   function onShortcutsEnabledChange(nextEnabled: boolean) {
     setShortcutsEnabled(nextEnabled);
-    setSettingsStatus("saving");
-    saveUserSettings(
-      currentSettings({ shortcuts: { enabled: nextEnabled, bindings: shortcutBindings } }),
-    )
-      .then(() => {
-        setSettingsStatus("saved");
-        setSettingsError(null);
-      })
-      .catch((e) => {
-        setSettingsStatus("error");
-        setSettingsError(String(e));
-      });
+    persistSettings({ shortcuts: { enabled: nextEnabled, bindings: shortcutBindings } });
   }
 
   function onSaveShortcutBinding(action: ShortcutAction, binding: string) {
     const nextBindings = { ...shortcutBindings, [action]: binding };
     setShortcutBindings(nextBindings);
-    setSettingsStatus("saving");
-    saveUserSettings(
-      currentSettings({
-        shortcuts: { enabled: shortcutsEnabled, bindings: nextBindings },
-      }),
-    )
-      .then(() => {
-        setSettingsStatus("saved");
-        setSettingsError(null);
-      })
-      .catch((e) => {
-        setSettingsStatus("error");
-        setSettingsError(String(e));
-      });
+    persistSettings({ shortcuts: { enabled: shortcutsEnabled, bindings: nextBindings } });
   }
 
   function onResetShortcuts() {
@@ -417,16 +324,7 @@ export default function App() {
     };
     setShortcutsEnabled(next.enabled);
     setShortcutBindings(next.bindings);
-    setSettingsStatus("saving");
-    saveUserSettings(currentSettings({ shortcuts: next }))
-      .then(() => {
-        setSettingsStatus("saved");
-        setSettingsError(null);
-      })
-      .catch((e) => {
-        setSettingsStatus("error");
-        setSettingsError(String(e));
-      });
+    persistSettings({ shortcuts: next });
   }
 
   function settingsNoticeText(notice: SettingsLoadNotice): string {

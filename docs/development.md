@@ -152,6 +152,7 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
 - 前端行为：启动恢复；规则开关/全选/恢复默认/清空/主题/字体即时保存，输入防抖（160ms）保存；浏览器预览回退 localStorage。字体使用固定跨平台预设与 CSS fallback 栈，不尝试枚举系统已安装字体。
 - 主题与显示令牌：`frontend/src/hooks/useThemeAndFont.ts` 统一负责 `data-theme`、`--app-font-family`、`--editor-font-size`、`--editor-line-height` 和 `--app-ui-scale` 的 DOM 应用；system 主题监听 `prefers-color-scheme` 变化，显式主题不注册媒体监听。该 hook 不负责状态持久化。
 - 窗口控制：`frontend/src/hooks/useWindowControls.ts` 统一负责无边框窗口的最小化、最大化/还原、关闭、标题栏拖动和错误转换；浏览器预览模式下保持 no-op，Tauri 模式继续通过 `getCurrentWindow()` 调用窗口 API，标题栏控制区与非左键/双击事件不会触发拖动。
+- 设置保存生命周期：`frontend/src/hooks/useSettingsPersistence.ts` 负责保存状态（`idle` / `saving` / `saved` / `error`）、错误展示、160ms 输入防抖和卸载时清理定时器；hook 只接收当前设置快照与 patch，不负责设置初始化或恢复，避免改变 App 原有的异步恢复时序。
 - 快捷键：`frontend/src/lib/shortcuts.ts` 集中维护动作 key、默认绑定（`CtrlOrCmd` + `KeyboardEvent.code` 序列化）、事件匹配、IME 防护与校验（必须含 Ctrl/Cmd、动作间禁止重复、系统黑名单、允许按键白名单，`Comma` 作为默认值兼容例外）；`frontend/src/hooks/useShortcuts.ts` 负责监听启停（总开关关闭时不注册监听器）与动作分发；录制交互在 SettingsDialog 的“快捷键”分区完成，冲突/保存反馈通过 `aria-live` 输出；Esc 始终交给 Radix Dialog。
 - 长文本排版：普通文本使用 160ms 防抖，达到 50,000 字符使用 450ms，达到 200,000 字符使用 900ms；界面显示排版中、长文本和最近一次耗时提示，并通过序列号丢弃过期结果。
 - 设置 Dialog 的版本号通过 `getAppVersion()` 读取：打包环境使用 Tauri `getVersion()`，浏览器预览使用 Vite 从 `frontend/package.json` 注入的 `__APP_VERSION__` 回退值，避免重复维护版本常量。
