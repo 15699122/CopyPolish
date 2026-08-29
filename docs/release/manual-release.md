@@ -78,7 +78,7 @@ python3 scripts/verify.py --profile release --tag vX.Y.Z[-suffix]
 
 ```powershell
 npm ci --prefix frontend
-npm run tauri --prefix frontend -- build -- --no-bundle
+npm run tauri --prefix frontend -- build --no-bundle
 ```
 
 产物位于 `src-tauri/target/release/chinese-copywriting-formatter.exe`。
@@ -176,7 +176,7 @@ echo "$WIN_RELEASE_REPO"
 powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \
   "Set-Location -LiteralPath '$WIN_RELEASE_REPO'; \
    npm ci --prefix frontend; \
-   npm run tauri --prefix frontend -- build -- --no-bundle"
+   npm run tauri --prefix frontend -- build --no-bundle"
 ```
 
 如果主机使用 PowerShell 7，也可以将 `powershell.exe` 替换为 `pwsh.exe`。路径中包含空格时，优先使用 `-LiteralPath`；复杂路径或复杂参数建议写入一个 Windows `.ps1` 脚本后由 WSL 调用，避免 Bash、PowerShell 和 JSON 字符串多重转义。

@@ -133,9 +133,7 @@ Invoke-Native "Verify version $Tag" { & $python "$RepoRoot\scripts\check_version
 Push-Location (Join-Path $RepoRoot "frontend")
 try {
     Invoke-Native "Install frontend dependencies" { npm ci }
-    # 关键：沿用已成功的 GitHub 命令。这里的第二个 -- 只传给 Tauri，
-    # 不会把 --no-bundle 误传给 cargo build。
-    Invoke-Native "Build Tauri Windows exe" { npm run tauri build -- --no-bundle }
+    Invoke-Native "Build Tauri Windows exe" { npm run tauri build --no-bundle }
 }
 finally {
     Pop-Location
