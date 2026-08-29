@@ -118,8 +118,8 @@ frontend/src/hooks/
 ```
 
 - [x] 抽离格式化请求序号、竞态防护、耗时和错误状态：新增 `frontend/src/hooks/useFormatter.ts` 及独立测试，App 集成测试与 hook 测试共 36 项通过；
-- [ ] 再抽离设置初始化、保存队列和恢复提醒；主题/字体副作用已抽离为 `frontend/src/hooks/useThemeAndFont.ts`，并新增 2 项独立测试；
-- [ ] `App.tsx` 最终只保留组件编排；窗口控制已抽离为 `frontend/src/hooks/useWindowControls.ts`，设置初始化/保存队列仍待拆分；
+- [ ] 再抽离设置初始化和恢复提醒；设置保存队列已抽离为 `frontend/src/hooks/useSettingsPersistence.ts`，主题/字体副作用已抽离为 `frontend/src/hooks/useThemeAndFont.ts`；
+- [ ] `App.tsx` 最终只保留组件编排；窗口控制和设置保存生命周期已抽离，设置初始化/恢复提醒仍待拆分；
 - [x] hooks 不直接调用 `invoke`，`useFormatter` 继续通过 `frontend/src/lib/tauri.ts` 的 `formatText` 封装访问后端；
 - [ ] 清理当前前端测试中的 React `act` warning；当前仅剩快捷键测试中的 React 19 异步 document listener 告警，行为测试本身 36/36 通过；
 - [x] 清理 Node localStorage warning：测试 setup 直接使用进程内内存存储，避免 Node 24+ `--localstorage-file` experimental warning；
