@@ -14,9 +14,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { AppTitleBar } from "@/components/AppTitleBar";
 import { SettingsDialog } from "@/components/SettingsDialog";
 import { FONT_FAMILY_STACKS } from "@/lib/fonts";
+import { useFormatter } from "@/hooks/useFormatter";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import {
-  formatText,
   getAppVersion,
   getEnabledDefaults,
   getRules,
@@ -40,10 +40,7 @@ import {
 export const APP_NAME = "文案净排";
 const APP_REFERENCE_NAME = "CopyPolish";
 const NORMAL_DEBOUNCE_MS = 160;
-const LONG_TEXT_DEBOUNCE_MS = 450;
-const VERY_LONG_TEXT_DEBOUNCE_MS = 900;
 const LONG_TEXT_THRESHOLD = 50_000;
-const VERY_LONG_TEXT_THRESHOLD = 200_000;
 const SLOW_FORMAT_THRESHOLD_MS = 100;
 
 /**
@@ -52,34 +49,34 @@ const SLOW_FORMAT_THRESHOLD_MS = 100;
  */
 export default function App() {
   const [input, setInput] = useState("");
-  const [output, setOutput] = useState("");
   const [rules, setRules] = useState<Rule[]>([]);
   const [enabled, setEnabled] = useState<string[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [isFormatting, setIsFormatting] = useState(false);
-  const [lastFormatDuration, setLastFormatDuration] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
   const [cleared, setCleared] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const settingsTriggerRef = useRef<HTMLButtonElement | null>(null);
 
-  const debounceRef = useRef<number | null>(null);
   const settingsDebounceRef = useRef<number | null>(null);
 
-  // 组件卸载时取消尚未执行的排版/设置保存任务，避免异步定时器
-  // 在测试或窗口生命周期结束后继续使用旧状态触发后端调用。
-  useEffect(() => {
-    return () => {
-      if (debounceRef.current !== null) {
-        window.clearTimeout(debounceRef.current);
-      }
-      if (settingsDebounceRef.current !== null) {
-        window.clearTimeout(settingsDebounceRef.current);
-      }
-      seqRef.current += 1;
-    };
-  }, []);
-  const seqRef = useRef(0);
+  const getRuleSelection = useMemo(
+    () => (selected: string[]): RuleSelection => {
+      if (selected.length === 0) return { mode: "none" };
+      if (selected.length === rules.length && rules.length > 0) return { mode: "all" };
+      return { mode: "only", keys: selected };
+    },
+    [rules.length],
+  );
+  const {
+    output,
+    error,
+    isFormatting,
+    lastFormatDuration,
+    scheduleFormat,
+    cancelFormat,
+    clearOutput,
+    clearError,
+    reportError,
+  } = useFormatter({ getSelection: getRuleSelection });
 
   // 规则加载完成后置 true，避免恢复流程把用户设置覆盖为默认值。
   const hydratedRef = useRef(false);
@@ -215,12 +212,15 @@ export default function App() {
         }
         hydratedRef.current = true;
       } catch (e) {
-        setError(String(e));
+        reportError(e);
         hydratedRef.current = true;
       }
     })();
     return () => {
       cancelled = true;
+      if (settingsDebounceRef.current !== null) {
+        window.clearTimeout(settingsDebounceRef.current);
+      }
     };
         // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -284,47 +284,9 @@ export default function App() {
     onOpenSettings: () => setSettingsOpen(true),
   });
 
-  // 实时排版（防抖 + 忽略乱序的旧请求）
-  function scheduleFormat(nextInput: string, applyEnabled = enabled, delayOverride?: number) {
-    if (debounceRef.current !== null) window.clearTimeout(debounceRef.current);
-    const debounceMs = getFormatDebounceMs(nextInput);
-    debounceRef.current = window.setTimeout(async () => {
-      const seq = ++seqRef.current;
-      const startedAt = performance.now();
-      setIsFormatting(true);
-      try {
-        const result = await formatText({
-          text: nextInput,
-          selection: getRuleSelection(applyEnabled),
-        });
-        if (seqRef.current === seq) {
-          setOutput(result);
-          setLastFormatDuration(Math.round(performance.now() - startedAt));
-          setError(null);
-        }
-      } catch (e) {
-        if (seqRef.current === seq) setError(String(e));
-      } finally {
-        if (seqRef.current === seq) setIsFormatting(false);
-      }
-    }, delayOverride ?? debounceMs);
-  }
-
-  function getFormatDebounceMs(text: string): number {
-    if (text.length >= VERY_LONG_TEXT_THRESHOLD) return VERY_LONG_TEXT_DEBOUNCE_MS;
-    if (text.length >= LONG_TEXT_THRESHOLD) return LONG_TEXT_DEBOUNCE_MS;
-    return NORMAL_DEBOUNCE_MS;
-  }
-
-  function getRuleSelection(selected: string[]): RuleSelection {
-    if (selected.length === 0) return { mode: "none" };
-    if (selected.length === rules.length && rules.length > 0) return { mode: "all" };
-    return { mode: "only", keys: selected };
-  }
-
   function onInputChange(value: string) {
     setInput(value);
-    scheduleFormat(value);
+    scheduleFormat(value, enabled);
     schedulePersist(enabled, value);
   }
 
@@ -336,21 +298,21 @@ export default function App() {
       next = [...enabled, key];
     }
     setEnabled(next);
-    scheduleFormat(input, next); // 规则变更后立即重排
+    scheduleFormat(input, next, 0); // 规则变更后立即重排
     persistSettings(next, input);
   }
 
   function onSetAll(on: boolean) {
     const next = on ? rules.map((r) => r.key) : [];
     setEnabled(next);
-    scheduleFormat(input, next);
+    scheduleFormat(input, next, 0);
     persistSettings(next, input);
   }
 
   function onResetDefaults() {
     const next = rules.filter((r) => r.default).map((r) => r.key);
     setEnabled(next);
-    scheduleFormat(input, next);
+    scheduleFormat(input, next, 0);
     persistSettings(next, input);
   }
 
@@ -359,7 +321,7 @@ export default function App() {
     try {
       await navigator.clipboard.writeText(output);
     } catch (e) {
-      setError(String(e));
+      reportError(e);
       return;
     }
     setCopied(true);
@@ -375,9 +337,9 @@ export default function App() {
 
   function onClear() {
     setInput("");
-    setOutput("");
-    if (debounceRef.current !== null) window.clearTimeout(debounceRef.current);
-    setError(null);
+    clearOutput();
+    cancelFormat();
+    clearError();
     setCleared(true);
     window.setTimeout(() => setCleared(false), 1200);
     persistSettings(enabled, "");
@@ -389,7 +351,7 @@ export default function App() {
     try {
       await action();
     } catch (error) {
-      setError(`窗口操作失败：${String(error)}`);
+      reportError(`窗口操作失败：${String(error)}`);
     }
   }
 
@@ -551,7 +513,7 @@ export default function App() {
     if (target.closest("[data-window-control]")) return;
 
     void getCurrentWindow().startDragging().catch((error) => {
-      setError(`窗口拖动失败：${String(error)}`);
+      reportError(`窗口拖动失败：${String(error)}`);
     });
   }
 

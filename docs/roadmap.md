@@ -117,10 +117,10 @@ frontend/src/hooks/
 └── useWindowControls.ts
 ```
 
-- [ ] 优先抽离格式化请求序号、竞态防护、耗时和错误状态；
+- [x] 抽离格式化请求序号、竞态防护、耗时和错误状态：新增 `frontend/src/hooks/useFormatter.ts` 及独立测试，App 集成测试与 hook 测试共 36 项通过；
 - [ ] 再抽离设置初始化、保存队列、恢复提醒和主题/字体副作用；
 - [ ] `App.tsx` 最终只保留组件编排；
-- [ ] hooks 不直接调用 `invoke`，继续通过 `frontend/src/lib/tauri.ts`；
+- [x] hooks 不直接调用 `invoke`，`useFormatter` 继续通过 `frontend/src/lib/tauri.ts` 的 `formatText` 封装访问后端；
 - [ ] 清理当前前端测试中的 React `act` warning 与 Node localStorage warning；
 - [ ] 处理 Vite 配置中 `__dirname` 对未来 native config loader 的兼容警告。
 
