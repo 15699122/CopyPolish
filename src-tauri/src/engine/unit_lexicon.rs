@@ -29,6 +29,10 @@ fn measurement_re() -> &'static Regex {
             r"|",
             r"(?:mmHg|hPa|dB|rpm|Hz|Pa|mol|rad|px|eV|TB|GB|Gbps|Mbps|kΩ|MΩ|GΩ|Ω|cm|cL)",
             r"|",
+            // 生物/化学语料中常见的摩尔浓度与电池/能量单位；保持显式词典，
+            // 不把任意字母串视为单位。
+            r"(?:mmol|μmol|µmol|nmol|pmol|mM|μM|µM|mAh|kWh)",
+            r"|",
             r"(?:k|M|G|T|m|μ|µ|n|p)?(?:m|g|s|L|K|Pa|Hz|N|J|W|V|A|B)",
             r"|",
             r"(?:Å|Å|℃|℉|°C|°F|‰|%)",
@@ -75,9 +79,9 @@ mod tests {
     #[test]
     fn recognizes_finite_unicode_and_compound_units() {
         let spans = scan_measurements(
-            "10μm 10µm 10Å 10Å 20kΩ 3mg·mL⁻¹ 2kg·m⁻³ 3mg/mL 2kg/m³ 4mol/L 25°C 10cm 20cL 1013hPa 5km 2kHz 4kPa 8kW",
+            "10μm 10µm 10Å 10Å 20kΩ 3mg·mL⁻¹ 2kg·m⁻³ 3mg/mL 2kg/m³ 4mol/L 25°C 10cm 20cL 1013hPa 5km 2kHz 4kPa 8kW 5mM 2μM 3mmol 4μmol 5nmol 6mAh 7kWh",
         );
-        assert_eq!(spans.len(), 18);
+        assert_eq!(spans.len(), 25);
     }
 
     #[test]

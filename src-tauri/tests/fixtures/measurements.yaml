@@ -61,6 +61,12 @@
   input: 速度5km，频率2kHz，压力4kPa，功率8kW
   expected: 速度 5 km，频率 2 kHz，压力 4 kPa，功率 8 kW
 
+- name: 生物化学浓度单位与电池能量单位整体保留并插空
+  selection:
+    mode: defaults
+  input: 缓冲液浓度5mM，药物2μM，加入3mmol和4μmol，电池容量6mAh，能量7kWh
+  expected: 缓冲液浓度 5 mM，药物 2 μM，加入 3 mmol 和 4 μmol，电池容量 6 mAh，能量 7 kWh
+
 - name: 千分号与中文边界保持
   selection:
     mode: defaults
