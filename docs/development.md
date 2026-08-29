@@ -321,6 +321,10 @@ python3 scripts/verify.py --profile ci
 检查 `frontend/package-lock.json`。`high` / `critical` 漏洞阻断，`moderate` / `low` 记录后进入
 维护队列；审计工具缺失或审计源不可访问时命令失败，不得将未完成的审计误报为通过。
 
+审计结果和许可证信息分别记录在依赖升级的提交差异中；许可证清单由
+`python3 scripts/generate_licenses.py` 生成到 `docs/licenses.md`。依赖升级后应重新执行生成脚本，
+审阅包版本、许可证字段和缺失项，并将清单变化与依赖锁文件一起提交。
+
 常规分支 CI 由 `.github/workflows/ci.yml` 承担（push/PR 到 `dev`/`master`），各 job
 分别调用 `verify.py` 的 `rust`、`frontend`、`checks` profile；GitLab tag pipeline
 调用 `security` / `release` profile。Rust 工具链由 `rust-toolchain.toml` 固定，Node
