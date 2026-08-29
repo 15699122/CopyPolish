@@ -774,6 +774,22 @@ fn chemical_formulas_survive_formatting() {
 }
 
 #[test]
+fn unicode_urls_parenthesized_urls_and_complex_chemistry_stay_protected() {
+    let unicode_url = format_text(&req("访问https://例え.テスト/文档?查询=値。即可")).unwrap();
+    assert!(unicode_url.contains("https://例え.テスト/文档?查询=値。"));
+
+    let parenthesized_url = format_text(&req(
+        "请参考（https://example.com/foo_(bar_(baz)))，然后继续GitHub",
+    ))
+    .unwrap();
+    assert!(parenthesized_url.contains("https://example.com/foo_(bar_(baz))"));
+
+    let chemistry = format_text(&req("样品为[FeCl₂·4H₂O]²⁻，另有DA-PEG-DA用于测试")).unwrap();
+    assert!(chemistry.contains("FeCl₂·4H₂O"));
+    assert!(chemistry.contains("DA-PEG-DA"));
+}
+
+#[test]
 fn protected_cases_are_idempotent() {
     let cases = [
         "第一段\n\n第二段",
