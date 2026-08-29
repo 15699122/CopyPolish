@@ -500,7 +500,7 @@ fn scan_html_block_spans(text: &str, output: &mut Vec<TextSpan>) {
         let closing = format!("</{tag}");
         let mut end_line = None;
         for (candidate, content) in lines.iter().enumerate().skip(line) {
-            if content.to_ascii_lowercase().contains(&closing) {
+            if contains_ascii_case_insensitive(content, &closing) {
                 end_line = Some(candidate);
                 break;
             }
@@ -733,6 +733,17 @@ fn html_block_tag(line: &str, indent: usize) -> Option<&'static str> {
     })
 }
 
+fn contains_ascii_case_insensitive(haystack: &str, needle: &str) -> bool {
+    let needle = needle.as_bytes();
+    !needle.is_empty()
+        && haystack.as_bytes().windows(needle.len()).any(|window| {
+            window
+                .iter()
+                .zip(needle)
+                .all(|(left, right)| left.eq_ignore_ascii_case(right))
+        })
+}
+
 fn scan_dollar_math_spans(text: &str, output: &mut Vec<TextSpan>) {
     let bytes = text.as_bytes();
     let mut cursor = 0;
@@ -899,7 +910,7 @@ mod tests {
     /// 否则块内正文会漏出 span 被当作可编辑文本格式化。
     #[test]
     fn html_block_span_covers_interior_lines() {
-        let text = "<div class=\"notice\">\n在GitHub上发布5000元\n</div>\n正文在GitHub上发布";
+        let text = "<div class=\"notice\">\n在GitHub上发布5000元\n</DIV>\n正文在GitHub上发布";
         let spans = scan_structure_spans(text);
         let span = spans
             .iter()
@@ -907,7 +918,7 @@ mod tests {
             .expect("html block span must be detected");
         assert_eq!(
             &text[span.start..span.end],
-            "<div class=\"notice\">\n在GitHub上发布5000元\n</div>"
+            "<div class=\"notice\">\n在GitHub上发布5000元\n</DIV>"
         );
     }
 }
