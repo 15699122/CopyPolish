@@ -18,7 +18,7 @@
 
 - 保护层仍使用内部 placeholder 承载不可编辑 span（TextEdit 应用层已覆盖全部规则阶段，剩余工作是减少占位符依赖、让语义边缘空格完全脱离占位符路径）；
 - Markdown/HTML 保护仍是保守扫描器与有限正则的组合，不是完整语法解析器；
-- 长文本基准曾暴露 `fancy-regex` 回溯上限，尚未建立持续性能门禁；
+- 长文本基准曾暴露 `fancy-regex` 回溯上限；当前已建立数量级性能门禁，但复杂 Markdown/LaTeX 语料仍需继续优化；
 - 真实 Tauri 桌面链路缺少自动化 E2E；
 - 前端核心状态仍集中在 `App.tsx`，异步格式化和设置保存逻辑可维护性有限；
 - 安全恢复演练、第二 age 接收者和依赖审计尚未闭环。
@@ -91,7 +91,7 @@
 - [x] 可控处理正则上限：占位符正则编译超限 panic 已消除（1 MB 文本不再 `CompiledTooBig`）；GUI 侧已有请求序号守卫，格式化错误只呈现错误状态、不会用旧结果覆盖新输出；
 - [ ] 优化 1 MB 级 Markdown/LaTeX 密集语料（当前约 1.59 s，已较此前约 4.9 s 改善），优先减少结构扫描重复遍历，并替换容易触发回溯或嵌套歧义的 `fancy-regex`：反引号、平衡括号链接、HTML block（与 §5 合并推进）；
 - [ ] 评估 worker thread、可取消任务和动态 debounce；
-- [ ] 基于实测数据设定 UI 响应目标，再决定是否加入性能回归门禁。
+- [x] 基于实测数据建立数量级性能回归门禁：`scripts/check_performance.py` 对 1 MB 五类语料执行宽松阈值检查（普通语料 500 ms、Markdown/LaTeX 5 s），并接入 GitHub Actions；详细基准仍保留在 `benchmarks/unicode-baseline.md`。
 
 ## 9. P1：规则扩展准入
 
