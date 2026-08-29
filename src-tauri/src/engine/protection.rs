@@ -335,11 +335,9 @@ pub(crate) fn find_inline_html_closing_tag(
     name: &str,
 ) -> Option<usize> {
     let marker = format!("</{name}");
-    let text = std::str::from_utf8(bytes).ok()?;
     let mut cursor = start;
     while cursor < bytes.len() {
-        let relative = text[cursor..].find(&marker)?;
-        let close_start = cursor + relative;
+        let close_start = find_ascii_case_insensitive(bytes, marker.as_bytes(), cursor)?;
         let boundary = bytes.get(close_start + marker.len()).copied();
         if matches!(boundary, Some(b'>') | Some(b' ') | Some(b'\t')) {
             return find_inline_html_tag_end(bytes, close_start);
@@ -347,6 +345,21 @@ pub(crate) fn find_inline_html_closing_tag(
         cursor = close_start + marker.len();
     }
     None
+}
+
+fn find_ascii_case_insensitive(haystack: &[u8], needle: &[u8], start: usize) -> Option<usize> {
+    if needle.is_empty() || start >= haystack.len() || needle.len() > haystack.len() - start {
+        return None;
+    }
+    haystack[start..]
+        .windows(needle.len())
+        .position(|window| {
+            window
+                .iter()
+                .zip(needle)
+                .all(|(left, right)| left.eq_ignore_ascii_case(right))
+        })
+        .map(|offset| start + offset)
 }
 
 pub(crate) fn is_inline_html_tag(bytes: &[u8], open: usize, end: usize) -> bool {

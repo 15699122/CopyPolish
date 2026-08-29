@@ -636,8 +636,8 @@ fn formats_protected_content() {
     );
 
     assert_eq!(
-        format_text(&req("行内<span>GitHub</span>继续")).unwrap(),
-        "行内 <span>GitHub</span> 继续"
+        format_text(&req("行内<span>GitHub</SPAN>继续")).unwrap(),
+        "行内 <span>GitHub</SPAN> 继续"
     );
     assert_eq!(
         format_text(&req(
