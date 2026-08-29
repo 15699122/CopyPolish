@@ -78,7 +78,8 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
 │   ├── release/manual-release.md  # 本地构建与手动上传 Release Runbook
 │   └── benchmarks/                # 性能与体积基准记录
 ├── frontend/                      # React/Vite/TS/Tailwind v4/shadcn-ui 界面
-│   └── src/App.tsx                # 主界面：双栏编辑、设置 Dialog、防抖实时排版
+│   ├── src/App.tsx                # 主界面：双栏编辑、设置 Dialog、组件编排
+│   └── src/hooks/useFormatter.ts  # 格式化防抖、竞态、耗时、错误和取消
 ├── scripts/
 │   ├── verify.py                 # 统一验证入口（CI / 本地 / 发布脚本）
 │   ├── check_version.py           # 版本一致性校验（CI 与本地共用）
