@@ -10,6 +10,9 @@ cargo run --release --manifest-path src-tauri/Cargo.toml --example unicode_basel
 # 完整 release 构建 + 主程序体积
 /usr/bin/time -p cargo build --release --manifest-path src-tauri/Cargo.toml
 stat -c '%s bytes' src-tauri/target/release/chinese-copywriting-formatter
+
+# release 基准进程峰值 RSS（需要已构建的示例）
+/usr/bin/time -v src-tauri/target/release/examples/unicode_baseline
 ```
 
 环境：Linux (WSL2)，Rust 1.98.0，release profile。耗时为 5 轮平均值。
@@ -73,3 +76,21 @@ ERR 为引擎既有 fancy-regex 回溯上限，与本次改动无关。
 密集语料已由此前约 4.9 s 降至约 1.59 s，但仍是主要热点。保护阶段 release profiling
 约为 `scan_all_spans 591 ms`、`protect_spans 109 ms`、行内占位符间距 `19 ms`、
 还原 `9 ms`；后续应优先减少结构扫描重复遍历，并继续推进 roadmap §5 的状态机化。
+
+### 峰值内存测量（2026-08-29）
+
+在同一 WSL2 环境中，使用已构建的 release 基准示例执行：
+
+```bash
+/usr/bin/time -v src-tauri/target/release/examples/unicode_baseline
+```
+
+结果：
+
+- 最大常驻集（Maximum resident set size）：`64,492 KB`，约 `63.0 MiB`；
+- 运行时间：`14.12 s`（包含五类语料的 5 轮平均基准）；
+- 无交换分区使用，进程正常退出。
+
+该 RSS 是整个基准进程在完整语料循环期间的峰值，包含运行时、正则缓存、
+保护占位符和输出分配，不能直接等同于单次 `format_text` 调用的精确内存成本。
+后续若需要 UI 级内存门禁，应增加独立的单次请求测量和更细粒度分配 profiling。
