@@ -155,6 +155,7 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
 - 设置保存生命周期：`frontend/src/hooks/useSettingsPersistence.ts` 负责保存状态（`idle` / `saving` / `saved` / `error`）、错误展示、160ms 输入防抖和卸载时清理定时器；hook 只接收当前设置快照与 patch，不负责设置初始化或恢复，避免改变 App 原有的异步恢复时序。
 - 设置加载与恢复：`frontend/src/hooks/useSettingsLoader.ts` 负责一次性读取用户设置、设置文件路径、应用版本、恢复提醒和显示/快捷键状态，并过滤后端返回的未知规则 key；`App.tsx` 先按既有顺序加载规则与默认启用集，再显式调用 `loadSettings`，保持恢复输入后的排版调度时序不变。
 - 设置动作：`frontend/src/hooks/useSettingsActions.ts` 负责规则开关/全选/恢复默认、主题/字体/字号/缩放和快捷键配置动作；每个动作先更新对应状态，再触发必要的立即排版与设置 patch 保存，`App.tsx` 只注入状态、setter 和生命周期回调。
+- 剪贴板反馈：`frontend/src/hooks/useClipboardStatus.ts` 负责读取当前输出、写入系统剪贴板、复制成功状态、失败回调和 1200ms 自动复位；主界面按钮和复制快捷键共用同一个 `copy` 方法。
 - 快捷键：`frontend/src/lib/shortcuts.ts` 集中维护动作 key、默认绑定（`CtrlOrCmd` + `KeyboardEvent.code` 序列化）、事件匹配、IME 防护与校验（必须含 Ctrl/Cmd、动作间禁止重复、系统黑名单、允许按键白名单，`Comma` 作为默认值兼容例外）；`frontend/src/hooks/useShortcuts.ts` 负责监听启停（总开关关闭时不注册监听器）与动作分发；录制交互在 SettingsDialog 的“快捷键”分区完成，冲突/保存反馈通过 `aria-live` 输出；Esc 始终交给 Radix Dialog。
 - 长文本排版：普通文本使用 160ms 防抖，达到 50,000 字符使用 450ms，达到 200,000 字符使用 900ms；界面显示排版中、长文本和最近一次耗时提示，并通过序列号丢弃过期结果。
 - 设置 Dialog 的版本号通过 `getAppVersion()` 读取：打包环境使用 Tauri `getVersion()`，浏览器预览使用 Vite 从 `frontend/package.json` 注入的 `__APP_VERSION__` 回退值，避免重复维护版本常量。

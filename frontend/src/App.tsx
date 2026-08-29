@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { AppTitleBar } from "@/components/AppTitleBar";
 import { SettingsDialog } from "@/components/SettingsDialog";
 import { useFormatter } from "@/hooks/useFormatter";
+import { useClipboardStatus } from "@/hooks/useClipboardStatus";
 import { useSettingsActions } from "@/hooks/useSettingsActions";
 import { useSettingsPersistence } from "@/hooks/useSettingsPersistence";
 import { useSettingsLoader } from "@/hooks/useSettingsLoader";
@@ -42,7 +43,6 @@ const SLOW_FORMAT_THRESHOLD_MS = 100;
 export default function App() {
   const [input, setInput] = useState("");
   const [rules, setRules] = useState<Rule[]>([]);
-  const [copied, setCopied] = useState(false);
   const [cleared, setCleared] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const settingsTriggerRef = useRef<HTMLButtonElement | null>(null);
@@ -66,6 +66,12 @@ export default function App() {
     clearError,
     reportError,
   } = useFormatter({ getSelection: getRuleSelection });
+
+  const { copied, copy: copyOutput } = useClipboardStatus({
+    getText: () => output,
+    onError: reportError,
+    resetMs: 1200,
+  });
 
   const {
     enabled,
@@ -178,7 +184,7 @@ export default function App() {
     bindings: shortcutBindings,
     onFormatNow: () => scheduleFormat(input, enabled, 0),
     onCopyOutput: () => {
-      void onCopy();
+      void copyOutput();
     },
     onOpenSettings: () => setSettingsOpen(true),
   });
@@ -193,18 +199,6 @@ export default function App() {
     setInput(value);
     scheduleFormat(value, enabled);
     schedulePersist({ enabled, last_input: value });
-  }
-
-  async function onCopy() {
-    if (!output) return;
-    try {
-      await navigator.clipboard.writeText(output);
-    } catch (e) {
-      reportError(e);
-      return;
-    }
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1200);
   }
 
   function onSettingsOpenChange(open: boolean) {
@@ -380,7 +374,7 @@ return (
         </Button>
 
         <div className="ml-auto">
-          <Button size="sm" data-testid="copy-output" onClick={onCopy} disabled={!output} aria-label="复制结果">
+          <Button size="sm" data-testid="copy-output" onClick={copyOutput} disabled={!output} aria-label="复制结果">
             {copied ? (
               <>
                 <Check className="h-4 w-4 text-green-600" />
