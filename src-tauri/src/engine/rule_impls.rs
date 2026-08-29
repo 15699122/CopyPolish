@@ -23,6 +23,14 @@ pub fn normalize_spaces(text: &str) -> String {
         .to_string()
 }
 
+/// text.unicode-equivalents：将已确认等价的 Unicode 单位字符统一为推荐写法。
+///
+/// 该规则只处理有限映射，不执行全文 NFKC；默认关闭，避免未经用户选择
+/// 改写数学字母、兼容字符或其他文本。
+pub fn unicode_equivalents(text: &str) -> String {
+    text.replace('µ', "μ").replace('Å', "Å")
+}
+
 fn is_ascii_alnum(ch: Option<char>) -> bool {
     ch.map(|c| c.is_ascii_alphanumeric()).unwrap_or(false)
 }
