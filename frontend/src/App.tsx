@@ -14,25 +14,21 @@ import { AppTitleBar } from "@/components/AppTitleBar";
 import { SettingsDialog } from "@/components/SettingsDialog";
 import { useFormatter } from "@/hooks/useFormatter";
 import { useSettingsPersistence } from "@/hooks/useSettingsPersistence";
+import { useSettingsLoader } from "@/hooks/useSettingsLoader";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import { useThemeAndFont } from "@/hooks/useThemeAndFont";
 import { useWindowControls } from "@/hooks/useWindowControls";
 import {
-  getAppVersion,
   getEnabledDefaults,
   getRules,
-  getSettingsPath,
-  getUserSettings,
   isTauri,
   DEFAULT_SHORTCUT_SETTINGS,
   type Rule,
   type RuleSelection,
   type FontFamily,
   type EditorFontSize,
-  type LoadedUserSettings,
   type SettingsLoadNotice,
   type ShortcutAction,
-  type ShortcutBindings,
   type ThemeMode,
   type UiScale,
   type UserSettings,
@@ -51,7 +47,6 @@ const SLOW_FORMAT_THRESHOLD_MS = 100;
 export default function App() {
   const [input, setInput] = useState("");
   const [rules, setRules] = useState<Rule[]>([]);
-  const [enabled, setEnabled] = useState<string[]>([]);
   const [copied, setCopied] = useState(false);
   const [cleared, setCleared] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -77,27 +72,35 @@ export default function App() {
     reportError,
   } = useFormatter({ getSelection: getRuleSelection });
 
-  // 规则加载完成后置 true，避免恢复流程把用户设置覆盖为默认值。
-  const hydratedRef = useRef(false);
+  const {
+    enabled,
+    setEnabled,
+    theme,
+    setTheme,
+    font,
+    setFont,
+    editorFontSize,
+    setEditorFontSize,
+    uiScale,
+    setUiScale,
+    shortcutsEnabled,
+    setShortcutsEnabled,
+    shortcutBindings,
+    setShortcutBindings,
+    settingsLoadNotices,
+    settingsPath,
+    appVersion,
+    isHydrated,
+    loadSettings,
+  } = useSettingsLoader({
+    onRestoreInput: (restoredInput, restoredEnabled) => {
+      setInput(restoredInput);
+      scheduleFormat(restoredInput, restoredEnabled);
+    },
+    onLoadError: reportError,
+  });
 
   const enabledSet = useMemo(() => new Set(enabled), [enabled]);
-
-  const [settingsLoadNotices, setSettingsLoadNotices] = useState<SettingsLoadNotice[]>([]);
-  const [settingsPath, setSettingsPath] = useState<string | null>(null);
-  const [appVersion, setAppVersion] = useState(__APP_VERSION__);
-
-  // 主题状态：system / light / dark。
-  const [theme, setTheme] = useState<ThemeMode>("system");
-  const [font, setFont] = useState<FontFamily>("system");
-  const [editorFontSize, setEditorFontSize] = useState<EditorFontSize>("normal");
-  const [uiScale, setUiScale] = useState<UiScale>("normal");
-  // 快捷键：总开关与动作绑定，随用户设置持久化。
-  const [shortcutsEnabled, setShortcutsEnabled] = useState(
-    DEFAULT_SHORTCUT_SETTINGS.enabled,
-  );
-  const [shortcutBindings, setShortcutBindings] = useState<ShortcutBindings>(
-    DEFAULT_SHORTCUT_SETTINGS.bindings,
-  );
 
   function currentSettings(next: Partial<UserSettings> = {}): UserSettings {
     return {
@@ -117,11 +120,11 @@ export default function App() {
 
   const { settingsStatus, settingsError, persistSettings, schedulePersist } = useSettingsPersistence({
     getSettings: currentSettings,
-    isHydrated: () => hydratedRef.current,
+    isHydrated,
     debounceMs: NORMAL_DEBOUNCE_MS,
   });
 
-  // 初始化：加载规则与默认启用集；随后恢复上次保存的用户设置（若有）。
+  // 初始化：加载规则与默认启用集；随后由 useSettingsLoader 恢复用户设置。
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -132,64 +135,14 @@ export default function App() {
         ]);
         if (cancelled) return;
         setRules(ruleList);
-
-        let saved: LoadedUserSettings | null = null;
-        try {
-          saved = await getUserSettings();
-        } catch {
-          saved = null;
-        }
-        if (cancelled) return;
-
-        try {
-          const path = await getSettingsPath();
-          if (!cancelled && path) setSettingsPath(path);
-        } catch {
-          // 路径获取失败不影响主流程；保存错误会在保存时展示。
-        }
-        try {
-          const version = await getAppVersion();
-          if (!cancelled) setAppVersion(version);
-        } catch {
-          // 读取版本失败时保留构建时注入的浏览器回退版本。
-        }
-        if (cancelled) return;
-
-        if (saved && Array.isArray(saved.enabled)) {
-          const restoredEnabled = saved.enabled.filter((k) =>
-            ruleList.some((r) => r.key === k),
-          );
-          setEnabled(restoredEnabled);
-          if (saved.theme !== undefined) {
-            setTheme(saved.theme);
-          }
-          if (saved.font !== undefined) {
-            setFont(saved.font);
-          }
-          setEditorFontSize(saved.editor_font_size ?? "normal");
-          setUiScale(saved.ui_scale ?? "normal");
-          if (saved.shortcuts) {
-            setShortcutsEnabled(saved.shortcuts.enabled);
-            setShortcutBindings(saved.shortcuts.bindings);
-          }
-          setSettingsLoadNotices(saved.notices ?? []);
-          if (saved.last_input) {
-            setInput(saved.last_input);
-            scheduleFormat(saved.last_input, restoredEnabled);
-          }
-        } else {
-          setEnabled(defaults.filter((k) => ruleList.some((r) => r.key === k)));
-        }
-        hydratedRef.current = true;
+        await loadSettings(ruleList, defaults);
       } catch (e) {
-        reportError(e);
-        hydratedRef.current = true;
+        if (!cancelled) reportError(e);
       }
     })();
     return () => {
       cancelled = true;
     };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // 快捷键监听与分发：总开关关闭时不注册；IME 组合态不触发；
