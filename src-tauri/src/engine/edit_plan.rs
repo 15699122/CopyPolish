@@ -185,29 +185,43 @@ fn editable_line_ranges(text: &str, spans: &[TextSpan]) -> Vec<(usize, usize)> {
 /// 首批迁移只覆盖标点规范化和名词规范化阶段。这些规则不应改写结构/语义
 /// span，因此每个编辑都限定在单行可编辑区间内；结构边界规则仍由 pipeline
 /// 的内部保护层负责，避免改变既有边界空格语义。
+/// 在可编辑文本区间内按规则生成并应用 TextEdit。
+///
+/// 覆盖标点规范化和名词规范化阶段。这些规则不应改写结构/语义 span，因此
+/// 编辑限定在单行可编辑区间内；span 只扫描一次，同区间内的规则按
+/// `execution_rules()` 顺序在片段内串行执行（等价于迁移前“每条规则全文
+/// 重扫并应用”的语义，因为规则均为行内纯函数且编辑不跨区间），
+/// 避免规则数量增长带来的 O(rules × 全文扫描) 开销。
 pub(crate) fn apply_editable_rules(
     text: &str,
     selection: &RuleSelection,
 ) -> Result<String, String> {
-    let mut current = text.to_string();
-    for rule in execution_rules().into_iter().filter(|rule| {
-        EDITABLE_PHASES.contains(&rule.phase) && selection_enabled(selection, rule.key())
-    }) {
-        let spans = scan_all_spans(&current);
-        let edits: Vec<TextEdit> = editable_line_ranges(&current, &spans)
-            .into_iter()
-            .filter_map(|(start, end)| {
-                let original = &current[start..end];
-                let replacement = (rule.apply)(original);
-                (replacement != original).then(|| {
-                    TextEdit::new(&current, start, end, replacement, EditPriority::Editable)
-                        .expect("editable line range must be valid")
-                })
-            })
-            .collect();
-        current = apply_edits(&current, &arbitrate_edits(edits))?;
+    let rules: Vec<&super::registry::RuleDef> = execution_rules()
+        .into_iter()
+        .filter(|rule| {
+            EDITABLE_PHASES.contains(&rule.phase) && selection_enabled(selection, rule.key())
+        })
+        .collect();
+    if rules.is_empty() {
+        return Ok(text.to_string());
     }
-    Ok(current)
+
+    let spans = scan_all_spans(text);
+    let edits: Vec<TextEdit> = editable_line_ranges(text, &spans)
+        .into_iter()
+        .filter_map(|(start, end)| {
+            let original = &text[start..end];
+            let mut fragment = original.to_string();
+            for rule in &rules {
+                fragment = (rule.apply)(&fragment);
+            }
+            (fragment != original).then(|| {
+                TextEdit::new(text, start, end, fragment, EditPriority::Editable)
+                    .expect("editable line range must be valid")
+            })
+        })
+        .collect();
+    apply_edits(text, &arbitrate_edits(edits))
 }
 
 /// 在受保护文本上按行应用结构边界、文本边界与 FinalCleanup 阶段规则（TextEdit 形式）。
