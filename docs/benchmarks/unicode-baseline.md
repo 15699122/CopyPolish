@@ -49,7 +49,7 @@ ERR 为引擎既有 fancy-regex 回溯上限，与本次改动无关。
 
 ## TextEdit 迁移与热点修复后（dev，release profile，Rust 1.98.0）
 
-对应 roadmap §8：TextEdit 应用层落地并修复两处热点/上限问题后重跑。修复内容：
+对应 roadmap §8：TextEdit 应用层落地、词级规则与占位符正则热点修复后重跑。修复内容：
 
 1. `space_around_inline_placeholders` / `space_around_math_placeholders` 改为单一通用
    占位符模式 + 成员集合判断：此前按占位符 escape 后用 `|` 拼接正则，1 MB 文本
@@ -65,10 +65,11 @@ ERR 为引擎既有 fancy-regex 回溯上限，与本次改动无关。
 | --- | --- | --- | --- |
 | 纯中文 | ~1.4 ms | ~12.6 ms | ~127 ms |
 | 中英数混排 | ~1.4 ms | ~14.8 ms | ~160 ms（此前 ERR） |
-| Markdown/LaTeX 密集 | ~2.6 ms | ~70 ms | ~4.9 s（此前 ERR，仍待优化） |
+| Markdown/LaTeX 密集 | ~3.6 ms | ~34 ms | ~1.66 s（此前约 4.9 s） |
 | emoji/组合字符密集 | ~1.6 ms | ~12.8 ms | ~138 ms |
 | CJK Ext-B 密集 | ~1.2 ms | ~13.4 ms | ~140 ms |
 
-结论：常规语料 1 MB 内均在 ~160 ms 以内；不再出现 ERR 或 panic。剩余热点是
-1 MB 级 Markdown/LaTeX 密集语料（~4.9 s），对应 roadmap §5 的 fancy-regex 替换
-（反引号、平衡括号链接、HTML block 状态机化），以及错误路径的优雅降级。
+结论：常规语料 1 MB 内均在 ~160 ms 以内；不再出现 ERR 或 panic。Markdown/LaTeX
+密集语料已由此前约 4.9 s 降至约 1.66 s，但仍是主要热点。保护阶段 release profiling
+约为 `scan_all_spans 591 ms`、`protect_spans 109 ms`、行内占位符间距 `19 ms`、
+还原 `9 ms`；后续应优先减少结构扫描重复遍历，并继续推进 roadmap §5 的状态机化。
