@@ -313,6 +313,8 @@ git diff --check
 
 安全门禁由 `scripts/security_check.py` 实现：扫描 Git 跟踪文件中的高置信度明文凭据模式，并验证 `secrets/tokens.env` 的 SOPS/age 元数据；`.gitlab-ci.yml` 的 `security:check` 在 tag 构建前执行。该门禁不解密凭据。
 
+常规分支 CI 由 `.github/workflows/ci.yml` 承担（push/PR 到 `dev`/`master`）：Rust fmt/clippy/test（默认 + `tui` feature 与 TUI 构建）、前端 vitest/build、安全扫描与 Markdown 相对链接检查（`scripts/check_md_links.py`）。Rust 工具链由 `rust-toolchain.toml` 固定，Node 版本由 `.nvmrc` 固定。
+
 ## 图标
 
 完整桌面图标集（ico/各尺寸 PNG）由 Tauri CLI 从 `icons/icon.png` 生成：

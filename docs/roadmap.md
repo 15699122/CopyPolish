@@ -25,9 +25,9 @@
 
 ## 3. P0：工程门禁与发布可靠性
 
-- [ ] 增加常规开发分支 CI：前端测试/构建、Rust fmt/clippy/test、TUI feature 测试、安全扫描和 diff 检查；
-- [ ] 清理 Dependabot 中没有实际 workflow 可维护的 GitHub Actions 配置，或在恢复常规 CI 后重新启用；
-- [ ] 增加 Markdown 相对链接检查，阻止删除或移动文档后留下死链；
+- [x] 增加常规开发分支 CI：GitHub Actions（`.github/workflows/ci.yml`）在 push/PR 到 `dev`/`master` 时运行 Rust fmt/clippy/test（默认 + TUI feature 与 TUI 构建）、前端 vitest/build、secret/SOPS 安全扫描和 Markdown 链接检查；`git diff --check` 在本地 Runbook 中保留；
+- [x] Dependabot 的 GitHub Actions 生态配置已随常规 CI 恢复而重新生效；
+- [x] 增加 Markdown 相对链接检查：`scripts/check_md_links.py`（已在 CI `checks` job 中启用），阻止删除或移动文档后留下死链；
 - [ ] 将发布前检查封装为单一入口，减少本地 Runbook、GitLab job 与手工命令漂移；
 - [ ] 完成一次离线 age 私钥恢复演练并记录结果；
 - [ ] 增加第二 age 接收者，整理令牌的最小权限、轮换和吊销清单。
