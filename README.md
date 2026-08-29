@@ -72,7 +72,7 @@ Windows 版依赖系统的 WebView2 Evergreen Runtime。Windows 10/11 通常已�
 
 ## 当前支持的规则
 
-规则由后端注册表统一管理，当前内置 13 条（「专有名词使用正确的大小写」「不要使用不地道的缩写」默认关闭）。每条规则有稳定的机器 key（如 `spacing.cjk-latin`），展示名仅用于界面：
+规则由后端注册表统一管理，当前内置 14 条（「专有名词使用正确的大小写」「不要使用不地道的缩写」「链接之间增加空格」「简体中文使用直角引号」「统一等价 Unicode 单位字符」默认关闭）。每条规则有稳定的机器 key（如 `spacing.cjk-latin`），展示名仅用于界面：
 
 | 分类 | 规则 | 稳定 key |
 | --- | --- | --- |
@@ -80,6 +80,7 @@ Windows 版依赖系统的 WebView2 Evergreen Runtime。Windows 10/11 通常已�
 | 全角和半角 | 使用全角中文标点 | `punctuation.fullwidth-cjk` |
 | 全角和半角 | 数字使用半角字符 | `text.halfwidth-digits` |
 | 全角和半角 | 遇到完整的英文整句、特殊名词，其内容使用半角标点 | `text.ascii-punct-in-latin` |
+| 全角和半角 | 统一等价 Unicode 单位字符，默认关闭 | `text.unicode-equivalents` |
 | 名词 | 专有名词使用正确的大小写，默认关闭 | `naming.proper-nouns` |
 | 名词 | 不要使用不地道的缩写，默认关闭 | `naming.expand-abbreviations` |
 | 争议 | 链接之间增加空格，默认关闭 | `spacing.around-links` |

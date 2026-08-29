@@ -51,6 +51,10 @@ fn load_passing_golden_cases() -> Vec<(String, GoldenCase)> {
             include_str!("../../tests/fixtures/selection-and-regressions.yaml"),
         ),
         (
+            "unicode-normalization.yaml",
+            include_str!("../../tests/fixtures/unicode-normalization.yaml"),
+        ),
+        (
             "unicode-boundaries.yaml",
             include_str!("../../tests/fixtures/unicode-boundaries.yaml"),
         ),
@@ -154,8 +158,8 @@ fn passing_golden_fixtures_are_idempotent() {
 #[test]
 fn registry_contains_migrated_rules_with_defaults() {
     let all = rules();
-    // 历史 12 条规则及温标空格规则均已注册。
-    assert_eq!(all.len(), 13);
+    // 历史规则、温标空格规则和默认关闭的 Unicode 输出规范化规则均已注册。
+    assert_eq!(all.len(), 14);
     assert_eq!(enabled_defaults().len(), 9);
     let disabled: Vec<_> = all
         .iter()
@@ -165,6 +169,7 @@ fn registry_contains_migrated_rules_with_defaults() {
     assert_eq!(
         disabled,
         vec![
+            keys::TEXT_UNICODE_EQUIVALENTS,
             keys::NAMING_PROPER_NOUNS,
             keys::NAMING_EXPAND_ABBREVIATIONS,
             keys::SPACING_AROUND_LINKS,
@@ -198,6 +203,7 @@ fn registry_execution_order_is_phase_explicit_and_stable() {
             keys::NAMING_EXPAND_ABBREVIATIONS,
             keys::SPACING_AROUND_LINKS,
             keys::PUNCT_CORNER_QUOTES,
+            keys::TEXT_UNICODE_EQUIVALENTS,
             keys::SPACING_CJK_LATIN,
             keys::SPACING_CJK_NUMBER,
             keys::SPACING_NUMBER_UNIT,
@@ -552,6 +558,30 @@ fn legacy_keys_are_normalized_to_stable_keys() {
     assert_eq!(
         normalize_rule_keys(&dup),
         vec![keys::SPACING_CJK_LATIN.to_string()]
+    );
+}
+
+#[test]
+fn unicode_equivalents_are_explicit_and_do_not_change_defaults() {
+    let source = "单位10µm与3Å";
+    assert_eq!(format_text(&req(source)).unwrap(), "单位 10 µm 与 3 Å");
+
+    let selected = FormatRequest {
+        text: source.to_string(),
+        selection: RuleSelection::Only {
+            keys: vec![keys::TEXT_UNICODE_EQUIVALENTS.to_string()],
+        },
+    };
+    assert_eq!(format_text(&selected).unwrap(), "单位10μm与3Å");
+
+    let source_with_math = "单位10µm与3Å，公式$µ+Å$保持原样";
+    let all = FormatRequest {
+        text: source_with_math.to_string(),
+        selection: RuleSelection::All,
+    };
+    assert_eq!(
+        format_text(&all).unwrap(),
+        "单位 10 μm 与 3 Å，公式 $µ+Å$ 保持原样"
     );
 }
 

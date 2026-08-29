@@ -25,6 +25,7 @@ pub mod keys {
     pub const PUNCT_FULLWIDTH_CJK: &str = "punctuation.fullwidth-cjk";
     pub const TEXT_HALFWIDTH_DIGITS: &str = "text.halfwidth-digits";
     pub const TEXT_ASCII_PUNCT_IN_LATIN: &str = "text.ascii-punct-in-latin";
+    pub const TEXT_UNICODE_EQUIVALENTS: &str = "text.unicode-equivalents";
     pub const NAMING_PROPER_NOUNS: &str = "naming.proper-nouns";
     pub const NAMING_EXPAND_ABBREVIATIONS: &str = "naming.expand-abbreviations";
     pub const SPACING_AROUND_LINKS: &str = "spacing.around-links";
@@ -67,7 +68,9 @@ fn phase_for_key(key: &str) -> RulePhase {
         | TEXT_HALFWIDTH_DIGITS
         | TEXT_ASCII_PUNCT_IN_LATIN => RulePhase::PunctuationNormalization,
         NAMING_PROPER_NOUNS | NAMING_EXPAND_ABBREVIATIONS => RulePhase::NamingNormalization,
-        SPACING_AROUND_LINKS | PUNCT_CORNER_QUOTES => RulePhase::StructureBoundary,
+        SPACING_AROUND_LINKS | PUNCT_CORNER_QUOTES | TEXT_UNICODE_EQUIVALENTS => {
+            RulePhase::StructureBoundary
+        }
         SPACING_CJK_LATIN | SPACING_CJK_NUMBER | SPACING_NUMBER_UNIT | SPACING_TEMPERATURE_CJK => {
             RulePhase::TextBoundary
         }
@@ -88,6 +91,7 @@ fn dependencies_for_key(key: &str) -> (&'static [&'static str], &'static [&'stat
         SPACING_NUMBER_UNIT => (&[], &[SPACING_CJK_NUMBER][..]),
         SPACING_TEMPERATURE_CJK => (&[], &[SPACING_NUMBER_UNIT][..]),
         SPACING_NO_SPACE_AROUND_FW_PUNCT => (&[], &[SPACING_TEMPERATURE_CJK][..]),
+        TEXT_UNICODE_EQUIVALENTS => (&[], &[PUNCT_CORNER_QUOTES][..]),
         _ => (&[], &[]),
     }
 }
@@ -124,7 +128,7 @@ fn def(
 }
 
 /// 规则注册表。数组顺序是 UI 展示和同阶段规则的稳定 tie-breaker。
-/// 历史 12 条规则已全部迁移；争议规则与两个名词规则默认关闭。
+/// 历史规则已全部迁移；争议规则、Unicode 输出规范化和两个名词规则默认关闭。
 static RULES: std::sync::LazyLock<Vec<RuleDef>> = std::sync::LazyLock::new(|| {
     use keys::*;
     vec![
@@ -163,6 +167,15 @@ static RULES: std::sync::LazyLock<Vec<RuleDef>> = std::sync::LazyLock::new(|| {
             true,
             &["遇到完整的英文整句_特殊名词_其内容使用半角标点"],
             rule_impls::halfwidth_in_english,
+        ),
+        def(
+            TEXT_UNICODE_EQUIVALENTS,
+            "全角和半角",
+            "统一等价 Unicode 单位字符",
+            false,
+            false,
+            &[],
+            rule_impls::unicode_equivalents,
         ),
         def(
             NAMING_PROPER_NOUNS,

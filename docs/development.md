@@ -41,7 +41,7 @@ Tauri 2
 ```
 
 - **应用为纯 Rust 实现**：`format_text` / `get_rules` / `get_enabled_defaults` / 设置读写全部由 Rust 提供，构建与打包不依赖 Python。
-- **规则注册表驱动**：规则的唯一事实来源是 `src-tauri/src/engine/registry.rs`。每条规则有稳定的机器 key（如 `spacing.cjk-latin`），展示名/分组仅存于元数据；新增规则只需在注册表追加一个 `RuleDef`，command 层、pipeline 与前端均无需改动。历史规则已迁移为独立注册项，当前共 13 条规则（既有规则的效果与默认开关保持不变）。
+- **规则注册表驱动**：规则的唯一事实来源是 `src-tauri/src/engine/registry.rs`。每条规则有稳定的机器 key（如 `spacing.cjk-latin`），展示名/分组仅存于元数据；新增规则只需在注册表追加一个 `RuleDef`，command 层、pipeline 与前端均无需改动。历史规则已迁移为独立注册项，当前共 14 条规则（Unicode 输出规范化默认关闭，其余既有规则的默认开关保持不变）。
 - **Ratatui TUI**：`src-tauri/src/bin/copypolish-tui.rs` 提供独立终端入口，只有启用 Cargo feature `tui` 时才编译。TUI 直接调用 `engine::format_text`、`RuleSelection` 和规则注册表，不经过 Tauri command，也不复制格式化规则。当前已提供多行 Unicode 安全输入、真实光标、输入/输出滚动、规则覆盖层、全选/默认/全不选和帮助覆盖层；剪贴板（OSC 52）、共享 `rules.yaml` 设置读写和 stdin/stdout 非交互模式亦已实现（见下文 TUI 章节）。
 - **用户设置**：保存在 exe 相同目录的 `rules.yaml`（YAML；见下文），首次运行自动迁移旧版 `ccw-formatter-settings.json`；读取与保存时通过 `normalize_rule_keys` 把旧版中文 key 迁移为稳定 key 并丢弃未知 key。
 - **化学式识别**：tokenizer 保守识别含 Unicode 上下标、电荷标记或水合物连接符的片段（`Fe²⁺`、`SO₄²⁻`、`FeCl₂·4H₂O` 等），在规则处理前转为占位符整体保护，为后续新规则提供可靠判定单元。
@@ -107,10 +107,10 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
 10. 单位识别采用有限词典 + 复合语法（`unit_lexicon.rs` / `semantic_tokens.rs`），当前覆盖 `cm`、`cL`、`hPa`、`km`、`kHz`、`kPa`、`kW` 等显式常用单位；不把正则直接扩展为 `\p{L}+`，避免把自然语言英文、变量名、产品名误判为单位。
 11. 阶段 C 第一批已将 `spacing.number-unit` 接入有限单位词典：支持 `μm/µm`、`Å/Å`、`Ω/kΩ`、`°C/°F` 与常见复合科学单位；`semantic_tokens.rs` 同时提供明确数学表达式的保守扫描（`∂f/∂x`、`x≤y`、`a≈b`、`3±0.5`、`2×3`），表达式内部保护、仅在 Han 直接边界补空格，不在全角标点后添加额外空格。该数学边界策略由 `mathematical-symbols.yaml` 和生产路径测试冻结；单位扫描不使用 look-around，边界通过 Rust 字节区间检查完成。
 12. 温度规则保持独立 stable key `spacing.temperature-cjk`，负责 `℃/℉/°C/°F` 与相邻中文之间的空格；它默认启用且当前无 legacy alias，不与 `spacing.number-unit` 合并。若未来调整 key，必须新增明确的 legacy key 迁移和设置兼容测试。
-13. Markdown 安全处理：检测到明显 Markdown 标记时默认启用安全模式（宁漏格式化、不破坏结构）；当前采用“手写扫描器 + 有限 `fancy-regex` + 内部占位符”的混合保护层，块级（front matter / fenced、缩进代码 / HTML 注释 / 表格分隔行 / 引用式链接定义）与行内（任意长度反引号 / 链接平衡括号 / HTML 标签 / 美元定界行内与展示数学 / 转义字符）保护保持「保护 → 仅格式化可编辑区间 → 还原」的管线。结构 span 的扫描和仲裁已统一，后续重点是将剩余规则输出迁移为 TextEdit，而不是继续堆叠正则。
+13. Markdown 安全处理：检测到明显 Markdown 标记时默认启用安全模式（宁漏格式化、不破坏结构）；当前采用“手写扫描器 + 有限 `fancy-regex` + 内部占位符”的混合保护层，块级（front matter / fenced、缩进代码 / HTML 注释 / 表格分隔行 / 引用式链接定义）与行内（任意长度反引号 / 链接平衡括号 / HTML 标签 / 美元定界行内与展示数学 / 转义字符）保护保持「保护 → 仅格式化可编辑区间 → 还原」的管线。结构 span 的扫描和仲裁已统一，默认关闭的 Unicode 输出规范化规则也只作用于保护后的可编辑文本，避免改写代码、LaTeX 和 Markdown 结构。
 14. Markdown/HTML 边界失败策略必须遵循“宁漏格式化、不破坏结构”：未闭合 fenced code 不吞掉后续正文，未闭合行内反引号只保护 delimiter run；同一行内的嵌套链接按转义感知的括号/方括号平衡扫描，无法闭合时保留普通文本；引用式链接的使用和定义分别保护。行内 HTML 只保护标签及已闭合元素，标签之间的可见文本继续格式化，块级 HTML 则整体保护；支持的 LaTeX 定界符、环境和带参数 command 按完整结构保护，未闭合结构不扩大保护范围。上述策略由 `markdown-protection.yaml`、结构 span 测试和生产路径测试共同冻结。
 15. `registry.rs` 的 `RulePhase` 与 `before/after` 是规则调度的显式元数据：pipeline 通过 `execution_rules()` 做稳定拓扑排序，同 phase 使用注册表顺序作为 tie-break；未知依赖、重复 key 和循环依赖会被拒绝。`rules()` 仍用于稳定的 UI 展示顺序。
-16. Unicode 等价识别与输出规范化分离：`semantic_tokens.rs` 通过 canonical unit key 把 `µ/μ`、`Å/Å` 视为等价语义，识别层不改写原始字符；如提供统一表示，须作为独立、默认关闭的规范化规则并评估 NFKC 影响。
+16. Unicode 等价识别与输出规范化分离：`semantic_tokens.rs` 通过 canonical unit key 把 `µ/μ`、`Å/Å` 视为等价语义，识别层不改写原始字符；独立规则 `text.unicode-equivalents` 仅在显式选择时执行 `µ→μ`、`Å→Å`，不执行全文 NFKC。
 17. 复杂输入测试应至少覆盖结构保护、语义 token、普通文本规则三层同时命中的场景；新增规则或保护层改动必须补充复杂组合 fixture、规则选择组合、优先级和幂等性测试。`structure-precedence.yaml` 已作为稳定黄金 fixture，结构 span 优先级由生产管线直接验证。
 
 ## 当前开发进度摘要（2026-08-29）
@@ -122,7 +122,7 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
 - **已完成**：span-aware 管线已成为唯一生产 `format_text` 路径；结构优先级 fixture 已迁入稳定黄金回归；旧 placeholder 生产管线和新旧全量等价测试已移除。URL/邮箱、硬换行、引用式链接、未闭合反引号、LaTeX command/定界数学、数学复合单位及 inline placeholder 边界均由生产路径测试覆盖。
 - **已完成**：标点规范化和名词规范化阶段已通过 `apply_editable_rules` 在可编辑区间以 TextEdit 方式接入生产；结构 span 与化学式在编辑时保持不可改写。
 - **已完成**：全部规则阶段均通过 `edit_plan.rs` 的 TextEdit 应用层执行；1 MB 长文本性能基准、峰值 RSS 和数量级性能回归门禁已建立，详见 `docs/benchmarks/unicode-baseline.md`。
-- **进行中**：完整单位词典、默认关闭的 Unicode 输出规范化、旧 `fancy-regex` 保护路径收敛和真实 Tauri E2E；已完成版本的发布结果归档见 `docs/archive/release-plans/`。
+- **进行中**：完整单位词典、Unicode 输出规范化的更多等价映射评估、旧 `fancy-regex` 保护路径收敛和真实 Tauri E2E；已完成版本的发布结果归档见 `docs/archive/release-plans/`。
 - **验证要求**：Rust 测试、TUI feature 测试、前端测试与构建、fmt、Clippy、安全扫描和 diff 检查均应在相关改动后执行；具体命令见本文“验证命令”章节。
 
 ## 用户设置持久化
