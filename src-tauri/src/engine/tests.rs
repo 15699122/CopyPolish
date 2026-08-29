@@ -331,6 +331,10 @@ fn formats_unicode_and_compound_measurements_without_word_false_positives() {
         "电阻 10 kΩ，阻抗 50 Ω"
     );
     assert_eq!(
+        format_text(&req("速度5km，频率2kHz，压力4kPa，功率8kW")).unwrap(),
+        "速度 5 km，频率 2 kHz，压力 4 kPa，功率 8 kW"
+    );
+    assert_eq!(
         format_text(&req("浓度30mg·mL⁻¹，密度2kg·m⁻³")).unwrap(),
         "浓度 30 mg·mL⁻¹，密度 2 kg·m⁻³"
     );
