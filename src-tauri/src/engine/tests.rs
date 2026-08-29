@@ -903,3 +903,54 @@ fn semantic_edit_plan_matches_production_on_semantic_fixtures() {
         }
     }
 }
+
+/// FinalCleanup TextEdit 迁移回归：行内代码内部不受全角标点清理影响。
+#[test]
+fn final_cleanup_edit_path_does_not_touch_inline_code() {
+    let request = FormatRequest {
+        text: "代码`你好 ， 世界`继续， 以及 ！结束".to_string(),
+        selection: RuleSelection::Only {
+            keys: vec![keys::SPACING_NO_SPACE_AROUND_FW_PUNCT.to_string()],
+        },
+    };
+    // 注意：行内占位符边缘补空格是既有生产行为；清理本身不改写行内代码内部。
+    assert_eq!(
+        format_text(&request).unwrap(),
+        "代码 `你好 ， 世界` 继续，以及！结束"
+    );
+}
+
+/// FinalCleanup 必须排在结构边界规则之后：直角引号转换产生的全角标点
+/// 同样参与空格清理（与迁移前行循环顺序一致）。
+#[test]
+fn final_cleanup_runs_after_structure_boundary_rules() {
+    let request = FormatRequest {
+        text: "说“你好” 一下".to_string(),
+        selection: RuleSelection::Only {
+            keys: vec![
+                keys::PUNCT_CORNER_QUOTES.to_string(),
+                keys::SPACING_NO_SPACE_AROUND_FW_PUNCT.to_string(),
+            ],
+        },
+    };
+    assert_eq!(format_text(&request).unwrap(), "说「你好」一下");
+}
+
+/// 全角标点清理幂等：同一输入连续格式化两次结果一致。
+#[test]
+fn final_cleanup_is_idempotent_via_production_path() {
+    let selection = RuleSelection::Only {
+        keys: vec![keys::SPACING_NO_SPACE_AROUND_FW_PUNCT.to_string()],
+    };
+    let once = format_text(&FormatRequest {
+        text: "你好， 世界 ！ 继续".to_string(),
+        selection: selection.clone(),
+    })
+    .unwrap();
+    let twice = format_text(&FormatRequest {
+        text: once.clone(),
+        selection,
+    })
+    .unwrap();
+    assert_eq!(once, twice);
+}

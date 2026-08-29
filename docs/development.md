@@ -46,7 +46,7 @@ Tauri 2
 - **用户设置**：保存在 exe 相同目录的 `rules.yaml`（YAML；见下文），首次运行自动迁移旧版 `ccw-formatter-settings.json`；读取与保存时通过 `normalize_rule_keys` 把旧版中文 key 迁移为稳定 key 并丢弃未知 key。
 - **化学式识别**：tokenizer 保守识别含 Unicode 上下标、电荷标记或水合物连接符的片段（`Fe²⁺`、`SO₄²⁻`、`FeCl₂·4H₂O` 等），在规则处理前转为占位符整体保护，为后续新规则提供可靠判定单元。
 - **Unicode 边界层**（roadmap §5）：`unicode_boundaries.rs` 基于 `unicode-segmentation` 提供 extended grapheme cluster 切分与保守分类（`Han / Latin / Digit / Other`）。中英插空与中数插空两条规则以 grapheme 为判定单位——emoji ZWJ 序列、肤色修饰符、组合附加符不会被切断；Han 范围表集中维护并已覆盖 CJK Extension B。`BoundaryStrategy::LegacyChars` 仅供新旧策略对比测试，生产固定使用 Graphemes；化学式检测不经过该层，仍沿用保守正则 + 字节区间。Kana/Hangul 首期归为 `Other` 不触发插空，行为由 `tests/fixtures/unicode-boundaries.yaml` 冻结；性能基线见 [unicode-baseline.md](benchmarks/unicode-baseline.md)。
-- **规则调度与迁移基础设施**：`registry.rs` 已使用 `RulePhase` 与 `before/after` 依赖进行稳定拓扑排序，并拒绝未知依赖、重复 key 和循环依赖。`spans.rs` 已提供结构/语义 span 扫描与优先级仲裁；`edit_plan.rs` 已提供 UTF-8 安全的 `TextEdit` 创建、冲突仲裁、逆序应用和单位/数学边界规划，并通过 `apply_editable_rules` 把标点/名词规范化阶段以可编辑区间 TextEdit 接入生产。span-aware 管线已成为唯一生产 `format_text` 路径；保护层当前仍使用内部占位符承载不可编辑 span，剩余边界规则与全角标点清理的完整 TextEdit 化仍在路线图中。
+- **规则调度与迁移基础设施**：`registry.rs` 已使用 `RulePhase` 与 `before/after` 依赖进行稳定拓扑排序，并拒绝未知依赖、重复 key 和循环依赖。`spans.rs` 已提供结构/语义 span 扫描与优先级仲裁；`edit_plan.rs` 已提供 UTF-8 安全的 `TextEdit` 创建、冲突仲裁、逆序应用和单位/数学边界规划。**全部规则阶段均已通过 TextEdit 应用层执行**：标点/名词规范化经 `apply_editable_rules` 在原文可编辑区间应用；结构边界/文本边界/全角标点清理经 `apply_protected_text_rules` 在受保护文本上按行应用。span-aware 管线已成为唯一生产 `format_text` 路径，保护层行循环已删除；保护层占位符仅用于承载不可编辑 span，后续优化方向是减少占位符依赖（语义边缘空格已在 `plan_semantic_boundary_edits` 中覆盖）。
 
 ## 当前开发状态
 
