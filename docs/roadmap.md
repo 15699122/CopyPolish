@@ -18,7 +18,7 @@
 
 - 保护层仍使用内部 placeholder 承载不可编辑 span（TextEdit 应用层已覆盖全部规则阶段，剩余工作是减少占位符依赖、让语义边缘空格完全脱离占位符路径）；
 - Markdown/HTML 保护仍是保守扫描器与有限正则的组合，不是完整语法解析器；
-- 长文本基准曾暴露 `fancy-regex` 回溯上限；当前已建立数量级性能门禁，但复杂 Markdown/LaTeX 语料仍需继续优化；
+- 长文本基准曾暴露旧保护正则的回溯上限；当前已移除 `fancy-regex` 保护依赖并建立数量级性能门禁，但复杂 Markdown/LaTeX 语料仍需继续优化；
 - 真实 Tauri 桌面链路缺少自动化 E2E；
 - 前端核心状态仍集中在 `App.tsx`，异步格式化和设置保存逻辑可维护性有限；
 - 依赖审计和真实 Tauri 桌面链路仍未闭环。
@@ -49,7 +49,7 @@
 ### 5.1 Markdown/HTML 状态机收敛
 
 - [x] 反引号、平衡括号链接和 HTML block 已由 span 扫描器覆盖，并补齐嵌套括号、任意长度 delimiter、未闭合 delimiter 与大小写混合 HTML 闭合标签回归；
-- [ ] 继续减少旧 `fancy-regex` 保护路径的依赖，重点验证扫描器与保护层在边界失败时的行为等价性；
+- [x] 移除旧 `fancy-regex` 保护路径依赖：结构 span 扫描器已覆盖生产保护入口，链接间距规则改用标准 `regex`，并通过 86 项 Rust 测试、Clippy 和 1 MB 性能门禁验证边界行为与性能；
 - [x] 明确未闭合 fenced code、嵌套链接、引用式链接、HTML 可见文本和 LaTeX 嵌套环境的产品策略；统一遵循“宁漏格式化、不破坏结构”，具体契约见 `docs/development.md` § Rust 引擎要点。
 - [x] 补齐 Unicode 域名 URL、括号包裹 URL 和复杂化学式歧义回归；生产测试验证 URL/化学式内容不被破坏，周边空格仍由既有规则决定；
 - [x] 保持“宁漏格式化、不破坏结构”，不把整篇 Markdown 文档全部冻结；现有结构扫描器、保护层和生产回归共同验证该策略。
@@ -89,7 +89,7 @@
 - [x] 重跑并扩展 `benchmarks/unicode-baseline.md` 的 10 KB/100 KB/1 MB 五类语料（TextEdit 迁移与热点修复后的完整实测数据已记录）；
 - [x] 记录耗时与正则热点：热点为词级规则每片段重新编译正则（已修复：预编译缓存）、占位符巨型拼接正则（已修复：单一通用模式 + 成员集合）；峰值 RSS 已测量：release 基准进程约 63.0 MiB，详见 `benchmarks/unicode-baseline.md`；
 - [x] 可控处理正则上限：占位符正则编译超限 panic 已消除（1 MB 文本不再 `CompiledTooBig`）；GUI 侧已有请求序号守卫，格式化错误只呈现错误状态、不会用旧结果覆盖新输出；
-- [ ] 优化 1 MB 级 Markdown/LaTeX 密集语料（当前约 1.59 s，已较此前约 4.9 s 改善），优先减少结构扫描重复遍历，并替换容易触发回溯或嵌套歧义的 `fancy-regex`：反引号、平衡括号链接、HTML block（与 §5 合并推进）；
+- [ ] 优化 1 MB 级 Markdown/LaTeX 密集语料（当前约 1.32 s，已较此前约 4.9 s 改善），优先减少结构扫描重复遍历和重复字符串分配：反引号、平衡括号链接、HTML block（与 §5 合并推进）；
 - [ ] 评估 worker thread、可取消任务和动态 debounce；
 - [x] 基于实测数据建立数量级性能回归门禁：`scripts/check_performance.py` 对 1 MB 五类语料执行宽松阈值检查（普通语料 500 ms、Markdown/LaTeX 5 s），并接入 GitHub Actions；详细基准仍保留在 `benchmarks/unicode-baseline.md`。
 

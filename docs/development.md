@@ -97,7 +97,7 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
 ## Rust 引擎要点（改动前必读）
 
 1. 规则 key 使用稳定的英文点分标识（如 `spacing.cjk-latin`）；中文展示名不参与内部寻址。旧版设置中的中文 key 由 `normalize_rule_keys` 迁移。
-2. 保护层正则依赖 lookbehind/backreference，必须使用 `fancy-regex`（`regex` crate 不支持）。
+2. 保护层当前使用手写扫描器、标准 `regex` 和内部占位符；不再依赖 `fancy-regex`。需要复杂嵌套或平衡结构时优先使用字节扫描和 span 仲裁，避免引入可回溯正则。
 3. 占位符格式为 `\u{E000}CCWPROTECTED{n}\u{E001}`；保护范围包括文档开头 YAML front matter、表格分隔行、HTML block、行内 HTML 标签、常见转义 Markdown 标记、硬换行、引用式链接定义、fenced code block、HTML 注释、LaTeX 环境/display/inline/command、支持嵌套括号目标的 Markdown 图片/链接/autolink、任意长度同 delimiter 的行内代码、URL、邮箱、缩进代码行及化学式。
 4. 行内占位符补空格时须过滤跨行值（fenced block 不补空格）。
 5. 规则选择由 `FormatRequest.selection` 显式表达：`all` 执行全部规则，`defaults` 执行默认规则，`only` 执行指定 key，`none` 不执行任何规则。用户设置文件继续保存 `enabled: string[]`，其中空数组表示“全不选”，由前端转换为 `none`。
@@ -108,7 +108,7 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
 10. 单位识别采用有限词典 + 复合语法（`unit_lexicon.rs` / `semantic_tokens.rs`），当前覆盖 `cm`、`cL`、`hPa`、`km`、`kHz`、`kPa`、`kW` 等显式常用单位；不把正则直接扩展为 `\p{L}+`，避免把自然语言英文、变量名、产品名误判为单位。
 11. 阶段 C 第一批已将 `spacing.number-unit` 接入有限单位词典：支持 `μm/µm`、`Å/Å`、`Ω/kΩ`、`°C/°F` 与常见复合科学单位；`semantic_tokens.rs` 同时提供明确数学表达式的保守扫描（`∂f/∂x`、`x≤y`、`a≈b`、`3±0.5`、`2×3`），表达式内部保护、仅在 Han 直接边界补空格，不在全角标点后添加额外空格。该数学边界策略由 `mathematical-symbols.yaml` 和生产路径测试冻结；单位扫描不使用 look-around，边界通过 Rust 字节区间检查完成。
 12. 温度规则保持独立 stable key `spacing.temperature-cjk`，负责 `℃/℉/°C/°F` 与相邻中文之间的空格；它默认启用且当前无 legacy alias，不与 `spacing.number-unit` 合并。若未来调整 key，必须新增明确的 legacy key 迁移和设置兼容测试。
-13. Markdown 安全处理：检测到明显 Markdown 标记时默认启用安全模式（宁漏格式化、不破坏结构）；当前采用“手写扫描器 + 有限 `fancy-regex` + 内部占位符”的混合保护层，块级（front matter / fenced、缩进代码 / HTML 注释 / 表格分隔行 / 引用式链接定义）与行内（任意长度反引号 / 链接平衡括号 / HTML 标签 / 美元定界行内与展示数学 / 转义字符）保护保持「保护 → 仅格式化可编辑区间 → 还原」的管线。结构 span 的扫描和仲裁已统一，默认关闭的 Unicode 输出规范化规则也只作用于保护后的可编辑文本，避免改写代码、LaTeX 和 Markdown 结构。
+13. Markdown 安全处理：检测到明显 Markdown 标记时默认启用安全模式（宁漏格式化、不破坏结构）；当前采用“手写扫描器 + 标准 `regex` + 内部占位符”的混合保护层，块级（front matter / fenced、缩进代码 / HTML 注释 / 表格分隔行 / 引用式链接定义）与行内（任意长度反引号 / 链接平衡括号 / HTML 标签 / 美元定界行内与展示数学 / 转义字符）保护保持「保护 → 仅格式化可编辑区间 → 还原」的管线。结构 span 的扫描和仲裁已统一，默认关闭的 Unicode 输出规范化规则也只作用于保护后的可编辑文本，避免改写代码、LaTeX 和 Markdown 结构。
 14. Markdown/HTML 边界失败策略必须遵循“宁漏格式化、不破坏结构”：未闭合 fenced code 不吞掉后续正文，未闭合行内反引号只保护 delimiter run；同一行内的嵌套链接按转义感知的括号/方括号平衡扫描，无法闭合时保留普通文本；引用式链接的使用和定义分别保护。行内 HTML 只保护标签及已闭合元素，标签之间的可见文本继续格式化，块级 HTML 则整体保护；支持的 LaTeX 定界符、环境和带参数 command 按完整结构保护，未闭合结构不扩大保护范围。上述策略由 `markdown-protection.yaml`、结构 span 测试和生产路径测试共同冻结。
 15. `registry.rs` 的 `RulePhase` 与 `before/after` 是规则调度的显式元数据：pipeline 通过 `execution_rules()` 做稳定拓扑排序，同 phase 使用注册表顺序作为 tie-break；未知依赖、重复 key 和循环依赖会被拒绝。`rules()` 仍用于稳定的 UI 展示顺序。
 16. Unicode 等价识别与输出规范化分离：`semantic_tokens.rs` 通过 canonical unit key 把 `µ/μ`、`Å/Å` 视为等价语义，识别层不改写原始字符；独立规则 `text.unicode-equivalents` 仅在显式选择时执行 `µ→μ`、`Å→Å`，不执行全文 NFKC。
@@ -123,7 +123,7 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
 - **已完成**：span-aware 管线已成为唯一生产 `format_text` 路径；结构优先级 fixture 已迁入稳定黄金回归；旧 placeholder 生产管线和新旧全量等价测试已移除。URL/邮箱、硬换行、引用式链接、未闭合反引号、LaTeX command/定界数学、数学复合单位及 inline placeholder 边界均由生产路径测试覆盖。
 - **已完成**：标点规范化和名词规范化阶段已通过 `apply_editable_rules` 在可编辑区间以 TextEdit 方式接入生产；结构 span 与化学式在编辑时保持不可改写。
 - **已完成**：全部规则阶段均通过 `edit_plan.rs` 的 TextEdit 应用层执行；1 MB 长文本性能基准、峰值 RSS 和数量级性能回归门禁已建立，详见 `docs/benchmarks/unicode-baseline.md`。
-- **进行中**：完整单位词典、Unicode 输出规范化的更多等价映射评估、旧 `fancy-regex` 保护路径收敛和真实 Tauri E2E；已完成版本的发布结果归档见 `docs/archive/release-plans/`。
+- **进行中**：完整单位词典、Unicode 输出规范化的更多等价映射评估和真实 Tauri E2E；已完成版本的发布结果归档见 `docs/archive/release-plans/`。
 - **验证要求**：Rust 测试、TUI feature 测试、前端测试与构建、fmt、Clippy、安全扫描和 diff 检查均应在相关改动后执行；具体命令见本文“验证命令”章节。
 
 ## 用户设置持久化

@@ -17,7 +17,7 @@ stat -c '%s bytes' src-tauri/target/release/chinese-copywriting-formatter
 
 环境：Linux (WSL2)，Rust 1.98.0，release profile。耗时为 5 轮平均值。
 1 MB 的“中英数混排”与“Markdown/LaTeX 密集”样例在引入前后均触发既有的
-fancy-regex 回溯上限（`Max limit for backtracking count exceeded`），
+旧版 `fancy-regex` 保护路径曾触发回溯上限（`Max limit for backtracking count exceeded`），
 属引擎既有限制，与本次改动无关，标记为 ERR。
 
 ## 引入前（dev @ b199a4e + 基线示例）
@@ -47,7 +47,7 @@ fancy-regex 回溯上限（`Max limit for backtracking count exceeded`），
 
 对比结论：处理耗时与引入前处于同一噪声区间（±20% 以内波动，
 多次采样互有高低），无系统性退化；二进制体积增量 < 0.5%。
-ERR 为引擎既有 fancy-regex 回溯上限，与本次改动无关。
+ERR 为历史保护路径的 `fancy-regex` 回溯上限；该依赖已在当前生产管线中移除。
 
 
 ## TextEdit 迁移与热点修复后（dev，release profile，Rust 1.98.0）
