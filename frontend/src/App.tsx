@@ -13,9 +13,9 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { AppTitleBar } from "@/components/AppTitleBar";
 import { SettingsDialog } from "@/components/SettingsDialog";
-import { FONT_FAMILY_STACKS } from "@/lib/fonts";
 import { useFormatter } from "@/hooks/useFormatter";
 import { useShortcuts } from "@/hooks/useShortcuts";
+import { useThemeAndFont } from "@/hooks/useThemeAndFont";
 import {
   getAppVersion,
   getEnabledDefaults,
@@ -225,53 +225,6 @@ export default function App() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 主题应用：更新 document.documentElement 的 data-theme 属性。
-  // system 模式下跟随 prefers-color-scheme；切换时自动更新。
-  useEffect(() => {
-    const root = document.documentElement;
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-
-    function applyTheme() {
-      const effective = theme === "system" ? (mediaQuery.matches ? "dark" : "light") : theme;
-      root.setAttribute("data-theme", effective);
-    }
-
-    applyTheme();
-    if (theme === "system") {
-      mediaQuery.addEventListener("change", applyTheme);
-    }
-    return () => {
-      mediaQuery.removeEventListener("change", applyTheme);
-    };
-  }, [theme]);
-
-  useEffect(() => {
-    document.documentElement.style.setProperty("--app-font-family", FONT_FAMILY_STACKS[font]);
-  }, [font]);
-
-  useEffect(() => {
-    const sizes: Record<EditorFontSize, [string, string]> = {
-      small: ["13px", "1.65"],
-      normal: ["14px", "1.7"],
-      large: ["16px", "1.75"],
-      "x-large": ["18px", "1.8"],
-    };
-    const [size, lineHeight] = sizes[editorFontSize];
-    document.documentElement.style.setProperty("--editor-font-size", size);
-    document.documentElement.style.setProperty("--editor-line-height", lineHeight);
-  }, [editorFontSize]);
-
-  useEffect(() => {
-    const scales: Record<UiScale, string> = {
-      compact: "0.8",
-      small: "0.9",
-      normal: "1",
-      large: "1.1",
-      "x-large": "1.25",
-    };
-    document.documentElement.style.setProperty("--app-ui-scale", scales[uiScale]);
-  }, [uiScale]);
-
   // 快捷键监听与分发：总开关关闭时不注册；IME 组合态不触发；
   // 仅在精确匹配绑定时 preventDefault。Esc 仍由 Radix Dialog 原生处理。
   useShortcuts({
@@ -283,6 +236,8 @@ export default function App() {
     },
     onOpenSettings: () => setSettingsOpen(true),
   });
+
+  useThemeAndFont({ theme, font, editorFontSize, uiScale });
 
   function onInputChange(value: string) {
     setInput(value);
