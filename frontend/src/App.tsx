@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { AppTitleBar } from "@/components/AppTitleBar";
 import { SettingsDialog } from "@/components/SettingsDialog";
 import { useFormatter } from "@/hooks/useFormatter";
+import { useInputFormatting } from "@/hooks/useInputFormatting";
 import { useClipboardStatus } from "@/hooks/useClipboardStatus";
 import { useSettingsActions } from "@/hooks/useSettingsActions";
 import { useSettingsPersistence } from "@/hooks/useSettingsPersistence";
@@ -41,7 +42,6 @@ const SLOW_FORMAT_THRESHOLD_MS = 100;
  * 排版由 Tauri 侧 Rust 引擎完成；浏览器预览时走内置演示回退实现。
  */
 export default function App() {
-  const [input, setInput] = useState("");
   const [rules, setRules] = useState<Rule[]>([]);
   const [cleared, setCleared] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -125,6 +125,12 @@ export default function App() {
     debounceMs: NORMAL_DEBOUNCE_MS,
   });
 
+  const { input, setInput, onInputChange } = useInputFormatting({
+    enabled,
+    scheduleFormat,
+    schedulePersist,
+  });
+
   const {
     onToggleRule,
     onSetAll,
@@ -194,12 +200,6 @@ export default function App() {
   const { onMinimize, onToggleMaximize, onClose, onHeaderMouseDown } = useWindowControls({
     onError: reportError,
   });
-
-  function onInputChange(value: string) {
-    setInput(value);
-    scheduleFormat(value, enabled);
-    schedulePersist({ enabled, last_input: value });
-  }
 
   function onSettingsOpenChange(open: boolean) {
     setSettingsOpen(open);
