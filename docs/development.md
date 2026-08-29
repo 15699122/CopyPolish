@@ -123,7 +123,7 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
 - **已完成**：span-aware 管线已成为唯一生产 `format_text` 路径；结构优先级 fixture 已迁入稳定黄金回归；旧 placeholder 生产管线和新旧全量等价测试已移除。URL/邮箱、硬换行、引用式链接、未闭合反引号、LaTeX command/定界数学、数学复合单位及 inline placeholder 边界均由生产路径测试覆盖。
 - **已完成**：标点规范化和名词规范化阶段已通过 `apply_editable_rules` 在可编辑区间以 TextEdit 方式接入生产；结构 span 与化学式在编辑时保持不可改写。
 - **已完成**：全部规则阶段均通过 `edit_plan.rs` 的 TextEdit 应用层执行；1 MB 长文本性能基准、峰值 RSS 和数量级性能回归门禁已建立，详见 `docs/benchmarks/unicode-baseline.md`。
-- **进行中**：完整单位词典、Unicode 输出规范化的更多等价映射评估和真实 Tauri E2E；已完成版本的发布结果归档见 `docs/archive/release-plans/`。
+- **进行中**：完整单位词典、Unicode 输出规范化的更多等价映射、1 MB Markdown/LaTeX 性能优化和真实 Tauri E2E；结构扫描已共享单次行范围表，但端到端基准尚未证明稳定加速，详见 `docs/benchmarks/unicode-baseline.md`；已完成版本的发布结果归档见 `docs/archive/release-plans/`。
 - **验证要求**：Rust 测试、TUI feature 测试、前端测试与构建、fmt、Clippy、安全扫描和 diff 检查均应在相关改动后执行；具体命令见本文“验证命令”章节。
 
 ## 用户设置持久化

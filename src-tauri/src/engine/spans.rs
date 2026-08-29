@@ -163,20 +163,21 @@ pub(crate) fn scan_semantic_spans(text: &str) -> Vec<TextSpan> {
 /// 这是结构保护的统一扫描入口，结果会被生产 span-aware 管线消费；保护结构
 /// 当前仍通过内部 placeholder 承载，规则编辑逐步迁移到 TextEdit。
 pub(crate) fn scan_structure_spans(text: &str) -> Vec<TextSpan> {
+    let lines = line_ranges(text);
     let mut spans = Vec::new();
-    scan_front_matter_spans(text, &mut spans);
-    scan_fenced_code_spans(text, &mut spans);
+    scan_front_matter_spans(&lines, &mut spans);
+    scan_fenced_code_spans(&lines, &mut spans);
     scan_html_comment_spans(text, &mut spans);
-    scan_reference_definition_spans(text, &mut spans);
-    scan_indented_code_spans(text, &mut spans);
-    scan_table_separator_spans(text, &mut spans);
+    scan_reference_definition_spans(&lines, &mut spans);
+    scan_indented_code_spans(&lines, &mut spans);
+    scan_table_separator_spans(&lines, &mut spans);
     scan_inline_code_spans(text, &mut spans);
     scan_markdown_link_spans(text, &mut spans);
     scan_url_email_spans(text, &mut spans);
-    scan_html_block_spans(text, &mut spans);
+    scan_html_block_spans(&lines, &mut spans);
     scan_inline_html_spans(text, &mut spans);
     scan_reference_link_spans(text, &mut spans);
-    scan_hard_break_spans(text, &mut spans);
+    scan_hard_break_spans(&lines, &mut spans);
     scan_latex_delimited_spans(text, &mut spans);
     scan_latex_command_spans(text, &mut spans);
     scan_dollar_math_spans(text, &mut spans);
@@ -200,8 +201,7 @@ fn line_ranges(text: &str) -> Vec<(usize, usize, &str)> {
     ranges
 }
 
-fn scan_front_matter_spans(text: &str, output: &mut Vec<TextSpan>) {
-    let lines = line_ranges(text);
+fn scan_front_matter_spans(lines: &[(usize, usize, &str)], output: &mut Vec<TextSpan>) {
     let Some(&(start, _, first)) = lines.first() else {
         return;
     };
@@ -220,8 +220,7 @@ fn scan_front_matter_spans(text: &str, output: &mut Vec<TextSpan>) {
     }
 }
 
-fn scan_fenced_code_spans(text: &str, output: &mut Vec<TextSpan>) {
-    let lines = line_ranges(text);
+fn scan_fenced_code_spans(lines: &[(usize, usize, &str)], output: &mut Vec<TextSpan>) {
     let mut index = 0;
     while index < lines.len() {
         let (start, _, line) = lines[index];
@@ -284,8 +283,8 @@ fn scan_html_comment_spans(text: &str, output: &mut Vec<TextSpan>) {
     }
 }
 
-fn scan_reference_definition_spans(text: &str, output: &mut Vec<TextSpan>) {
-    for (start, end, line) in line_ranges(text) {
+fn scan_reference_definition_spans(lines: &[(usize, usize, &str)], output: &mut Vec<TextSpan>) {
+    for &(start, end, line) in lines {
         let trimmed = line.trim_start_matches([' ', '\t']);
         let indent = line.len() - trimmed.len();
         if indent > 3 || !trimmed.starts_with('[') {
@@ -306,8 +305,7 @@ fn scan_reference_definition_spans(text: &str, output: &mut Vec<TextSpan>) {
     }
 }
 
-fn scan_indented_code_spans(text: &str, output: &mut Vec<TextSpan>) {
-    let lines = line_ranges(text);
+fn scan_indented_code_spans(lines: &[(usize, usize, &str)], output: &mut Vec<TextSpan>) {
     let mut index = 0;
     while index < lines.len() {
         if !(lines[index].2.starts_with("    ") || lines[index].2.starts_with('\t')) {
@@ -329,8 +327,8 @@ fn scan_indented_code_spans(text: &str, output: &mut Vec<TextSpan>) {
     }
 }
 
-fn scan_table_separator_spans(text: &str, output: &mut Vec<TextSpan>) {
-    for (start, end, line) in line_ranges(text) {
+fn scan_table_separator_spans(lines: &[(usize, usize, &str)], output: &mut Vec<TextSpan>) {
+    for &(start, end, line) in lines {
         let trimmed = line.trim();
         if !trimmed.contains('|') {
             continue;
@@ -485,21 +483,21 @@ fn balanced_end(bytes: &[u8], start: usize, open: u8, close: u8) -> Option<usize
     None
 }
 
-fn scan_html_block_spans(text: &str, output: &mut Vec<TextSpan>) {
-    let lines: Vec<&str> = text.split('\n').collect();
+fn scan_html_block_spans(lines: &[(usize, usize, &str)], output: &mut Vec<TextSpan>) {
     let mut offset = 0usize;
     let mut line = 0usize;
     while line < lines.len() {
-        let trimmed = lines[line].trim_start_matches([' ', '\t']);
-        let indent = lines[line].len() - trimmed.len();
+        let current_line = lines[line].2;
+        let trimmed = current_line.trim_start_matches([' ', '\t']);
+        let indent = current_line.len() - trimmed.len();
         let Some(tag) = html_block_tag(trimmed, indent) else {
-            offset += lines[line].len() + usize::from(line + 1 < lines.len());
+            offset += current_line.len() + usize::from(line + 1 < lines.len());
             line += 1;
             continue;
         };
         let closing = format!("</{tag}");
         let mut end_line = None;
-        for (candidate, content) in lines.iter().enumerate().skip(line) {
+        for (candidate, &(_, _, content)) in lines.iter().enumerate().skip(line) {
             if contains_ascii_case_insensitive(content, &closing) {
                 end_line = Some(candidate);
                 break;
@@ -509,19 +507,19 @@ fn scan_html_block_spans(text: &str, output: &mut Vec<TextSpan>) {
             // 终点必须包含起始行到结束行之间的所有中间行与换行符，
             // 否则块内正文会漏出 span 被当作可编辑文本格式化。
             let mut end = offset;
-            for content in lines.iter().take(end_line).skip(line) {
+            for &(_, _, content) in lines.iter().take(end_line).skip(line) {
                 end += content.len() + 1;
             }
-            end += lines[end_line].len();
+            end += lines[end_line].2.len();
             if let Some(span) = TextSpan::new(offset, end, SpanKind::HtmlBlock) {
                 output.push(span);
             }
-            for content in lines.iter().take(end_line + 1).skip(line) {
+            for &(_, _, content) in lines.iter().take(end_line + 1).skip(line) {
                 offset += content.len() + 1;
             }
             line = end_line + 1;
         } else {
-            offset += lines[line].len() + usize::from(line + 1 < lines.len());
+            offset += current_line.len() + usize::from(line + 1 < lines.len());
             line += 1;
         }
     }
@@ -598,8 +596,8 @@ fn scan_reference_link_spans(text: &str, output: &mut Vec<TextSpan>) {
 }
 
 /// 扫描 Markdown 硬换行标记：行尾两个以上空格或行尾反斜杠。
-fn scan_hard_break_spans(text: &str, output: &mut Vec<TextSpan>) {
-    for (start, end, line) in line_ranges(text) {
+fn scan_hard_break_spans(lines: &[(usize, usize, &str)], output: &mut Vec<TextSpan>) {
+    for &(start, end, line) in lines {
         let trailing_spaces = line.len() - line.trim_end_matches(' ').len();
         let length = if trailing_spaces >= 2 {
             trailing_spaces

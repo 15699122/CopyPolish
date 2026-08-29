@@ -89,7 +89,7 @@
 - [x] 重跑并扩展 `benchmarks/unicode-baseline.md` 的 10 KB/100 KB/1 MB 五类语料（TextEdit 迁移与热点修复后的完整实测数据已记录）；
 - [x] 记录耗时与正则热点：热点为词级规则每片段重新编译正则（已修复：预编译缓存）、占位符巨型拼接正则（已修复：单一通用模式 + 成员集合）；峰值 RSS 已测量：release 基准进程约 63.0 MiB，详见 `benchmarks/unicode-baseline.md`；
 - [x] 可控处理正则上限：占位符正则编译超限 panic 已消除（1 MB 文本不再 `CompiledTooBig`）；GUI 侧已有请求序号守卫，格式化错误只呈现错误状态、不会用旧结果覆盖新输出；
-- [ ] 优化 1 MB 级 Markdown/LaTeX 密集语料（当前约 1.32 s，已较此前约 4.9 s 改善），优先减少结构扫描重复遍历和重复字符串分配：反引号、平衡括号链接、HTML block（与 §5 合并推进）；
+- [ ] 优化 1 MB 级 Markdown/LaTeX 密集语料（当前约 1.32–1.38 s，已较此前约 4.9 s 改善）：已完成结构扫描共享单次行范围表，减少块级扫描器重复分割文本；端到端尚未证明稳定加速，后续继续减少重复字符串分配和嵌套结构扫描（与 §5 合并推进）；
 - [ ] 评估 worker thread、可取消任务和动态 debounce；
 - [x] 基于实测数据建立数量级性能回归门禁：`scripts/check_performance.py` 对 1 MB 五类语料执行宽松阈值检查（普通语料 500 ms、Markdown/LaTeX 5 s），并接入 GitHub Actions；详细基准仍保留在 `benchmarks/unicode-baseline.md`。
 
