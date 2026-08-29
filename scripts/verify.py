@@ -9,6 +9,7 @@
     python3 scripts/verify.py --profile frontend
     python3 scripts/verify.py --profile checks
     python3 scripts/verify.py --profile security
+    python3 scripts/verify.py --profile audit
     python3 scripts/verify.py --profile ci
     python3 scripts/verify.py --profile release --tag vX.Y.Z[-suffix]
 """
@@ -16,6 +17,7 @@
 from __future__ import annotations
 
 import argparse
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -106,12 +108,33 @@ def security_commands() -> list[tuple[str, list[str]]]:
     return [("Secret and SOPS checks", command(sys.executable, "scripts/security_check.py"))]
 
 
+def audit_commands() -> list[tuple[str, list[str]]]:
+    return [
+        (
+            "Rust dependency audit",
+            command("cargo", "audit", "--file", str(ROOT / "src-tauri" / "Cargo.lock")),
+        ),
+        (
+            "Frontend dependency audit",
+            command(
+                "npm",
+                "audit",
+                "--prefix",
+                str(ROOT / "frontend"),
+                "--audit-level=high",
+                "--omit=optional",
+                "--ignore-scripts",
+            ),
+        ),
+    ]
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--profile",
         required=True,
-        choices=("rust", "frontend", "checks", "security", "ci", "release"),
+        choices=("rust", "frontend", "checks", "security", "audit", "ci", "release"),
         help="要执行的验证集合",
     )
     parser.add_argument("--tag", help="发布 tag；仅 release profile 使用")
@@ -131,6 +154,12 @@ def main() -> int:
         groups = [checks_commands()]
     elif args.profile == "security":
         groups = [security_commands()]
+    elif args.profile == "audit":
+        missing = [tool for tool in ("cargo", "cargo-audit", "npm") if shutil.which(tool) is None]
+        if missing:
+            print("依赖审计工具缺失：" + ", ".join(missing) + "。请先安装工具后重试。", file=sys.stderr)
+            return 1
+        groups = [audit_commands()]
     elif args.profile == "ci":
         groups = [rust_commands(), frontend_commands(), checks_commands()]
     else:
