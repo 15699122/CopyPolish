@@ -130,7 +130,7 @@ frontend/src/hooks/
 - [x] 生成并维护第三方许可证清单：`docs/licenses.md` 由 `scripts/generate_licenses.py` 从 Cargo metadata 和前端已安装依赖元数据生成，当前覆盖 432 个 Rust 依赖条目和 164 个 npm 依赖条目，缺失许可证字段为 0；
 - [x] 收紧 `tauri.conf.json` CSP，并完成 Linux 桌面 smoke：生产环境仅允许本地资源与 Tauri IPC，开发环境单独允许 Vite localhost/HMR；前端测试 33 项、前端构建和 Tauri `--no-bundle --ci` release 构建均通过；
 - [x] 建立 Node/Rust/Tauri/React 升级 Runbook：`docs/upgrade-runbook.md` 覆盖版本固定、lockfile、Dependabot、分层升级、统一验收、Tauri smoke 和回滚流程；
-- [ ] 定期验证 `scripts/security_check.py --require-sops` 和令牌轮换流程。
+- [x] 建立并验证 `scripts/security_check.py --require-sops` 和令牌轮换流程：真实仓库强制 SOPS 校验及 `load_tokens.sh` 变量存在性检查通过，临时 SOPS 文件轮换演练验证新值覆盖旧值；真实 GitLab token 的平台侧吊销仍需维护者按 `docs/secrets-management.md` 执行并留存审计记录；
 
 ## 12. P2：TUI 后续工作
 

@@ -39,6 +39,19 @@ sops --set '["GITLAB_PAT"] "new"' secrets/tokens.env   # 非交互地设置字�
 sops -e -i secrets/tokens.env      # 切勿提交明文状态
 ```
 
+## 令牌轮换 Runbook
+
+真实令牌轮换分为“平台侧吊销/创建”和“仓库侧重新加密”两步，不能只修改 SOPS 文件而跳过平台操作：
+
+1. 在 GitLab 中吊销即将替换的 PAT 或 Deploy Token，并创建满足最小权限和有效期要求的新 token；
+2. 使用 `sops secrets/tokens.env` 或 `sops --set` 更新对应字段，保存后确认文件仍为 SOPS 加密格式；
+3. 不把新 token 放入命令参数、终端输出、临时明文文件、remote URL 或日志；
+4. 运行 `python3 scripts/security_check.py --require-sops`，只确认结构和加密状态，不解密输出值；
+5. 使用 `source scripts/load_tokens.sh` 后仅检查变量非空，完成需要凭据的最小范围操作；
+6. 轮换完成后再次确认旧 token 在 GitLab 平台已吊销，并保留本次提交的锁定范围和验证记录。
+
+仓库无法验证 GitLab 平台上的 token 是否已吊销，因此“真实 token 已吊销”必须由维护者在 GitLab 审计记录中确认；本地脚本不得将平台状态推断为成功。
+
 ## 注入当前 shell 会话
 
 ```bash
