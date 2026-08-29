@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { AppTitleBar } from "@/components/AppTitleBar";
 import { SettingsDialog } from "@/components/SettingsDialog";
 import { useFormatter } from "@/hooks/useFormatter";
+import { useSettingsActions } from "@/hooks/useSettingsActions";
 import { useSettingsPersistence } from "@/hooks/useSettingsPersistence";
 import { useSettingsLoader } from "@/hooks/useSettingsLoader";
 import { useShortcuts } from "@/hooks/useShortcuts";
@@ -22,15 +23,9 @@ import {
   getEnabledDefaults,
   getRules,
   isTauri,
-  DEFAULT_SHORTCUT_SETTINGS,
   type Rule,
   type RuleSelection,
-  type FontFamily,
-  type EditorFontSize,
   type SettingsLoadNotice,
-  type ShortcutAction,
-  type ThemeMode,
-  type UiScale,
   type UserSettings,
 } from "@/lib/tauri";
 
@@ -124,6 +119,37 @@ export default function App() {
     debounceMs: NORMAL_DEBOUNCE_MS,
   });
 
+  const {
+    onToggleRule,
+    onSetAll,
+    onResetDefaults,
+    onThemeChange,
+    onFollowSystemChange,
+    onFontChange,
+    onResetFont,
+    onEditorFontSizeChange,
+    onUiScaleChange,
+    onShortcutsEnabledChange,
+    onSaveShortcutBinding,
+    onResetShortcuts,
+  } = useSettingsActions({
+    rules,
+    enabled,
+    enabledSet,
+    input,
+    setEnabled,
+    setTheme,
+    setFont,
+    setEditorFontSize,
+    setUiScale,
+    setShortcutsEnabled,
+    setShortcutBindings,
+    shortcutsEnabled,
+    shortcutBindings,
+    scheduleFormat,
+    persistSettings,
+  });
+
   // 初始化：加载规则与默认启用集；随后由 useSettingsLoader 恢复用户设置。
   useEffect(() => {
     let cancelled = false;
@@ -169,32 +195,6 @@ export default function App() {
     schedulePersist({ enabled, last_input: value });
   }
 
-  function onToggleRule(key: string) {
-    let next: string[];
-    if (enabledSet.has(key)) {
-      next = enabled.filter((k) => k !== key);
-    } else {
-      next = [...enabled, key];
-    }
-    setEnabled(next);
-    scheduleFormat(input, next, 0); // 规则变更后立即重排
-    persistSettings({ enabled: next, last_input: input });
-  }
-
-  function onSetAll(on: boolean) {
-    const next = on ? rules.map((r) => r.key) : [];
-    setEnabled(next);
-    scheduleFormat(input, next, 0);
-    persistSettings({ enabled: next, last_input: input });
-  }
-
-  function onResetDefaults() {
-    const next = rules.filter((r) => r.default).map((r) => r.key);
-    setEnabled(next);
-    scheduleFormat(input, next, 0);
-    persistSettings({ enabled: next, last_input: input });
-  }
-
   async function onCopy() {
     if (!output) return;
     try {
@@ -222,62 +222,6 @@ export default function App() {
     setCleared(true);
     window.setTimeout(() => setCleared(false), 1200);
     persistSettings({ enabled, last_input: "" });
-  }
-
-  function onThemeChange(nextTheme: ThemeMode) {
-    setTheme(nextTheme);
-    persistSettings({ theme: nextTheme });
-  }
-
-  // “跟随系统”勾选框：勾选时进入 system 模式；取消勾选时
-  // 立即按当前系统偏好（prefers-color-scheme）切换到显式的 light/dark。
-  function onFollowSystemChange(follow: boolean) {
-    if (follow) {
-      onThemeChange("system");
-      return;
-    }
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    onThemeChange(prefersDark ? "dark" : "light");
-  }
-
-  function onFontChange(nextFont: FontFamily) {
-    setFont(nextFont);
-    persistSettings({ font: nextFont });
-  }
-
-  function onResetFont() {
-    onFontChange("system");
-  }
-
-  function onEditorFontSizeChange(nextSize: EditorFontSize) {
-    setEditorFontSize(nextSize);
-    persistSettings({ editor_font_size: nextSize });
-  }
-
-  function onUiScaleChange(nextScale: UiScale) {
-    setUiScale(nextScale);
-    persistSettings({ ui_scale: nextScale });
-  }
-
-  function onShortcutsEnabledChange(nextEnabled: boolean) {
-    setShortcutsEnabled(nextEnabled);
-    persistSettings({ shortcuts: { enabled: nextEnabled, bindings: shortcutBindings } });
-  }
-
-  function onSaveShortcutBinding(action: ShortcutAction, binding: string) {
-    const nextBindings = { ...shortcutBindings, [action]: binding };
-    setShortcutBindings(nextBindings);
-    persistSettings({ shortcuts: { enabled: shortcutsEnabled, bindings: nextBindings } });
-  }
-
-  function onResetShortcuts() {
-    const next = {
-      enabled: DEFAULT_SHORTCUT_SETTINGS.enabled,
-      bindings: { ...DEFAULT_SHORTCUT_SETTINGS.bindings },
-    };
-    setShortcutsEnabled(next.enabled);
-    setShortcutBindings(next.bindings);
-    persistSettings({ shortcuts: next });
   }
 
   function settingsNoticeText(notice: SettingsLoadNotice): string {
