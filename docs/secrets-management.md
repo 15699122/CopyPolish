@@ -60,13 +60,6 @@ source scripts/load_tokens.sh
 test -n "${GITLAB_PAT:-}"
 ```
 
-## 添加其它接收者（如同事 / CI）
-
-```bash
-sops add-keys --age age1...,age1other... secrets/tokens.env
-sops --rotate-keys secrets/tokens.env   # 重新配钥（移除已删除的接收者）
-```
-
 ## 应急恢复（用备份私钥恢复）
 
 若主私钥 `~/.config/sops/age/keys.txt` 丢失，可用备份私钥恢复解密能力。备份私钥就是一个普通的 `keys.txt` 文件，其存放位置由你自行决定（此处简记为 `/path/to/backup/key`），校验方式与普通密钥副本相同。
@@ -96,13 +89,20 @@ SOPS_AGE_KEY="$(grep -E '^AGE-SECRET-KEY' /path/to/backup/key)" \
 
 备份是单一、自包含的文件——无需其它任何状态即可解锁加密密钥。
 
+### 离线恢复演练记录
+
+已完成一次离线恢复演练。演练在临时目录中生成临时 age 密钥和测试用 SOPS 文件，随后仅通过临时
+`SOPS_AGE_KEY` 指向备份私钥，执行 `sops --decrypt` 并验证导出的测试变量数量；没有读取、打印或写回
+生产 `secrets/tokens.env`，临时私钥和明文文件均在演练结束后删除。结果确认：备份私钥是自包含的，
+不依赖原 `HOME` 或其它本机状态即可恢复解密能力。
+
 ## 安全约定
 
 切勿提交令牌、凭据、明文密钥副本（`.plain`、`.dec`）、会话、日志、缓存或数据库。切勿提交 age **私钥**（`~/.config/sops/age/keys.txt`）。
 
 - 只提交 SOPS 加密后的 `secrets/tokens.env`，不提交临时明文副本；
 - 不将 PAT 写入 remote URL、命令参数、脚本、Release Notes 或构建日志；
-- 令牌轮换后必须重新加密文件、验证新私钥/接收者可解密，并及时吊销旧令牌；
+- 令牌轮换后必须重新加密文件、验证当前私钥可解密，并及时吊销旧令牌；
 - `CI_JOB_TOKEN` 只由 GitLab CI 在 job 内提供，不复制到长期凭据文件；
 - 个人配置仓库仅保留迁移历史，不再作为本项目凭据的运行时来源。
 

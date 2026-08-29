@@ -21,16 +21,15 @@
 - 长文本基准曾暴露 `fancy-regex` 回溯上限；当前已建立数量级性能门禁，但复杂 Markdown/LaTeX 语料仍需继续优化；
 - 真实 Tauri 桌面链路缺少自动化 E2E；
 - 前端核心状态仍集中在 `App.tsx`，异步格式化和设置保存逻辑可维护性有限；
-- 安全恢复演练、第二 age 接收者和依赖审计尚未闭环。
+- 依赖审计和真实 Tauri 桌面链路仍未闭环。
 
 ## 3. P0：工程门禁与发布可靠性
 
 - [x] 增加常规开发分支 CI：GitHub Actions（`.github/workflows/ci.yml`）在 push/PR 到 `dev`/`master` 时运行 Rust fmt/clippy/test（默认 + TUI feature 与 TUI 构建）、前端 vitest/build、secret/SOPS 安全扫描和 Markdown 链接检查；`git diff --check` 在本地 Runbook 中保留。**当前阻塞**：GitHub Actions 账户存在计费阻塞，workflow 会在启动后立即失败（与本仓库内容无关）；需在账户设置中解除计费阻塞后 CI 才能真正生效，在此之前本地 Runbook 仍是权威门禁；
 - [x] Dependabot 的 GitHub Actions 生态配置已随常规 CI 恢复而重新生效；
 - [x] 增加 Markdown 相对链接检查：`scripts/check_md_links.py`（已在 CI `checks` job 中启用），阻止删除或移动文档后留下死链；
-- [x] 将发布前检查封装为单一入口 `scripts/verify.py`，按 `rust` / `frontend` / `checks` / `security` / `release` profile 供本地、GitHub Actions、GitLab job 和发布脚本复用；
-- [ ] 完成一次离线 age 私钥恢复演练并记录结果；
-- [ ] 增加第二 age 接收者，整理令牌的最小权限、轮换和吊销清单。
+- [x] 将发布前检查封装为单一入口 `scripts/verify.py`，按 `rust` / `frontend` / `checks` / `security` / `audit` / `release` profile 供本地、GitHub Actions、GitLab job 和发布脚本复用；
+- [x] 完成一次离线 age 私钥恢复演练并记录结果；演练使用临时测试密钥和临时 `SOPS_AGE_KEY`，未读取或输出生产令牌，验证了备份私钥可独立恢复 SOPS 解密能力；
 
 验收：在干净 clone 中可以用文档命令完成全部检查，失败信息能定位到具体门禁。
 
@@ -127,7 +126,7 @@ frontend/src/hooks/
 
 ## 11. P2：依赖与安全维护
 
-- [ ] 确定 `cargo audit`、`npm audit` 的高危阻断策略；
+- [x] 确定 `cargo audit`、`npm audit` 的高危阻断策略：`critical` / `high` 级别阻断发布，`moderate` / `low` 仅记录并进入维护队列；统一入口为 `python3 scripts/verify.py --profile audit`，工具缺失或审计源不可访问时失败，不将未完成审计误报为通过；
 - [ ] 生成并维护第三方许可证清单；
 - [ ] 评估收紧 `tauri.conf.json` CSP，并完成桌面 smoke；
 - [ ] 建立 Node/Rust/Tauri/React 升级 Runbook；

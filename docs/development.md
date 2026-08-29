@@ -276,7 +276,7 @@ copypolish-tui --help   # 完整参数说明
 
 ## 验证命令
 
-统一验证入口为 `scripts/verify.py`。它集中维护 Rust、TUI、前端、性能、安全和 Markdown 检查命令；CI 与本地发布脚本只选择 profile，不再复制门禁命令。`checks` 适用于轻量环境，`security` 只运行凭据/SOPS 检查，`rust` 包含 Rust/TUI/性能门禁，`release` 另外先校验指定 tag 版本。
+统一验证入口为 `scripts/verify.py`。它集中维护 Rust、TUI、前端、性能、安全、依赖审计和 Markdown 检查命令；CI 与本地发布脚本只选择 profile，不再复制门禁命令。`checks` 适用于轻量环境，`security` 只运行凭据/SOPS 检查，`audit` 执行 Cargo/npm 依赖审计，`rust` 包含 Rust/TUI/性能门禁，`release` 另外先校验指定 tag 版本。
 
 开发提交前建议至少运行：
 
@@ -284,6 +284,7 @@ copypolish-tui --help   # 完整参数说明
 python3 scripts/verify.py --profile rust
 python3 scripts/verify.py --profile frontend
 python3 scripts/verify.py --profile checks
+python3 scripts/verify.py --profile audit
 ```
 
 与 CI 对齐的快速验证命令：
@@ -314,6 +315,11 @@ python3 scripts/verify.py --profile ci
 `scripts/security_check.py` 实现：扫描 Git 跟踪文件中的高置信度明文凭据模式，并验证
 `secrets/tokens.env` 的 SOPS/age 元数据；`.gitlab-ci.yml` 的 `security:check` 在 tag
 构建前执行 `security` profile。该门禁不解密凭据。
+
+依赖审计由 `python3 scripts/verify.py --profile audit` 统一执行。Cargo 使用 `cargo audit` 检查
+`src-tauri/Cargo.lock`，npm 使用 `npm audit --audit-level=high --omit=optional --ignore-scripts`
+检查 `frontend/package-lock.json`。`high` / `critical` 漏洞阻断，`moderate` / `low` 记录后进入
+维护队列；审计工具缺失或审计源不可访问时命令失败，不得将未完成的审计误报为通过。
 
 常规分支 CI 由 `.github/workflows/ci.yml` 承担（push/PR 到 `dev`/`master`），各 job
 分别调用 `verify.py` 的 `rust`、`frontend`、`checks` profile；GitLab tag pipeline
