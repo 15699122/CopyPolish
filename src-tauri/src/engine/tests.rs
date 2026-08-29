@@ -954,3 +954,21 @@ fn final_cleanup_is_idempotent_via_production_path() {
     .unwrap();
     assert_eq!(once, twice);
 }
+
+/// 大量行内占位符压力回归：占位符边缘补空格不得按占位符拼接正则，
+/// 否则 1 MB 级文本会超过正则编译大小上限并 panic（roadmap §8）。
+#[test]
+fn inline_placeholder_spacing_scales_to_thousands_of_placeholders() {
+    let count = 20_000;
+    let mut placeholders: Vec<(String, String)> = Vec::with_capacity(count);
+    let mut text = String::new();
+    for index in 0..count {
+        let ph = protection::placeholder(index);
+        text.push_str("中文");
+        text.push_str(&ph);
+        placeholders.push((ph, "`x`".to_string()));
+    }
+    let output = protection::space_around_inline_placeholders(&text, &placeholders);
+    // 每个占位符前补一个空格；除末尾占位符（后无字符）外，后侧也各补一个空格。
+    assert_eq!(output.len(), text.len() + 2 * count - 1);
+}

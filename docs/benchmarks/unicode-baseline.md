@@ -46,3 +46,29 @@ fancy-regex 回溯上限（`Max limit for backtracking count exceeded`），
 多次采样互有高低），无系统性退化；二进制体积增量 < 0.5%。
 ERR 为引擎既有 fancy-regex 回溯上限，与本次改动无关。
 
+
+## TextEdit 迁移与热点修复后（dev，release profile，Rust 1.98.0）
+
+对应 roadmap §8：TextEdit 应用层落地并修复两处热点/上限问题后重跑。修复内容：
+
+1. `space_around_inline_placeholders` / `space_around_math_placeholders` 改为单一通用
+   占位符模式 + 成员集合判断：此前按占位符 escape 后用 `|` 拼接正则，1 MB 文本
+   会导致正则编译超过大小上限并 panic（`CompiledTooBig`）。
+2. `proper_nouns` / `no_abbr` 的词级替换改为预编译正则缓存：TextEdit 迁移后规则按
+   可编辑片段高频调用，每片段每词重新编译正则曾使 10 KB Markdown 语料达 ~1.1 s
+   （缓存后 ~2.6 ms，约 400 倍改善）。
+3. `apply_editable_rules` span 扫描从每规则一次降为单次，规则在片段内串行执行。
+
+测量环境同上（WSL2，5 轮平均）：
+
+| 语料 | 10 KB | 100 KB | 1 MB |
+| --- | --- | --- | --- |
+| 纯中文 | ~1.4 ms | ~12.6 ms | ~127 ms |
+| 中英数混排 | ~1.4 ms | ~14.8 ms | ~160 ms（此前 ERR） |
+| Markdown/LaTeX 密集 | ~2.6 ms | ~70 ms | ~4.9 s（此前 ERR，仍待优化） |
+| emoji/组合字符密集 | ~1.6 ms | ~12.8 ms | ~138 ms |
+| CJK Ext-B 密集 | ~1.2 ms | ~13.4 ms | ~140 ms |
+
+结论：常规语料 1 MB 内均在 ~160 ms 以内；不再出现 ERR 或 panic。剩余热点是
+1 MB 级 Markdown/LaTeX 密集语料（~4.9 s），对应 roadmap §5 的 fancy-regex 替换
+（反引号、平衡括号链接、HTML block 状态机化），以及错误路径的优雅降级。

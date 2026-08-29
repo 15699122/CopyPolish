@@ -747,22 +747,47 @@ pub fn is_placeholder_line(line: &str) -> bool {
 }
 
 /// 为行内保护片段补边界空格；整行/跨行保护块保持原样。
+///
+/// 使用单一通用占位符模式配合成员集合判断，而不是把每个占位符 escape 后
+/// 用 `|` 拼接：大量占位符（如 1 MB 文本）会让拼接出的正则超过编译大小
+/// 上限并直接 panic（roadmap §8「正则上限可控」）。
 pub fn space_around_inline_placeholders(text: &str, placeholders: &[(String, String)]) -> String {
-    let inline: Vec<String> = placeholders
+    static BEFORE: OnceLock<Regex> = OnceLock::new();
+    static AFTER: OnceLock<Regex> = OnceLock::new();
+    let inline: std::collections::HashSet<&str> = placeholders
         .iter()
         .filter(|(_, val)| {
             !val.contains('\n') && !is_escaped_markdown_value(val) && !is_hard_break_value(val)
         })
-        .map(|(ph, _)| regex::escape(ph))
+        .map(|(ph, _)| ph.as_str())
         .collect();
     if inline.is_empty() {
         return text.to_string();
     }
-    let alt = inline.join("|");
-    let before_re = Regex::new(&format!(r"(\S)({alt})")).unwrap();
-    let after_re = Regex::new(&format!(r#"({alt})([^\s，。；：！？、）】》」』])"#)).unwrap();
-    let before = before_re.replace_all(text, "$1 $2");
-    after_re.replace_all(&before, "$1 $2").to_string()
+    let before = BEFORE
+        .get_or_init(|| Regex::new(&format!(r"(\S)({PH_START}CCWPROTECTED\d+\u{{E001}})")).unwrap())
+        .replace_all(text, |caps: &regex::Captures| {
+            if inline.contains(&caps[2]) {
+                format!("{} {}", &caps[1], &caps[2])
+            } else {
+                caps[0].to_string()
+            }
+        });
+    AFTER
+        .get_or_init(|| {
+            Regex::new(&format!(
+                r#"({PH_START}CCWPROTECTED\d+\u{{E001}})([^\s，。；：！？、）】》」』])"#
+            ))
+            .unwrap()
+        })
+        .replace_all(&before, |caps: &regex::Captures| {
+            if inline.contains(&caps[1]) {
+                format!("{} {}", &caps[1], &caps[2])
+            } else {
+                caps[0].to_string()
+            }
+        })
+        .to_string()
 }
 
 fn is_escaped_markdown_value(value: &str) -> bool {
@@ -791,20 +816,42 @@ pub fn restore_escaped_markdown_adjacency(text: &str, placeholders: &[(String, S
 /// 数学 token 不复用普通 Markdown 占位符的 `\S` 边界规则，避免在全角标点后
 /// 产生额外空格；表达式内部和标点邻接关系均保持原样。
 pub fn space_around_math_placeholders(text: &str, placeholders: &[(String, String)]) -> String {
-    let inline: Vec<String> = placeholders
+    static BEFORE: OnceLock<Regex> = OnceLock::new();
+    static AFTER: OnceLock<Regex> = OnceLock::new();
+    // 与 space_around_inline_placeholders 相同：单一通用模式 + 成员集合，
+    // 避免按占位符拼接正则导致编译超限 panic。
+    let inline: std::collections::HashSet<&str> = placeholders
         .iter()
         .filter(|(_, val)| !val.contains('\n'))
-        .map(|(ph, _)| regex::escape(ph))
+        .map(|(ph, _)| ph.as_str())
         .collect();
     if inline.is_empty() {
         return text.to_string();
     }
-    let alt = inline.join("|");
     let cjk = r"[\u{3400}-\u{4dbf}\u{4e00}-\u{9fff}\u{f900}-\u{faff}]";
-    let before_re = Regex::new(&format!(r"({cjk})({alt})")).unwrap();
-    let after_re = Regex::new(&format!(r"({alt})({cjk})")).unwrap();
-    let before = before_re.replace_all(text, "$1 $2");
-    after_re.replace_all(&before, "$1 $2").to_string()
+    let before = BEFORE
+        .get_or_init(|| {
+            Regex::new(&format!(r"({cjk})({PH_START}CCWPROTECTED\d+\u{{E001}})")).unwrap()
+        })
+        .replace_all(text, |caps: &regex::Captures| {
+            if inline.contains(&caps[2]) {
+                format!("{} {}", &caps[1], &caps[2])
+            } else {
+                caps[0].to_string()
+            }
+        });
+    AFTER
+        .get_or_init(|| {
+            Regex::new(&format!(r"({PH_START}CCWPROTECTED\d+\u{{E001}})({cjk})")).unwrap()
+        })
+        .replace_all(&before, |caps: &regex::Captures| {
+            if inline.contains(&caps[1]) {
+                format!("{} {}", &caps[1], &caps[2])
+            } else {
+                caps[0].to_string()
+            }
+        })
+        .to_string()
 }
 
 /// 按创建顺序的逆序还原占位符，保证嵌套内容（如链接中的 URL）正确还原。

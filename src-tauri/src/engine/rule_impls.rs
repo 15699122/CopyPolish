@@ -49,12 +49,17 @@ fn collapse_repeated_runs(text: &str, set: &[char]) -> String {
     out
 }
 
-fn replace_word_case_insensitive(text: &str, wrong: &str, right: &str) -> String {
-    let pattern = Regex::new(&format!(
+fn word_pattern(wrong: &str) -> Regex {
+    Regex::new(&format!(
         r"(?i)(^|[^A-Za-z0-9]){}([^A-Za-z0-9]|$)",
         regex::escape(wrong)
     ))
-    .unwrap();
+    .unwrap()
+}
+
+/// 词级替换必须使用预编译缓存：TextEdit 迁移后规则按可编辑片段高频调用，
+/// 每次重新编译正则会成为数量级热点（roadmap §8 性能基线实测）。
+fn replace_word_case_insensitive(text: &str, pattern: &Regex, right: &str) -> String {
     pattern
         .replace_all(text, |caps: &Captures| {
             format!("{}{}{}", &caps[1], right, &caps[2])
@@ -412,22 +417,48 @@ const ABBR_MAP: &[(&str, &str)] = &[
 
 /// naming.proper-nouns：专有名词使用正确的大小写。
 pub fn proper_nouns(text: &str) -> String {
+    static RULES: OnceLock<Vec<(Regex, &'static str)>> = OnceLock::new();
+    let rules = RULES.get_or_init(|| {
+        PROPER_NOUNS
+            .iter()
+            .map(|(wrong, right)| (word_pattern(wrong), *right))
+            .collect()
+    });
     let mut out = text.to_string();
-    for (wrong, right) in PROPER_NOUNS {
-        out = replace_word_case_insensitive(&out, wrong, right);
+    for (pattern, right) in rules {
+        out = replace_word_case_insensitive(&out, pattern, right);
     }
     out
 }
 
 /// naming.expand-abbreviations：不要使用不地道的缩写。
 pub fn no_abbr(text: &str) -> String {
+    static RULES: OnceLock<Vec<(Regex, &'static str)>> = OnceLock::new();
+    static CJK_COLLAPSE: OnceLock<Vec<(Regex, &'static str)>> = OnceLock::new();
+    let rules = RULES.get_or_init(|| {
+        ABBR_MAP
+            .iter()
+            .map(|(wrong, right)| (word_pattern(wrong), *right))
+            .collect()
+    });
+    let collapses = CJK_COLLAPSE.get_or_init(|| {
+        ABBR_MAP
+            .iter()
+            .filter(|(_, right)| contains_cjk(right))
+            .map(|(_, right)| {
+                (
+                    Regex::new(&format!(r"\s+{}", regex::escape(right))).unwrap(),
+                    *right,
+                )
+            })
+            .collect()
+    });
     let mut out = text.to_string();
-    for (wrong, right) in ABBR_MAP {
-        out = replace_word_case_insensitive(&out, wrong, right);
-        if contains_cjk(right) {
-            let pattern = Regex::new(&format!(r"\s+{}", regex::escape(right))).unwrap();
-            out = pattern.replace_all(&out, *right).to_string();
-        }
+    for (pattern, right) in rules {
+        out = replace_word_case_insensitive(&out, pattern, right);
+    }
+    for (pattern, right) in collapses {
+        out = pattern.replace_all(&out, *right).to_string();
     }
     out
 }
