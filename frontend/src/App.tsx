@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, Copy, Eraser } from "lucide-react";
-import { getCurrentWindow } from "@tauri-apps/api/window";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -16,6 +15,7 @@ import { SettingsDialog } from "@/components/SettingsDialog";
 import { useFormatter } from "@/hooks/useFormatter";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import { useThemeAndFont } from "@/hooks/useThemeAndFont";
+import { useWindowControls } from "@/hooks/useWindowControls";
 import {
   getAppVersion,
   getEnabledDefaults,
@@ -239,6 +239,10 @@ export default function App() {
 
   useThemeAndFont({ theme, font, editorFontSize, uiScale });
 
+  const { onMinimize, onToggleMaximize, onClose, onHeaderMouseDown } = useWindowControls({
+    onError: reportError,
+  });
+
   function onInputChange(value: string) {
     setInput(value);
     scheduleFormat(value, enabled);
@@ -298,28 +302,6 @@ export default function App() {
     setCleared(true);
     window.setTimeout(() => setCleared(false), 1200);
     persistSettings(enabled, "");
-  }
-
-  async function runWindowAction(action: () => Promise<void>) {
-    if (!isTauri()) return;
-
-    try {
-      await action();
-    } catch (error) {
-      reportError(`窗口操作失败：${String(error)}`);
-    }
-  }
-
-  function onMinimize() {
-    return runWindowAction(() => getCurrentWindow().minimize());
-  }
-
-  function onToggleMaximize() {
-    return runWindowAction(() => getCurrentWindow().toggleMaximize());
-  }
-
-  function onClose() {
-    return runWindowAction(() => getCurrentWindow().close());
   }
 
   function onThemeChange(nextTheme: ThemeMode) {
@@ -456,20 +438,6 @@ export default function App() {
       backup_settings_corrupt: "备份文件损坏，当前 rules.yaml 仍可正常使用。",
     };
     return messages[notice];
-  }
-
-  // 标题栏按下时显式启动窗口拖动；控制按钮区域已在容器上 stopPropagation。
-  function onHeaderMouseDown(event: MouseEvent<HTMLElement>) {
-    if (!isTauri()) return;
-    if (event.button !== 0) return;
-    if (event.detail > 1) return;
-
-    const target = event.target as HTMLElement;
-    if (target.closest("[data-window-control]")) return;
-
-    void getCurrentWindow().startDragging().catch((error) => {
-      reportError(`窗口拖动失败：${String(error)}`);
-    });
   }
 
 return (
