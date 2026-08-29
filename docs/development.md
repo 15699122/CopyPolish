@@ -152,6 +152,7 @@ Tauri 2 迁移与 Rust 主引擎已完成，当前关键状态如下：
 - 前端行为：启动恢复；规则开关/全选/恢复默认/清空/主题/字体即时保存，输入防抖（160ms）保存；浏览器预览回退 localStorage。字体使用固定跨平台预设与 CSS fallback 栈，不尝试枚举系统已安装字体。
 - 主题与显示令牌：`frontend/src/hooks/useThemeAndFont.ts` 统一负责 `data-theme`、`--app-font-family`、`--editor-font-size`、`--editor-line-height` 和 `--app-ui-scale` 的 DOM 应用；system 主题监听 `prefers-color-scheme` 变化，显式主题不注册媒体监听。该 hook 不负责状态持久化。
 - 窗口控制：`frontend/src/hooks/useWindowControls.ts` 统一负责无边框窗口的最小化、最大化/还原、关闭、标题栏拖动和错误转换；浏览器预览模式下保持 no-op，Tauri 模式继续通过 `getCurrentWindow()` 调用窗口 API，标题栏控制区与非左键/双击事件不会触发拖动。
+- **Lucide 图标类型声明**：`lucide-react` 当前版本在部分 TypeScript/编辑器解析环境中可能错误落到 `dist/cjs/lucide-react.js`，从而报告缺少声明文件。`frontend/src/lucide-react.d.ts` 为项目实际使用的图标提供带 `SVGProps<SVGSVGElement>` 的明确类型声明；不要使用空的 `declare module "lucide-react"`，以免把图标组件整体降级为 `any`。运行时仍使用包的标准 `lucide-react` 导入路径。
 - 设置保存生命周期：`frontend/src/hooks/useSettingsPersistence.ts` 负责保存状态（`idle` / `saving` / `saved` / `error`）、错误展示、160ms 输入防抖和卸载时清理定时器；hook 只接收当前设置快照与 patch，不负责设置初始化或恢复，避免改变 App 原有的异步恢复时序。
 - 设置加载与恢复：`frontend/src/hooks/useSettingsLoader.ts` 负责一次性读取用户设置、设置文件路径、应用版本、恢复提醒和显示/快捷键状态，并过滤后端返回的未知规则 key；`App.tsx` 先按既有顺序加载规则与默认启用集，再显式调用 `loadSettings`，保持恢复输入后的排版调度时序不变。
 - 设置动作：`frontend/src/hooks/useSettingsActions.ts` 负责规则开关/全选/恢复默认、主题/字体/字号/缩放和快捷键配置动作；每个动作先更新对应状态，再触发必要的立即排版与设置 patch 保存，`App.tsx` 只注入状态、setter 和生命周期回调。
@@ -194,6 +195,15 @@ export PATH="$HOME/.cargo/bin:$PATH"
 nvm use
 npm ci --prefix frontend
 ```
+
+前端类型检查与生产构建：
+
+```bash
+npx tsc -p frontend/tsconfig.app.json --noEmit
+npm run build --prefix frontend
+```
+
+如果编辑器仍提示 `lucide-react` 缺少声明文件，先确认 `/frontend/src/lucide-react.d.ts` 已被 TypeScript 项目包含，再重启 TypeScript 语言服务；不要安装不存在的 `@types/lucide-react` 或添加无类型的模块声明。
 
 依赖更新不在普通 CI 构建中自动执行；Dependabot 会为 npm、Cargo 和 GitHub Actions 依赖创建独立 PR，合并前必须通过 CI。完整升级、兼容性验证和回滚流程见 [upgrade-runbook.md](upgrade-runbook.md)。
 
