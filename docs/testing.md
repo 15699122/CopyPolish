@@ -21,7 +21,7 @@
 | 单位和数学 | 有限词典、复合单位、数学边界 | 按真实语料扩展词典 |
 | 设置 | 缺失、损坏、备份、旧 JSON 迁移 | 真实桌面重启和不可写目录 |
 | 前端状态 | 防抖、竞态、错误、主题、字体、快捷键 | 真实 IPC E2E |
-| TUI | CLI、编辑器、规则、OSC 52、共享设置 | Windows Terminal、Linux、SSH smoke |
+| TUI | CLI、编辑器、规则、OSC 52、共享设置；Linux 非交互 smoke（stdin/文件、恒等规则、错误码、未知 key、约 1.29 MB 输入） | Windows Terminal 与 Linux 真实 raw-mode 交互 smoke |
 | 发布脚本 | 主要由脚本和人工 Runbook 覆盖 | 参数和失败路径自动化测试 |
 
 ## 3. 常用命令
@@ -64,6 +64,10 @@ npm test --prefix frontend -- --run
 ## 6. 桌面验证缺口
 
 当前 mock 测试不能完全替代真实桌面验证。后续 E2E 应覆盖启动、真实 Rust command、规则选择、快捷键、设置保存/恢复、损坏设置和不可写目录，并使用临时设置目录。Linux 与 Windows 至少各保留一条稳定链路。
+
+TUI 非交互链路已在 Linux 上完成自动化 smoke：验证 `--help`、stdin 格式化、文件输入/输出、
+`--rules none` 恒等、未知规则 key 警告、缺失文件返回码 1，以及约 1.29 MB 输入的恒等处理。
+这些检查不替代真实 raw-mode 终端、Windows Terminal 或 Tauri GUI E2E。
 
 ## 7. 测试完成标准
 
