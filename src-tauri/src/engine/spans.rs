@@ -548,23 +548,31 @@ fn scan_markdown_link_spans(text: &str, output: &mut Vec<TextSpan>) {
 fn scan_url_email_spans(text: &str, output: &mut Vec<TextSpan>) {
     use std::sync::OnceLock;
 
-    static PATTERNS: OnceLock<(regex::Regex, regex::Regex)> = OnceLock::new();
-    let (url, email) = PATTERNS.get_or_init(|| {
-        (
-            regex::Regex::new(r#"(?i)https?://[^\s，。；：！？、（）《》【】「」“”‘’…—<>'"]+"#)
-                .expect("invalid URL span regex"),
-            regex::Regex::new(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}")
-                .expect("invalid email span regex"),
+    static PATTERN: OnceLock<regex::Regex> = OnceLock::new();
+    let pattern = PATTERN.get_or_init(|| {
+        regex::Regex::new(
+            r#"(?i:https?://[^\s，。；：！？、（）《》【】「」“”‘’…—<>'"]+)|[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}"#,
         )
+        .expect("invalid URL/email span regex")
     });
 
-    for matched in url.find_iter(text) {
-        if let Some(span) = TextSpan::new(matched.start(), matched.end(), SpanKind::Url) {
-            output.push(span);
-        }
-    }
-    for matched in email.find_iter(text) {
-        if let Some(span) = TextSpan::new(matched.start(), matched.end(), SpanKind::Email) {
+    for matched in pattern.find_iter(text) {
+        let kind = if matched
+            .as_str()
+            .as_bytes()
+            .get(..7)
+            .is_some_and(|prefix| prefix.eq_ignore_ascii_case(b"http://"))
+            || matched
+                .as_str()
+                .as_bytes()
+                .get(..8)
+                .is_some_and(|prefix| prefix.eq_ignore_ascii_case(b"https://"))
+        {
+            SpanKind::Url
+        } else {
+            SpanKind::Email
+        };
+        if let Some(span) = TextSpan::new(matched.start(), matched.end(), kind) {
             output.push(span);
         }
     }
@@ -1013,6 +1021,25 @@ mod tests {
         assert_eq!(
             &text[spans[0].start..spans[0].end],
             "`10μm $x$ https://example.com`"
+        );
+    }
+
+    #[test]
+    fn url_email_scanner_merges_matches_without_changing_kinds() {
+        let text = "访问HTTPS://example.com，联系 alice@example.com，另见https://example.org。";
+        let spans = scan_structure_spans(text);
+        let matches: Vec<(SpanKind, &str)> = spans
+            .into_iter()
+            .filter(|span| matches!(span.kind, SpanKind::Url | SpanKind::Email))
+            .map(|span| (span.kind, &text[span.start..span.end]))
+            .collect();
+        assert_eq!(
+            matches,
+            vec![
+                (SpanKind::Url, "HTTPS://example.com"),
+                (SpanKind::Email, "alice@example.com"),
+                (SpanKind::Url, "https://example.org")
+            ]
         );
     }
 
