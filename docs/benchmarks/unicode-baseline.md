@@ -196,6 +196,23 @@ front matter、fenced code、引用定义、缩进代码、表格分隔行、HTM
 仍是 `editable_rules` 内嵌的全文 span 扫描、`scan_structure` 中的多扫描器遍历，以及
 `naming.proper-nouns` / `spacing.cjk-latin` / `spacing.cjk-number`。
 
+## Span 仲裁优化（dev，2026-08-30）
+
+`arbitrate_spans` 原先对每个按优先级排序的候选遍历全部已接受 span，形成 O(n²)
+重叠检查。由于 accepted 集合始终互不重叠，优化后按 `start` 维护有序列表，候选
+插入时只检查相邻前驱和后继；候选排序仍保持“优先级 > 起点 > 同起点长度”的既有语义。
+
+### 优化后观测
+
+| 指标 | 优化前观测 | 优化后观测 |
+| --- | ---: | ---: |
+| Markdown/LaTeX 总耗时（1 MB，5 轮平均） | ~805 ms | ~283 ms |
+| `scan_structure`（1 MB，单轮拆分） | ~183 ms | ~7 ms |
+| `inline_code`（1 MB，单轮） | ~1.6 ms | ~1.6 ms |
+
+总耗时仍受机器抖动影响；确定性收益是 span 重叠仲裁从全量比较降为相邻区间比较。
+现有 span 优先级、嵌套结构和 129 个 Rust/TUI 测试保持通过。
+
 ### 优化方向（按预期收益排序）
 
 1. **结构扫描器整合**：减少独立全文遍历次数（如单遍字符扫描合并相邻扫描器、
