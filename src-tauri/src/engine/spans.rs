@@ -874,17 +874,12 @@ fn scan_dollar_math_spans(text: &str, output: &mut Vec<TextSpan>) {
     let bytes = text.as_bytes();
     let mut cursor = 0;
     while cursor < bytes.len() {
-        let Some(relative) = text[cursor..].find('$') else {
+        let Some(start) = find_next_unescaped_dollar(bytes, cursor, false) else {
             break;
         };
-        let start = cursor + relative;
         // 与生产保护层保持一致：只有奇数个连续反斜杠才会转义美元符号；
         // 偶数反斜杠后的 `$x$` 仍是数学 span，但其边界不能按普通 inline
         // placeholder 处理，否则会在反斜杠与公式之间插入额外空格。
-        if escaped_dollar(bytes, start) {
-            cursor = start + 1;
-            continue;
-        }
         let display = bytes.get(start + 1) == Some(&b'$');
         let delimiter_len = if display { 2 } else { 1 };
         if !display
@@ -898,19 +893,14 @@ fn scan_dollar_math_spans(text: &str, output: &mut Vec<TextSpan>) {
         let content_start = start + delimiter_len;
         let mut search = content_start;
         let mut close = None;
-        while search < bytes.len() {
-            if bytes[search] == b'$'
-                && !escaped_dollar(bytes, search)
-                && (delimiter_len == 2 || bytes.get(search + 1) != Some(&b'$'))
-                && (delimiter_len == 1 || bytes.get(search + 1) == Some(&b'$'))
+        while let Some(candidate) = find_next_unescaped_dollar(bytes, search, !display) {
+            if (delimiter_len == 2 || bytes.get(candidate + 1) != Some(&b'$'))
+                && (delimiter_len == 1 || bytes.get(candidate + 1) == Some(&b'$'))
             {
-                close = Some(search + delimiter_len);
+                close = Some(candidate + delimiter_len);
                 break;
             }
-            if !display && bytes[search] == b'\n' {
-                break;
-            }
-            search += 1;
+            search = candidate + 1;
         }
         if let Some(end) = close {
             if let Some(span) = TextSpan::new(start, end, SpanKind::LatexMath) {
@@ -923,22 +913,30 @@ fn scan_dollar_math_spans(text: &str, output: &mut Vec<TextSpan>) {
     }
 }
 
-fn escaped_dollar(bytes: &[u8], index: usize) -> bool {
-    let mut count = 0usize;
-    let mut cursor = index;
-    while cursor > 0 && bytes[cursor - 1] == b'\\' {
-        count += 1;
-        cursor -= 1;
+fn find_next_unescaped_dollar(bytes: &[u8], start: usize, stop_at_newline: bool) -> Option<usize> {
+    let mut slash_count = 0usize;
+    for (index, &byte) in bytes.iter().enumerate().skip(start) {
+        if byte == b'\\' {
+            slash_count += 1;
+            continue;
+        }
+        if stop_at_newline && byte == b'\n' {
+            return None;
+        }
+        if byte == b'$' && slash_count.is_multiple_of(2) {
+            return Some(index);
+        }
+        slash_count = 0;
     }
-    count % 2 == 1
+    None
 }
 
 #[cfg(test)]
 mod tests {
     use super::{
-        arbitrate_spans, contains_ascii_case_insensitive, scan_all_spans,
-        scan_editable_protection_spans, scan_semantic_spans, scan_structure_spans, SpanKind,
-        SpanPriority, TextSpan,
+        arbitrate_spans, contains_ascii_case_insensitive, find_next_unescaped_dollar,
+        scan_all_spans, scan_editable_protection_spans, scan_semantic_spans, scan_structure_spans,
+        SpanKind, SpanPriority, TextSpan,
     };
 
     #[test]
@@ -1074,6 +1072,26 @@ mod tests {
             "</article"
         ));
         assert!(!contains_ascii_case_insensitive("abc", ""));
+    }
+
+    #[test]
+    fn dollar_candidate_scan_handles_odd_and_even_backslash_runs() {
+        let text = r"前\$a 偶数\\$x$ 后";
+        let bytes = text.as_bytes();
+        let first = find_next_unescaped_dollar(bytes, 0, false).expect("even dollar exists");
+        assert_eq!(&text[first..first + 1], "$");
+        let second =
+            find_next_unescaped_dollar(bytes, first + 1, false).expect("closing dollar exists");
+        assert_eq!(&text[second..second + 1], "$");
+        assert!(find_next_unescaped_dollar(bytes, second + 1, false).is_none());
+    }
+
+    #[test]
+    fn single_dollar_candidate_scan_stops_at_newline() {
+        let text = "前$未闭合\n后$有效$";
+        let bytes = text.as_bytes();
+        let start = find_next_unescaped_dollar(bytes, 0, false).expect("opening dollar exists");
+        assert!(find_next_unescaped_dollar(bytes, start + 1, true).is_none());
     }
 
     #[test]
