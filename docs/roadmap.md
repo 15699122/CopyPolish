@@ -67,7 +67,7 @@
 - [x] 抽离清空输入、取消排版、清理错误、空输入持久化和完成反馈定时器，新增 `frontend/src/hooks/useClearFeedback.ts`；
 - [x] 按主题、显示、规则、快捷键和状态 Footer 拆分设置界面，新增 `frontend/src/components/settings/`（`ThemeSection`、`DisplaySection`、`ShortcutsSection`、`RulesSection`、`SettingsFooter`），`SettingsDialog.tsx` 退化为编排容器；
 - [ ] 清理 React 19 快捷键测试中的异步 `act` warning：已定位为“打开设置”快捷键触发的 Radix Dialog 异步挂载在 React 19 + jsdom 下的环境告警，非产品缺陷；简单包装 `act` 会产生更多 warning，需在真实 Tauri E2E（P0.2）链路中验证和闭环；
-- [ ] 保持 hook 不直接调用 `invoke`，继续使用 `lib/tauri.ts`。
+- [x] 保持 hook 不直接调用 `invoke`，继续使用 `lib/tauri.ts`（已核对：`invoke` 仅存在于 `lib/tauri.ts`；`useWindowControls` 使用 Tauri 窗口 API，不属于 IPC 后端命令）。
 
 ## P2：TUI 产品化和持续维护
 
