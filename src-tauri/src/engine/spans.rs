@@ -184,6 +184,60 @@ pub(crate) fn scan_structure_spans(text: &str) -> Vec<TextSpan> {
     arbitrate_spans(spans)
 }
 
+/// 逐扫描器计时（`profile-stages` feature，仅本地性能分析用）。
+/// 返回 (仲裁后的 span, 各扫描器耗时)。
+#[cfg(feature = "profile-stages")]
+pub(crate) fn scan_structure_spans_timings(
+    text: &str,
+) -> (Vec<TextSpan>, Vec<(&'static str, std::time::Duration)>) {
+    use std::time::Instant;
+
+    let lines = line_ranges(text);
+    let mut spans = Vec::new();
+    let mut timings = Vec::new();
+
+    macro_rules! timed {
+        ($name:literal, $call:expr) => {{
+            let t = Instant::now();
+            $call;
+            timings.push(($name, t.elapsed()));
+        }};
+    }
+
+    timed!("front_matter", scan_front_matter_spans(&lines, &mut spans));
+    timed!("fenced_code", scan_fenced_code_spans(&lines, &mut spans));
+    timed!("html_comment", scan_html_comment_spans(text, &mut spans));
+    timed!(
+        "reference_definition",
+        scan_reference_definition_spans(&lines, &mut spans)
+    );
+    timed!(
+        "indented_code",
+        scan_indented_code_spans(&lines, &mut spans)
+    );
+    timed!(
+        "table_separator",
+        scan_table_separator_spans(&lines, &mut spans)
+    );
+    timed!("inline_code", scan_inline_code_spans(text, &mut spans));
+    timed!("markdown_link", scan_markdown_link_spans(text, &mut spans));
+    timed!("url_email", scan_url_email_spans(text, &mut spans));
+    timed!("html_block", scan_html_block_spans(&lines, &mut spans));
+    timed!("inline_html", scan_inline_html_spans(text, &mut spans));
+    timed!(
+        "reference_link",
+        scan_reference_link_spans(text, &mut spans)
+    );
+    timed!("hard_break", scan_hard_break_spans(&lines, &mut spans));
+    timed!(
+        "latex_delimited",
+        scan_latex_delimited_spans(text, &mut spans)
+    );
+    timed!("latex_command", scan_latex_command_spans(text, &mut spans));
+    timed!("dollar_math", scan_dollar_math_spans(text, &mut spans));
+    (arbitrate_spans(spans), timings)
+}
+
 pub(crate) fn scan_all_spans(text: &str) -> Vec<TextSpan> {
     let mut spans = scan_semantic_spans(text);
     spans.extend(scan_structure_spans(text));
@@ -353,52 +407,69 @@ fn scan_table_separator_spans(lines: &[(usize, usize, &str)], output: &mut Vec<T
 }
 
 fn scan_inline_code_spans(text: &str, output: &mut Vec<TextSpan>) {
+    use std::collections::HashMap;
+
     let bytes = text.as_bytes();
-    let mut cursor = 0;
-    while cursor < bytes.len() {
-        let Some(relative) = text[cursor..].find('`') else {
-            break;
-        };
-        let start = cursor + relative;
-        let mut delimiter_end = start;
-        while delimiter_end < bytes.len() && bytes[delimiter_end] == b'`' {
-            delimiter_end += 1;
-        }
-        let delimiter_len = delimiter_end - start;
-        let mut search = delimiter_end;
-        let line_end = text[delimiter_end..]
+    let mut line_start = 0usize;
+    while line_start < bytes.len() {
+        let line_end = text[line_start..]
             .find('\n')
-            .map(|offset| delimiter_end + offset)
+            .map(|offset| line_start + offset)
             .unwrap_or(bytes.len());
-        let mut close = None;
-        while search < line_end {
-            let Some(relative_tick) = text[search..line_end].find('`') else {
-                break;
-            };
-            let candidate = search + relative_tick;
-            let mut candidate_end = candidate;
-            while candidate_end < line_end && bytes[candidate_end] == b'`' {
-                candidate_end += 1;
+
+        // 每个反引号连续段只扫描一次；同长度 delimiter 的候选位置按出现顺序
+        // 建索引，后续用二分查找代替“从当前位置重新 find 到行尾”的嵌套扫描。
+        let mut runs: Vec<(usize, usize, usize)> = Vec::new();
+        let mut cursor = line_start;
+        while cursor < line_end {
+            if bytes[cursor] != b'`' {
+                cursor += 1;
+                continue;
             }
-            if candidate_end - candidate == delimiter_len {
-                close = Some(candidate_end);
-                break;
+            let run_start = cursor;
+            while cursor < line_end && bytes[cursor] == b'`' {
+                cursor += 1;
             }
-            search = candidate_end;
+            runs.push((run_start, cursor, cursor - run_start));
         }
-        if let Some(end) = close {
-            if let Some(span) = TextSpan::new(start, end, SpanKind::InlineCode) {
-                output.push(span);
-            }
-            cursor = end;
-        } else {
-            // 与 protection.rs 保持一致：未闭合 delimiter 只保护反引号串本身，
-            // 后续正文仍可参与格式化；边界空格由 inline placeholder 逻辑处理。
-            if let Some(span) = TextSpan::new(start, delimiter_end, SpanKind::InlineCode) {
-                output.push(span);
-            }
-            cursor = delimiter_end;
+
+        let mut by_length: HashMap<usize, Vec<(usize, usize)>> = HashMap::new();
+        for &(run_start, run_end, length) in &runs {
+            by_length
+                .entry(length)
+                .or_default()
+                .push((run_start, run_end));
         }
+
+        let mut run_index = 0usize;
+        while run_index < runs.len() {
+            let (start, delimiter_end, delimiter_len) = runs[run_index];
+            let candidates = &by_length[&delimiter_len];
+            let next_candidate =
+                candidates.partition_point(|&(candidate, _)| candidate < delimiter_end);
+            let close = candidates.get(next_candidate).map(|&(_, run_end)| run_end);
+
+            if let Some(end) = close {
+                if let Some(span) = TextSpan::new(start, end, SpanKind::InlineCode) {
+                    output.push(span);
+                }
+                // 跳过已消费的闭合 run；下一次从闭合 run 之后继续，
+                // 与原实现设置 cursor = end 的行为一致。
+                run_index = runs.partition_point(|&(_, run_end, _)| run_end <= end);
+            } else {
+                // 与 protection.rs 保持一致：未闭合 delimiter 只保护反引号串本身，
+                // 后续正文仍可参与格式化；边界空格由 inline placeholder 逻辑处理。
+                if let Some(span) = TextSpan::new(start, delimiter_end, SpanKind::InlineCode) {
+                    output.push(span);
+                }
+                run_index += 1;
+            }
+        }
+
+        if line_end == bytes.len() {
+            break;
+        }
+        line_start = line_end + 1;
     }
 }
 
@@ -956,5 +1027,19 @@ mod tests {
             .find(|span| span.kind == SpanKind::InlineCode)
             .expect("unclosed delimiter span must be detected");
         assert_eq!(&text[span.start..span.end], "```");
+    }
+
+    #[test]
+    fn inline_code_scanner_preserves_multiple_and_mixed_delimiters() {
+        let text = "前`一`中``二 ` 内容``后```三```再````四````尾";
+        let spans: Vec<&str> = scan_structure_spans(text)
+            .into_iter()
+            .filter(|span| span.kind == SpanKind::InlineCode)
+            .map(|span| &text[span.start..span.end])
+            .collect();
+        assert_eq!(
+            spans,
+            vec!["`一`", "``二 ` 内容``", "```三```", "````四````"]
+        );
     }
 }

@@ -177,6 +177,25 @@ front matter、fenced code、引用定义、缩进代码、表格分隔行、HTM
 3. 规则侧前三热点为 `naming.proper-nouns`（56 ms）、`spacing.cjk-latin`（26 ms）、
    `spacing.cjk-number`（24 ms），合计约占规则耗时的 78%。
 
+## Inline-code 扫描优化（dev，2026-08-30）
+
+`scan_inline_code_spans` 原先对每个开定界符在当前行剩余文本上反复执行 `find('`')`，
+在长行和大量反引号场景下形成嵌套扫描。实现改为按行一次性收集连续反引号 run，
+按 run 长度建立索引，再用 `partition_point` 查找下一个同长度闭合 run；未闭合 delimiter
+仍只保护反引号串本身，多个和混合长度 delimiter 的行为由回归测试冻结。
+
+### 优化前后观测
+
+| 指标 | 优化前 | 优化后 |
+| --- | ---: | ---: |
+| `inline_code` 扫描器（1 MB，单轮） | ~279 ms | ~1.6 ms |
+| Markdown/LaTeX 总耗时（1 MB，5 轮平均） | ~1489 ms | ~805 ms |
+
+总耗时受构建机与运行时抖动影响，不能将全部差值归因于单一扫描器；确定性收益是
+`inline_code` 扫描器从嵌套查找降为按行线性收集 + 同长度候选定位。当前剩余主要热点
+仍是 `editable_rules` 内嵌的全文 span 扫描、`scan_structure` 中的多扫描器遍历，以及
+`naming.proper-nouns` / `spacing.cjk-latin` / `spacing.cjk-number`。
+
 ### 优化方向（按预期收益排序）
 
 1. **结构扫描器整合**：减少独立全文遍历次数（如单遍字符扫描合并相邻扫描器、

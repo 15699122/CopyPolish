@@ -7,7 +7,8 @@
 // docs/benchmarks/unicode-baseline.md 的分阶段剖析章节。
 
 use chinese_copywriting_formatter_lib::engine::{
-    format_text_stage_timings, per_rule_timings, scan_split_timings, FormatRequest, RuleSelection,
+    format_text_stage_timings, per_rule_timings, scan_split_timings, scan_structure_timings,
+    FormatRequest, RuleSelection,
 };
 use std::time::Instant;
 
@@ -87,6 +88,16 @@ fn main() {
     println!("\n=== 二级归因：扫描拆分（1 轮） ===");
     for (name, d) in scan_split_timings(&md_text) {
         println!("  {name:<22} {:9.2} ms", d.as_secs_f64() * 1000.0);
+    }
+
+    println!("\n=== 三级归因：结构扫描器逐个计时（1 轮，降序） ===");
+    let mut scanners: Vec<(&'static str, f64)> = scan_structure_timings(&md_text)
+        .into_iter()
+        .map(|(name, d)| (name, d.as_secs_f64() * 1000.0))
+        .collect();
+    scanners.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+    for (name, ms) in &scanners {
+        println!("  {name:<22} {ms:9.2} ms");
     }
 
     println!("\n=== 二级归因：逐规则计时（整篇应用，1 轮） ===");
