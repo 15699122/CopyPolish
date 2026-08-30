@@ -115,3 +115,29 @@ front matter、fenced code、引用定义、缩进代码、表格分隔行、HTM
 结果与此前约 1312 ms 的单次观测处于同一抖动范围内，暂不宣称端到端稳定加速；
 确定性收益是减少结构扫描阶段的重复行表构造。Markdown/LaTeX 仍是主要热点，后续
 继续评估重复字符串分配和嵌套结构扫描。
+
+## 分阶段剖析基线（dev，2026-08-30）
+
+为 placeholder 重构（决策 2）提供归因依据。工具：
+`cargo run --release --features profile-stages --example profile_stages`
+（`pipeline.rs::format_text_stage_timings`，`RuleSelection::All`，1 MB 语料，5 轮平均）：
+
+| 阶段 | Markdown/LaTeX 密集 | 占比 | 纯中文（对照） | 占比 |
+| --- | ---: | ---: | ---: | ---: |
+| normalize | 0.15 ms | 0.0% | 0.12 ms | 0.1% |
+| editable_rules | 710.02 ms | 47.7% | 97.80 ms | 66.3% |
+| scan_spans | 598.28 ms | 40.2% | 10.30 ms | 7.0% |
+| protect | 97.87 ms | 6.6% | 0.08 ms | 0.1% |
+| protected_rules | 68.96 ms | 4.6% | 38.93 ms | 26.4% |
+| placeholder_spacing | 4.66 ms | 0.3% | 0.06 ms | 0.0% |
+| restore | 8.11 ms | 0.5% | 0.13 ms | 0.1% |
+| **TOTAL** | **1489.25 ms** | | **147.44 ms** | |
+
+结论：
+
+1. Markdown/LaTeX 语料的热点是 `editable_rules`（约 48%）与 `scan_spans`（约 40%），
+   合计近 88%；两者都与占位符机制无关；
+2. 占位符全链路（protect + placeholder_spacing + restore）合计约 110 ms（约 7.4%），
+   **placeholder 重构的性能收益有限**，其价值主要在语义清晰度与边界健壮性，
+   优先级应低于 `editable_rules` 与 `scan_spans` 的优化；
+3. `editable_rules` 在两种语料下都是单一最大阶段（纯中文下占 66%），是首选优化目标。

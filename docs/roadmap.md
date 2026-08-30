@@ -49,15 +49,15 @@
 
 - [x] 单位词典扩展策略（决策 3）：以互联网真实语料（技术博客/文档中英文混排段落）驱动候选收集，逐项评估误判/漏判后再入词典；
 - [ ] 继续按真实语料扩展有限单位词典；
-- [ ] Placeholder 重构（决策 2）：已批准启动，先补 P1.2 profiling 基线，再逐步把保护层迁移到纯 span/TextEdit 路线，保持保护优先级和现有输出兼容；
+- [ ] Placeholder 重构（决策 2）：已批准启动；profiling 基线（2026-08-30）显示占位符全链路仅约 7.4% 耗时，重构性能收益有限，优先级低于 `editable_rules`/`scan_spans` 优化；重构本身以语义清晰度与边界健壮性为目标逐步推进，保持保护优先级和现有输出兼容；
 - [x] 补充复杂 Markdown、HTML、LaTeX 和化学式真实样本（括号化学式分组、LaTeX 命令/定界/未闭合定界符、HTML 属性、中文混排均已入 fixture；未闭合 `\(`/`\[` 开定界符不再被标点规则改写为全角）；
 - [ ] 对未闭合结构继续坚持“宁漏格式化，不破坏结构”；
 - [ ] 所有新规则遵守注册表、fixture、幂等性、迁移和文档准入流程。
 
 ### P1.2 性能和响应性
 
-- [ ] 对 `spans.rs`、`protection.rs` 和 `edit_plan.rs` 做 profiling；
-- [ ] 优化 1 MB Markdown/LaTeX 密集语料中的字符串分配和嵌套扫描；
+- [x] 对 `spans.rs`、`protection.rs` 和 `edit_plan.rs` 做 profiling：新增 `profile-stages` feature 与 `examples/profile_stages.rs` 分阶段计时基线（1 MB，5 轮平均）：Markdown/LaTeX 语料 `editable_rules` 47.7% + `scan_spans` 40.2% 为主热点，占位符全链路仅约 7.4%；数据见 `docs/benchmarks/unicode-baseline.md`；
+- [ ] 优化 1 MB Markdown/LaTeX 密集语料中的字符串分配和嵌套扫描（优先 `editable_rules` 与 `scan_spans`，均与占位符机制无关）；
 - [ ] 评估 worker thread、可取消任务和动态 debounce；
 - [ ] 保持 `scripts/check_performance.py` 的数量级回归门禁；
 - [ ] 长文本优化必须同时补充性能数据和行为回归。
