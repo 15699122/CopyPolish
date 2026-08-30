@@ -12,6 +12,8 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 [features]
 default = []
 tui = ["dep:ratatui", "dep:crossterm", "dep:unicode-width"]
+# 仅用于本地性能剖析（examples/profile_stages.rs），不影响生产构建与测试门禁。
+profile-stages = []
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
@@ -37,3 +39,8 @@ unicode-width = { version = "0.2", optional = true }
 name = "copypolish-tui"
 path = "src/bin/copypolish-tui.rs"
 required-features = ["tui"]
+
+# 分阶段剖析示例依赖 profile-stages feature 暴露的计时入口。
+[[example]]
+name = "profile_stages"
+required-features = ["profile-stages"]

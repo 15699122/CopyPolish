@@ -144,3 +144,56 @@ fn format_text_impl(req: &FormatRequest) -> Result<String, String> {
     let restored = restore(&formatted, &protected_spans.all);
     Ok(restore_newlines(&restored, newline))
 }
+
+/// 分阶段计时剖析入口（`--features profile-stages`，仅本地性能分析用）。
+///
+/// 按 `format_text_impl` 的实际执行顺序返回各阶段耗时（纳秒）：
+/// 1. `normalize`：换行归一化；
+/// 2. `editable_rules`：标点/名词规范化（原文 TextEdit）；
+/// 3. `scan_spans`：Markdown/URL/LaTeX/化学式等 span 扫描；
+/// 4. `protect`：不透明 span 转占位符；
+/// 5. `protected_rules`：结构边界/文本边界/清理规则（受保护文本 TextEdit）；
+/// 6. `placeholder_spacing`：占位符边缘补空格；
+/// 7. `restore`：还原占位符与换行符。
+///
+/// 输出与 `format_text` 完全一致；本函数不参与任何测试门禁与打包。
+#[cfg(feature = "profile-stages")]
+pub fn format_text_stage_timings(
+    req: &FormatRequest,
+) -> Result<Vec<(&'static str, std::time::Duration)>, String> {
+    use std::time::Instant;
+
+    let mut timings: Vec<(&'static str, std::time::Duration)> = Vec::with_capacity(7);
+
+    let t = Instant::now();
+    let (text, newline) = normalize_newlines(&req.text);
+    timings.push(("normalize", t.elapsed()));
+
+    let t = Instant::now();
+    let text = apply_editable_rules(&text, &req.selection)?;
+    timings.push(("editable_rules", t.elapsed()));
+
+    let t = Instant::now();
+    let spans = scan_all_spans(&text);
+    timings.push(("scan_spans", t.elapsed()));
+
+    let t = Instant::now();
+    let protected_spans = protect_spans(&text, &spans);
+    timings.push(("protect", t.elapsed()));
+
+    let t = Instant::now();
+    let formatted = apply_protected_text_rules(&protected_spans.text, &req.selection)?;
+    timings.push(("protected_rules", t.elapsed()));
+
+    let t = Instant::now();
+    let formatted = space_around_inline_placeholders(&formatted, &protected_spans.inline);
+    let formatted = space_around_math_placeholders(&formatted, &protected_spans.math);
+    timings.push(("placeholder_spacing", t.elapsed()));
+
+    let t = Instant::now();
+    let restored = restore(&formatted, &protected_spans.all);
+    let _ = restore_newlines(&restored, newline);
+    timings.push(("restore", t.elapsed()));
+
+    Ok(timings)
+}
