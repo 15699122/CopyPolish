@@ -15,6 +15,7 @@
 9. [benchmarks/unicode-baseline.md](benchmarks/unicode-baseline.md)：Unicode 边界层的历史性能与体积基线；
 10. [benchmarks/icu4x-spike.md](benchmarks/icu4x-spike.md)：ICU4X 技术验证及不引入结论；
 11. [development/gitlab-mcp.md](development/gitlab-mcp.md)：可选的 GitLab Build Service 诊断工具说明。
+12. [e2e-development.md](e2e-development.md)：真实 Tauri GUI E2E 的开发步骤、环境边界和验收标准。
 
 ## 文档职责
 
@@ -29,6 +30,7 @@
 | `release/manual-release.md` | 与版本无关、可重复执行的发布步骤 | 发布流程、脚本或资产变化时 |
 | `secrets-management.md` | 加密凭据、接收者、轮换与灾难恢复 | 凭据结构或恢复流程变化时 |
 | `upgrade-runbook.md` | Node、Rust、Tauri、React/Vite 升级、验收和回滚 | 工具链、依赖或升级门禁变化时 |
+| `e2e-development.md` | 真实 Tauri GUI E2E 的实现、测试和跨平台环境边界 | E2E 工程或桌面验证流程变化时 |
 | `benchmarks/icu4x-spike.md` | ICU4X 技术验证、成本数据和依赖决策 | Spike 重新测量或依赖决策变化时 |
 | `benchmarks/` | 可重复测量的方法和结果 | 基准重新测量时 |
 | `archive/` | 已完成版本的计划、验收和历史决策 | 只追加必要更正，不承载新任务 |
