@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useRef } from "react";
 import { Check, Copy, Eraser } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -22,13 +22,13 @@ import { useSettingsDialog } from "@/hooks/useSettingsDialog";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import { useThemeAndFont } from "@/hooks/useThemeAndFont";
 import { useWindowControls } from "@/hooks/useWindowControls";
+import { useRuleCatalog } from "@/hooks/useRuleCatalog";
+import { useClearFeedback } from "@/hooks/useClearFeedback";
+import { isSettingsLoadNoticeAlert, settingsLoadNoticeText } from "@/lib/settingsLoadNotices";
 import {
-  getEnabledDefaults,
-  getRules,
   isTauri,
   type Rule,
   type RuleSelection,
-  type SettingsLoadNotice,
   type UserSettings,
 } from "@/lib/tauri";
 
@@ -43,18 +43,18 @@ const SLOW_FORMAT_THRESHOLD_MS = 100;
  * 排版由 Tauri 侧 Rust 引擎完成；浏览器预览时走内置演示回退实现。
  */
 export default function App() {
-  const [rules, setRules] = useState<Rule[]>([]);
-  const [cleared, setCleared] = useState(false);
   const { open: settingsOpen, triggerRef: settingsTriggerRef, onOpenChange: onSettingsOpenChange } =
     useSettingsDialog();
 
+  const rulesRef = useRef<Rule[]>([]);
   const getRuleSelection = useMemo(
     () => (selected: string[]): RuleSelection => {
+      const ruleCount = rulesRef.current.length;
       if (selected.length === 0) return { mode: "none" };
-      if (selected.length === rules.length && rules.length > 0) return { mode: "all" };
+      if (selected.length === ruleCount && ruleCount > 0) return { mode: "all" };
       return { mode: "only", keys: selected };
     },
-    [rules.length],
+    [],
   );
   const {
     output,
@@ -101,6 +101,9 @@ export default function App() {
     },
     onLoadError: reportError,
   });
+
+  const { rules } = useRuleCatalog({ loadSettings, onError: reportError });
+  rulesRef.current = rules;
 
   const enabledSet = useMemo(() => new Set(enabled), [enabled]);
 
@@ -163,27 +166,6 @@ export default function App() {
     persistSettings,
   });
 
-  // 初始化：加载规则与默认启用集；随后由 useSettingsLoader 恢复用户设置。
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const [ruleList, defaults] = await Promise.all([
-          getRules(),
-          getEnabledDefaults(),
-        ]);
-        if (cancelled) return;
-        setRules(ruleList);
-        await loadSettings(ruleList, defaults);
-      } catch (e) {
-        if (!cancelled) reportError(e);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   // 快捷键监听与分发：总开关关闭时不注册；IME 组合态不触发；
   // 仅在精确匹配绑定时 preventDefault。Esc 仍由 Radix Dialog 原生处理。
   useShortcuts({
@@ -202,28 +184,16 @@ export default function App() {
     onError: reportError,
   });
 
-  function onClear() {
-    setInput("");
-    clearOutput();
-    cancelFormat();
-    clearError();
-    setCleared(true);
-    window.setTimeout(() => setCleared(false), 1200);
-    persistSettings({ enabled, last_input: "" });
-  }
+  const { cleared, clear: onClear } = useClearFeedback({
+    clearInput: () => setInput(""),
+    clearOutput,
+    cancelFormat,
+    clearError,
+    persistEmptyInput: () => persistSettings({ enabled, last_input: "" }),
+    durationMs: 1200,
+  });
 
-  function settingsNoticeText(notice: SettingsLoadNotice): string {
-    const messages: Record<SettingsLoadNotice, string> = {
-      legacy_settings_detected: "检测到旧版本设置文件，已迁移至 rules.yaml。",
-      legacy_settings_corrupt: "检测到旧版本设置文件，但内容无法读取，已使用默认设置。",
-      primary_settings_corrupt_recovered_from_backup: "设置文件损坏，已从 rules.yaml.bak 恢复。",
-      primary_settings_corrupt_no_usable_backup: "设置文件损坏，且备份文件也无法读取，已使用默认设置。",
-      backup_settings_corrupt: "备份文件损坏，当前 rules.yaml 仍可正常使用。",
-    };
-    return messages[notice];
-  }
-
-return (
+  return (
     <div className="flex h-full min-h-0 flex-col bg-background text-foreground">
       <AppTitleBar
         appName={APP_NAME}
@@ -239,13 +209,11 @@ return (
       {settingsLoadNotices.length > 0 && (
         <div
           className="border-b border-amber-200 bg-amber-50 px-6 py-2 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100"
-          role={settingsLoadNotices.some((notice) =>
-            notice === "primary_settings_corrupt_no_usable_backup" || notice === "legacy_settings_corrupt"
-          ) ? "alert" : "status"}
+          role={settingsLoadNotices.some(isSettingsLoadNoticeAlert) ? "alert" : "status"}
           aria-live="polite"
           data-testid="settings-load-notices"
         >
-          {settingsLoadNotices.map(settingsNoticeText).join(" ")}
+          {settingsLoadNotices.map(settingsLoadNoticeText).join(" ")}
         </div>
       )}
 

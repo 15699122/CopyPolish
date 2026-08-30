@@ -189,7 +189,7 @@ describe("App 主流程", () => {
 
     document.body.focus();
     await user.keyboard("{Control>},{/Control}");
-    expect(screen.getByTestId("settings-dialog")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId("settings-dialog")).toBeInTheDocument());
     await user.click(screen.getByTestId("settings-done"));
     await waitFor(() => expect(screen.getByTestId("open-settings")).toHaveFocus());
   });

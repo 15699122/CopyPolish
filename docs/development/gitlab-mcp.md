@@ -6,7 +6,7 @@ GitHub 是源码、Issue、Pull Request、版本 tag 和公开 Release 的主平
 只用于查看 GitLab 构建 pipeline、job 日志、Package Registry 和内部构建 Release。
 
 > **架构约束**：MCP 属于开发/运维辅助控制面，不属于 CI/CD 关键路径。
-> GitLab 构建由 `.gitlab-ci.yml` 完成；GitHub Actions 当前暂时停用，公开 Release 由维护者手动整理和创建；
+> GitLab 构建由 `.gitlab-ci.yml` 完成；GitHub Actions 负责常规分支 CI，公开 Release 由维护者手动整理和创建；
 > Cline 侧 MCP 不参与发布决策，不得持有任何 CI/CD Variable 或 Release token。
 
 ## 1. 前置条件

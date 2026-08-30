@@ -4,21 +4,27 @@
 
 ## 推荐阅读顺序
 
-1. [development.md](development.md)：架构、目录职责、开发环境、验证命令和工程约束；
-2. [roadmap.md](roadmap.md)：仅包含未完成工作、优先级和建议里程碑；
-3. [release/manual-release.md](release/manual-release.md)：构建、资产校验、人工验收和公开发布 Runbook；
-4. [secrets-management.md](secrets-management.md)：age + SOPS 凭据管理、轮换和恢复；
-5. [benchmarks/unicode-baseline.md](benchmarks/unicode-baseline.md)：Unicode 边界层的历史性能与体积基线；
-6. [upgrade-runbook.md](upgrade-runbook.md)：Node、Rust、Tauri、React/Vite 升级和回滚流程；
-7. [benchmarks/icu4x-spike.md](benchmarks/icu4x-spike.md)：ICU4X Script/General Category 技术验证及不引入结论；
-8. [development/gitlab-mcp.md](development/gitlab-mcp.md)：可选的 GitLab Build Service 诊断工具说明。
+1. [../CONTRIBUTING.md](../CONTRIBUTING.md)：开发、测试、提交和 PR；
+2. [architecture.md](architecture.md)：架构、模块职责和数据流；
+3. [testing.md](testing.md)：测试层次、功能地图和 fixture 约定；
+4. [development.md](development.md)：工具链、启动、验证和工程约束；
+5. [roadmap.md](roadmap.md)：仅包含未完成工作、优先级和建议里程碑；
+6. [release/manual-release.md](release/manual-release.md)：构建、资产校验、人工验收和公开发布 Runbook；
+7. [secrets-management.md](secrets-management.md)：age + SOPS 凭据管理、轮换和恢复；
+8. [upgrade-runbook.md](upgrade-runbook.md)：Node、Rust、Tauri、React/Vite 升级和回滚流程；
+9. [benchmarks/unicode-baseline.md](benchmarks/unicode-baseline.md)：Unicode 边界层的历史性能与体积基线；
+10. [benchmarks/icu4x-spike.md](benchmarks/icu4x-spike.md)：ICU4X 技术验证及不引入结论；
+11. [development/gitlab-mcp.md](development/gitlab-mcp.md)：可选的 GitLab Build Service 诊断工具说明。
 
 ## 文档职责
 
 | 文档 | 职责 | 更新时机 |
 | --- | --- | --- |
 | `../README.md` | 用户功能、规则、使用方式、限制和下载说明 | 用户可见行为变化时 |
-| `development.md` | 当前实现、开发流程、测试命令、CI 和工程约束 | 架构或开发流程变化时 |
+| `../CONTRIBUTING.md` | 分支、提交、PR、验证和完成标准 | 开发流程变化时 |
+| `architecture.md` | 当前架构、模块边界和修改入口 | 架构变化时 |
+| `testing.md` | 测试策略、功能映射和测试规范 | 测试结构或门禁变化时 |
+| `development.md` | 开发快速入口、工具链、命令和工程约束 | 工具链或常用命令变化时 |
 | `roadmap.md` | 尚未完成的开发工作及其验收标准 | 优先级或任务状态变化时 |
 | `release/manual-release.md` | 与版本无关、可重复执行的发布步骤 | 发布流程、脚本或资产变化时 |
 | `secrets-management.md` | 加密凭据、接收者、轮换与灾难恢复 | 凭据结构或恢复流程变化时 |
@@ -29,7 +35,7 @@
 
 ## 维护规则
 
-- 当前状态只写在 `development.md`，待办只写在 `roadmap.md`，避免双重维护；
+- 当前架构事实写在 `architecture.md` / `development.md`，待办只写在 `roadmap.md`，避免双重维护；
 - 发布完成后删除本地 Release Notes 草稿，正式说明以发布平台为准；
 - 一次性迁移过程在完成后从现行文档移除，仍有价值的约束合并到开发说明或 Runbook；
 - 不在长期文档中固定测试数量、Pipeline ID、Release ID 或“latest”状态；这些信息容易失真，应从命令输出或发布平台查询；
