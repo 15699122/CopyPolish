@@ -425,18 +425,44 @@ const ABBR_MAP: &[(&str, &str)] = &[
 
 /// naming.proper-nouns：专有名词使用正确的大小写。
 pub fn proper_nouns(text: &str) -> String {
-    static RULES: OnceLock<Vec<(Regex, &'static str)>> = OnceLock::new();
-    let rules = RULES.get_or_init(|| {
-        PROPER_NOUNS
-            .iter()
-            .map(|(wrong, right)| (word_pattern(wrong), *right))
-            .collect()
+    static RULE: OnceLock<Regex> = OnceLock::new();
+    let rule = RULE.get_or_init(|| {
+        let mut words: Vec<&str> = PROPER_NOUNS.iter().map(|(wrong, _)| *wrong).collect();
+        // 前缀词（如 `mac` / `macos`、`http` / `https`）必须让较长候选优先，
+        // 否则合并正则可能先尝试较短候选，再在边界校验失败后产生额外回溯。
+        words.sort_by_key(|word| std::cmp::Reverse(word.len()));
+        let alternatives = words
+            .into_iter()
+            .map(regex::escape)
+            .collect::<Vec<_>>()
+            .join("|");
+        Regex::new(&format!(r"(?i)(?:{alternatives})")).expect("invalid proper-noun regex")
     });
-    let mut out = text.to_string();
-    for (pattern, right) in rules {
-        out = replace_word_case_insensitive(&out, pattern, right);
-    }
-    out
+
+    rule.replace_all(text, |caps: &Captures| {
+        let capture = caps.get(0).expect("proper-noun match must have a word");
+        let matched = capture.as_str();
+        let has_left_boundary = capture.start() == 0
+            || !text[..capture.start()]
+                .chars()
+                .next_back()
+                .is_some_and(|ch| ch.is_ascii_alphanumeric());
+        let has_right_boundary = capture.end() == text.len()
+            || !text[capture.end()..]
+                .chars()
+                .next()
+                .is_some_and(|ch| ch.is_ascii_alphanumeric());
+        if !has_left_boundary || !has_right_boundary {
+            return matched.to_string();
+        }
+        let normalized = matched.to_ascii_lowercase();
+        let right = PROPER_NOUNS
+            .iter()
+            .find_map(|(wrong, right)| (*wrong == normalized).then_some(*right))
+            .expect("proper-noun regex match must exist in dictionary");
+        right.to_string()
+    })
+    .to_string()
 }
 
 /// naming.expand-abbreviations：不要使用不地道的缩写。
