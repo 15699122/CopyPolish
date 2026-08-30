@@ -57,7 +57,8 @@
 ### P1.2 性能和响应性
 
 - [x] 对 `spans.rs`、`protection.rs` 和 `edit_plan.rs` 做 profiling：新增 `profile-stages` feature 与 `examples/profile_stages.rs` 分阶段计时基线（1 MB，5 轮平均）：Markdown/LaTeX 语料 `editable_rules` 47.7% + `scan_spans` 40.2% 为主热点，占位符全链路仅约 7.4%；数据见 `docs/benchmarks/unicode-baseline.md`；
-- [ ] 优化 1 MB Markdown/LaTeX 密集语料中的字符串分配和嵌套扫描（优先 `editable_rules` 与 `scan_spans`，均与占位符机制无关）；
+- [x] 二级归因（`per_rule_timings` / `scan_split_timings`，`profile-stages` feature）：Markdown 密集语料下 `scan_structure` 占扫描的约 508 ms（语义仅 13 ms）；`editable_rules` 内嵌的行区间判定本身也执行一次全文扫描，管线共两次全文扫描；规则侧前三热点为 `naming.proper-nouns`/`spacing.cjk-latin`/`spacing.cjk-number`；数据与优化方向见 `docs/benchmarks/unicode-baseline.md`；
+- [ ] 优化 1 MB Markdown/LaTeX 密集语料中的字符串分配和嵌套扫描（靶点：结构扫描器整合 > 可编辑行区间轻量预检 > 前三热点规则正则优化）；
 - [ ] 评估 worker thread、可取消任务和动态 debounce；
 - [ ] 保持 `scripts/check_performance.py` 的数量级回归门禁；
 - [ ] 长文本优化必须同时补充性能数据和行为回归。

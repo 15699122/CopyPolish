@@ -149,7 +149,7 @@ fn format_text_impl(req: &FormatRequest) -> Result<String, String> {
 ///
 /// 按 `format_text_impl` 的实际执行顺序返回各阶段耗时（纳秒）：
 /// 1. `normalize`：换行归一化；
-/// 2. `editable_rules`：标点/名词规范化（原文 TextEdit）；
+/// 2. `editable_rules`：标点/名词规范化（原文 TextEdit，内含一次全文 span 扫描）；
 /// 3. `scan_spans`：Markdown/URL/LaTeX/化学式等 span 扫描；
 /// 4. `protect`：不透明 span 转占位符；
 /// 5. `protected_rules`：结构边界/文本边界/清理规则（受保护文本 TextEdit）；
@@ -163,7 +163,7 @@ pub fn format_text_stage_timings(
 ) -> Result<Vec<(&'static str, std::time::Duration)>, String> {
     use std::time::Instant;
 
-    let mut timings: Vec<(&'static str, std::time::Duration)> = Vec::with_capacity(7);
+    let mut timings: Vec<(&'static str, std::time::Duration)> = Vec::with_capacity(8);
 
     let t = Instant::now();
     let (text, newline) = normalize_newlines(&req.text);
@@ -196,4 +196,38 @@ pub fn format_text_stage_timings(
     timings.push(("restore", t.elapsed()));
 
     Ok(timings)
+}
+
+/// 逐规则计时（`--features profile-stages`，仅本地性能分析用）。
+///
+/// 对每条已注册规则在整篇文本上直接调用其 `apply`，返回规则 key 与耗时。
+/// 注意：生产管线是“按可编辑行区间逐行应用”，本函数按整篇应用，
+/// 绝对值偏大，但用于**规则间相对热点比较**与生产归因方向一致。
+#[cfg(feature = "profile-stages")]
+pub fn per_rule_timings(req: &FormatRequest) -> Vec<(&'static str, std::time::Duration)> {
+    use std::time::Instant;
+
+    let (text, _) = normalize_newlines(&req.text);
+    let mut out = Vec::new();
+    for rule in super::registry::rules() {
+        let t = Instant::now();
+        let _ = (rule.apply)(&text);
+        out.push((rule.key(), t.elapsed()));
+    }
+    out
+}
+
+/// 语义 span 与结构 span 的分段扫描计时（`--features profile-stages`）。
+#[cfg(feature = "profile-stages")]
+pub fn scan_split_timings(text: &str) -> Vec<(&'static str, std::time::Duration)> {
+    use std::time::Instant;
+
+    let mut out = Vec::with_capacity(2);
+    let t = Instant::now();
+    let _ = super::spans::scan_semantic_spans(text);
+    out.push(("scan_semantic", t.elapsed()));
+    let t = Instant::now();
+    let _ = super::spans::scan_structure_spans(text);
+    out.push(("scan_structure", t.elapsed()));
+    out
 }

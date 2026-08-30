@@ -141,3 +141,47 @@ front matter、fenced code、引用定义、缩进代码、表格分隔行、HTM
    **placeholder 重构的性能收益有限**，其价值主要在语义清晰度与边界健壮性，
    优先级应低于 `editable_rules` 与 `scan_spans` 的优化；
 3. `editable_rules` 在两种语料下都是单一最大阶段（纯中文下占 66%），是首选优化目标。
+
+## 二级归因（dev，2026-08-30）
+
+新增 `per_rule_timings` 与 `scan_split_timings`（同样在 `profile-stages` feature 下），
+对 1 MB Markdown/LaTeX 密集语料细分热点：
+
+### 扫描拆分（1 轮）
+
+| 阶段 | 耗时 |
+| --- | ---: |
+| scan_semantic（化学式/单位/数学） | 12.93 ms |
+| scan_structure（Markdown/HTML/LaTeX/URL 等 20+ 扫描器） | 507.93 ms |
+
+### 逐规则计时（整篇应用，1 轮，降序）
+
+| 规则 key | 耗时 |
+| --- | ---: |
+| naming.proper-nouns | 56.25 ms |
+| spacing.cjk-latin | 25.64 ms |
+| spacing.cjk-number | 24.28 ms |
+| spacing.around-links | 10.33 ms |
+| naming.expand-abbreviations | 8.15 ms |
+| 其余 9 条规则合计 | ~11.9 ms |
+
+### 关键发现
+
+1. **`editable_rules` 的 710 ms 中，约 575 ms 是其内部的一次全文
+   `scan_all_spans`**（用于可编辑行区间判定），实际规则执行合计仅约 136 ms。
+   即管线对全文共执行**两次** span 扫描（第二次在规则改写后的文本上，输入不同、
+   无法直接复用），Markdown 密集语料下结构扫描是共同热点；
+2. `scan_spans` 的 598 ms 中 **scan_structure 占约 508 ms**，语义扫描仅 13 ms：
+   优化靶点明确在结构扫描器（多次独立全文扫描、`find_ascii_case_insensitive`
+   的 O(n·m) 窗口匹配等）；
+3. 规则侧前三热点为 `naming.proper-nouns`（56 ms）、`spacing.cjk-latin`（26 ms）、
+   `spacing.cjk-number`（24 ms），合计约占规则耗时的 78%。
+
+### 优化方向（按预期收益排序）
+
+1. **结构扫描器整合**：减少独立全文遍历次数（如单遍字符扫描合并相邻扫描器、
+   替换 `find_ascii_case_insensitive` 的朴素窗口匹配），预期显著降低约 508 ms；
+2. **重复全文扫描削减**：评估可编辑行区间判定所需的扫描粒度（无需完整 span
+   仲裁，仅判定行是否含不透明覆盖），把第一次全文扫描降级为轻量预检；
+3. **前三热点规则的正则优化**（naming.proper-nouns 的逐词替换、cjk-latin/
+   cjk-number 的字符级扫描可考虑 memchr/查找表）。
