@@ -8,13 +8,13 @@
 
 | 模式 | 用途 | 说明 |
 | --- | --- | --- |
-| GitLab 构建 + 手动整理/发布 | 当前主路线之一 | 手动将合法 `v*` tag 推送到 GitLab；GitLab 构建 Linux/Windows、生成内部资产；维护者下载、校验并手动发布 |
+| GitLab 构建 + 手动整理/发布 | 当前主路线之一 | 手动将合法 `v*` tag 推送到 GitLab；GitLab 构建 Linux/Windows（含 TUI 独立资产）、生成内部资产；维护者下载、校验并手动发布到 GitHub Release |
 | 本地 Linux/Windows 构建 + 手动发布 | 当前主路线之一 | 在对应原生平台构建全部资产，执行统一校验后手动上传到 GitHub 或 GitLab Release |
-| GitHub Actions | 常规分支 CI | 负责 `dev` / `master` 的 push 和 PR 验证；不负责当前的跨平台 Release 构建与公开发布 |
+| GitHub Actions | 暂时禁用 | 因账户计费阻塞，所有 job 由仓库 Variable `ACTIONS_ENABLED`（默认 unset/非 true）守卫，不运行；恢复时在仓库 Settings > Variables 将其设为 `true`。常规验证与 Release 构建均由 GitLab pipeline 或本地承担 |
 
 原则：
 
-- GitHub Actions 负责常规分支验证；跨平台 Release 仍以本地构建或 GitLab pipeline 为准，手动上传前必须保留验证日志和资产校验结果；
+- GitHub Actions 暂时禁用（账户计费阻塞，见上表）；常规分支验证当前由本地 `verify.py` 承担，跨平台 Release 由 GitLab tag pipeline 或本地构建完成，手动上传前必须保留验证日志和资产校验结果；
 - 每个 Release 必须能追溯到一个明确的 Git commit 与 Git tag；
 - 未经过 `prepare_release_version.py` 同步版本的二进制不得作为 Release 资产上传；
 - Windows 资产必须在 Windows 上构建，Linux 资产必须在 Linux 上构建（本项目未配置交叉编译）。
@@ -88,7 +88,8 @@ npm run tauri --prefix frontend -- build --no-bundle
 1. 将 exe 重命名为 `CopyPolish.exe` 放入临时 staging 目录；
 2. 将构建输出同目录存在的旁置 DLL 一并复制进 staging 根目录；
 3. 在 **staging 目录内部**压缩为 `CopyPolish-windows-x64.7z`，确保压缩包根目录直接包含 `CopyPolish.exe`，不含 `dist/`、`windows/` 等额外父目录；
-4. 最终资产两个文件平级放置：
+4. TUI 独立资产同规范打包：`CopyPolish-tui-windows-x64.7z` 根目录直接包含 `CopyPolish-tui.exe`，`CopyPolish-tui-linux-x86_64.7z` 根目录直接包含 `copypolish-tui`；
+5. 桌面版最终资产两个文件平级放置：
 
 ```text
 CopyPolish.exe
@@ -247,7 +248,12 @@ CopyPolish_linux_amd64.AppImage
 
 ### 8.1 发布资产来源
 
-当前标准流程由 GitLab tag pipeline 构建并汇总全部五项平台资产及 `SHA256SUMS`。维护者下载后执行完整校验，再使用 GitHub CLI 或 GitHub Releases 页面完成公开 Release；上传前不得将不完整资产集标记为正式版。`v0.5.0` 已完成正式发布；后续版本仍须在资产完整且校验通过后再发布。
+当前标准流程由 GitLab tag pipeline 构建并汇总全部七项平台资产（桌面版五项 + TUI 独立资产两项）及 `SHA256SUMS`。维护者下载后执行完整校验，再使用 GitHub CLI 或 GitHub Releases 页面完成公开 Release；上传前不得将不完整资产集标记为正式版。`v0.5.0` 已完成正式发布；后续版本仍须在资产完整且校验通过后再发布。
+
+TUI 资产与桌面版共享同一 Release、tag、SHA256SUMS 与发布方式，命名遵循相同规范：
+
+- `CopyPolish-tui-windows-x64.7z`：根目录直接包含 `CopyPolish-tui.exe`（PowerShell 7 调用）；
+- `CopyPolish-tui-linux-x86_64.7z`：根目录直接包含 `copypolish-tui`（上传后保留可执行权限）。
 
 若从 GitLab Package Registry 下载 AppImage 遇到网络错误，应先解决认证或网络问题；在五项资产齐全前不要创建 GitHub Release。下载前可确认以下 URL 对应文件返回 HTTP 200：
 
@@ -288,7 +294,9 @@ gh release create vX.Y.Z \
   CopyPolish-windows-x64.7z \
   CopyPolish_linux_amd64.deb \
   CopyPolish-linux-x86_64.rpm \
-  CopyPolish_linux_amd64.AppImage
+  CopyPolish_linux_amd64.AppImage \
+  CopyPolish-tui-windows-x64.7z \
+  CopyPolish-tui-linux-x86_64.7z
 ```
 
 预发布必须显式改为：
@@ -306,7 +314,7 @@ gh release create vX.Y.Z-preN \
 ## 11. 发布后复核与回滚原则
 
 - [ ] tag、Release 标题、应用内版本三者一致（预发布带 pre 后缀）；
-- [ ] 五个资产齐全且命名正确；`SHA256SUMS` 也已上传；
+- [ ] 七个资产齐全且命名正确（桌面版五项 + TUI 两项）；`SHA256SUMS` 也已上传；
 - [ ] 正式版标记 latest，预发布标记 prerelease 且不占用 latest；
 - [ ] Release Notes 已人工审阅并与本次改动范围一致；
 - [ ] Windows 资产已从 GitLab 下载并完成 SHA256 校验，Windows 10/11 真机验收已完成；
@@ -341,6 +349,6 @@ gh release create vX.Y.Z-preN \
 - 验证：CI run <链接> / 本地全量命令通过
 - Windows 真机验收：通过（记录人、机型、系统版本、DPI）
 - Release URL：<链接>
-- 资产核对：exe / 7z / deb / rpm / AppImage 均已上传且命名正确
+- 资产核对：exe / 7z / deb / rpm / AppImage / TUI 两项 7z 均已上传且命名正确
 - latest / prerelease 标记：正确
 ```

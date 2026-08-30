@@ -35,19 +35,21 @@
 
 ### P0.2 真实 Tauri E2E
 
-- [ ] Spike 当前 Tauri 2 可用的 WebDriver/driver 路线；
+- [x] E2E 路线选型（决策 5）：选定 WebdriverIO + `@wdio/tauri-service`（embedded provider）为主路线，分析与 Spike 清单见 [e2e-driver-options.md](e2e-driver-options.md)；
+- [ ] 按选型方案在真实桌面环境执行 Spike（`e2e` feature flag 集成 wdio 插件、embedded provider 启动真实应用）；
 - [ ] 覆盖启动、真实引擎输出和默认示例；
 - [ ] 覆盖全不选恒等、规则切换和快捷键开关；
 - [ ] 覆盖设置保存、重启恢复、损坏设置和不可写目录；
 - [ ] 使用临时设置目录，禁止污染真实 `rules.yaml`；
-- [ ] Linux 和 Windows 各保留至少一条真实链路，稳定后再纳入合并门禁。
+- [ ] Linux 和 Windows 各保留至少一条真实链路，稳定后再纳入合并门禁（先挂 GitLab tag pipeline 可选 stage，不使用 GitHub Actions，见决策 6）。
 
 ## P1：引擎和长文本体验
 
 ### P1.1 保护层和语义扩展
 
+- [x] 单位词典扩展策略（决策 3）：以互联网真实语料（技术博客/文档中英文混排段落）驱动候选收集，逐项评估误判/漏判后再入词典；
 - [ ] 继续按真实语料扩展有限单位词典；
-- [ ] 减少 placeholder 依赖，保持保护优先级和现有输出兼容；
+- [ ] Placeholder 重构（决策 2）：已批准启动，先补 P1.2 profiling 基线，再逐步把保护层迁移到纯 span/TextEdit 路线，保持保护优先级和现有输出兼容；
 - [x] 补充复杂 Markdown、HTML、LaTeX 和化学式真实样本（括号化学式分组、LaTeX 命令/定界/未闭合定界符、HTML 属性、中文混排均已入 fixture；未闭合 `\(`/`\[` 开定界符不再被标点规则改写为全角）；
 - [ ] 对未闭合结构继续坚持“宁漏格式化，不破坏结构”；
 - [ ] 所有新规则遵守注册表、fixture、幂等性、迁移和文档准入流程。
@@ -71,10 +73,10 @@
 
 ## P2：TUI 产品化和持续维护
 
-- [ ] 在 Windows Terminal、Linux 终端和 SSH 环境完成 smoke（Linux 非交互链路已验证：stdin 管道、文件进出、`--rules none` 恒等、未知规则 key 警告、缺失文件退出码 1、`--help`、1.55 MB 文本 1.17 s；交互式界面仍需真实 raw-mode 终端验证）；
+- [ ] 在 Windows Terminal（PowerShell 7）与 Linux 终端完成交互界面 smoke（决策 4：SSH 环境不在范围内；Linux 非交互链路已验证：stdin 管道、文件进出、`--rules none` 恒等、未知规则 key 警告、缺失文件退出码 1、`--help`、1.55 MB 文本 1.17 s；交互式界面仍需真实 raw-mode 终端验证）；
 - [x] OSC 52 不可用时提供明确降级提示：复制成功后状态栏说明“若粘贴为空，说明终端不支持或禁用了 OSC 52，请改用 --stdin/--output”；
 - [ ] 评估大文本后台任务；
-- [ ] 决定是否发布独立 `CopyPolish-TUI-*` 资产；
+- [x] TUI 独立资产决策（决策 1）：发布 `CopyPolish-tui-windows-x64.7z`（内含 `CopyPolish-tui.exe`）与 `CopyPolish-tui-linux-x86_64.7z`（内含 `copypolish-tui`），与桌面版共享 Release、tag、SHA256SUMS 与发布方式；`verify_release_assets.py` 与 GitLab pipeline 已支持七资产校验；
 - [ ] 持续执行依赖审计、许可证清单更新和工具链升级 Runbook。
 
 ## 规则扩展准入
