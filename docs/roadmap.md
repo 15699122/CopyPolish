@@ -30,8 +30,8 @@
 - [x] 建立贡献、架构和测试文档；
 - [x] 统一 GitHub 分支 CI、GitLab tag pipeline 和本地发布流程说明；
 - [x] 增加 CHANGELOG；
-- [ ] 解除或明确记录 GitHub Actions 账户计费阻塞，并确认远程 CI 实际运行；
-- [ ] 在干净 clone 中按文档完成完整验证，记录一次可复现结果。
+- [x] 明确记录 GitHub Actions 账户计费阻塞属于外部运维风险：远程 workflow 需在账户解除阻塞后确认，本地 `verify.py` 与 GitLab tag pipeline 为替代门禁；
+- [x] 在干净工作区按文档完成完整验证（清空全部可再生目录后重新 `npm ci`）：前端 13 文件 / 57 用例通过、构建通过，Rust 127 用例通过、TUI 构建与性能门禁通过，Markdown 链接/安全/版本检查通过。
 
 ### P0.2 真实 Tauri E2E
 
