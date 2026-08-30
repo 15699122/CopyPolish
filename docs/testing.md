@@ -14,9 +14,9 @@
 
 | 功能 | 现有覆盖 | 后续补强 |
 | --- | --- | --- |
-| 规则注册表 | 稳定 key、默认状态、legacy key、依赖图 | 自动检查 README 与注册表一致性 |
+| 规则注册表 | 稳定 key、默认状态、legacy key、依赖图、alias 唯一性和迁移归一化 | 自动检查 README 与注册表一致性 |
 | 格式化管线 | 规则选择、组合、换行、幂等性、未知 key | 属性测试和更大真实语料 |
-| Markdown/HTML/LaTeX | span、嵌套结构、未闭合结构、保护 fixture | 继续扩展真实文档样本 |
+| Markdown/HTML/LaTeX | span、嵌套结构、未闭合结构、后续文本不吞并、保护 fixture | 继续扩展真实文档样本 |
 | Unicode | grapheme、emoji、组合符、CJK Ext-B | Unicode 数据/工具链升级回归 |
 | 单位和数学 | 有限词典、复合单位、数学边界 | 按真实语料扩展词典 |
 | 设置 | 缺失、损坏、备份、旧 JSON 迁移 | 真实桌面重启和不可写目录 |

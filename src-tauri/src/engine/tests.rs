@@ -189,6 +189,31 @@ fn registry_contains_migrated_rules_with_defaults() {
 }
 
 #[test]
+fn registry_legacy_aliases_are_unique_and_do_not_shadow_stable_keys() {
+    let stable_keys: std::collections::HashSet<&str> =
+        rules().iter().map(|rule| rule.key()).collect();
+    let mut aliases = std::collections::HashSet::new();
+
+    for rule in rules() {
+        for alias in rule.legacy {
+            assert!(
+                !stable_keys.contains(alias),
+                "legacy alias {alias:?} must not shadow stable rule key"
+            );
+            assert!(
+                aliases.insert(*alias),
+                "legacy alias {alias:?} must identify only one rule"
+            );
+            assert_eq!(
+                normalize_rule_keys(&[(*alias).to_string()]),
+                vec![rule.key().to_string()],
+                "legacy alias {alias:?} must normalize to its owning rule"
+            );
+        }
+    }
+}
+
+#[test]
 fn registry_execution_order_is_phase_explicit_and_stable() {
     let ordered = execution_rules();
     let keys: Vec<&str> = ordered.iter().map(|rule| rule.key()).collect();
