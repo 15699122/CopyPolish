@@ -398,6 +398,18 @@ fn formats_punctuation_and_proper_nouns() {
 }
 
 #[test]
+fn proper_nouns_preserve_boundaries_and_adjacent_matches() {
+    assert_eq!(
+        super::rule_impls::proper_nouns("github,google 与 macos、mac 和 https 连接"),
+        "GitHub,Google 与 macOS、Mac 和 HTTPS 连接"
+    );
+    assert_eq!(
+        super::rule_impls::proper_nouns("mygithub githubx xgithub"),
+        "mygithub githubx xgithub"
+    );
+}
+
+#[test]
 fn disabled_rules_are_not_applied() {
     // 新架构：未启用的规则不执行（旧实现中基础空格规则始终强制执行）。
     let none = FormatRequest {
