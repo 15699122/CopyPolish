@@ -275,3 +275,13 @@ front matter、fenced code、引用定义、缩进代码、表格分隔行、HTM
 
 新增测试冻结流式遍历与物化 `units()` 的单位文本和类别一致性，并继续覆盖
 emoji ZWJ、组合附加符和 CJK Extension B 等 Unicode 边界。
+
+## HTML block 结束标签查找微优化（dev，2026-08-30）
+
+`scan_html_block_spans` 查找结束标签时，原实现对每个可能的字节窗口逐字节比较
+完整 needle。现在先定位与 needle 首字节 ASCII 大小写等价的候选位置，再执行定长
+比较；UTF-8 内容仍按字节安全处理，因为标签本身只包含 ASCII 字符。
+
+该优化补充了大小写混合、UTF-8 前缀、未命中和空 needle 测试。当前 1 MB 基准语料
+中 `html_block` 扫描器约为 0 ms，因此不将其宣传为总体性能主收益；主要价值是
+降低大量非匹配窗口下的无效比较成本。
