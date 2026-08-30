@@ -106,7 +106,7 @@ TUI 通过自己的设置门面复用同一文件，但只修改规则选择和�
 
 ## 7. 不应违反的边界
 
-1. 前端不直接调用任意 Tauri command；
+1. 前端不直接调用任意 Tauri command；窗口控制经 `@tauri-apps/api/window`（非 IPC 后端命令），Tauri 环境判断仍来自 `lib/tauri.ts`；
 2. TUI 不复制格式化规则；
 3. 不以历史 Python 实现作为当前行为基准；
 4. 不使用默认全文 NFKC 改写用户文本；
