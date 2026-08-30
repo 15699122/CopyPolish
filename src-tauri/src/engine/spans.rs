@@ -102,17 +102,25 @@ pub(crate) fn arbitrate_spans(mut candidates: Vec<TextSpan>) -> Vec<TextSpan> {
         )
     });
 
+    // accepted 始终按 start 排序；候选按优先级/起点/长度排序，
+    // 因此只需检查插入点两侧的相邻 span。已接受 span 彼此不重叠，
+    // 任意更远的 span 不可能与当前候选发生交集。
     let mut accepted: Vec<TextSpan> = Vec::with_capacity(candidates.len());
     for candidate in candidates {
-        if accepted
-            .iter()
-            .copied()
-            .all(|span| !span.overlaps(candidate))
-        {
-            accepted.push(candidate);
+        let insertion = accepted
+            .binary_search_by_key(&candidate.start, |span| span.start)
+            .unwrap_or_else(|index| index);
+        let overlaps_previous = insertion
+            .checked_sub(1)
+            .and_then(|index| accepted.get(index))
+            .is_some_and(|span| span.overlaps(candidate));
+        let overlaps_next = accepted
+            .get(insertion)
+            .is_some_and(|span| span.overlaps(candidate));
+        if !overlaps_previous && !overlaps_next {
+            accepted.insert(insertion, candidate);
         }
     }
-    accepted.sort_by_key(|span| (span.start, span.end));
     accepted
 }
 
