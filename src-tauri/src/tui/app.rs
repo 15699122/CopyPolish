@@ -168,7 +168,9 @@ impl App {
     /// 通过 OSC 52 复制当前输出到系统剪贴板。
     pub fn copy_output(&mut self) {
         match clipboard::copy_to_clipboard(&self.output) {
-            Ok(()) => self.status = Status::Info("已复制输出（OSC 52）".to_string()),
+            Ok(()) => self.status = Status::Info(
+                "已复制输出（OSC 52）；若粘贴为空，说明终端不支持或禁用了 OSC 52，请改用 --stdin/--output".to_string(),
+            ),
             Err(message) => self.status = Status::Error(message),
         }
     }
@@ -259,11 +261,19 @@ mod tests {
     }
 
     #[test]
-    fn copy_output_reports_success_via_osc52() {
+    fn copy_output_reports_success_with_osc52_fallback_hint() {
         let mut app = App::new();
         app.insert_text("hi");
         app.copy_output();
-        assert_eq!(app.status, Status::Info("已复制输出（OSC 52）".to_string()));
+        match &app.status {
+            Status::Info(message) => {
+                assert!(message.contains("OSC 52"), "got: {message}");
+                // 降级提示：粘贴为空时用户能知道原因与替代方案。
+                assert!(message.contains("粘贴为空"), "got: {message}");
+                assert!(message.contains("--stdin"), "got: {message}");
+            }
+            other => panic!("expected info status, got {other:?}"),
+        }
     }
 
     #[test]

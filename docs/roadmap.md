@@ -71,8 +71,8 @@
 
 ## P2：TUI 产品化和持续维护
 
-- [ ] 在 Windows Terminal、Linux 终端和 SSH 环境完成 smoke；
-- [ ] OSC 52 不可用时提供明确降级提示；
+- [ ] 在 Windows Terminal、Linux 终端和 SSH 环境完成 smoke（Linux 非交互链路已验证：stdin 管道、文件进出、`--rules none` 恒等、未知规则 key 警告、缺失文件退出码 1、`--help`、1.55 MB 文本 1.17 s；交互式界面仍需真实 raw-mode 终端验证）；
+- [x] OSC 52 不可用时提供明确降级提示：复制成功后状态栏说明“若粘贴为空，说明终端不支持或禁用了 OSC 52，请改用 --stdin/--output”；
 - [ ] 评估大文本后台任务；
 - [ ] 决定是否发布独立 `CopyPolish-TUI-*` 资产；
 - [ ] 持续执行依赖审计、许可证清单更新和工具链升级 Runbook。
