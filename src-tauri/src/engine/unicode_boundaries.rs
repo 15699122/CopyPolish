@@ -113,6 +113,34 @@ pub(crate) fn units(text: &str, strategy: BoundaryStrategy) -> Vec<TextUnit<'_>>
     }
 }
 
+/// 流式遍历相邻判定单位，供生产规则避免构造完整 `Vec<TextUnit>`。
+///
+/// 单位切分和 `units` 完全一致；回调只在当前调用期间使用当前/上一单位借用，
+/// 不需要把单位保存到回调外部。
+pub(crate) fn for_each_adjacent_unit<F>(text: &str, strategy: BoundaryStrategy, mut visit: F)
+where
+    F: FnMut(Option<(ScriptClass, &str)>, ScriptClass, &str),
+{
+    let mut previous: Option<(ScriptClass, &str)> = None;
+    match strategy {
+        BoundaryStrategy::Graphemes => {
+            for (_, grapheme) in text.grapheme_indices(true) {
+                let script = script_of_grapheme(grapheme);
+                visit(previous, script, grapheme);
+                previous = Some((script, grapheme));
+            }
+        }
+        BoundaryStrategy::LegacyChars => {
+            for (start, ch) in text.char_indices() {
+                let script = classify_scalar(ch);
+                let unit_text = &text[start..start + ch.len_utf8()];
+                visit(previous, script, unit_text);
+                previous = Some((script, unit_text));
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -178,6 +206,22 @@ mod tests {
         for strategy in [BoundaryStrategy::Graphemes, BoundaryStrategy::LegacyChars] {
             let rebuilt: String = units(sample, strategy).iter().map(|u| u.text).collect();
             assert_eq!(rebuilt, sample);
+        }
+    }
+
+    #[test]
+    fn streaming_adjacent_units_match_materialized_units() {
+        let sample = "中a1👍🏽👨‍👩‍👧‍👦e\u{0301}𠀀， ";
+        for strategy in [BoundaryStrategy::Graphemes, BoundaryStrategy::LegacyChars] {
+            let expected: Vec<(String, ScriptClass)> = units(sample, strategy)
+                .iter()
+                .map(|unit| (unit.text.to_string(), unit.script))
+                .collect();
+            let mut actual = Vec::new();
+            for_each_adjacent_unit(sample, strategy, |_, script, text| {
+                actual.push((text.to_string(), script));
+            });
+            assert_eq!(actual, expected);
         }
     }
 }

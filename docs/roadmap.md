@@ -62,7 +62,8 @@
 - [x] 优化 span 仲裁：按起点维护有序 accepted 列表，每个候选只检查相邻前驱/后继，避免 O(n²) 全量重叠检查；1 MB profiling 总耗时观测由约 805 ms 降至约 283 ms，`scan_structure` 由约 183 ms 降至约 7 ms；
 - [x] 削减可编辑阶段的重复语义扫描：新增 `scan_editable_protection_spans`，仅扫描不透明结构与化学式，避免首次 `scan_all_spans` 的测量/单位/数学语义扫描；最新 profiling 总耗时观测约 218 ms，现有 Rust/TUI 测试与保护行为回归通过；
 - [x] 优化 `naming.proper-nouns`：将 40+ 次逐词全文替换合并为单次词候选扫描，保留 ASCII 单词边界、前缀词和大小写不敏感语义；规则 profiling 由约 60 ms 降至约 2.5 ms，并新增相邻/嵌入词回归测试；阶段总耗时最新观测约 155 ms；
-- [ ] 继续优化 1 MB Markdown/LaTeX 密集语料中的字符串分配和嵌套扫描（剩余靶点：`spacing.cjk-latin`、`spacing.cjk-number`）；
+- [x] 优化 `spacing.cjk-latin` / `spacing.cjk-number`：生产路径改用与 `units()` 语义一致的流式相邻单位遍历，避免构造中间 `Vec<TextUnit>`；规则 profiling 观测约 19–30 ms / 17–36 ms，并新增 Graphemes/LegacyChars 一致性测试；
+- [ ] 继续优化 1 MB Markdown/LaTeX 密集语料中的字符串分配和嵌套扫描（剩余靶点：结构扫描器整合）；
 - [ ] 评估 worker thread、可取消任务和动态 debounce；
 - [ ] 保持 `scripts/check_performance.py` 的数量级回归门禁；
 - [ ] 长文本优化必须同时补充性能数据和行为回归。
