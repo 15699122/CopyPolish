@@ -85,9 +85,9 @@
 
 ## P2：TUI 产品化和持续维护
 
-- [ ] 在 Windows Terminal（PowerShell 7）与 Linux 终端完成交互界面 smoke（决策 4：SSH 环境不在范围内；Linux 非交互链路已验证：stdin 管道、文件进出、`--rules none` 恒等、未知规则 key 警告、缺失文件退出码 1、`--help`、1.55 MB 文本 1.17 s；交互式界面仍需真实 raw-mode 终端验证）；
+- [ ] 在 Windows Terminal（PowerShell 7）与 Linux 终端完成交互界面 smoke（决策 4：SSH 环境不在范围内；Linux 非交互链路已完成验证：stdin 管道、文件进出、`--rules none` 恒等、未知规则 key 警告、缺失文件退出码 1、`--help`、约 1.29 MB 文本恒等处理；交互式 raw-mode 与 Windows Terminal 仍需真实终端验证）；
 - [x] OSC 52 不可用时提供明确降级提示：复制成功后状态栏说明“若粘贴为空，说明终端不支持或禁用了 OSC 52，请改用 --stdin/--output”；
-- [ ] 评估大文本后台任务；
+- [x] 评估大文本后台任务：前端已有 50 KB/200 KB 分级 debounce、序列号过期结果保护和清理机制；TUI 已验证约 1.29 MB 非交互输入；真正可取消的后台任务仍需 Tauri IPC 取消协议与真实桌面 E2E 支持；
 - [x] TUI 独立资产决策（决策 1）：发布 `CopyPolish-tui-windows-x64.7z`（内含 `CopyPolish-tui.exe`）与 `CopyPolish-tui-linux-x86_64.7z`（内含 `copypolish-tui`），与桌面版共享 Release、tag、SHA256SUMS 与发布方式；`verify_release_assets.py` 与 GitLab pipeline 已支持七资产校验；
 - [ ] 持续执行依赖审计、许可证清单更新和工具链升级 Runbook。
 
