@@ -257,3 +257,21 @@ front matter、fenced code、引用定义、缩进代码、表格分隔行、HTM
 本轮最新观测中，`naming.proper-nouns` 约为 2.5 ms，Markdown/LaTeX 密集语料
 阶段总耗时约为 155 ms；绝对值受构建机和运行时抖动影响，主要确定性收益来自
 将多次全文替换合并为单次候选扫描。
+
+## CJK 空格规则流式单位遍历优化（dev，2026-08-30）
+
+`spacing.cjk-latin` 与 `spacing.cjk-number` 原先先通过 `units()` 构造完整
+`Vec<TextUnit>`，再遍历相邻单位生成输出。生产路径现改用
+`for_each_adjacent_unit`，仍然使用相同的 Graphemes/LegacyChars 切分和类别判定，
+但不再分配中间单位数组；`units()` 保留作为边界层测试与新旧策略对照入口。
+
+### 优化后观测
+
+| 指标 | 优化前观测 | 优化后观测 |
+| --- | ---: | ---: |
+| `spacing.cjk-latin`（1 MB，整篇应用，单轮） | ~28.5 ms | ~19–30 ms |
+| `spacing.cjk-number`（1 MB，整篇应用，单轮） | ~23.2 ms | ~17–36 ms |
+| Markdown/LaTeX 总耗时（1 MB，阶段计时样本） | ~218 ms | ~187–193 ms |
+
+新增测试冻结流式遍历与物化 `units()` 的单位文本和类别一致性，并继续覆盖
+emoji ZWJ、组合附加符和 CJK Extension B 等 Unicode 边界。
