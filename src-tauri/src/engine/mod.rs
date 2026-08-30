@@ -34,7 +34,9 @@ pub(crate) mod unit_lexicon;
 pub use model::{FormatRequest, RuleMeta, RuleSelection};
 pub use pipeline::format_text;
 #[cfg(feature = "profile-stages")]
-pub use pipeline::{format_text_stage_timings, per_rule_timings, scan_split_timings};
+pub use pipeline::{
+    format_text_stage_timings, per_rule_timings, scan_split_timings, scan_structure_timings,
+};
 pub use registry::{
     default_rules, enabled_defaults, execution_rules, normalize_rule_keys, rules, RuleDef,
     RulePhase,

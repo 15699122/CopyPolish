@@ -231,3 +231,9 @@ pub fn scan_split_timings(text: &str) -> Vec<(&'static str, std::time::Duration)
     out.push(("scan_structure", t.elapsed()));
     out
 }
+
+/// 结构扫描器逐个计时（`--features profile-stages`，仅本地性能分析用）。
+#[cfg(feature = "profile-stages")]
+pub fn scan_structure_timings(text: &str) -> Vec<(&'static str, std::time::Duration)> {
+    super::spans::scan_structure_spans_timings(text).1
+}

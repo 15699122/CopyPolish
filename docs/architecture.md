@@ -94,6 +94,7 @@ TUI 通过自己的设置门面复用同一文件，但只修改规则选择和�
 | --- | --- |
 | 修改规则行为 | `engine/rule_impls.rs`、`engine/registry.rs`、Rust fixture/测试 |
 | 修改保护边界 | `engine/spans.rs`、`engine/protection.rs`、保护 fixture |
+| 优化 inline-code 扫描 | `engine/spans.rs::scan_inline_code_spans`、结构 span 回归测试 |
 | 修改单位/数学识别 | `engine/semantic_tokens.rs`、`engine/unit_lexicon.rs` |
 | 修改前端格式化状态 | `frontend/src/hooks/useFormatter.ts`、`useInputFormatting.ts` |
 | 修改规则目录加载 | `frontend/src/hooks/useRuleCatalog.ts` |
