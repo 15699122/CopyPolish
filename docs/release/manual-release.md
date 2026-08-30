@@ -10,11 +10,11 @@
 | --- | --- | --- |
 | GitLab 构建 + 手动整理/发布 | 当前主路线之一 | 手动将合法 `v*` tag 推送到 GitLab；GitLab 构建 Linux/Windows、生成内部资产；维护者下载、校验并手动发布 |
 | 本地 Linux/Windows 构建 + 手动发布 | 当前主路线之一 | 在对应原生平台构建全部资产，执行统一校验后手动上传到 GitHub 或 GitLab Release |
-| GitHub Actions | 当前不使用 | workflow 已从源码树移除，不得依赖 GitHub runner 自动构建或发布 |
+| GitHub Actions | 常规分支 CI | 负责 `dev` / `master` 的 push 和 PR 验证；不负责当前的跨平台 Release 构建与公开发布 |
 
 原则：
 
-- 当前 GitHub Actions 暂停期间，本地验证和 GitLab pipeline 是构建门禁；手动上传前必须保留验证日志和资产校验结果；
+- GitHub Actions 负责常规分支验证；跨平台 Release 仍以本地构建或 GitLab pipeline 为准，手动上传前必须保留验证日志和资产校验结果；
 - 每个 Release 必须能追溯到一个明确的 Git commit 与 Git tag；
 - 未经过 `prepare_release_version.py` 同步版本的二进制不得作为 Release 资产上传；
 - Windows 资产必须在 Windows 上构建，Linux 资产必须在 Linux 上构建（本项目未配置交叉编译）。

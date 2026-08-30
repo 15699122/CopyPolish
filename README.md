@@ -163,16 +163,20 @@ copypolish-tui --input article.md --output formatted.md --rules all
 copypolish-tui --help
 ```
 
-非交互模式常用参数：`--rules <all|defaults|none>` 覆盖规则集；`--enable <key>` / `--disable <key>` 微调单条规则；`--no-config` 完全跳过共享设置。交互界面支持多行编辑、实时预览、规则开关与复制输出（OSC 52，依赖终端支持）。详见 [docs/development.md](docs/development.md) 的“终端版”章节。
+非交互模式常用参数：`--rules <all|defaults|none>` 覆盖规则集；`--enable <key>` / `--disable <key>` 微调单条规则；`--no-config` 完全跳过共享设置。交互界面支持多行编辑、实时预览、规则开关与复制输出（OSC 52，依赖终端支持）。终端模块和开发命令详见 [docs/architecture.md](docs/architecture.md) 与 [docs/development.md](docs/development.md)。
 
 ## 开发文档
 
 版本管理、开发环境、测试方法、CI / Release、打包细节和实现约束请参阅：
 
 - [docs/README.md](docs/README.md)：开发者文档导航与阅读顺序；
-- [docs/development.md](docs/development.md)：开发说明（架构、验证命令、CI/Release、实现约束）；
+- [CONTRIBUTING.md](CONTRIBUTING.md)：分支、提交、PR、验证和完成标准；
+- [docs/architecture.md](docs/architecture.md)：架构、模块职责、数据流和修改入口；
+- [docs/testing.md](docs/testing.md)：测试层次、功能映射和 fixture 规范；
+- [docs/development.md](docs/development.md)：工具链、启动命令、验证入口和工程约束；
 - [docs/roadmap.md](docs/roadmap.md)：按优先级整理的后续开发计划；
 - [docs/release/manual-release.md](docs/release/manual-release.md)：构建、验收与手动发布 Runbook；
-- [docs/secrets-management.md](docs/secrets-management.md)：维护者凭据的 SOPS/age 管理与恢复指南。
+- [docs/secrets-management.md](docs/secrets-management.md)：维护者凭据的 SOPS/age 管理与恢复指南；
+- [CHANGELOG.md](CHANGELOG.md)：版本和重要变更记录。
 
 已完成版本的发布计划与验收记录保存在 `docs/archive/`，不作为当前开发任务清单。
