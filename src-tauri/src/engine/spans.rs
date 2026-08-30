@@ -714,25 +714,49 @@ fn scan_hard_break_spans(lines: &[(usize, usize, &str)], output: &mut Vec<TextSp
 /// 扫描反斜杠定界的 LaTeX 数学：`\(...\)` 与 `\[...\]`。
 /// 这两类结构由旧保护层整体保留，span-aware 管线也必须将其视为不透明区域。
 fn scan_latex_delimited_spans(text: &str, output: &mut Vec<TextSpan>) {
-    for (open, close) in [(r"\(", r"\)"), (r"\[", r"\]")] {
-        let mut cursor = 0usize;
-        while let Some(relative_open) = text[cursor..].find(open) {
-            let start = cursor + relative_open;
-            let content_start = start + open.len();
-            let Some(relative_close) = text[content_start..].find(close) else {
-                // 未闭合：仍保护开定界符本身（如 `\(`、`\[`），
-                // 避免标点规则将其中的括号改写为全角而破坏结构。
-                if let Some(span) = TextSpan::new(start, content_start, SpanKind::LatexMath) {
-                    output.push(span);
-                }
-                break;
-            };
-            let end = content_start + relative_close + close.len();
-            if let Some(span) = TextSpan::new(start, end, SpanKind::LatexMath) {
+    const DELIMITERS: [(&str, &str); 2] = [(r"\(", r"\)"), (r"\[", r"\]")];
+    let bytes = text.as_bytes();
+    let mut cursor = 0usize;
+    let mut next_allowed = [0usize; DELIMITERS.len()];
+    let mut disabled = [false; DELIMITERS.len()];
+
+    while cursor < bytes.len() {
+        let Some(relative_open) = text[cursor..].find('\\') else {
+            break;
+        };
+        let start = cursor + relative_open;
+        let Some(delimiter_index) = DELIMITERS
+            .iter()
+            .position(|(open, _)| text[start..].starts_with(open))
+        else {
+            cursor = start + 1;
+            continue;
+        };
+        if disabled[delimiter_index] || start < next_allowed[delimiter_index] {
+            cursor = start + 1;
+            continue;
+        }
+
+        let (open, close) = DELIMITERS[delimiter_index];
+        let content_start = start + open.len();
+        let Some(relative_close) = text[content_start..].find(close) else {
+            // 未闭合：仍保护开定界符本身（如 `\(`、`\[`），
+            // 避免标点规则将其中的括号改写为全角而破坏结构。
+            if let Some(span) = TextSpan::new(start, content_start, SpanKind::LatexMath) {
                 output.push(span);
             }
-            cursor = end;
+            disabled[delimiter_index] = true;
+            cursor = start + 1;
+            continue;
+        };
+        let end = content_start + relative_close + close.len();
+        if let Some(span) = TextSpan::new(start, end, SpanKind::LatexMath) {
+            output.push(span);
         }
+        // 每类定界符独立跳过已消费区间；另一类定界符仍可在其中被发现，
+        // 与原先分别扫描两种 delimiter 的行为一致。
+        next_allowed[delimiter_index] = end;
+        cursor = start + 1;
     }
 }
 
@@ -1079,6 +1103,28 @@ mod tests {
             &text[span.start..span.end],
             "[文档](https://example.com/foo_(bar_(baz)))"
         );
+    }
+
+    #[test]
+    fn latex_delimiter_scanner_merges_mixed_delimiter_passes() {
+        let text = r"前\(x\)中\[y\]尾\(z\)";
+        let spans: Vec<&str> = scan_structure_spans(text)
+            .into_iter()
+            .filter(|span| span.kind == SpanKind::LatexMath)
+            .map(|span| &text[span.start..span.end])
+            .collect();
+        assert_eq!(spans, vec![r"\(x\)", r"\[y\]", r"\(z\)"]);
+    }
+
+    #[test]
+    fn latex_delimiter_scanner_preserves_per_type_unclosed_behavior() {
+        let text = r"前\(未闭合 \[y\] 后\(仍未闭合";
+        let spans: Vec<&str> = scan_structure_spans(text)
+            .into_iter()
+            .filter(|span| span.kind == SpanKind::LatexMath)
+            .map(|span| &text[span.start..span.end])
+            .collect();
+        assert_eq!(spans, vec![r"\(", r"\[y\]"]);
     }
 
     #[test]
