@@ -832,13 +832,34 @@ fn html_block_tag(line: &str, indent: usize) -> Option<&'static str> {
 
 fn contains_ascii_case_insensitive(haystack: &str, needle: &str) -> bool {
     let needle = needle.as_bytes();
-    !needle.is_empty()
-        && haystack.as_bytes().windows(needle.len()).any(|window| {
-            window
-                .iter()
-                .zip(needle)
-                .all(|(left, right)| left.eq_ignore_ascii_case(right))
-        })
+    if needle.is_empty() {
+        return false;
+    }
+
+    let haystack = haystack.as_bytes();
+    let mut cursor = 0usize;
+    while let Some(relative) = haystack[cursor..]
+        .iter()
+        .position(|byte| (*byte).eq_ignore_ascii_case(&needle[0]))
+    {
+        let start = cursor + relative;
+        if haystack
+            .get(start..start + needle.len())
+            .is_some_and(|window| {
+                window
+                    .iter()
+                    .zip(needle)
+                    .all(|(left, right)| left.eq_ignore_ascii_case(right))
+            })
+        {
+            return true;
+        }
+        cursor = start + 1;
+        if cursor >= haystack.len() {
+            break;
+        }
+    }
+    false
 }
 
 fn scan_dollar_math_spans(text: &str, output: &mut Vec<TextSpan>) {
@@ -907,8 +928,9 @@ fn escaped_dollar(bytes: &[u8], index: usize) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        arbitrate_spans, scan_all_spans, scan_editable_protection_spans, scan_semantic_spans,
-        scan_structure_spans, SpanKind, SpanPriority, TextSpan,
+        arbitrate_spans, contains_ascii_case_insensitive, scan_all_spans,
+        scan_editable_protection_spans, scan_semantic_spans, scan_structure_spans, SpanKind,
+        SpanPriority, TextSpan,
     };
 
     #[test]
@@ -1030,6 +1052,20 @@ mod tests {
             &text[span.start..span.end],
             "<div class=\"notice\">\n在GitHub上发布5000元\n</DIV>"
         );
+    }
+
+    #[test]
+    fn ascii_case_insensitive_search_handles_utf8_prefixes_and_boundaries() {
+        assert!(contains_ascii_case_insensitive("中文</DIV>正文", "</div"));
+        assert!(contains_ascii_case_insensitive(
+            "prefix </sEcTiOn> suffix",
+            "</section"
+        ));
+        assert!(!contains_ascii_case_insensitive(
+            "中文<article>正文",
+            "</article"
+        ));
+        assert!(!contains_ascii_case_insensitive("abc", ""));
     }
 
     #[test]
