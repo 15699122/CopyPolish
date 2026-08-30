@@ -788,7 +788,20 @@ fn chemical_formulas_are_recognized_as_whole_units() {
     assert_eq!(spans.len(), 1);
     assert_eq!(&"铁离子Fe²⁺用于反应"[spans[0].0..spans[0].1], "Fe²⁺");
 
-    for sample in ["FeCl₂·4H₂O", "SO₄²⁻", "CuSO₄·5H₂O", "Fe³⁺", "Na⁺"] {
+    for sample in [
+        "FeCl₂·4H₂O",
+        "SO₄²⁻",
+        "CuSO₄·5H₂O",
+        "Fe³⁺",
+        "Na⁺",
+        // 括号分组：配位化合物、沉淀式与水合物。
+        "[Fe(CN)₆]³⁻",
+        "K₃[Fe(CN)₆]",
+        "Fe(CN)₆",
+        "Ca(OH)₂",
+        "Al₂(SO₄)₃",
+        "(NH₄)₂SO₄",
+    ] {
         let spans = detect(sample);
         assert_eq!(spans.len(), 1, "{sample}");
         assert_eq!(&sample[spans[0].0..spans[0].1], sample);
@@ -797,6 +810,9 @@ fn chemical_formulas_are_recognized_as_whole_units() {
     // 普通单词与不含特征的简单式子不被吞并（保守策略）。
     assert!(detect("GitHub TypeScript").is_empty());
     assert!(detect("H2O and CO2").is_empty());
+    // 普通括号文本不含化学式特征，不会被误保护。
+    assert!(detect("如(a)所示").is_empty());
+    assert!(detect("引用[1]标注").is_empty());
 
     // 同文存在真实化学式（Fe²⁺）时，普通大写缩写不得被误判为化学式；
     // 否则 DA-PEG-DA 末尾的 DA 会被保护并在补空格阶段产生 `DA-PEG- DA`。
@@ -822,6 +838,19 @@ fn chemical_formulas_survive_formatting() {
     assert_eq!(
         format_text(&req("电解质如SO₄²⁻溶液！！")).unwrap(),
         "电解质如 SO₄²⁻ 溶液！"
+    );
+    // 括号分组化学式内部的半角括号不得被标点规则改成全角。
+    assert_eq!(
+        format_text(&req("配合物[Fe(CN)₆]³⁻与K₃[Fe(CN)₆]在溶液中")).unwrap(),
+        "配合物 [Fe(CN)₆]³⁻ 与 K₃[Fe(CN)₆] 在溶液中"
+    );
+    assert_eq!(
+        format_text(&req("溶液含Ca(OH)₂和Al₂(SO₄)₃，pH为7")).unwrap(),
+        "溶液含 Ca(OH)₂ 和 Al₂(SO₄)₃，pH 为 7"
+    );
+    assert_eq!(
+        format_text(&req("加入(NH₄)₂SO₄后继续GitHub")).unwrap(),
+        "加入 (NH₄)₂SO₄ 后继续 GitHub"
     );
 }
 

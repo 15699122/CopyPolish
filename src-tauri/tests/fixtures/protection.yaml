@@ -41,3 +41,21 @@
   expected: |-
     - 不与 MIONPs、 Fe²⁺ 或多巴胺端基直接接触的常规清洁
     - 20 mmol/L Tris 缓冲液和 DA-PEG-DA/PEG 6000 配体溶液的配制。
+
+- name: 配位化合物方括号化学式内部半角括号保持
+  selection:
+    mode: defaults
+  input: 配合物[Fe(CN)₆]³⁻与K₃[Fe(CN)₆]在溶液中
+  expected: 配合物 [Fe(CN)₆]³⁻ 与 K₃[Fe(CN)₆] 在溶液中
+
+- name: 沉淀式与氢氧化物圆括号分组化学式保持
+  selection:
+    mode: defaults
+  input: 溶液含Ca(OH)₂和Al₂(SO₄)₃，pH为7
+  expected: 溶液含 Ca(OH)₂ 和 Al₂(SO₄)₃，pH 为 7
+
+- name: 铵盐圆括号分组化学式保持
+  selection:
+    mode: defaults
+  input: 加入(NH₄)₂SO₄后继续GitHub
+  expected: 加入 (NH₄)₂SO₄ 后继续 GitHub
