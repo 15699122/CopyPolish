@@ -252,6 +252,21 @@ pub(crate) fn scan_all_spans(text: &str) -> Vec<TextSpan> {
     arbitrate_spans(spans)
 }
 
+/// 扫描可编辑规则阶段必须避开的保护 span。
+///
+/// 可编辑阶段只需要不透明结构和化学式；测量、温度、科学单位与普通数学
+/// 语义 span 会继续参与行内规则，因此不必在这次预扫描中生成。这样可以
+/// 避免在正式保护扫描前重复执行语义扫描，同时保持 `editable_line_ranges`
+/// 所需的保护边界不变。
+pub(crate) fn scan_editable_protection_spans(text: &str) -> Vec<TextSpan> {
+    let mut spans = detect_chemical_formulas(text)
+        .into_iter()
+        .filter_map(|(start, end)| TextSpan::new(start, end, SpanKind::ChemicalFormula))
+        .collect::<Vec<_>>();
+    spans.extend(scan_structure_spans(text));
+    arbitrate_spans(spans)
+}
+
 fn line_ranges(text: &str) -> Vec<(usize, usize, &str)> {
     let mut ranges = Vec::new();
     let mut start = 0usize;
@@ -892,8 +907,8 @@ fn escaped_dollar(bytes: &[u8], index: usize) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        arbitrate_spans, scan_all_spans, scan_semantic_spans, scan_structure_spans, SpanKind,
-        SpanPriority, TextSpan,
+        arbitrate_spans, scan_all_spans, scan_editable_protection_spans, scan_semantic_spans,
+        scan_structure_spans, SpanKind, SpanPriority, TextSpan,
     };
 
     #[test]
@@ -929,6 +944,19 @@ mod tests {
                 SpanKind::MathExpression
             ]
         );
+        assert!(spans.windows(2).all(|pair| pair[0].end <= pair[1].start));
+    }
+
+    #[test]
+    fn editable_protection_scan_excludes_editable_semantic_spans() {
+        let text = "样品Fe²⁺厚度10μm且计算$x$，代码`GitHub`";
+        let spans = scan_editable_protection_spans(text);
+        let kinds: Vec<SpanKind> = spans.iter().map(|span| span.kind).collect();
+
+        assert!(kinds.contains(&SpanKind::ChemicalFormula));
+        assert!(kinds.contains(&SpanKind::InlineCode));
+        assert!(!kinds.contains(&SpanKind::Measurement));
+        assert!(!kinds.contains(&SpanKind::MathExpression));
         assert!(spans.windows(2).all(|pair| pair[0].end <= pair[1].start));
     }
 
