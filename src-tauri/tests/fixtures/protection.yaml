@@ -59,3 +59,27 @@
     mode: defaults
   input: 加入(NH₄)₂SO₄后继续GitHub
   expected: 加入 (NH₄)₂SO₄ 后继续 GitHub
+
+- name: 复杂LaTeX命令与定界保持完整
+  selection:
+    mode: defaults
+  input: 公式\frac{a+b}{c-d}和\sqrt[3]{x_1}以及行内\(\alpha+\beta=\gamma\)定界
+  expected: 公式 \frac{a+b}{c-d} 和 \sqrt[3]{x_1} 以及行内 \(\alpha+\beta=\gamma\) 定界
+
+- name: 中文与LaTeX化学式链接混排
+  selection:
+    mode: defaults
+  input: 由[维基](https://zh.wikipedia.org/wiki/Fe_(CN))可知，\(K_3[Fe(CN)_6]\)的pH为7
+  expected: 由 [维基](https://zh.wikipedia.org/wiki/Fe_(CN)) 可知，\(K_3[Fe(CN)_6]\) 的 pH 为 7
+
+- name: 未闭合LaTeX定界符不被改写
+  selection:
+    mode: defaults
+  input: 未闭合\(abc继续GitHub
+  expected: 未闭合 \(abc 继续 GitHub
+
+- name: 未闭合HTML标签内的属性保持
+  selection:
+    mode: defaults
+  input: 未闭合<div class="x">继续GitHub
+  expected: 未闭合 <div class="x"> 继续 GitHub
