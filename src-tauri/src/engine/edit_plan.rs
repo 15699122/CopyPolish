@@ -9,7 +9,9 @@ use super::model::RuleSelection;
 use super::registry::{execution_rules, RulePhase};
 use super::semantic_tokens::scan_math_expressions;
 use super::semantic_tokens::scan_semantic_tokens;
-use super::spans::{scan_all_spans, SpanKind, SpanPriority, TextSpan};
+use super::spans::{
+    scan_all_spans, scan_editable_protection_spans, SpanKind, SpanPriority, TextSpan,
+};
 use super::tokenizer::{classify, CharKind};
 use super::unicode_boundaries::{units, BoundaryStrategy, ScriptClass};
 
@@ -206,7 +208,7 @@ pub(crate) fn apply_editable_rules(
         return Ok(text.to_string());
     }
 
-    let spans = scan_all_spans(text);
+    let spans = scan_editable_protection_spans(text);
     let edits: Vec<TextEdit> = editable_line_ranges(text, &spans)
         .into_iter()
         .filter_map(|(start, end)| {
