@@ -338,3 +338,23 @@ emoji ZWJ、组合附加符和 CJK Extension B 等 Unicode 边界。
 新增有效/无效表格分隔线回归测试。当前 profiling 中 `table_separator` 约为 0.14 ms，
 多次运行约 0.14–0.60 ms，低于单轮 profiling 的稳定分辨率，因此不宣称稳定的毫秒级
 耗时收益；确定性收益是消除候选行的临时堆分配。
+
+## 响应性与 HTML 扫描评估（dev，2026-08-30）
+
+HTML 结构扫描在当前 1 MB Markdown/LaTeX 语料中的单轮观测为：
+
+| 扫描器 | 耗时 |
+| --- | ---: |
+| `html_block` | 约 0.00 ms |
+| `inline_html` | 约 0.04 ms |
+| `html_comment` | 约 0.08 ms |
+
+这些数值低于 profiling 的稳定分辨率，因此没有继续改动 HTML 扫描器。
+
+前端响应性评估确认当前实现已经按文本长度使用 160 ms、450 ms、900 ms 分级 debounce，
+并通过请求序列号阻止旧结果覆盖新结果，清空和组件卸载也会清理待执行任务。由于
+`format_text` Tauri IPC 当前不接受取消令牌，`AbortController` 无法中止已进入 Rust 的
+请求；Worker 改造则需要重新设计 IPC 与构建链路，当前收益不足以抵消范围和复杂度，暂不实施。
+
+`scripts/check_performance.py` 已纳入 `python3 scripts/verify.py --profile ci`，并持续拦截
+1 MB 语料的数量级回退；长文本行为由前端端到端测试覆盖。
