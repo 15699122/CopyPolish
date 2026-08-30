@@ -626,6 +626,11 @@ fn scan_latex_delimited_spans(text: &str, output: &mut Vec<TextSpan>) {
             let start = cursor + relative_open;
             let content_start = start + open.len();
             let Some(relative_close) = text[content_start..].find(close) else {
+                // 未闭合：仍保护开定界符本身（如 `\(`、`\[`），
+                // 避免标点规则将其中的括号改写为全角而破坏结构。
+                if let Some(span) = TextSpan::new(start, content_start, SpanKind::LatexMath) {
+                    output.push(span);
+                }
                 break;
             };
             let end = content_start + relative_close + close.len();

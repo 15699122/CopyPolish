@@ -593,6 +593,20 @@ fn unicode_equivalents_are_explicit_and_do_not_change_defaults() {
 }
 
 #[test]
+fn preserves_unclosed_latex_delimiters() {
+    // 未闭合结构坚持“宁漏格式化，不破坏结构”：开定界符本身
+    // 不得被标点规则改写为全角（旧实现会把 `\(` 变成 `\（`）。
+    assert_eq!(
+        format_text(&req(r"未闭合\(abc继续GitHub")).unwrap(),
+        r"未闭合 \(abc 继续 GitHub"
+    );
+    assert_eq!(
+        format_text(&req(r"未闭合\[abc继续GitHub")).unwrap(),
+        r"未闭合 \[abc 继续 GitHub"
+    );
+}
+
+#[test]
 fn formats_protected_content() {
     // LaTeX / Markdown 保护。
     assert_eq!(
