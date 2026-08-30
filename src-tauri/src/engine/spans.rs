@@ -405,18 +405,19 @@ fn scan_table_separator_spans(lines: &[(usize, usize, &str)], output: &mut Vec<T
         if !trimmed.contains('|') {
             continue;
         }
-        let cells: Vec<&str> = trimmed
+        let (cell_count, valid) = trimmed
             .split('|')
             .map(str::trim)
             .filter(|cell| !cell.is_empty())
-            .collect();
-        let valid = cells.len() >= 2
-            && cells.iter().all(|cell| {
+            .fold((0usize, true), |(count, valid), cell| {
                 let cell = cell.strip_prefix(':').unwrap_or(cell);
                 let cell = cell.strip_suffix(':').unwrap_or(cell);
-                cell.len() >= 3 && cell.bytes().all(|byte| byte == b'-')
+                (
+                    count + 1,
+                    valid && cell.len() >= 3 && cell.bytes().all(|byte| byte == b'-'),
+                )
             });
-        if valid {
+        if cell_count >= 2 && valid {
             if let Some(span) = TextSpan::new(start, end, SpanKind::TableSeparator) {
                 output.push(span);
             }
@@ -1041,6 +1042,17 @@ mod tests {
                 (SpanKind::Url, "https://example.org")
             ]
         );
+    }
+
+    #[test]
+    fn table_separator_scanner_accepts_valid_cells_and_rejects_invalid_rows() {
+        let text = "| :--- | ---: |\n| -- | --- |\n| --- | 文本 |\n| --- | --- | --- |";
+        let spans: Vec<&str> = scan_structure_spans(text)
+            .into_iter()
+            .filter(|span| span.kind == SpanKind::TableSeparator)
+            .map(|span| &text[span.start..span.end])
+            .collect();
+        assert_eq!(spans, vec!["| :--- | ---: |", "| --- | --- | --- |"]);
     }
 
     #[test]
