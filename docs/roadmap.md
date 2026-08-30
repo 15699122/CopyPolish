@@ -65,7 +65,8 @@
 - [x] 优化 `spacing.cjk-latin` / `spacing.cjk-number`：生产路径改用与 `units()` 语义一致的流式相邻单位遍历，避免构造中间 `Vec<TextUnit>`；规则 profiling 观测约 19–30 ms / 17–36 ms，并新增 Graphemes/LegacyChars 一致性测试；
 - [x] 优化 HTML block 结束标签查找：先定位可能的 ASCII 首字节，再执行大小写不敏感定长比较，降低重复窗口扫描的最坏情况成本；补充 UTF-8 前缀、大小写混合与未命中回归测试；当前基准语料中 `html_block` 约 0 ms，属于局部微优化；
 - [x] 合并 LaTeX `\(...\)` / `\[...\]` 定界符扫描：单次遍历反斜杠候选并按定界符类型维护消费边界，保持混合定界符和按类型未闭合行为；新增 2 个回归测试，profiling 中 `latex_delimited` 约 0.04 ms；
-- [ ] 继续优化 1 MB Markdown/LaTeX 密集语料中的字符串分配和嵌套扫描（剩余靶点：其他结构扫描器整合）；
+- [x] 合并普通 Markdown 链接与引用式链接的 `[` 候选遍历：共享 label 扫描，保留普通链接的图片前缀/圆括号目标和引用链接的方括号目标语义；新增引用式图片边界回归测试，profiling 中合并后的 `markdown_links` 约 0.41 ms；
+- [ ] 继续优化 1 MB Markdown/LaTeX 密集语料中的字符串分配和嵌套扫描（剩余靶点：URL、HTML 与其他结构扫描器整合）；
 - [ ] 评估 worker thread、可取消任务和动态 debounce；
 - [ ] 保持 `scripts/check_performance.py` 的数量级回归门禁；
 - [ ] 长文本优化必须同时补充性能数据和行为回归。

@@ -184,7 +184,6 @@ pub(crate) fn scan_structure_spans(text: &str) -> Vec<TextSpan> {
     scan_url_email_spans(text, &mut spans);
     scan_html_block_spans(&lines, &mut spans);
     scan_inline_html_spans(text, &mut spans);
-    scan_reference_link_spans(text, &mut spans);
     scan_hard_break_spans(&lines, &mut spans);
     scan_latex_delimited_spans(text, &mut spans);
     scan_latex_command_spans(text, &mut spans);
@@ -228,14 +227,10 @@ pub(crate) fn scan_structure_spans_timings(
         scan_table_separator_spans(&lines, &mut spans)
     );
     timed!("inline_code", scan_inline_code_spans(text, &mut spans));
-    timed!("markdown_link", scan_markdown_link_spans(text, &mut spans));
+    timed!("markdown_links", scan_markdown_link_spans(text, &mut spans));
     timed!("url_email", scan_url_email_spans(text, &mut spans));
     timed!("html_block", scan_html_block_spans(&lines, &mut spans));
     timed!("inline_html", scan_inline_html_spans(text, &mut spans));
-    timed!(
-        "reference_link",
-        scan_reference_link_spans(text, &mut spans)
-    );
     timed!("hard_break", scan_hard_break_spans(&lines, &mut spans));
     timed!(
         "latex_delimited",
@@ -497,6 +492,8 @@ fn scan_inline_code_spans(text: &str, output: &mut Vec<TextSpan>) {
 }
 
 fn scan_markdown_link_spans(text: &str, output: &mut Vec<TextSpan>) {
+    use super::protection::find_link_label_end;
+
     let bytes = text.as_bytes();
     let mut cursor = 0;
     while cursor < bytes.len() {
@@ -508,22 +505,41 @@ fn scan_markdown_link_spans(text: &str, output: &mut Vec<TextSpan>) {
             .checked_sub(1)
             .filter(|index| bytes[*index] == b'!')
             .unwrap_or(label_start);
-        let Some(label_end) = balanced_end(bytes, label_start, b'[', b']') else {
+        let Some(label_end) = find_link_label_end(bytes, label_start) else {
             cursor = label_start + 1;
             continue;
         };
-        if bytes.get(label_end + 1) != Some(&b'(') {
-            cursor = label_end + 1;
-            continue;
+
+        match bytes.get(label_end + 1) {
+            Some(b'(') => {
+                let Some(target_end) = balanced_end(bytes, label_end + 1, b'(', b')') else {
+                    cursor = label_end + 1;
+                    continue;
+                };
+                if let Some(span) =
+                    TextSpan::new(structure_start, target_end + 1, SpanKind::MarkdownLink)
+                {
+                    output.push(span);
+                }
+                cursor = target_end + 1;
+            }
+            Some(b'[') => {
+                let reference_start = label_end + 1;
+                let Some(reference_end) = find_link_label_end(bytes, reference_start) else {
+                    cursor = reference_start + 1;
+                    continue;
+                };
+                if let Some(span) =
+                    TextSpan::new(label_start, reference_end + 1, SpanKind::MarkdownLink)
+                {
+                    output.push(span);
+                }
+                cursor = reference_end + 1;
+            }
+            _ => {
+                cursor = label_end + 1;
+            }
         }
-        let Some(target_end) = balanced_end(bytes, label_end + 1, b'(', b')') else {
-            cursor = label_end + 1;
-            continue;
-        };
-        if let Some(span) = TextSpan::new(structure_start, target_end + 1, SpanKind::MarkdownLink) {
-            output.push(span);
-        }
-        cursor = target_end + 1;
     }
 }
 
@@ -654,38 +670,6 @@ fn scan_inline_html_spans(text: &str, output: &mut Vec<TextSpan>) {
             output.push(span);
         }
         cursor = span_end;
-    }
-}
-
-/// 扫描引用式 Markdown 链接 `[label][reference]`，避免链接标记被普通规则拆开。
-fn scan_reference_link_spans(text: &str, output: &mut Vec<TextSpan>) {
-    use super::protection::find_link_label_end;
-
-    let bytes = text.as_bytes();
-    let mut cursor = 0usize;
-    while cursor < bytes.len() {
-        let Some(relative) = text[cursor..].find('[') else {
-            break;
-        };
-        let start = cursor + relative;
-        let Some(label_end) = find_link_label_end(bytes, start) else {
-            break;
-        };
-        let Some(reference_start) = label_end.checked_add(1) else {
-            break;
-        };
-        if bytes.get(reference_start) != Some(&b'[') {
-            cursor = label_end + 1;
-            continue;
-        }
-        let Some(reference_end) = find_link_label_end(bytes, reference_start) else {
-            cursor = reference_start + 1;
-            continue;
-        };
-        if let Some(span) = TextSpan::new(start, reference_end + 1, SpanKind::MarkdownLink) {
-            output.push(span);
-        }
-        cursor = reference_end + 1;
     }
 }
 
@@ -1125,6 +1109,16 @@ mod tests {
             .map(|span| &text[span.start..span.end])
             .collect();
         assert_eq!(spans, vec![r"\(", r"\[y\]"]);
+    }
+
+    #[test]
+    fn reference_link_span_preserves_label_start_for_image_like_syntax() {
+        let text = "前缀![图片][logo]后缀";
+        let span = scan_structure_spans(text)
+            .into_iter()
+            .find(|span| span.kind == SpanKind::MarkdownLink)
+            .expect("reference link span must be detected");
+        assert_eq!(&text[span.start..span.end], "[图片][logo]");
     }
 
     #[test]
