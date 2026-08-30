@@ -7,7 +7,7 @@
 // docs/benchmarks/unicode-baseline.md 的分阶段剖析章节。
 
 use chinese_copywriting_formatter_lib::engine::{
-    format_text_stage_timings, FormatRequest, RuleSelection,
+    format_text_stage_timings, per_rule_timings, scan_split_timings, FormatRequest, RuleSelection,
 };
 use std::time::Instant;
 
@@ -79,5 +79,27 @@ fn main() {
             "TOTAL",
             total as f64 / f64::from(ROUNDS) / 1_000_000.0
         );
+    }
+
+    // ---- 二级归因（Markdown/LaTeX 密集 @1MB） ----
+    let md_text = repeat_to_size(corpora[0].1, SIZE);
+
+    println!("\n=== 二级归因：扫描拆分（1 轮） ===");
+    for (name, d) in scan_split_timings(&md_text) {
+        println!("  {name:<22} {:9.2} ms", d.as_secs_f64() * 1000.0);
+    }
+
+    println!("\n=== 二级归因：逐规则计时（整篇应用，1 轮） ===");
+    let request = FormatRequest {
+        text: md_text,
+        selection: RuleSelection::All,
+    };
+    let mut rules: Vec<(&'static str, f64)> = per_rule_timings(&request)
+        .into_iter()
+        .map(|(key, d)| (key, d.as_secs_f64() * 1000.0))
+        .collect();
+    rules.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+    for (key, ms) in &rules {
+        println!("  {key:<38} {ms:9.2} ms");
     }
 }
