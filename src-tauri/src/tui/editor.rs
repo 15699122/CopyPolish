@@ -105,10 +105,18 @@ impl TextEditor {
     }
 
     fn next_boundary(&self, offset: usize) -> Option<usize> {
-        self.text[offset..]
-            .grapheme_indices(true)
-            .nth(1)
+        if offset >= self.text.len() {
+            return None;
+        }
+
+        let mut graphemes = self.text[offset..].grapheme_indices(true);
+        // 跳过当前 grapheme；若它已经是最后一个 grapheme，下一个合法
+        // 边界就是字符串末尾，而不是“没有边界”。
+        graphemes.next();
+        graphemes
+            .next()
             .map(|(index, _)| offset + index)
+            .or(Some(self.text.len()))
     }
 
     fn line_start(&self, offset: usize) -> usize {
@@ -171,5 +179,47 @@ mod tests {
         let mut editor = TextEditor::new("e\u{301}中文");
         editor.move_end();
         assert_eq!(editor.line_column(), (0, 3));
+    }
+
+    #[test]
+    fn moves_right_to_end_and_deletes_last_ascii_grapheme() {
+        let mut editor = TextEditor::new("sajgvwfwe");
+        editor.move_home();
+        for _ in 0..8 {
+            editor.move_right();
+        }
+        assert_eq!(editor.cursor(), "sajgvwfwe".len() - 1);
+        editor.move_right();
+        assert_eq!(editor.cursor(), editor.text().len());
+
+        editor.move_left();
+        editor.delete();
+        assert_eq!(editor.text(), "sajgvwfw");
+        assert_eq!(editor.cursor(), editor.text().len());
+    }
+
+    #[test]
+    fn deletes_last_unicode_graphemes_without_splitting_them() {
+        let cases = ["中文", "a👨‍👩‍👧‍👦", "e\u{301}中文"];
+        for input in cases {
+            let mut editor = TextEditor::new(input);
+            editor.move_home();
+            while editor.cursor() < editor.text().len() {
+                editor.move_right();
+            }
+            editor.move_left();
+            let before = editor.text().to_string();
+            editor.delete();
+            assert_ne!(editor.text(), before);
+            assert!(editor.text().is_char_boundary(editor.cursor()));
+        }
+    }
+
+    #[test]
+    fn delete_at_end_is_a_safe_noop() {
+        let mut editor = TextEditor::new("abc");
+        editor.delete();
+        assert_eq!(editor.text(), "abc");
+        assert_eq!(editor.cursor(), 3);
     }
 }

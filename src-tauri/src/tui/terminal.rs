@@ -2,7 +2,7 @@ use std::io;
 use std::time::Duration;
 
 use crossterm::{
-    event::DisableMouseCapture,
+    event::{DisableBracketedPaste, DisableMouseCapture, EnableBracketedPaste},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -16,7 +16,12 @@ impl Drop for TerminalGuard {
     fn drop(&mut self) {
         let _ = disable_raw_mode();
         let mut stdout = io::stdout();
-        let _ = execute!(stdout, LeaveAlternateScreen, DisableMouseCapture);
+        let _ = execute!(
+            stdout,
+            DisableBracketedPaste,
+            LeaveAlternateScreen,
+            DisableMouseCapture
+        );
     }
 }
 
@@ -24,7 +29,7 @@ pub fn run(mut app: App) -> io::Result<()> {
     enable_raw_mode()?;
     let _guard = TerminalGuard;
     let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen)?;
+    execute!(stdout, EnterAlternateScreen, EnableBracketedPaste)?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 

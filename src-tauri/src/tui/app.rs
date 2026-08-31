@@ -53,7 +53,10 @@ impl App {
 
     /// 按共享设置构造应用；`shared` 为 None 时回落到默认规则与空输入。
     pub fn with_config(shared: Option<SharedConfig>, no_config: bool) -> Self {
-        let rules = engine::default_rules();
+        let mut rules = engine::default_rules();
+        // TUI 展示顺序独立于 engine pipeline：默认启用规则优先，组内保持
+        // 注册表顺序，避免改变实际执行顺序或设置 key 语义。
+        rules.sort_by_key(|rule| !rule.default);
         let selection = shared
             .as_ref()
             .map(|config| config.selection.clone())
@@ -204,6 +207,19 @@ mod tests {
         let app = App::new();
         assert_eq!(app.selection, RuleSelection::Defaults);
         assert!(matches!(app.status, Status::Formatted { .. }));
+    }
+
+    #[test]
+    fn tui_rules_keep_defaults_before_non_defaults_stably() {
+        let app = App::new();
+        let first_disabled = app.rules.iter().position(|rule| !rule.default);
+        assert!(
+            first_disabled.is_some(),
+            "expected at least one disabled rule"
+        );
+        let first_disabled = first_disabled.unwrap();
+        assert!(app.rules[..first_disabled].iter().all(|rule| rule.default));
+        assert!(app.rules[first_disabled..].iter().all(|rule| !rule.default));
     }
 
     #[test]
