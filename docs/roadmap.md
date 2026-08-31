@@ -95,7 +95,7 @@
 - [x] 修复 TUI-EDIT-DELETE-001：补齐最后一个 grapheme 的 Right/Delete 边界，并覆盖 ASCII、Unicode、emoji、组合字符和 TUI Delete 事件回归；
 - [x] 执行并记录 Windows NTFS ACL 故障注入 spec：embedded 与标准 W3C provider 各 1/1 通过，权限恢复和 fixture 删除成功；
 - [ ] 固化 GUI 浅色/深色、100%/125%/150% DPI 和窄窗口的自动截图、page source 与环境清单；主题/窄窗口场景和统一 artifact 基础设施已完成，待补 Windows 三档 DPI 原生执行与记录；
-- [ ] 固化 Windows Terminal TUI raw-mode、规则面板、粘贴、OSC 52、保存/退出/重启恢复的自动 artifact；
+- [ ] 固化 Windows Terminal TUI raw-mode、规则面板、粘贴、OSC 52、保存/退出/重启恢复的自动 artifact；非交互 transcript 已由 `test:tui-transcript` 覆盖，待补真实终端交互 artifact；
 - [x] 增加 embedded/W3C 受控失败探针，验证 stdout/stderr、WDIO log、manifest、exit status、截图、page source 和设置 fixture 的完整诊断包；统一 artifact 基础设施和双 provider 自检已完成；
 - [ ] 接入并连续验证 GitLab Windows 可选 E2E stage，使用 `allow_failure: true` 和 `artifacts: when: always` 收集稳定性数据。
 - [ ] 持续执行依赖审计、许可证清单更新和工具链升级 Runbook。

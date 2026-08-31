@@ -17,6 +17,7 @@
     "test:artifact-probe:webdriver": "tsx scripts/run-artifact-failure-probe.ts --webdriver",
     "test:gui-visual-artifacts": "tsx scripts/run-gui-visual-artifacts.ts",
     "test:gui-visual-artifacts:webdriver": "tsx scripts/run-gui-visual-artifacts.ts --webdriver",
+    "test:tui-transcript": "tsx scripts/run-tui-transcript.ts",
     "test:debug": "tsx scripts/run-specs.ts --logLevel debug",
     "typecheck": "tsc --noEmit"
   },
