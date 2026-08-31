@@ -19,9 +19,9 @@
 - Markdown/HTML/LaTeX 保护仍是保守扫描器，不是完整 CommonMark/HTML 解析器；
 - 保护层仍部分使用内部 placeholder；
 - 1 MB 级 Markdown/LaTeX 语料仍需进一步减少分配和重复扫描；
-- 真实 Tauri 桌面链路已在 Linux/WSLg 建立并通过最小真实 GUI E2E；Windows WebView2 和更完整的故障注入场景仍待验证；
+- 真实 Tauri 桌面链路已在 Linux/WSLg 和 Windows WebView2 建立；本次 TUI/GUI 修复后的双 provider 最小 E2E、GUI/TUI 手动回归、Rust 设置/TUI、TUI stdin、NTFS ACL 和双 provider 稳定性验证均已完成。TUI-EDIT-DELETE-001 已通过 grapheme 边界修复和回归测试关闭；自动化故障注入和 artifact 固化仍待补齐；
 - `App.tsx` 和设置组件仍有进一步降低编排复杂度的空间；
-- TUI 尚未完成跨终端 smoke 和正式资产决策。
+- TUI 跨终端手动 smoke 和正式资产决策已完成；自动化 Terminal artifact 仍待补齐。
 
 ## P0：流程与桌面验证
 
@@ -37,11 +37,12 @@
 
 - [x] E2E 路线选型（决策 5）：选定 WebdriverIO + `@wdio/tauri-service`（embedded provider）为主路线，分析与 Spike 清单见 [e2e-driver-options.md](e2e-driver-options.md)；
 - [x] 按选型方案在 Linux/WSLg 执行真实 Spike（`e2e` feature flag 集成 wdio 插件、embedded provider 启动真实应用）；
+- [x] 参考 `Choochmeque/tauri-plugin-webdriver` 建立并行标准 WebDriver provider PoC（固定 `0.2.1`，Linux/WSLg smoke 通过；不替换当前 provider）；
 - [x] 覆盖启动、真实引擎输出和默认示例；
-- [x] 覆盖全不选恒等；规则切换和快捷键开关仍待扩展到完整真实 GUI 场景；
-- [ ] 覆盖设置保存、重启恢复、损坏设置和不可写目录；
+- [x] 覆盖全不选恒等、规则切换和快捷键开关（双 provider 自动化最小链路及修复后 GUI/TUI 人工回归已完成；TUI-EDIT-DELETE-001 已关闭）；
+- [x] 覆盖 GUI 设置重启恢复、损坏设置 fixture 和不可写目录保存失败提示（修复后 Windows 手动回归已完成；自动化故障注入仍待补齐）；
 - [x] 使用临时设置目录，禁止污染真实 `rules.yaml`；
-- [ ] Linux 和 Windows 各保留至少一条真实链路，稳定后再纳入合并门禁（Linux/WSLg 链路已通过；Windows 原生链路仍待执行；先挂 GitLab tag pipeline 可选 stage，不使用 GitHub Actions，见决策 6）。
+- [x] Linux 和 Windows 各保留至少一条真实链路，稳定后再纳入合并门禁（Linux/WSLg 与 Windows WebView2 修复后最小链路、双 provider 5 次稳定性统计及人工回归已完成；GitLab 可选 stage 和自动化故障注入仍待执行；不使用 GitHub Actions，见决策 6）。
 
 ## P1：引擎和长文本体验
 
@@ -85,10 +86,14 @@
 
 ## P2：TUI 产品化和持续维护
 
-- [ ] 在 Windows Terminal（PowerShell 7）与 Linux 终端完成交互界面 smoke（决策 4：SSH 环境不在范围内；Linux 非交互链路已完成验证：stdin 管道、文件进出、`--rules none` 恒等、未知规则 key 警告、缺失文件退出码 1、`--help`、约 1.29 MB 文本恒等处理；交互式 raw-mode 与 Windows Terminal 仍需真实终端验证）；
+- [x] 在本次 TUI 事件路由修复后重新完成 Windows Terminal（PowerShell 7）交互回归：规则默认状态排序、裸可打印字符输入、`Event::Paste`/bracketed paste、Ctrl 快捷键、OSC 52、保存和重启恢复；已记录 TUI-EDIT-DELETE-001，SSH 环境不在范围内；
+- [x] 在本次 GUI 样式修复后重新完成 Windows WebView2 视觉回归：输入/输出框表面、设置间距、恢复按钮、长路径中间省略、checkbox 样式以及 100%/125%/150% DPI 和窄窗口；
 - [x] OSC 52 不可用时提供明确降级提示：复制成功后状态栏说明“若粘贴为空，说明终端不支持或禁用了 OSC 52，请改用 --stdin/--output”；
 - [x] 评估大文本后台任务：前端已有 50 KB/200 KB 分级 debounce、序列号过期结果保护和清理机制；TUI 已验证约 1.29 MB 非交互输入；真正可取消的后台任务仍需 Tauri IPC 取消协议与真实桌面 E2E 支持；
 - [x] TUI 独立资产决策（决策 1）：发布 `CopyPolish-tui-windows-x64.7z`（内含 `CopyPolish-tui.exe`）与 `CopyPolish-tui-linux-x86_64.7z`（内含 `copypolish-tui`），与桌面版共享 Release、tag、SHA256SUMS 与发布方式；`verify_release_assets.py` 与 GitLab pipeline 已支持七资产校验；
+- [x] 为 embedded 与标准 W3C provider 各连续运行至少 5 次，记录 flaky、启动耗时、端口冲突、残留进程和 artifact 完整性；
+- [x] 修复 TUI-EDIT-DELETE-001：补齐最后一个 grapheme 的 Right/Delete 边界，并覆盖 ASCII、Unicode、emoji、组合字符和 TUI Delete 事件回归；
+- [ ] 将 Windows 设置故障注入和 TUI/GUI 回归固化为可重复 spec，并在稳定性统计完成后评估 GitLab Windows 可选 stage；
 - [ ] 持续执行依赖审计、许可证清单更新和工具链升级 Runbook。
 
 ## 规则扩展准入

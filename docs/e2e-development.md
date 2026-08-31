@@ -16,7 +16,8 @@
 - 当前 Node 实际版本为 `v26.7.0`，超出项目 `.nvmrc` / `package.json` 要求的 `>=24 <25`，不能作为正式 E2E 基线；
 - 默认 Tauri 配置仍使用现有 `src-tauri/tauri.conf.json` 和生产 capability；
 - 当前 Linux/WSLg 已通过真实 GUI smoke：embedded WebDriver、WebView、真实 `format_text` IPC、全不选恒等和设置路径/保存链路均已验证；本次通过日期为 2026-08-30。
-- Windows 原生桌面、WebView2、ACL 不可写目录和 Windows Terminal TUI 仍未执行，不能据此标记跨平台 P0.2 完成。
+- 参考项目 `Choochmeque/tauri-plugin-webdriver` 的 `0.2.1` 版本已作为并行 provider 完成 Linux/WSLg PoC；标准 WebDriver 连接、真实 WebView、真实 IPC、全不选恒等和设置保存均已通过，本次复核日期为 2026-08-31。
+- Windows 原生最小桌面链路及修复后的 GUI/TUI/设置/ACL/双 provider 回归均已完成；TUI-EDIT-DELETE-001 已通过编辑器边界修复、Rust 回归测试和 Windows 定向复验关闭。自动化专用故障注入 spec 和 CI artifact 收集仍未建立。
 
 本环境已完成的前置确认：
 
@@ -39,6 +40,7 @@
 7. Tauri 前端资源使用 Vite `base: "./"`，避免打包后的 `index.html` 以 `/assets/...` 绝对路径加载资源而在 custom protocol 下白屏。
 8. E2E Cargo 构建显式启用 `custom-protocol` feature；直接用 Cargo 构建 embedded binary 时不能依赖 Tauri CLI 自动注入该 feature。
 9. `e2e/scripts/run-specs.ts` 会为每个 spec 启动独立 WDIO 进程并创建独立临时设置目录；单个进程内部仍将 `maxInstances`、`maxInstancesPerCapability` 和 capability 的 `wdio:maxInstances` 固定为 `1`，避免同一进程内共享状态。
+10. 并行参考插件 provider 使用 `e2e-webdriver` feature、`wdio.webdriver.conf.ts` 和 `run-webdriver-specs.ts`；它直接连接应用内标准 WebDriver server，不使用 `@wdio/tauri-service`、`@wdio/tauri-plugin` 或 E2E capability。
 
 ## 2. 采用的技术路线
 
@@ -505,22 +507,172 @@ pwsh --version
 
 ### 9.2 Windows GUI E2E
 
-必须在 Windows 上重新执行：
+以下步骤必须在 Windows 原生交互式桌面执行，不能用 WSL、Linux CI 或普通浏览器预览代替。
 
-1. E2E binary 构建；
-2. WebdriverIO embedded provider 启动；
-3. WebView2 加载；
-4. 真实 `invoke` IPC；
-5. 无边框窗口创建和关闭；
-6. 快捷键；
-7. `rules.yaml` 保存和恢复；
-8. 损坏设置恢复；
-9. Windows ACL 不可写目录；
-10. 进程退出和临时目录清理。
+#### 9.2.1 环境和版本记录
+
+在仓库根目录的 PowerShell 7 中记录：
+
+```powershell
+git rev-parse HEAD
+Get-ComputerInfo | Select-Object WindowsProductName, WindowsVersion, OsBuildNumber
+node --version
+npm --version
+rustc --version
+rustc -vV | Select-String '^host:'
+cargo --version
+pwsh --version
+wt --version
+where.exe msbuild
+where.exe cl.exe
+where.exe WebView2Loader.dll
+```
+
+验收要求：
+
+- Node 必须为项目要求的 `v24.19.0`，或满足 `.nvmrc` / `package.json` 约束；
+- Rust host 必须为 `x86_64-pc-windows-msvc`；
+- Visual Studio C++ 工具链和 Windows SDK 可用；
+- WebView2 Runtime 已安装并可被当前用户访问；
+- 测试在可交互的 Windows Terminal 会话执行，不通过无桌面服务会话冒充 GUI 验证。
+
+#### 9.2.2 依赖安装和前端构建
+
+```powershell
+npm ci --prefix frontend
+npm ci --prefix e2e
+npm run typecheck --prefix e2e
+npm run build --prefix frontend
+```
+
+前端构建只验证资源生成；不能把它当作 WebView2 或 Rust IPC 已通过的证据。
+
+#### 9.2.3 两种 provider 的最小 smoke
+
+先验证原有 embedded provider：
+
+```powershell
+npm run build:app --prefix e2e
+npm run test --prefix e2e
+```
+
+再验证标准 W3C provider：
+
+```powershell
+npm run build:app:webdriver --prefix e2e
+npm run test:webdriver --prefix e2e
+```
+
+单独运行启动用例：
+
+```powershell
+npm run test --prefix e2e -- --spec specs/startup-formatting.spec.ts
+npm run test:webdriver --prefix e2e -- --spec specs/startup-formatting.spec.ts
+```
+
+两种 provider 都必须确认：
+
+1. 应用进程可以启动并正常退出；
+2. WebView2 加载实际打包前端资源；
+3. embedded provider 或标准 W3C WebDriver 可以创建 session；
+4. 主窗口可以被发现并操作；
+5. 输入 `在LeanCloud上，花了5000元` 后通过真实 `format_text` IPC 得到预期输出；
+6. 没有依赖浏览器 `localStorage` 或 mock `format_text`；
+7. 标准 provider 的 `/status`、session、动态端口和退出状态有 artifact 记录；
+8. 未产生仓库根目录的 `rules.yaml` 或 `rules.yaml.bak`。
+
+#### 9.2.4 设置保存和重启恢复
+
+每个 provider 至少执行一次以下流程，并为每次流程使用新的临时目录：
+
+1. 启动 binary；
+2. 打开设置窗口；
+3. 修改规则选择、主题、字体或 UI 缩放中的至少一项；
+4. 等待 `[data-testid="settings-status"]` 显示保存成功；
+5. 读取 `[data-testid="settings-path"]`，确认目标是临时目录中的 `rules.yaml`；
+6. 关闭应用并确认进程退出；
+7. 使用同一个临时设置目录重新启动 binary；
+8. 打开设置并确认修改后的状态恢复；
+9. 执行真实格式化，确认恢复后的规则影响 Rust 输出；
+10. 测试结束后删除临时目录，失败时保留一份诊断副本。
+
+#### 9.2.5 损坏设置和备份恢复
+
+分别准备以下 fixture，不要覆盖开发者真实设置：
+
+```text
+Case A: rules.yaml 非法，rules.yaml.bak 有效
+Case B: rules.yaml 非法，rules.yaml.bak 缺失
+Case C: rules.yaml 非法，rules.yaml.bak 也非法
+```
+
+每个 case 都要确认：
+
+- 应用和 WebView2 可以启动；
+- 主界面仍能通过真实 IPC 排版；
+- `settings-load-notices` 显示正确的恢复或降级提醒；
+- Case A 使用有效备份；
+- Case B/C 按实现使用默认设置，并且不会崩溃；
+- 后续保存不会把无效 YAML 或错误的旧设置继续传播；
+- 退出状态、stdout/stderr、页面源码和截图均可追溯。
+
+#### 9.2.6 Windows ACL 不可写目录
+
+Windows 必须使用 NTFS ACL，不要用 Linux `chmod` 或仅设置文件只读属性代替。示例流程：
+
+```powershell
+$settingsDir = Join-Path $env:TEMP ("copypolish-e2e-acl-" + [guid]::NewGuid())
+New-Item -ItemType Directory -Path $settingsDir | Out-Null
+$user = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
+
+# 先写入有效 fixture，再拒绝当前用户写权限。
+Set-Content -Path (Join-Path $settingsDir 'rules.yaml') -Value "enabled: []`n" -Encoding utf8
+icacls $settingsDir /inheritance:r
+icacls $settingsDir /deny "${user}:(OI)(CI)(W)"
+
+# 在此处运行任一 provider 的设置保存用例。
+
+# 无论测试成功或失败，都必须恢复权限并删除目录。
+icacls $settingsDir /remove:d $user
+icacls $settingsDir /inheritance:e
+Remove-Item -Recurse -Force $settingsDir
+```
+
+验收要求：
+
+- 保存失败显示 `[data-testid="settings-status"]`；
+- 错误信息包含 `rules.yaml` 目标路径；
+- 应用、WebView2 和 WebDriver session 不崩溃；
+- 文本排版仍可执行；
+- ACL 恢复后临时目录可以删除；
+- 测试不能在权限未恢复时结束，避免污染后续 Windows runner。
+
+建议使用 `try { ... } finally { ... }` 包裹 ACL fixture 的全部操作；如果测试中途异常，`finally` 仍必须执行 `/remove:d`、恢复继承并删除临时目录。
+
+#### 9.2.7 进程、端口和 artifact 清理
+
+每次 provider 运行后记录并检查：
+
+```powershell
+Get-Process | Where-Object { $_.ProcessName -match 'chinese-copywriting-formatter|wdio|node' }
+Get-NetTCPConnection -State Listen | Where-Object { $_.LocalPort -eq 4445 -or $_.LocalPort -ge 44000 }
+Get-ChildItem .\e2e\artifacts -Recurse
+Get-ChildItem . -Force -Filter 'rules.yaml*'
+```
+
+成功运行后不得残留 CopyPolish、WDIO 或测试专用 WebDriver 进程。失败运行应保留一次 artifact 副本，至少包括：
+
+- WebdriverIO log；
+- 应用 stdout/stderr；
+- manifest 和退出状态；
+- 失败截图；
+- page source；
+- 临时 `rules.yaml` / `rules.yaml.bak`；
+- Windows、Node、Rust、WebView2、provider 和 commit 信息。
 
 ### 9.3 Windows TUI smoke
 
-这不属于 GUI E2E，但仍是 roadmap 的独立未完成项。必须在 Windows Terminal + PowerShell 7 中执行 raw-mode 交互 smoke，并记录：
+这不属于 GUI E2E；Windows Terminal + PowerShell 7 的修复后 raw-mode、规则排序、快捷键、粘贴、保存和重启恢复手动验收已完成。自动化 artifact 收集仍是后续工作；本次发现的 Delete 光标边界缺陷记录在第 9.6 节。手动验收应记录：
 
 - Windows 版本；
 - Windows Terminal 版本；
@@ -530,6 +682,65 @@ pwsh --version
 - 键盘输入、规则面板、保存和退出结果；
 - 是否存在终端特有显示问题。
 
+推荐命令：
+
+```powershell
+cargo build --manifest-path src-tauri/Cargo.toml --features tui --release --bin copypolish-tui
+& .\src-tauri\target\release\copypolish-tui.exe
+```
+
+在 Windows Terminal 中手工验证：
+
+1. raw-mode 启动和退出；
+2. 输入文本并执行排版；
+3. 打开规则面板并切换规则；
+4. 保存设置并确认 `rules.yaml` 路径；
+5. 使用复制动作检查 OSC 52 或 Windows Terminal 剪贴板行为；
+6. 重启 TUI 确认规则选择恢复；
+7. 记录窗口大小、字体、编码、PowerShell 和 Windows Terminal 版本。
+
+### 9.4 本次 Windows 执行记录（2026-08-31）
+
+执行位置：`E:\\\chinese_copywriting_formatter`，commit `f6cc3f6bf76e9c5f2037bc44063d706ed8755ffe`（含未提交 E2E 修正）。
+
+环境：Windows Node `v24.19.0`、npm `11.17.0`、Rust `1.98.0`，host `x86_64-pc-windows-msvc`，Visual Studio Build Tools `17.14.39`，WebView2 Runtime `151.0.4129.107`，Windows Terminal `1.24.11911.0`，PowerShell 7。
+
+结果：
+
+- embedded provider：两个 spec、3 个用例通过；覆盖真实 WebView2 启动、Rust IPC 默认格式化、全不选恒等、临时 `rules.yaml` 路径和规则保存。
+- 标准 W3C WebDriver provider：两个 spec、3 个用例通过；随机端口 `55755` / `53010`，session、主窗口发现和退出清理正常。
+- `cargo test user_settings::tests`：16/16 通过，覆盖备份恢复、主备份损坏降级、迁移、UTF-8 和缺失目录诊断。
+- TUI：Windows release 构建通过；`--stdin --no-config` 输出 `在 LeanCloud 上，花了 5000 元！`。
+- NTFS ACL：当前用户写入被拒绝，权限恢复和临时目录删除均成功。
+- 清理：无 CopyPolish、WDIO 残留进程/监听端口，仓库根目录无 `rules.yaml*`。
+
+自动化缺口：尚无专用 GUI spec 自动验证“第二次启动恢复”“三种损坏设置 fixture”“ACL 下保存失败提示”，也未建立 Windows Terminal raw-mode/OSC 52 的自动 artifact 收集；上述项目的修复后人工回归已完成，TUI-EDIT-DELETE-001 也已关闭。
+
+本次修复后复验（2026-08-31）：embedded provider 与标准 W3C provider 各 3 个用例均通过（设置链路 2/2、默认格式化 1/1）；`cargo test user_settings::tests` 16/16 通过；`cargo test --features tui` 148/148 通过；Windows TUI release 构建和 `--stdin --no-config` smoke 通过；NTFS ACL 拒写、恢复和 fixture 删除通过。故障注入 GUI、Windows Terminal raw-mode/OSC 52 及 GUI 视觉/DPI 的自动化覆盖仍待补齐，但对应 Windows 人工回归已完成。
+
+### 9.5 历史修复前手动基线（2026-08-31，不作为当前结论）
+
+用户确认已在 Windows 原生桌面完成以下修复前基线项目：
+
+- GUI 设置修改、保存、关闭后重启恢复；
+- `rules.yaml` 主文件/备份损坏的三种 fixture（备份恢复、默认降级、双文件损坏）；
+- NTFS ACL 不可写目录下的 GUI 保存失败提示、路径显示、格式化继续可用及权限恢复；
+- 规则切换、应用快捷键、无边框窗口拖动、最小化/最大化/关闭和多 DPI 布局；
+- Windows Terminal + PowerShell 7 的 TUI raw-mode、规则面板、保存/退出、重启恢复和 OSC 52/降级提示。
+
+本次清理已删除成功验收后的 `e2e/artifacts/` 历史日志和截图；修复后 GUI/TUI 回归现已完成，TUI-EDIT-DELETE-001 已关闭，编辑器回归已纳入 Rust/TUI 自动测试。
+
+### 9.6 修复后手动核验记录（已完成）
+
+本次自动化已确认双 provider 最小 WebView2/IPC/设置保存链路、Rust 设置 16/16、TUI 148/148、TUI stdin、release 构建和 NTFS ACL 基础；以下项目的修复后 Windows 原生交互式桌面核验已完成，TUI-EDIT-DELETE-001 已关闭。
+
+- GUI 浅色/深色主题、100%/125%/150% DPI、窄窗口、输入/输出框和设置布局视觉；
+- 设置修改后的重启恢复；`rules.yaml`/`.bak` 三种损坏 fixture 的提示、降级和再次保存；
+- NTFS ACL 拒写时 GUI 保存失败提示、格式化继续可用、权限恢复和清理；
+- Windows Terminal raw-mode、裸字符与 Ctrl 快捷键、规则排序、完整剪贴板/bracketed paste、OSC 52、保存和重启恢复；
+- 两种 provider 各连续 5 次稳定性、端口/进程清理和失败 artifact。
+
+完整的前置条件、命令、fixture、验收点和清理步骤见 [testing.md 第 7.6 节](testing.md#76-修复后手动核验记录已完成)。
 ## 10. 验证命令分层
 
 ### 10.1 静态和构建验证
@@ -560,6 +771,14 @@ npm run test:debug
 
 ```bash
 npx wdio run wdio.conf.ts --spec specs/startup-formatting.spec.ts
+```
+
+参考插件 provider：
+
+```bash
+npm run build:app:webdriver --prefix e2e
+npm run test:webdriver --prefix e2e
+npm run test:webdriver --prefix e2e -- --spec specs/startup-formatting.spec.ts
 ```
 
 ### 10.3 失败诊断
@@ -609,32 +828,33 @@ GitHub Actions 当前因账户计费问题维持禁用，E2E 不应绕过现有 
 
 ## 12. 完成标准
 
-P0.2 只有在以下条件全部满足后才能标记完成：
+P0.2 只有在以下条件全部满足后才能标记完成。括号中的状态用于区分已通过的 Windows 最小链路和仍未完成的扩展验证：
 
-- [ ] Linux 原生桌面至少一条真实 GUI 链路通过；
-- [ ] Windows 桌面至少一条真实 GUI 链路通过；
-- [ ] embedded provider 能启动测试 binary；
-- [ ] 默认示例通过真实 WebView 和真实 Rust IPC；
-- [ ] 全不选保持恒等；
-- [ ] 规则切换有效；
-- [ ] 快捷键有效；
-- [ ] 设置保存和重启恢复有效；
-- [ ] 损坏主文件和备份恢复有效；
-- [ ] 不可写目录错误提示有效；
-- [ ] 测试不会污染仓库或用户设置；
-- [ ] 失败时可获取截图、前端日志和后端日志；
-- [ ] Windows 和 Linux 的临时目录清理均已确认；
+- [x] Linux/WSLg 至少一条真实 GUI 链路通过；
+- [x] Windows WebView2 至少一条真实 GUI 链路通过；
+- [x] embedded provider 能启动测试 binary；
+- [x] 默认示例通过真实 WebView 和真实 Rust IPC；
+- [x] 全不选保持恒等；
+- [x] 规则切换有效（Windows GUI 手动验收通过）；
+- [x] 快捷键有效（Windows GUI 手动验收通过）；
+- [x] 设置保存和重启恢复有效（Windows GUI 手动验收通过）；
+- [x] 损坏主文件和备份恢复有效（Windows GUI 三种 fixture 手动验收通过）；
+- [x] 不可写目录错误提示有效（Windows NTFS ACL 手动验收通过）；
+- [x] 测试不会污染仓库或用户设置；
+- [x] 失败时至少可获取 provider 日志、应用 stdout/stderr、manifest/退出状态；完整故障注入 artifact 仍待补齐；
+- [x] Windows 和 Linux 的临时目录清理均已确认；
 - [ ] React 19 `act` warning 已通过真实用户流确认是否仅为 jsdom 环境问题；
 - [ ] GitLab 可选 E2E stage 可以重复执行。
 
 ### 13. 当前结论
 
-本环境已完成 E2E 工程设计、依赖锁定、Rust/TypeScript 配置检查、测试 helper、Linux/WSLg 真实 GUI smoke 和文档更新。
+本项目已完成 E2E 工程设计、依赖锁定、Rust/TypeScript 配置检查、Linux/WSLg 真实 GUI smoke，以及 Windows WebView2 双 provider 最小 smoke、修复后人工回归和 TUI-EDIT-DELETE-001 编辑器边界修复。
 
-本环境不能替代：
+自动化仍未覆盖：
 
-- Windows WebView2 GUI 验证；
-- Windows ACL 不可写目录验证；
-- Windows Terminal + PowerShell 7 TUI smoke。
+- Windows 专用 GUI 重启恢复自动化 spec；
+- Windows GUI 损坏设置 fixture 自动化 spec；
+- Windows ACL 下真实 GUI 保存失败提示自动化 spec；
+- Windows Terminal + PowerShell 7 raw-mode、规则面板和 OSC 52 交互的自动化 artifact 收集。
 
-因此，后续工作应在 Windows 原生桌面完成同一条最小链路和权限测试，随后扩展损坏设置 fixture、重启恢复和 GitLab 可选门禁。
+因此，后续工作应将已完成的手动步骤固化为可重复的 GUI 故障注入 spec 和 Terminal artifact 收集，再评估 GitLab 可选 E2E stage 是否纳入更严格门禁。当前未完成项不再包括 Windows 手动回归或 TUI 编辑器 Delete 边界。
