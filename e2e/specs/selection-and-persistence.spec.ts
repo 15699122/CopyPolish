@@ -16,7 +16,9 @@ describe("CopyPolish 真实设置链路", () => {
 
   it("全不选时真实 IPC 输出保持恒等", async () => {
     await $("[data-testid=\"open-settings\"]").click();
+    await browser.waitUntil(async () => await (await $("[data-testid=\"select-none\"]")).isExisting(), { timeout: 10_000, timeoutMsg: "设置弹窗未完成渲染" });
     await $("[data-testid=\"select-none\"]").click();
+    await browser.waitUntil(async () => await (await $("[data-testid=\"settings-status\"]")).getText() === "设置已保存", { timeout: 10_000, timeoutMsg: "设置保存未完成" });
     await $("[data-testid=\"settings-done\"]").click();
 
     const source = "在LeanCloud上，花了5000元！！";
@@ -28,7 +30,9 @@ describe("CopyPolish 真实设置链路", () => {
     const pathText = await $("[data-testid=\"settings-path\"]").getText();
     expect(pathText).toContain("rules.yaml");
 
+    await browser.waitUntil(async () => await (await $("[data-testid=\"select-none\"]")).isExisting(), { timeout: 10_000, timeoutMsg: "设置弹窗未完成渲染" });
     await $("[data-testid=\"select-none\"]").click();
+    await browser.waitUntil(async () => await (await $("[data-testid=\"settings-status\"]")).getText() === "设置已保存", { timeout: 10_000, timeoutMsg: "设置保存未完成" });
     await $("[data-testid=\"settings-done\"]").click();
 
     const settingsDir = process.env.COPYPOLISH_E2E_SETTINGS_DIR;

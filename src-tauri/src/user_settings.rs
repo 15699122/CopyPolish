@@ -169,7 +169,7 @@ pub struct LoadedUserSettings {
 
 /// 设置保存目录：优先使用当前可执行文件所在目录，失败时回退当前工作目录。
 fn settings_dir() -> PathBuf {
-    #[cfg(feature = "e2e")]
+    #[cfg(any(feature = "e2e-wdio", feature = "e2e-webdriver"))]
     if let Ok(dir) = std::env::var("COPYPOLISH_E2E_SETTINGS_DIR") {
         if !dir.is_empty() {
             return PathBuf::from(dir);
