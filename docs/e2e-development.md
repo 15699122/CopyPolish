@@ -778,9 +778,9 @@ cargo build --manifest-path src-tauri/Cargo.toml --features tui --release --bin 
 - TUI：Windows release 构建通过；`--stdin --no-config` 输出 `在 LeanCloud 上，花了 5000 元！`。
 - 清理：无 CopyPolish、WDIO 残留进程/监听端口，仓库根目录无 `rules.yaml*`。
 
-自动化缺口：尚未完成 Windows 100%/125%/150% DPI 三档自动执行与环境记录、Windows Terminal raw-mode/OSC 52 自动 artifact、真实 Tauri `Ctrl+,` 流程下的 React 19 `act` warning 闭环，以及 GitLab Windows 可选 E2E stage。GUI 主题/窄窗口 artifact 已在两个 provider 中验证；统一 artifact 基础设施已接入两个 provider，可在失败时收集 screenshot、page source、设置 fixture、manifest 和 result；受控失败 probe 已在两个 provider 中验证完整诊断包；设置重启恢复、三种损坏设置 fixture 和 NTFS ACL 保存失败均已通过两个 provider 的专用 runner，相关人工回归也已完成，TUI-EDIT-DELETE-001 已关闭。
+自动化缺口：尚未完成 Windows 100%/125%/150% DPI 三档自动执行与环境记录、Windows Terminal raw-mode/OSC 52 自动 artifact、真实 Tauri `Ctrl+,` 流程下的 React 19 `act` warning 闭环，以及 GitLab Windows 可选 E2E stage。GUI 主题/窄窗口 artifact、统一 artifact 基础设施、受控失败 probe 和 TUI 非交互 transcript 已在当前两个 provider/Linux 环境中验证；设置重启恢复、三种损坏设置 fixture 和 NTFS ACL 保存失败也已通过两个 provider 的专用 runner，相关人工回归也已完成，TUI-EDIT-DELETE-001 已关闭。
 
-本次修复后复验（2026-08-31）：embedded provider 与标准 W3C provider 各 3 个最小 smoke 用例均通过（设置链路 2/2、默认格式化 1/1）；三种损坏设置 fixture 在两个 provider 中各 3/3 通过；重启恢复在两个 provider 中的 write/read 阶段各 1/1 通过；NTFS ACL 保存失败在两个 provider 中各 1/1 通过；统一 artifact 基础设施随两个 provider 启动 smoke 通过并生成 manifest/result；受控失败 probe 在两个 provider 中各 1/1 通过并验证失败诊断包完整；GUI 主题/窄窗口 artifact 在两个 provider 中各 1/1 通过并生成 5 组 screenshot/page source/metadata；`cargo test user_settings::tests` 16/16 通过；`cargo test --features tui` 148/148 通过；Windows TUI release 构建和 `--stdin --no-config` smoke 通过。Windows 三档 DPI 原生执行、Terminal raw-mode/OSC 52 自动 artifact 仍待补齐，但对应 Windows 人工回归已完成。
+本次修复后复验（2026-08-31）：embedded provider 与标准 W3C provider 各 3 个最小 smoke 用例均通过（设置链路 2/2、默认格式化 1/1）；三种损坏设置 fixture 在两个 provider 中各 3/3 通过；重启恢复在两个 provider 中的 write/read 阶段各 1/1 通过；NTFS ACL 保存失败在两个 provider 中各 1/1 通过；统一 artifact 基础设施随两个 provider 启动 smoke 通过并生成 manifest/result；受控失败 probe 在两个 provider 中各 1/1 通过并验证失败诊断包完整；GUI 主题/窄窗口 artifact 在两个 provider 中各 1/1 通过并生成 5 组 screenshot/page source/metadata；TUI 非交互 transcript 4/4 通过并保存输入、stdout、stderr、退出码和环境摘要；`cargo test user_settings::tests` 16/16 通过；`cargo test --features tui` 148/148 通过；Windows TUI release 构建和 `--stdin --no-config` smoke 通过。Windows 三档 DPI 原生执行、Terminal raw-mode/OSC 52 自动 artifact 仍待补齐，但对应 Windows 人工回归已完成。
 
 ### 9.5 历史修复前手动基线（2026-08-31，不作为当前结论）
 
@@ -905,7 +905,7 @@ P0.2 只有在以下条件全部满足后才能标记完成。括号中的状态
 - [x] 损坏主文件和备份恢复有效（Windows GUI 三种 fixture 手动验收通过）；
 - [x] 不可写目录错误提示有效（Windows NTFS ACL 手动验收通过）；
 - [x] 测试不会污染仓库或用户设置；
-- [x] 失败时至少可获取 provider 日志、应用 stdout/stderr、manifest/退出状态；完整故障注入 artifact 仍待补齐；
+- [x] 失败时至少可获取 provider 日志、应用 stdout/stderr、manifest/退出状态；受控失败 probe 已验证截图、page source、设置 fixture 和结果汇总；
 - [x] Windows 和 Linux 的临时目录清理均已确认；
 - [ ] React 19 `act` warning 已通过真实用户流确认是否仅为 jsdom 环境问题；
 - [ ] GitLab 可选 E2E stage 可以重复执行。
@@ -916,7 +916,7 @@ P0.2 只有在以下条件全部满足后才能标记完成。括号中的状态
 
 自动化与留证仍未覆盖：
 
-- GUI 浅色/深色、100%/125%/150% DPI 和窄窗口的自动截图、page source 与环境清单；
+- Windows GUI 100%/125%/150% DPI 三档原生执行与环境记录；主题/窄窗口截图、page source 和 metadata 已由专用入口覆盖；
 - Windows Terminal + PowerShell 7 raw-mode、规则面板、粘贴和 OSC 52 交互的自动 artifact；非交互 transcript 已由 `test:tui-transcript` 覆盖，但不能替代真实终端交互；
 - 真实 Tauri `Ctrl+,` 用户流对 React 19 `act` warning 的闭环判断；
 - GitLab Windows 可选 E2E stage 的重复执行、始终上传 artifact 和稳定性统计。
@@ -927,4 +927,4 @@ P0.2 只有在以下条件全部满足后才能标记完成。括号中的状态
 重启恢复已由 `test:restart-settings` 和
 `test:restart-settings:webdriver` 入口覆盖，不再属于未完成项。
 
-因此，后续工作应先固化 Terminal 交互 artifact 和 React 19 告警闭环，再接入 GitLab Windows 可选 E2E stage 并评估更严格门禁。GUI 主题/窄窗口 artifact、受控失败诊断包和 TUI 非交互 transcript 已完成；当前未完成项不再包括 Windows 手动功能回归、损坏设置 fixture、重启恢复、NTFS ACL 故障注入或 TUI 编辑器 Delete 边界。
+因此，后续工作应先完成 Windows 三档 DPI 原生记录、Terminal 交互 artifact 和 React 19 告警闭环，再接入 GitLab Windows 可选 E2E stage 并评估更严格门禁。GUI 主题/窄窗口 artifact、受控失败诊断包和 TUI 非交互 transcript 已完成；当前未完成项不再包括 Windows 手动功能回归、损坏设置 fixture、重启恢复、NTFS ACL 故障注入或 TUI 编辑器 Delete 边界。

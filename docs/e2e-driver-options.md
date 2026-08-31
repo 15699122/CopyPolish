@@ -1,6 +1,6 @@
 # Tauri 2 真实 E2E 路线选型分析（决策记录）
 
-> 状态：方案 A 已建立并通过 Linux/WSLg 基线；方案 E 已完成 Linux/WSLg 并行 PoC，并于 2026-08-31 在 Windows WebView2 上完成最小对照 smoke。TUI 事件路由、规则排序、编辑器边界和 GUI 样式随后完成修复；修复后的双 provider 最小回归、设置重启恢复、损坏设置、NTFS ACL、Windows GUI/TUI 手动回归及连续稳定性验证均已完成。剩余工作为 GUI/TUI 自动 artifact、受控失败完整诊断包、React 19 告警闭环和 GitLab Windows 可选 E2E。
+> 状态：方案 A 已建立并通过 Linux/WSLg 基线；方案 E 已完成 Linux/WSLg 并行 PoC，并于 2026-08-31 在 Windows WebView2 上完成最小对照 smoke。TUI 事件路由、规则排序、编辑器边界和 GUI 样式随后完成修复；修复后的双 provider 最小回归、设置重启恢复、损坏设置、NTFS ACL、Windows GUI/TUI 手动回归、连续稳定性、统一 artifact、受控失败 probe、GUI 主题/窄窗口 artifact 和 TUI 非交互 transcript 均已完成。剩余工作为 Windows 三档 DPI 原生记录、Terminal 交互 artifact、React 19 告警闭环和 GitLab Windows 可选 E2E。
 > 前置阅读：[roadmap.md](roadmap.md) P0.2 节。
 
 ## 1. 候选方案
@@ -57,7 +57,7 @@
 - 通过真实 WebView 和 Rust IPC 完成默认示例格式化；
 - 通过全不选恒等、临时设置目录和真实 `rules.yaml` 保存 smoke；
 - 不加载 `@wdio/tauri-plugin`、不使用 E2E capability 和 `withGlobalTauri`；
-- Windows WebView2 最小启动、session、真实 IPC、设置保存和清理，以及 GUI 重启恢复、损坏设置、ACL 保存失败、规则/快捷键、窗口/DPI 和 Terminal TUI 的修复后人工回归、双 provider 各 5 次稳定性统计均已完成；设置恢复、损坏设置和 ACL 故障注入也已在双 provider 中自动化通过。TUI-EDIT-DELETE-001 已通过 Rust 回归测试和 Windows 定向复验关闭，CI artifact 收集仍待执行。
+- Windows WebView2 最小启动、session、真实 IPC、设置保存和清理，以及 GUI 重启恢复、损坏设置、ACL 保存失败、规则/快捷键、窗口/DPI 和 Terminal TUI 的修复后人工回归、双 provider 各 5 次稳定性统计均已完成；设置恢复、损坏设置、ACL 故障注入、受控失败诊断、GUI 主题/窄窗口 artifact 和 TUI 非交互 transcript 也已自动化通过。TUI-EDIT-DELETE-001 已通过 Rust 回归测试和 Windows 定向复验关闭，仍待 Windows DPI 原生记录、Terminal 交互 artifact 和 CI stage。
 
 对应入口：
 
@@ -66,7 +66,7 @@ npm run build:app:webdriver --prefix e2e
 npm run test:webdriver --prefix e2e
 ```
 
-- 当前结论：方案 E 与方案 A 均已达到本次修复后的 Windows WebView2 smoke（各 3 个普通用例、重启 write/read、3 个损坏 fixture 和 1 个 ACL 用例通过），且修复后 GUI/TUI 人工回归和双 provider 稳定性验证已完成；方案 A 仍为主路线。TUI-EDIT-DELETE-001 已关闭，后续仅补 GUI/TUI 自动 artifact、受控失败诊断包、React 19 告警闭环和 GitLab Windows 可选 E2E。
+- 当前结论：方案 E 与方案 A 均已达到本次修复后的 Windows WebView2 smoke（各 3 个普通用例、重启 write/read、3 个损坏 fixture 和 1 个 ACL 用例通过），并在当前环境完成受控失败诊断、GUI 主题/窄窗口 artifact 和 TUI 非交互 transcript；修复后 GUI/TUI 人工回归和双 provider 稳定性验证也已完成。方案 A 仍为主路线。TUI-EDIT-DELETE-001 已关闭，后续仅补 Windows DPI 原生记录、Terminal 交互 artifact、React 19 告警闭环和 GitLab Windows 可选 E2E。
 
 #### Windows 原生对照记录模板
 
@@ -83,7 +83,7 @@ Windows 验证必须对方案 A 和方案 E 使用同一 commit、同一 Node/Ru
 | 重启恢复 | 自动通过 | 自动通过 | write/read 阶段各 1/1 |
 | 损坏设置恢复 | 自动通过 | 自动通过 | 三种 fixture 各 3/3 |
 | ACL 不可写目录 | 自动通过 | 自动通过 | 各 1/1；拒写/恢复/删除及 GUI 保存失败提示已确认 |
-| 失败诊断 | 手动通过 | 手动通过 | 手动记录已完成；可重复故障 artifact 待补 |
+| 失败诊断 | 自动 probe 通过 | 自动 probe 通过 | manifest/result、日志、截图、page source 和 fixture 已验证 |
 | 进程和端口清理 | 通过 | 通过 | 无残留进程/监听端口 |
 
 方案 E 已达到方案 A 的本次修复后 Windows WebView2 smoke 和设置/ACL 故障注入覆盖，方案 A 仍为主路线。只有当后续 artifact 收集证明标准协议 provider 在诊断能力上没有明显劣势时，才重新评估主路线。
