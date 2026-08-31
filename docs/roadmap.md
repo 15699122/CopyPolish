@@ -19,7 +19,7 @@
 - Markdown/HTML/LaTeX 保护仍是保守扫描器，不是完整 CommonMark/HTML 解析器；
 - 保护层仍部分使用内部 placeholder；
 - 1 MB 级 Markdown/LaTeX 语料仍需进一步减少分配和重复扫描；
-- 真实 Tauri 桌面链路缺少稳定的自动化 E2E；
+- 真实 Tauri 桌面链路已在 Linux/WSLg 建立并通过最小真实 GUI E2E；Windows WebView2 和更完整的故障注入场景仍待验证；
 - `App.tsx` 和设置组件仍有进一步降低编排复杂度的空间；
 - TUI 尚未完成跨终端 smoke 和正式资产决策。
 
@@ -36,12 +36,12 @@
 ### P0.2 真实 Tauri E2E
 
 - [x] E2E 路线选型（决策 5）：选定 WebdriverIO + `@wdio/tauri-service`（embedded provider）为主路线，分析与 Spike 清单见 [e2e-driver-options.md](e2e-driver-options.md)；
-- [ ] 按选型方案在真实桌面环境执行 Spike（`e2e` feature flag 集成 wdio 插件、embedded provider 启动真实应用）；
-- [ ] 覆盖启动、真实引擎输出和默认示例；
-- [ ] 覆盖全不选恒等、规则切换和快捷键开关；
+- [x] 按选型方案在 Linux/WSLg 执行真实 Spike（`e2e` feature flag 集成 wdio 插件、embedded provider 启动真实应用）；
+- [x] 覆盖启动、真实引擎输出和默认示例；
+- [x] 覆盖全不选恒等；规则切换和快捷键开关仍待扩展到完整真实 GUI 场景；
 - [ ] 覆盖设置保存、重启恢复、损坏设置和不可写目录；
-- [ ] 使用临时设置目录，禁止污染真实 `rules.yaml`；
-- [ ] Linux 和 Windows 各保留至少一条真实链路，稳定后再纳入合并门禁（先挂 GitLab tag pipeline 可选 stage，不使用 GitHub Actions，见决策 6）。
+- [x] 使用临时设置目录，禁止污染真实 `rules.yaml`；
+- [ ] Linux 和 Windows 各保留至少一条真实链路，稳定后再纳入合并门禁（Linux/WSLg 链路已通过；Windows 原生链路仍待执行；先挂 GitLab tag pipeline 可选 stage，不使用 GitHub Actions，见决策 6）。
 
 ## P1：引擎和长文本体验
 

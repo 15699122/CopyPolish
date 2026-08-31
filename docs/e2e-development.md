@@ -7,20 +7,21 @@
 
 ## 1. 当前状态
 
-截至 2026-08-30：
+截至 2026-08-31：
 
 - E2E 工具路线已确定为 WebdriverIO + `@wdio/tauri-service` + embedded provider；
-- 当前仓库尚未提交 WebdriverIO E2E 工程；
-- 当前仓库尚未提交 `e2e` Cargo feature 或 WebDriver plugin；
+- 当前仓库已提交最小 WebdriverIO E2E 工程和 `e2e` Cargo feature；
+- 当前仓库已提交两个 E2E WebDriver plugin 的条件注册与 capability 隔离；
 - Linux/WSL 图形环境不能替代 Windows 原生桌面验收；
 - 当前 Node 实际版本为 `v26.7.0`，超出项目 `.nvmrc` / `package.json` 要求的 `>=24 <25`，不能作为正式 E2E 基线；
 - 默认 Tauri 配置仍使用现有 `src-tauri/tauri.conf.json` 和生产 capability；
-- 当前真实 GUI E2E 仍属于 roadmap P0.2 未完成事项。
+- 当前 Linux/WSLg 已通过真实 GUI smoke：embedded WebDriver、WebView、真实 `format_text` IPC、全不选恒等和设置路径/保存链路均已验证；本次通过日期为 2026-08-30。
+- Windows 原生桌面、WebView2、ACL 不可写目录和 Windows Terminal TUI 仍未执行，不能据此标记跨平台 P0.2 完成。
 
 本环境已完成的前置确认：
 
-1. Cargo 可以解析并编译 `tauri-plugin-wdio` 与 `tauri-plugin-wdio-webdriver` 的 1.x 版本；
-2. WebdriverIO npm 包可安装到独立测试 workspace；
+1. Cargo 可以解析并编译 `tauri-plugin-wdio` 与 `tauri-plugin-wdio-webdriver` 的 1.3.0 版本；
+2. WebdriverIO 9.31.x 与 Tauri service 1.3.0 可安装到独立测试 workspace；
 3. 前端已经存在适合 E2E 的稳定选择器，例如：
    - `input-textarea`；
    - `output-text`；
@@ -33,7 +34,11 @@
    - `select-none`；
    - `settings-done`；
 4. Rust 设置实现的当前主文件是 `rules.yaml`，备份文件是 `rules.yaml.bak`，旧版 JSON 文件只用于迁移；
-5. 项目已有 Rust、前端和非交互 TUI 回归覆盖，但不能替代真实 Tauri GUI E2E。
+5. 项目已有 Rust、前端和非交互 TUI 回归覆盖，但不能替代真实 Tauri GUI E2E；当前 Linux/WSLg smoke 已补充完成。
+6. 当前 E2E 构建通过 `TAURI_CONFIG` 仅为测试 binary 叠加 `app.withGlobalTauri: true`，正式 `tauri.conf.json` 不改变；这是 `@wdio/tauri-plugin` 访问全局 Tauri API 所需的测试配置。
+7. Tauri 前端资源使用 Vite `base: "./"`，避免打包后的 `index.html` 以 `/assets/...` 绝对路径加载资源而在 custom protocol 下白屏。
+8. E2E Cargo 构建显式启用 `custom-protocol` feature；直接用 Cargo 构建 embedded binary 时不能依赖 Tauri CLI 自动注入该 feature。
+9. `e2e/scripts/run-specs.ts` 会为每个 spec 启动独立 WDIO 进程并创建独立临时设置目录；单个进程内部仍将 `maxInstances`、`maxInstancesPerCapability` 和 capability 的 `wdio:maxInstances` 固定为 `1`，避免同一进程内共享状态。
 
 ## 2. 采用的技术路线
 
@@ -622,15 +627,14 @@ P0.2 只有在以下条件全部满足后才能标记完成：
 - [ ] React 19 `act` warning 已通过真实用户流确认是否仅为 jsdom 环境问题；
 - [ ] GitLab 可选 E2E stage 可以重复执行。
 
-## 13. 当前结论
+### 13. 当前结论
 
-本环境适合完成 E2E 工程设计、依赖锁定、Rust/TypeScript 配置检查、测试 helper、文档和 Linux 构建验证。
+本环境已完成 E2E 工程设计、依赖锁定、Rust/TypeScript 配置检查、测试 helper、Linux/WSLg 真实 GUI smoke 和文档更新。
 
 本环境不能替代：
 
 - Windows WebView2 GUI 验证；
 - Windows ACL 不可写目录验证；
-- Windows Terminal + PowerShell 7 TUI smoke；
-- 没有图形会话时的真实 Linux GUI 窗口验证。
+- Windows Terminal + PowerShell 7 TUI smoke。
 
-因此，后续工作应先在原生 Linux 桌面完成最小启动 Spike，再在 Windows 桌面完成同一条最小链路，最后才扩展设置故障注入和 GitLab 可选门禁。
+因此，后续工作应在 Windows 原生桌面完成同一条最小链路和权限测试，随后扩展损坏设置 fixture、重启恢复和 GitLab 可选门禁。

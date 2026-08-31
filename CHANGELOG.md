@@ -8,11 +8,14 @@
 
 - 新增贡献指南、架构说明和测试指南。
 - 新增项目变更记录。
+- 新增独立 WebdriverIO + Tauri embedded provider E2E 工程，覆盖真实启动、Rust IPC 默认排版、全不选恒等和临时设置文件隔离。
 
 ### Changed
 
 - 重组开发文档、文档导航和后续路线图，明确当前事实、操作手册、计划和历史归档的职责边界。
 - 统一 GitHub 分支 CI、GitLab tag 构建和本地验证流程的说明。
+- E2E 构建增加 `custom-protocol`、条件 capability 和测试专用 `withGlobalTauri` 配置，生产构建不加载 WebDriver plugin。
+- E2E 前端资源使用相对路径，并按 spec 启动独立 WDIO 进程，避免测试间共享 `rules.yaml` 状态。
 - 抽离前端规则目录加载（`useRuleCatalog`）和清空输入反馈（`useClearFeedback`），降低 `App.tsx` 编排复杂度。
 - 拆分设置界面为独立分区组件（主题、显示、快捷键、规则、状态 Footer），`SettingsDialog.tsx` 负责编排。
 - 抽取设置提醒文案与判定到 `frontend/src/lib/settingsLoadNotices.ts`，主界面与设置 Footer 共用，消除重复并精简 `App.tsx`。
