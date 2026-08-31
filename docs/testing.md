@@ -19,7 +19,7 @@
 | Markdown/HTML/LaTeX | span、嵌套结构、未闭合结构、后续文本不吞并、保护 fixture | 继续扩展真实文档样本 |
 | Unicode | grapheme、emoji、组合符、CJK Ext-B | Unicode 数据/工具链升级回归 |
 | 单位和数学 | 有限词典、复合单位、数学边界 | 按真实语料扩展词典 |
-| 设置 | Rust Windows 测试 16/16；Windows 真实 GUI 修复后已手动完成保存、重启恢复、损坏 fixture、ACL 保存失败及视觉/DPI/窄窗口回归；损坏设置、重启恢复和 NTFS ACL 已在两个 provider 自动化通过 | embedded/W3C Windows E2E 已复验真实 WebView2、IPC、全不选恒等、临时路径、规则保存和 ACL 拒写恢复；后续补强失败 artifact 收集 |
+| 设置 | Rust Windows 测试 16/16；Windows 真实 GUI 修复后已手动完成保存、重启恢复、损坏 fixture、ACL 保存失败及视觉/DPI/窄窗口回归；损坏设置、重启恢复和 NTFS ACL 已在两个 provider 自动化通过；ACL 自动化 spec 和统一 artifact 收集已实现 | embedded/W3C Windows E2E 已复验真实 WebView2、IPC、全不选恒等、临时路径、规则保存、ACL 拒写恢复和基础失败留证；仍需增加受控失败探针并在 GitLab Windows stage 中验证 artifact 完整性 |
 | 前端状态 | 防抖、竞态、错误、主题、字体、快捷键 | 真实 IPC E2E |
 | TUI | CLI、编辑器、规则、OSC 52、共享设置；Linux 非交互 smoke；Windows release、stdin 及修复后 Windows Terminal 手动回归 | Rust TUI 148/148、Windows release/stdin 和 Windows Terminal 修复后手动回归已通过；TUI-EDIT-DELETE-001 已修复，仍需将故障场景固化为自动化 artifact |
 | 发布脚本 | 主要由脚本和人工 Runbook 覆盖 | 参数和失败路径自动化测试 |
@@ -32,7 +32,7 @@
 
 - [ ] GUI 浅色/深色、100%/125%/150% DPI 和窄窗口的自动截图、page source 与环境清单；
 - [ ] Windows Terminal TUI raw-mode、规则面板、粘贴、OSC 52、保存/退出/重启恢复的自动 artifact；
-- [ ] embedded/W3C 受控失败时完整诊断包的自检，包括 stdout/stderr、WDIO log、manifest、exit status、截图、page source 和设置 fixture；
+- [ ] embedded/W3C 受控失败时完整诊断包的自检，包括 stdout/stderr、WDIO log、manifest、exit status、截图、page source 和设置 fixture；统一 artifact 基础设施已完成；
 - [ ] 通过真实 Tauri `Ctrl+,` 用户流确认 React 19 `act` warning 是否仅存在于 jsdom；
 - [ ] GitLab Windows 可选 E2E stage 的重复执行、`when: always` artifact 上传和稳定性统计。
 
@@ -392,7 +392,7 @@ spec 验证设置窗口显示保存失败、错误文本包含 `rules.yaml`，�
 - artifact 是否完整；
 - flaky 失败的复现次数和诊断结论。
 
-当前版本两个 provider 的连续稳定性统计已完成并记录；损坏设置 fixture、重启恢复和 NTFS ACL 自动化也已在 Windows 原生完成。仍需补齐失败 artifact 收集和 GitLab stage 固化后，才可作为阻塞式合并门禁。
+当前版本两个 provider 的连续稳定性统计已完成并记录；损坏设置 fixture、重启恢复、NTFS ACL 自动化和统一 artifact 基础设施已完成。仍需补齐受控失败 artifact 自检和 GitLab stage 固化后，才可作为阻塞式合并门禁。
 
 ## 8. 测试完成标准
 

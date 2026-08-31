@@ -1,13 +1,28 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  captureBrowserFailure,
+  copySettingsFixture,
+  prepareArtifactDir,
+  writeManifest,
+  writeResult,
+} from "./support/artifacts.js";
 import { startWebDriverApp, stopWebDriverApp, type WebDriverApp } from "./support/webdriver-app.js";
 import { prepareSettingsFixture } from "./support/settings-fixtures.js";
 
 const e2eDir = path.dirname(fileURLToPath(import.meta.url));
+const rootDir = path.resolve(e2eDir, "..");
 const artifactsDir = process.env.COPYPOLISH_E2E_ARTIFACT_DIR
   ?? path.join(e2eDir, "artifacts", "webdriver");
 const port = Number(process.env.TAURI_WEBDRIVER_PORT ?? 4445);
+const binaryPath = path.join(
+  rootDir,
+  "src-tauri",
+  "target",
+  "debug",
+  process.platform === "win32" ? "chinese-copywriting-formatter.exe" : "chinese-copywriting-formatter",
+);
 let app: WebDriverApp | undefined;
 
 prepareSettingsFixture(
@@ -33,20 +48,32 @@ export const config: WebdriverIO.Config = {
   mochaOpts: { timeout: 60_000 },
   onPrepare: async () => {
     app = await startWebDriverApp(port);
+    await writeManifest({
+      artifactDir: artifactsDir,
+      provider: "webdriver",
+      settingsDir: process.env.COPYPOLISH_E2E_SETTINGS_DIR,
+      binaryPath,
+      port,
+      pid: app?.pid,
+    });
   },
   afterTest: async (_test, _context, result) => {
     if (!result.passed) {
-      await fs.mkdir(artifactsDir, { recursive: true });
-      try {
-        await fs.writeFile(path.join(artifactsDir, "page-source.html"), await browser.getPageSource(), "utf8");
-        await browser.saveScreenshot(path.join(artifactsDir, "failure.png"));
-      } catch {
-        // session 创建失败时保留应用 stdout/stderr 和 manifest。
-      }
+      await captureBrowserFailure(artifactsDir, "failure");
+      await copySettingsFixture(process.env.COPYPOLISH_E2E_SETTINGS_DIR, artifactsDir);
     }
   },
-  onComplete: async () => {
+  onComplete: async (exitCode, _config, _capabilities, results) => {
     if (app) await stopWebDriverApp(app);
+    await prepareArtifactDir(artifactsDir);
+    if (exitCode !== 0) {
+      await copySettingsFixture(process.env.COPYPOLISH_E2E_SETTINGS_DIR, artifactsDir);
+    }
+    await writeResult(artifactsDir, {
+      exitCode,
+      status: exitCode === 0 ? "completed" : "failed",
+      results,
+    });
     if (!process.env.COPYPOLISH_E2E_KEEP_SETTINGS && process.env.COPYPOLISH_E2E_SETTINGS_DIR) {
       await fs.rm(process.env.COPYPOLISH_E2E_SETTINGS_DIR, { recursive: true, force: true });
     }

@@ -1,20 +1,25 @@
 import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
+import {
+  captureBrowserFailure,
+  copySettingsFixture,
+  prepareArtifactDir,
+  writeManifest,
+  writeResult,
+} from "./support/artifacts.js";
 import { prepareSettingsFixture } from "./support/settings-fixtures.js";
 
 const e2eDir = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(e2eDir, "..");
-const artifactsDir = path.join(e2eDir, "artifacts");
+const artifactsDir = process.env.COPYPOLISH_E2E_ARTIFACT_DIR
+  ?? path.join(e2eDir, "artifacts", "embedded", String(Date.now()));
 const settingsDir = process.env.COPYPOLISH_E2E_SETTINGS_DIR ?? fs.mkdtempSync(path.join(e2eDir, "settings-"));
 process.env.COPYPOLISH_E2E_SETTINGS_DIR = settingsDir;
 prepareSettingsFixture(
   settingsDir,
   process.env.COPYPOLISH_E2E_SETTINGS_FIXTURE as Parameters<typeof prepareSettingsFixture>[1],
 );
-fs.mkdirSync(path.join(artifactsDir, "logs"), { recursive: true });
-fs.mkdirSync(path.join(artifactsDir, "screenshots"), { recursive: true });
-fs.mkdirSync(path.join(artifactsDir, "wdio"), { recursive: true });
 const binaryPath = process.platform === "win32"
   ? path.join(rootDir, "src-tauri", "target", "debug", "chinese-copywriting-formatter.exe")
   : path.join(rootDir, "src-tauri", "target", "debug", "chinese-copywriting-formatter");
@@ -67,30 +72,34 @@ export const config: WebdriverIO.Config = {
   outputDir: path.join(artifactsDir, "wdio"),
   afterTest: async (_test, _context, result) => {
     if (!result.passed) {
-      await browser.saveScreenshot(
-        path.join(artifactsDir, "screenshots", `${Date.now()}-failure.png`),
-      );
+      await captureBrowserFailure(artifactsDir, `${Date.now()}-failure`);
+      await copySettingsFixture(settingsDir, artifactsDir);
     }
   },
   afterHook: async (_test, _context, result, hookName) => {
     if (hookName.includes("before all") && !result.passed) {
-      try {
-        await fs.promises.writeFile(
-          path.join(artifactsDir, "page-source-on-hook-failure.html"),
-          await browser.getPageSource(),
-          "utf8",
-        );
-        await browser.saveScreenshot(
-          path.join(artifactsDir, "screenshots", `${Date.now()}-hook-failure.png`),
-        );
-      } catch {
-        // 应用/会话不可用时，保留 service 日志作为唯一诊断来源。
-      }
+      await captureBrowserFailure(artifactsDir, `${Date.now()}-hook-failure`);
+      await copySettingsFixture(settingsDir, artifactsDir);
     }
   },
-  onComplete: async () => {
+  onComplete: async (exitCode, _config, _capabilities, results) => {
+    await prepareArtifactDir(artifactsDir);
+    if (exitCode !== 0) await copySettingsFixture(settingsDir, artifactsDir);
+    await writeResult(artifactsDir, {
+      exitCode,
+      status: exitCode === 0 ? "completed" : "failed",
+      results,
+    });
     if (!process.env.COPYPOLISH_E2E_KEEP_SETTINGS) {
       await fs.promises.rm(settingsDir, { recursive: true, force: true });
     }
   },
 };
+
+await writeManifest({
+  artifactDir: artifactsDir,
+  provider: "embedded",
+  settingsDir,
+  binaryPath,
+  port: Number(process.env.TAURI_WEBDRIVER_PORT ?? 4445),
+});
