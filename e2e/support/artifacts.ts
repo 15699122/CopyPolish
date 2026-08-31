@@ -139,3 +139,26 @@ export async function captureBrowserFailure(
     });
   }
 }
+
+export async function captureBrowserState(
+  artifactDir: string,
+  name: string,
+  metadata: JsonRecord = {},
+): Promise<void> {
+  await prepareArtifactDir(artifactDir);
+  try {
+    await fs.writeFile(
+      path.join(artifactDir, `${name}.html`),
+      await browser.getPageSource(),
+      "utf8",
+    );
+    await browser.saveScreenshot(path.join(artifactDir, "screenshots", `${name}.png`));
+    await writeArtifactJson(artifactDir, `${name}.json`, metadata);
+  } catch (error) {
+    await writeArtifactJson(artifactDir, `${name}.error.json`, {
+      error: String(error),
+      metadata,
+    });
+    throw error;
+  }
+}
