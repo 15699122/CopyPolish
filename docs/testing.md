@@ -19,10 +19,24 @@
 | Markdown/HTML/LaTeX | span、嵌套结构、未闭合结构、后续文本不吞并、保护 fixture | 继续扩展真实文档样本 |
 | Unicode | grapheme、emoji、组合符、CJK Ext-B | Unicode 数据/工具链升级回归 |
 | 单位和数学 | 有限词典、复合单位、数学边界 | 按真实语料扩展词典 |
-| 设置 | Rust Windows 测试 16/16；Windows 真实 GUI 修复后已手动完成保存、重启恢复、损坏 fixture、ACL 保存失败及视觉/DPI/窄窗口回归；损坏设置和重启恢复已在两个 provider 自动化通过；ACL 自动化 spec 已实现 | embedded/W3C Windows E2E 已复验真实 WebView2、IPC、全不选恒等、临时路径和规则保存；ACL spec 需在 Windows 原生执行，当前 Linux/WSL 仅显式跳过 |
+| 设置 | Rust Windows 测试 16/16；Windows 真实 GUI 修复后已手动完成保存、重启恢复、损坏 fixture、ACL 保存失败及视觉/DPI/窄窗口回归；损坏设置、重启恢复和 NTFS ACL 已在两个 provider 自动化通过 | embedded/W3C Windows E2E 已复验真实 WebView2、IPC、全不选恒等、临时路径、规则保存和 ACL 拒写恢复；后续补强失败 artifact 收集 |
 | 前端状态 | 防抖、竞态、错误、主题、字体、快捷键 | 真实 IPC E2E |
 | TUI | CLI、编辑器、规则、OSC 52、共享设置；Linux 非交互 smoke；Windows release、stdin 及修复后 Windows Terminal 手动回归 | Rust TUI 148/148、Windows release/stdin 和 Windows Terminal 修复后手动回归已通过；TUI-EDIT-DELETE-001 已修复，仍需将故障场景固化为自动化 artifact |
 | 发布脚本 | 主要由脚本和人工 Runbook 覆盖 | 参数和失败路径自动化测试 |
+
+### 2.1 2026-08-31 Windows 原生验证快照
+
+当前没有待执行的 Windows 功能性手动回归。前端测试 57/57、Rust 设置测试 16/16、Rust/TUI 测试 148/148 均通过；embedded 与标准 W3C provider 的普通 WebView2/Rust IPC 用例各 3/3、设置重启 write/read 各 1/1、三种损坏设置 fixture 各 3/3、NTFS ACL 各 1/1 通过。Windows TUI release 构建和 `--stdin --no-config` smoke 通过，TUI-EDIT-DELETE-001 的 ASCII/Unicode grapheme 与事件级回归已纳入 148 项测试。
+
+尚未闭环的是自动化和留证能力，不应重新标记为功能未测：
+
+- [ ] GUI 浅色/深色、100%/125%/150% DPI 和窄窗口的自动截图、page source 与环境清单；
+- [ ] Windows Terminal TUI raw-mode、规则面板、粘贴、OSC 52、保存/退出/重启恢复的自动 artifact；
+- [ ] embedded/W3C 受控失败时完整诊断包的自检，包括 stdout/stderr、WDIO log、manifest、exit status、截图、page source 和设置 fixture；
+- [ ] 通过真实 Tauri `Ctrl+,` 用户流确认 React 19 `act` warning 是否仅存在于 jsdom；
+- [ ] GitLab Windows 可选 E2E stage 的重复执行、`when: always` artifact 上传和稳定性统计。
+
+非阻断告警：E2E 依赖审计报告 16 个已知漏洞（1 个中危、15 个高危）；Cargo 在 E 盘调试构建中曾报告增量缓存目录 `os error 5`，但相关编译、测试和 release 构建均以退出码 0 完成。
 
 ## 3. 常用命令
 
@@ -63,11 +77,11 @@ npm test --prefix frontend -- --run
 
 ## 6. 桌面验证缺口
 
-当前 mock 测试不能完全替代真实桌面验证。Linux/WSLg 与 Windows WebView2 最小链路、修复后 Windows GUI/TUI/设置/ACL 手动回归及双 provider 稳定性验证均已完成；TUI-EDIT-DELETE-001 已通过编辑器边界修复和回归测试关闭。损坏设置三种 fixture 和重启恢复已在 embedded/W3C provider 中自动化通过；NTFS ACL 自动化和 Terminal artifact 固化仍是后续工程工作。
+当前 mock 测试不能完全替代真实桌面验证。Linux/WSLg 与 Windows WebView2 最小链路、修复后 Windows GUI/TUI/设置/ACL 手动回归及双 provider 稳定性验证均已完成；TUI-EDIT-DELETE-001 已通过编辑器边界修复和回归测试关闭。损坏设置三种 fixture、重启恢复和 NTFS ACL 已在 embedded/W3C provider 中自动化通过；Terminal/GUI artifact 固化仍是后续工程工作。
 
 TUI 非交互链路已在 Linux 上完成自动化 smoke：验证 `--help`、stdin 格式化、文件输入/输出、
 `--rules none` 恒等、未知规则 key 警告、缺失文件返回码 1，以及约 1.29 MB 输入的恒等处理。
-这些检查不替代真实 raw-mode 终端、Windows Terminal 交互、GUI 故障注入、ACL 保存失败链路或 Tauri 窗口行为 E2E；本次修复后的 TUI/GUI 回归和双 provider 连续稳定性已由人工完成，但自动化故障注入与 Terminal artifact 固化仍待补齐。
+这些检查不替代真实 raw-mode 终端、Windows Terminal 交互或 Tauri 窗口行为 E2E；本次修复后的 TUI/GUI 回归和双 provider 连续稳定性已由人工完成，设置与 ACL 故障注入已自动化，Terminal/GUI artifact 固化仍待补齐。
 
 ## 7. Windows 原生回归清单（已完成）
 
@@ -244,7 +258,7 @@ cargo build --manifest-path src-tauri/Cargo.toml --features tui --release --bin 
 - [x] `rules.yaml` 损坏、`.bak` 有效（embedded/W3C 自动化通过）；
 - [x] `rules.yaml` 损坏、`.bak` 缺失（embedded/W3C 自动化通过）；
 - [x] `rules.yaml` 和 `.bak` 均损坏（embedded/W3C 自动化通过）；
-- [ ] NTFS ACL 拒绝写入后保存失败提示正确（Windows 原生 `test:acl-settings` / `test:acl-settings:webdriver`）；
+- [x] NTFS ACL 拒绝写入后保存失败提示正确（Windows 原生 embedded/W3C 各 1/1 通过）；
 - [x] ACL harness 在 `finally` 中恢复，临时目录可删除；
 - [ ] Windows ACL 失败时保留 stdout/stderr、WDIO log、manifest、exit status、截图、page source 和设置 fixture；
 - [x] 成功后无 CopyPolish、WDIO、Node 测试残留进程和监听端口。
@@ -341,7 +355,7 @@ npm run test:corrupt-settings:webdriver --prefix e2e
 
 每个 fixture 都会在 provider 启动前写入独立临时目录，并验证恢复/降级提醒和真实 Rust IPC 格式化。未提供 `COPYPOLISH_E2E_SETTINGS_FIXTURE` 时，`corrupt-settings.spec.ts` 会显式跳过，避免污染普通 smoke。
 
-当前 Linux/WSLg 验证结果：embedded provider 3/3、标准 W3C provider 3/3 通过。该入口覆盖跨平台文件损坏语义，但不替代 Windows NTFS ACL 自动化。
+当前 Linux/WSLg 与 Windows 原生验证结果：embedded provider 3/3、标准 W3C provider 3/3 通过。该入口覆盖跨平台文件损坏语义；NTFS ACL 由独立入口验证。
 
 ### 7.8 设置重启恢复自动化入口
 
@@ -352,7 +366,7 @@ npm run test:restart-settings --prefix e2e
 npm run test:restart-settings:webdriver --prefix e2e
 ```
 
-当前 Linux/WSLg 验证结果：embedded provider 的 write/read 阶段各 1/1 通过，标准 W3C provider 的 write/read 阶段各 1/1 通过。该入口验证跨平台设置恢复语义，仍需在 Windows 原生环境复验，并不覆盖 NTFS ACL 拒写。
+当前 Linux/WSLg 与 Windows 原生验证结果：embedded provider 的 write/read 阶段各 1/1 通过，标准 W3C provider 的 write/read 阶段各 1/1 通过。该入口验证跨平台设置恢复语义；NTFS ACL 拒写由独立入口验证。
 
 ### 7.9 NTFS ACL 保存失败自动化入口
 
@@ -365,6 +379,8 @@ npm run test:acl-settings:webdriver --prefix e2e
 
 spec 验证设置窗口显示保存失败、错误文本包含 `rules.yaml`，以及保存失败后应用仍能通过真实 Rust IPC 工作。非 Windows 环境会明确输出跳过并返回成功；这不代表 ACL 场景已通过。失败时 runner 会在恢复权限前复制设置 fixture 到 provider artifact 目录。
 
+2026-08-31 Windows 原生结果：embedded provider 1/1、标准 W3C provider 1/1 通过；两个 runner 均完成 deny ACE 注入、保存失败与真实 IPC 验证，并在 `finally` 中恢复 ACL、删除 fixture。
+
 ### 7.10 双 provider 稳定性统计（已完成）
 
 在同一 commit、同一环境下，两个 provider 各连续运行至少 5 次，记录：
@@ -376,7 +392,7 @@ spec 验证设置窗口显示保存失败、错误文本包含 `rules.yaml`，�
 - artifact 是否完整；
 - flaky 失败的复现次数和诊断结论。
 
-当前版本两个 provider 的连续稳定性统计已完成并记录；损坏设置 fixture 和重启恢复自动化也已完成。NTFS ACL 自动化 spec 已实现但尚未在 Windows 原生执行，仍需完成 ACL 真实验证、artifact 收集和 GitLab stage 固化后，才可作为阻塞式合并门禁。
+当前版本两个 provider 的连续稳定性统计已完成并记录；损坏设置 fixture、重启恢复和 NTFS ACL 自动化也已在 Windows 原生完成。仍需补齐失败 artifact 收集和 GitLab stage 固化后，才可作为阻塞式合并门禁。
 
 ## 8. 测试完成标准
 

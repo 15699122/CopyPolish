@@ -21,7 +21,8 @@
 - 新增三种损坏 `rules.yaml` / `rules.yaml.bak` fixture 的双 provider 自动化入口，覆盖备份恢复、无备份降级和主备份同时损坏，并验证真实 Rust IPC 仍可用。
 - 新增双 provider 设置重启恢复自动化入口，验证同一临时设置目录中的规则选择、最近输入和真实 Rust IPC 输出在第二次启动后恢复。
 - 新增 Windows-only NTFS ACL 设置保存失败自动化入口，使用 `icacls.exe` 注入当前用户 deny ACE，并在 `finally` 中恢复权限和清理 fixture；非 Windows 环境显式跳过。
-- 记录并完成 Windows 原生验证：Node 24.19.0、Rust 1.98.0 MSVC、WebView2 Runtime 151.0.4129.107；embedded 与标准 W3C WebDriver provider 均通过修复后的真实 WebView2/Rust IPC 最小 smoke，Windows GUI/TUI 手动回归、设置 Rust 测试 16/16、TUI MSVC release/stdin smoke、NTFS ACL 拒写/恢复夹具和双 provider 稳定性验证均已完成。
+- 记录并完成 Windows 原生验证：Node 24.19.0、npm 11.17.0、Rust 1.98.0 MSVC、WebView2 Runtime 151.0.4129.107、Windows Terminal 1.24.11911.0、PowerShell 7.6.5；前端 57/57、设置 Rust 测试 16/16、Rust/TUI 148/148 通过，TUI MSVC release/stdin smoke 通过。
+- embedded 与标准 W3C WebDriver provider 的真实 WebView2/Rust IPC 普通用例各 3/3、设置重启 write/read 各 1/1、三种损坏设置 fixture 各 3/3、NTFS ACL 各 1/1 通过；Windows GUI/TUI 手动回归和双 provider 稳定性验证均已完成。后续仅补 GUI/TUI 自动 artifact、受控失败完整诊断包、React 19 `act` warning 闭环和 GitLab Windows 可选 E2E。
 - 修复 TUI 规则面板展示顺序、输入区可打印字符误触全局快捷键、bracketed paste 以及最后一个 grapheme 的 Delete/Right 边界；修复后的 Windows Terminal raw-mode、规则排序、`Get-Clipboard` 完整粘贴、新快捷键语义和编辑器边界已完成手动回归。
 - 统一桌面 GUI 输出框边框阴影、设置标题间距、恢复按钮、长路径中间省略和主题/快捷键复选框样式；Linux/WSLg 前端测试与构建及 Windows WebView2 下的 DPI、窄窗口和视觉回归均已完成。
 - 抽离前端规则目录加载（`useRuleCatalog`）和清空输入反馈（`useClearFeedback`），降低 `App.tsx` 编排复杂度。

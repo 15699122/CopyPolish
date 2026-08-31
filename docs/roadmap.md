@@ -19,7 +19,7 @@
 - Markdown/HTML/LaTeX 保护仍是保守扫描器，不是完整 CommonMark/HTML 解析器；
 - 保护层仍部分使用内部 placeholder；
 - 1 MB 级 Markdown/LaTeX 语料仍需进一步减少分配和重复扫描；
-- 真实 Tauri 桌面链路已在 Linux/WSLg 和 Windows WebView2 建立；本次 TUI/GUI 修复后的双 provider 最小 E2E、GUI/TUI 手动回归、Rust 设置/TUI、TUI stdin、NTFS ACL 和双 provider 稳定性验证均已完成。TUI-EDIT-DELETE-001 已通过 grapheme 边界修复和回归测试关闭；自动化故障注入和 artifact 固化仍待补齐；
+- 真实 Tauri 桌面链路已在 Linux/WSLg 和 Windows WebView2 建立；本次 TUI/GUI 修复后的双 provider 最小 E2E、设置恢复、损坏设置、NTFS ACL、GUI/TUI 手动回归、Rust 设置/TUI、TUI stdin 和双 provider 稳定性验证均已完成。TUI-EDIT-DELETE-001 已通过 grapheme 边界修复和回归测试关闭；Terminal/GUI artifact 固化仍待补齐；
 - `App.tsx` 和设置组件仍有进一步降低编排复杂度的空间；
 - TUI 跨终端手动 smoke 和正式资产决策已完成；自动化 Terminal artifact 仍待补齐。
 
@@ -42,7 +42,7 @@
 - [x] 覆盖全不选恒等、规则切换和快捷键开关（双 provider 自动化最小链路及修复后 GUI/TUI 人工回归已完成；TUI-EDIT-DELETE-001 已关闭）；
 - [x] 覆盖 GUI 设置重启恢复、损坏设置 fixture 和不可写目录保存失败提示（修复后 Windows 手动回归已完成；三种损坏设置 fixture 和重启恢复已在两个 provider 自动化通过）；
 - [x] 使用临时设置目录，禁止污染真实 `rules.yaml`；
-- [x] Linux 和 Windows 各保留至少一条真实链路，稳定后再纳入合并门禁（Linux/WSLg 与 Windows WebView2 修复后最小链路、双 provider 5 次稳定性统计及人工回归已完成；GitLab 可选 stage 和自动化故障注入仍待执行；不使用 GitHub Actions，见决策 6）。
+- [x] Linux 和 Windows 各保留至少一条真实链路，稳定后再纳入合并门禁（Linux/WSLg 与 Windows WebView2 修复后最小链路、设置/ACL 故障注入、双 provider 5 次稳定性统计及人工回归已完成；GitLab 可选 stage 和 artifact 固化仍待执行；不使用 GitHub Actions，见决策 6）。
 
 ## P1：引擎和长文本体验
 
@@ -93,7 +93,11 @@
 - [x] TUI 独立资产决策（决策 1）：发布 `CopyPolish-tui-windows-x64.7z`（内含 `CopyPolish-tui.exe`）与 `CopyPolish-tui-linux-x86_64.7z`（内含 `copypolish-tui`），与桌面版共享 Release、tag、SHA256SUMS 与发布方式；`verify_release_assets.py` 与 GitLab pipeline 已支持七资产校验；
 - [x] 为 embedded 与标准 W3C provider 各连续运行至少 5 次，记录 flaky、启动耗时、端口冲突、残留进程和 artifact 完整性；
 - [x] 修复 TUI-EDIT-DELETE-001：补齐最后一个 grapheme 的 Right/Delete 边界，并覆盖 ASCII、Unicode、emoji、组合字符和 TUI Delete 事件回归；
-- [ ] 执行并记录 Windows NTFS ACL 故障注入 spec，继续将 TUI/GUI 回归及 Terminal artifact 固化为可重复 spec，并评估 GitLab Windows 可选 stage；ACL spec 已建立，损坏设置 fixture 和重启恢复自动化已完成。
+- [x] 执行并记录 Windows NTFS ACL 故障注入 spec：embedded 与标准 W3C provider 各 1/1 通过，权限恢复和 fixture 删除成功；
+- [ ] 固化 GUI 浅色/深色、100%/125%/150% DPI 和窄窗口的自动截图、page source 与环境清单；
+- [ ] 固化 Windows Terminal TUI raw-mode、规则面板、粘贴、OSC 52、保存/退出/重启恢复的自动 artifact；
+- [ ] 增加 embedded/W3C 受控失败探针，验证 stdout/stderr、WDIO log、manifest、exit status、截图、page source 和设置 fixture 的完整诊断包；
+- [ ] 接入并连续验证 GitLab Windows 可选 E2E stage，使用 `allow_failure: true` 和 `artifacts: when: always` 收集稳定性数据。
 - [ ] 持续执行依赖审计、许可证清单更新和工具链升级 Runbook。
 
 ## 规则扩展准入

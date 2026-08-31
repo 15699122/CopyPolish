@@ -49,7 +49,7 @@ npm run test:acl-settings --prefix e2e
 npm run test:acl-settings:webdriver --prefix e2e
 ```
 
-ACL 入口内部使用 `icacls.exe` 添加当前用户的目录写入 deny ACE，并在 `finally` 中恢复权限。禁止使用 Linux `chmod`、WSL 权限映射或只读属性模拟该步骤。当前仓库已提供 ACL harness 和两个 provider 入口，但在 Windows 原生执行前不得将该自动化标记为通过。
+ACL 入口内部使用 `icacls.exe` 添加当前用户的目录写入 deny ACE，并在 `finally` 中恢复权限。禁止使用 Linux `chmod`、WSL 权限映射或只读属性模拟该步骤。当前仓库已提供 ACL harness 和两个 provider 入口，并已于 2026-08-31 在 Windows 原生环境中通过验证。
 
 最后构建并启动 TUI：
 
@@ -78,7 +78,7 @@ cargo build --manifest-path src-tauri/Cargo.toml --features tui --release --bin 
 - 默认 Tauri 配置仍使用现有 `src-tauri/tauri.conf.json` 和生产 capability；
 - 当前 Linux/WSLg 已通过真实 GUI smoke：embedded WebDriver、WebView、真实 `format_text` IPC、全不选恒等和设置路径/保存链路均已验证；本次通过日期为 2026-08-30。
 - 参考项目 `Choochmeque/tauri-plugin-webdriver` 的 `0.2.1` 版本已作为并行 provider 完成 Linux/WSLg PoC；标准 WebDriver 连接、真实 WebView、真实 IPC、全不选恒等和设置保存均已通过，本次复核日期为 2026-08-31。
-- Windows 原生最小桌面链路及修复后的 GUI/TUI/设置/ACL/双 provider 回归均已完成；TUI-EDIT-DELETE-001 已通过编辑器边界修复、Rust 回归测试和 Windows 定向复验关闭。ACL 专用故障注入 spec 已建立，但仍需在 Windows 原生执行并继续完善 CI artifact 收集。
+- Windows 原生最小桌面链路及修复后的 GUI/TUI/设置/ACL/双 provider 回归均已完成；TUI-EDIT-DELETE-001 已通过编辑器边界修复、Rust 回归测试和 Windows 定向复验关闭。ACL 专用故障注入 spec 已在两个 provider 下通过，后续仅需继续完善失败时的 CI artifact 收集。
 
 本环境已完成的前置确认：
 
@@ -762,22 +762,25 @@ cargo build --manifest-path src-tauri/Cargo.toml --features tui --release --bin 
 
 ### 9.4 本次 Windows 执行记录（2026-08-31）
 
-执行位置：`E:\Shiraishi\VSCode Workspace\chinese_copywriting_formatter`，commit `f6cc3f6bf76e9c5f2037bc44063d706ed8755ffe`（含未提交 E2E 修正）。
+执行位置：`E:\Shiraishi\VSCode Workspace\chinese_copywriting_formatter`，commit `7c32a2f12a6699240bee677940cf19dec61828b6`。
 
-环境：Windows Node `v24.19.0`、npm `11.17.0`、Rust `1.98.0`，host `x86_64-pc-windows-msvc`，Visual Studio Build Tools `17.14.39`，WebView2 Runtime `151.0.4129.107`，Windows Terminal `1.24.11911.0`，PowerShell 7。
+环境：Windows Node `v24.19.0`、npm `11.17.0`、Rust `1.98.0`，host `x86_64-pc-windows-msvc`，Visual Studio Build Tools `17.14.37614.0`，WebView2 Runtime `151.0.4129.107`，Windows Terminal `1.24.11911.0`，PowerShell `7.6.5`。
 
 结果：
 
-- embedded provider：两个 spec、3 个用例通过；覆盖真实 WebView2 启动、Rust IPC 默认格式化、全不选恒等、临时 `rules.yaml` 路径和规则保存。
-- 标准 W3C WebDriver provider：两个 spec、3 个用例通过；随机端口 `55755` / `53010`，session、主窗口发现和退出清理正常。
+- embedded provider：两个普通 spec、3 个用例通过；覆盖真实 WebView2 启动、Rust IPC 默认格式化、全不选恒等、临时 `rules.yaml` 路径和规则保存。
+- 标准 W3C WebDriver provider：两个普通 spec、3 个用例通过；随机端口、session、主窗口发现和退出清理正常。
+- 设置重启恢复：embedded 与标准 W3C provider 的 write/read 阶段均各 1/1 通过。
+- 损坏设置：embedded 与标准 W3C provider 的三种 fixture 均各 3/3 通过。
+- NTFS ACL：embedded 与标准 W3C provider 均 1/1 通过；保存失败提示包含 `rules.yaml` 路径，拒写时真实 IPC 仍可用，`finally` 已恢复权限并删除临时目录。
 - `cargo test user_settings::tests`：16/16 通过，覆盖备份恢复、主备份损坏降级、迁移、UTF-8 和缺失目录诊断。
+- `cargo test --features tui`：148/148 通过，包含 `sajgvwfwe` 末字符 Right/Delete、Unicode grapheme 和 Delete 事件级回归。
 - TUI：Windows release 构建通过；`--stdin --no-config` 输出 `在 LeanCloud 上，花了 5000 元！`。
-- [x] NTFS ACL 手动验证：当前用户写入被拒绝，权限恢复和临时目录删除均成功；自动化 spec 已建立，待 Windows 原生执行。
 - 清理：无 CopyPolish、WDIO 残留进程/监听端口，仓库根目录无 `rules.yaml*`。
 
-自动化缺口：ACL 保存失败 spec 尚未在 Windows 原生执行，也未建立 Windows Terminal raw-mode/OSC 52 的自动 artifact 收集；三种损坏设置 fixture 和第二次启动恢复已通过专用 runner 在两个 provider 中自动化验证，上述项目的修复后人工回归已完成，TUI-EDIT-DELETE-001 也已关闭。
+自动化缺口：尚未建立 GUI 视觉/DPI 自动截图与 page source、Windows Terminal raw-mode/OSC 52 自动 artifact、双 provider 受控失败完整诊断包自检、真实 Tauri `Ctrl+,` 流程下的 React 19 `act` warning 闭环，以及 GitLab Windows 可选 E2E stage。设置重启恢复、三种损坏设置 fixture 和 NTFS ACL 保存失败均已通过两个 provider 的专用 runner，相关人工回归也已完成，TUI-EDIT-DELETE-001 已关闭。
 
-本次修复后复验（2026-08-31）：embedded provider 与标准 W3C provider 各 3 个最小 smoke 用例均通过（设置链路 2/2、默认格式化 1/1）；三种损坏设置 fixture 在两个 provider 中各 3/3 通过；重启恢复在两个 provider 中的 write/read 阶段各 1/1 通过；`cargo test user_settings::tests` 16/16 通过；`cargo test --features tui` 148/148 通过；Windows TUI release 构建和 `--stdin --no-config` smoke 通过；NTFS ACL 手动拒写、恢复和 fixture 删除通过。ACL 保存失败自动化 spec 已实现但尚未在 Windows 原生执行，Windows Terminal raw-mode/OSC 52 及 GUI 视觉/DPI 的自动化 artifact 仍待补齐，但对应 Windows 人工回归已完成。
+本次修复后复验（2026-08-31）：embedded provider 与标准 W3C provider 各 3 个最小 smoke 用例均通过（设置链路 2/2、默认格式化 1/1）；三种损坏设置 fixture 在两个 provider 中各 3/3 通过；重启恢复在两个 provider 中的 write/read 阶段各 1/1 通过；NTFS ACL 保存失败在两个 provider 中各 1/1 通过；`cargo test user_settings::tests` 16/16 通过；`cargo test --features tui` 148/148 通过；Windows TUI release 构建和 `--stdin --no-config` smoke 通过。Windows Terminal raw-mode/OSC 52 及 GUI 视觉/DPI 的自动化 artifact 仍待补齐，但对应 Windows 人工回归已完成。
 
 ### 9.5 历史修复前手动基线（2026-08-31，不作为当前结论）
 
@@ -909,12 +912,15 @@ P0.2 只有在以下条件全部满足后才能标记完成。括号中的状态
 
 ### 13. 当前结论
 
-本项目已完成 E2E 工程设计、依赖锁定、Rust/TypeScript 配置检查、Linux/WSLg 真实 GUI smoke，以及 Windows WebView2 双 provider 最小 smoke、修复后人工回归和 TUI-EDIT-DELETE-001 编辑器边界修复。
+本项目已完成 E2E 工程设计、依赖锁定、Rust/TypeScript 配置检查、Linux/WSLg 真实 GUI smoke，以及 Windows WebView2 双 provider 最小 smoke、设置重启恢复、损坏设置、NTFS ACL 故障注入、修复后人工回归和 TUI-EDIT-DELETE-001 编辑器边界修复。
 
-自动化仍未覆盖：
+自动化与留证仍未覆盖：
 
-- Windows ACL 下真实 GUI 保存失败提示自动化 spec 的原生执行与结果记录；
-- Windows Terminal + PowerShell 7 raw-mode、规则面板和 OSC 52 交互的自动化 artifact 收集。
+- GUI 浅色/深色、100%/125%/150% DPI 和窄窗口的自动截图、page source 与环境清单；
+- Windows Terminal + PowerShell 7 raw-mode、规则面板、粘贴和 OSC 52 交互的自动 artifact；
+- embedded/W3C 受控失败时 stdout/stderr、WDIO log、manifest、exit status、截图、page source 和设置 fixture 的完整性自检；
+- 真实 Tauri `Ctrl+,` 用户流对 React 19 `act` warning 的闭环判断；
+- GitLab Windows 可选 E2E stage 的重复执行、始终上传 artifact 和稳定性统计。
 
 三种损坏设置 fixture 已由 `test:corrupt-settings` 和
 `test:corrupt-settings:webdriver` 入口覆盖，不再属于未完成项。
@@ -922,4 +928,4 @@ P0.2 只有在以下条件全部满足后才能标记完成。括号中的状态
 重启恢复已由 `test:restart-settings` 和
 `test:restart-settings:webdriver` 入口覆盖，不再属于未完成项。
 
-因此，后续工作应执行并记录 NTFS ACL GUI 故障注入 spec，继续固化 Terminal artifact 收集，再评估 GitLab 可选 E2E stage 是否纳入更严格门禁。当前未完成项不再包括 Windows 手动回归、损坏设置 fixture、重启恢复或 TUI 编辑器 Delete 边界。
+因此，后续工作应先固化 GUI/Terminal artifact、完成受控失败诊断包和 React 19 告警闭环，再接入 GitLab Windows 可选 E2E stage 并评估更严格门禁。当前未完成项不再包括 Windows 手动功能回归、损坏设置 fixture、重启恢复、NTFS ACL 故障注入或 TUI 编辑器 Delete 边界。
