@@ -9,6 +9,8 @@
     "test:webdriver": "tsx scripts/run-webdriver-specs.ts",
     "test:corrupt-settings": "tsx scripts/run-corrupt-settings-specs.ts",
     "test:corrupt-settings:webdriver": "tsx scripts/run-corrupt-settings-specs.ts --webdriver",
+    "test:restart-settings": "tsx scripts/run-restart-settings-specs.ts",
+    "test:restart-settings:webdriver": "tsx scripts/run-restart-settings-specs.ts --webdriver",
     "test:debug": "tsx scripts/run-specs.ts --logLevel debug",
     "typecheck": "tsc --noEmit"
   },
