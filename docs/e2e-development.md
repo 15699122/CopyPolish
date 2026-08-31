@@ -17,7 +17,7 @@
 - 默认 Tauri 配置仍使用现有 `src-tauri/tauri.conf.json` 和生产 capability；
 - 当前 Linux/WSLg 已通过真实 GUI smoke：embedded WebDriver、WebView、真实 `format_text` IPC、全不选恒等和设置路径/保存链路均已验证；本次通过日期为 2026-08-30。
 - 参考项目 `Choochmeque/tauri-plugin-webdriver` 的 `0.2.1` 版本已作为并行 provider 完成 Linux/WSLg PoC；标准 WebDriver 连接、真实 WebView、真实 IPC、全不选恒等和设置保存均已通过，本次复核日期为 2026-08-31。
-- Windows 原生最小桌面链路及修复后的 GUI/TUI/设置/ACL/双 provider 回归均已完成；TUI-EDIT-DELETE-001 已通过编辑器边界修复、Rust 回归测试和 Windows 定向复验关闭。自动化专用故障注入 spec 和 CI artifact 收集仍未建立。
+- Windows 原生最小桌面链路及修复后的 GUI/TUI/设置/ACL/双 provider 回归均已完成；TUI-EDIT-DELETE-001 已通过编辑器边界修复、Rust 回归测试和 Windows 定向复验关闭。ACL 专用故障注入 spec 已建立，但仍需在 Windows 原生执行并继续完善 CI artifact 收集。
 
 本环境已完成的前置确认：
 
@@ -711,12 +711,12 @@ cargo build --manifest-path src-tauri/Cargo.toml --features tui --release --bin 
 - 标准 W3C WebDriver provider：两个 spec、3 个用例通过；随机端口 `55755` / `53010`，session、主窗口发现和退出清理正常。
 - `cargo test user_settings::tests`：16/16 通过，覆盖备份恢复、主备份损坏降级、迁移、UTF-8 和缺失目录诊断。
 - TUI：Windows release 构建通过；`--stdin --no-config` 输出 `在 LeanCloud 上，花了 5000 元！`。
-- NTFS ACL：当前用户写入被拒绝，权限恢复和临时目录删除均成功。
+- [x] NTFS ACL 手动验证：当前用户写入被拒绝，权限恢复和临时目录删除均成功；自动化 spec 已建立，待 Windows 原生执行。
 - 清理：无 CopyPolish、WDIO 残留进程/监听端口，仓库根目录无 `rules.yaml*`。
 
-自动化缺口：尚无专用 GUI spec 自动验证“ACL 下保存失败提示”，也未建立 Windows Terminal raw-mode/OSC 52 的自动 artifact 收集；三种损坏设置 fixture 和第二次启动恢复已通过专用 runner 在两个 provider 中自动化验证，上述项目的修复后人工回归已完成，TUI-EDIT-DELETE-001 也已关闭。
+自动化缺口：ACL 保存失败 spec 尚未在 Windows 原生执行，也未建立 Windows Terminal raw-mode/OSC 52 的自动 artifact 收集；三种损坏设置 fixture 和第二次启动恢复已通过专用 runner 在两个 provider 中自动化验证，上述项目的修复后人工回归已完成，TUI-EDIT-DELETE-001 也已关闭。
 
-本次修复后复验（2026-08-31）：embedded provider 与标准 W3C provider 各 3 个最小 smoke 用例均通过（设置链路 2/2、默认格式化 1/1）；三种损坏设置 fixture 在两个 provider 中各 3/3 通过；重启恢复在两个 provider 中的 write/read 阶段各 1/1 通过；`cargo test user_settings::tests` 16/16 通过；`cargo test --features tui` 148/148 通过；Windows TUI release 构建和 `--stdin --no-config` smoke 通过；NTFS ACL 拒写、恢复和 fixture 删除通过。ACL 保存失败尚无专用自动化 spec，Windows Terminal raw-mode/OSC 52 及 GUI 视觉/DPI 的自动化 artifact 仍待补齐，但对应 Windows 人工回归已完成。
+本次修复后复验（2026-08-31）：embedded provider 与标准 W3C provider 各 3 个最小 smoke 用例均通过（设置链路 2/2、默认格式化 1/1）；三种损坏设置 fixture 在两个 provider 中各 3/3 通过；重启恢复在两个 provider 中的 write/read 阶段各 1/1 通过；`cargo test user_settings::tests` 16/16 通过；`cargo test --features tui` 148/148 通过；Windows TUI release 构建和 `--stdin --no-config` smoke 通过；NTFS ACL 手动拒写、恢复和 fixture 删除通过。ACL 保存失败自动化 spec 已实现但尚未在 Windows 原生执行，Windows Terminal raw-mode/OSC 52 及 GUI 视觉/DPI 的自动化 artifact 仍待补齐，但对应 Windows 人工回归已完成。
 
 ### 9.5 历史修复前手动基线（2026-08-31，不作为当前结论）
 
@@ -852,7 +852,7 @@ P0.2 只有在以下条件全部满足后才能标记完成。括号中的状态
 
 自动化仍未覆盖：
 
-- Windows ACL 下真实 GUI 保存失败提示自动化 spec；
+- Windows ACL 下真实 GUI 保存失败提示自动化 spec 的原生执行与结果记录；
 - Windows Terminal + PowerShell 7 raw-mode、规则面板和 OSC 52 交互的自动化 artifact 收集。
 
 三种损坏设置 fixture 已由 `test:corrupt-settings` 和
@@ -861,4 +861,4 @@ P0.2 只有在以下条件全部满足后才能标记完成。括号中的状态
 重启恢复已由 `test:restart-settings` 和
 `test:restart-settings:webdriver` 入口覆盖，不再属于未完成项。
 
-因此，后续工作应将已完成的手动步骤继续固化为 NTFS ACL GUI 故障注入 spec 和 Terminal artifact 收集，再评估 GitLab 可选 E2E stage 是否纳入更严格门禁。当前未完成项不再包括 Windows 手动回归、损坏设置 fixture、重启恢复或 TUI 编辑器 Delete 边界。
+因此，后续工作应执行并记录 NTFS ACL GUI 故障注入 spec，继续固化 Terminal artifact 收集，再评估 GitLab 可选 E2E stage 是否纳入更严格门禁。当前未完成项不再包括 Windows 手动回归、损坏设置 fixture、重启恢复或 TUI 编辑器 Delete 边界。

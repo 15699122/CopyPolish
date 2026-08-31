@@ -11,6 +11,8 @@
     "test:corrupt-settings:webdriver": "tsx scripts/run-corrupt-settings-specs.ts --webdriver",
     "test:restart-settings": "tsx scripts/run-restart-settings-specs.ts",
     "test:restart-settings:webdriver": "tsx scripts/run-restart-settings-specs.ts --webdriver",
+    "test:acl-settings": "tsx scripts/run-acl-settings-specs.ts",
+    "test:acl-settings:webdriver": "tsx scripts/run-acl-settings-specs.ts --webdriver",
     "test:debug": "tsx scripts/run-specs.ts --logLevel debug",
     "typecheck": "tsc --noEmit"
   },

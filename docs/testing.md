@@ -19,7 +19,7 @@
 | Markdown/HTML/LaTeX | span、嵌套结构、未闭合结构、后续文本不吞并、保护 fixture | 继续扩展真实文档样本 |
 | Unicode | grapheme、emoji、组合符、CJK Ext-B | Unicode 数据/工具链升级回归 |
 | 单位和数学 | 有限词典、复合单位、数学边界 | 按真实语料扩展词典 |
-| 设置 | Rust Windows 测试 16/16；Windows 真实 GUI 修复后已手动完成保存、重启恢复、损坏 fixture、ACL 保存失败及视觉/DPI/窄窗口回归；损坏设置和重启恢复已在两个 provider 自动化通过 | embedded/W3C Windows E2E 已复验真实 WebView2、IPC、全不选恒等、临时路径和规则保存；仍需将 NTFS ACL 故障流程固化为可重复自动化 spec |
+| 设置 | Rust Windows 测试 16/16；Windows 真实 GUI 修复后已手动完成保存、重启恢复、损坏 fixture、ACL 保存失败及视觉/DPI/窄窗口回归；损坏设置和重启恢复已在两个 provider 自动化通过；ACL 自动化 spec 已实现 | embedded/W3C Windows E2E 已复验真实 WebView2、IPC、全不选恒等、临时路径和规则保存；ACL spec 需在 Windows 原生执行，当前 Linux/WSL 仅显式跳过 |
 | 前端状态 | 防抖、竞态、错误、主题、字体、快捷键 | 真实 IPC E2E |
 | TUI | CLI、编辑器、规则、OSC 52、共享设置；Linux 非交互 smoke；Windows release、stdin 及修复后 Windows Terminal 手动回归 | Rust TUI 148/148、Windows release/stdin 和 Windows Terminal 修复后手动回归已通过；TUI-EDIT-DELETE-001 已修复，仍需将故障场景固化为自动化 artifact |
 | 发布脚本 | 主要由脚本和人工 Runbook 覆盖 | 参数和失败路径自动化测试 |
@@ -143,9 +143,9 @@ cargo build --manifest-path src-tauri/Cargo.toml --features tui --release --bin 
 - [x] `rules.yaml` 损坏、`.bak` 有效（embedded/W3C 自动化通过）；
 - [x] `rules.yaml` 损坏、`.bak` 缺失（embedded/W3C 自动化通过）；
 - [x] `rules.yaml` 和 `.bak` 均损坏（embedded/W3C 自动化通过）；
-- [x] NTFS ACL 拒绝写入后保存失败提示正确；
-- [x] ACL 在 `finally` 中恢复，临时目录可删除；
-- [x] 失败时保留 stdout/stderr、WDIO log、manifest、exit status、截图、page source 和设置 fixture；
+- [ ] NTFS ACL 拒绝写入后保存失败提示正确（Windows 原生 `test:acl-settings` / `test:acl-settings:webdriver`）；
+- [x] ACL harness 在 `finally` 中恢复，临时目录可删除；
+- [ ] Windows ACL 失败时保留 stdout/stderr、WDIO log、manifest、exit status、截图、page source 和设置 fixture；
 - [x] 成功后无 CopyPolish、WDIO、Node 测试残留进程和监听端口。
 
 ### 7.6 修复后手动核验记录（已完成）
@@ -253,7 +253,18 @@ npm run test:restart-settings:webdriver --prefix e2e
 
 当前 Linux/WSLg 验证结果：embedded provider 的 write/read 阶段各 1/1 通过，标准 W3C provider 的 write/read 阶段各 1/1 通过。该入口验证跨平台设置恢复语义，仍需在 Windows 原生环境复验，并不覆盖 NTFS ACL 拒写。
 
-### 7.9 双 provider 稳定性统计（已完成）
+### 7.9 NTFS ACL 保存失败自动化入口
+
+该入口仅允许在 Windows 原生环境运行，使用 `icacls.exe` 为当前用户添加目录级 `(OI)(CI)(W)` deny ACE；不使用 Linux `chmod`、WSL 权限映射或只读属性模拟 NTFS ACL。runner 会先写入有效 `rules.yaml`，再启动 provider，最后在 `finally` 中移除 deny、恢复继承并删除临时目录。
+
+```powershell
+npm run test:acl-settings --prefix e2e
+npm run test:acl-settings:webdriver --prefix e2e
+```
+
+spec 验证设置窗口显示保存失败、错误文本包含 `rules.yaml`，以及保存失败后应用仍能通过真实 Rust IPC 工作。非 Windows 环境会明确输出跳过并返回成功；这不代表 ACL 场景已通过。失败时 runner 会在恢复权限前复制设置 fixture 到 provider artifact 目录。
+
+### 7.10 双 provider 稳定性统计（已完成）
 
 在同一 commit、同一环境下，两个 provider 各连续运行至少 5 次，记录：
 
@@ -264,7 +275,7 @@ npm run test:restart-settings:webdriver --prefix e2e
 - artifact 是否完整；
 - flaky 失败的复现次数和诊断结论。
 
-当前版本两个 provider 的连续稳定性统计已完成并记录；损坏设置 fixture 和重启恢复自动化也已完成。仍需将 NTFS ACL 自动化故障注入、artifact 收集和 GitLab stage 固化后，才可作为阻塞式合并门禁。
+当前版本两个 provider 的连续稳定性统计已完成并记录；损坏设置 fixture 和重启恢复自动化也已完成。NTFS ACL 自动化 spec 已实现但尚未在 Windows 原生执行，仍需完成 ACL 真实验证、artifact 收集和 GitLab stage 固化后，才可作为阻塞式合并门禁。
 
 ## 8. 测试完成标准
 

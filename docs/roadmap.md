@@ -93,7 +93,7 @@
 - [x] TUI 独立资产决策（决策 1）：发布 `CopyPolish-tui-windows-x64.7z`（内含 `CopyPolish-tui.exe`）与 `CopyPolish-tui-linux-x86_64.7z`（内含 `copypolish-tui`），与桌面版共享 Release、tag、SHA256SUMS 与发布方式；`verify_release_assets.py` 与 GitLab pipeline 已支持七资产校验；
 - [x] 为 embedded 与标准 W3C provider 各连续运行至少 5 次，记录 flaky、启动耗时、端口冲突、残留进程和 artifact 完整性；
 - [x] 修复 TUI-EDIT-DELETE-001：补齐最后一个 grapheme 的 Right/Delete 边界，并覆盖 ASCII、Unicode、emoji、组合字符和 TUI Delete 事件回归；
-- [ ] 将 Windows NTFS ACL 故障注入、TUI/GUI 回归及 Terminal artifact 固化为可重复 spec，并评估 GitLab Windows 可选 stage；损坏设置 fixture 和重启恢复自动化已完成。
+- [ ] 执行并记录 Windows NTFS ACL 故障注入 spec，继续将 TUI/GUI 回归及 Terminal artifact 固化为可重复 spec，并评估 GitLab Windows 可选 stage；ACL spec 已建立，损坏设置 fixture 和重启恢复自动化已完成。
 - [ ] 持续执行依赖审计、许可证清单更新和工具链升级 Runbook。
 
 ## 规则扩展准入
