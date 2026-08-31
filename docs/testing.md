@@ -73,6 +73,107 @@ TUI 非交互链路已在 Linux 上完成自动化 smoke：验证 `--help`、std
 
 以下项目必须在 Windows 原生、可交互的 Windows Terminal + PowerShell 7 会话中执行。WSL、Linux GUI、普通浏览器预览和旧 binary 不能替代本清单。
 
+### 7.0 Windows 原生专用步骤总览
+
+以下顺序适用于一次完整的 Windows 验证。除特别标注外，命令均在项目根目录的 **PowerShell 7** 中执行；建议使用短路径 checkout，避免长路径影响 WebView2、artifact 和 ACL 排查。
+
+#### 1. 确认环境并记录版本
+
+至少记录以下信息：
+
+```powershell
+git rev-parse HEAD
+$PSVersionTable.PSVersion
+node --version
+npm --version
+rustc --version
+rustup show active-toolchain
+Get-ComputerInfo | Select-Object WindowsProductName, WindowsVersion, OsBuildNumber
+Get-AppxPackage Microsoft.WindowsTerminal | Select-Object Name, Version
+Get-Command msedgewebview2.exe -ErrorAction SilentlyContinue
+```
+
+正式 Windows 基线要求 Node 满足项目约束 `>=24 <25`，Rust host 为 `x86_64-pc-windows-msvc`，并安装 Visual Studio Build Tools、WebView2 Runtime、Windows Terminal 和 PowerShell 7。版本信息必须和测试结果一起保存。
+
+#### 2. 安装依赖并构建测试 binary
+
+```powershell
+npm ci --prefix frontend
+npm ci --prefix e2e
+npm run build:app --prefix e2e
+npm run build:app:webdriver --prefix e2e
+npm run typecheck --prefix e2e
+cargo build --manifest-path src-tauri/Cargo.toml --features tui --release --bin copypolish-tui
+```
+
+两个 GUI provider 都必须使用当前 commit 构建的 binary；不能复用旧 binary 或旧 `frontend/dist`。标准 W3C provider 运行前还必须完成 `build:app:webdriver`。
+
+#### 3. 依次执行 GUI provider 测试
+
+先执行 embedded provider，再执行标准 W3C provider：
+
+```powershell
+npm run test --prefix e2e
+npm run test:webdriver --prefix e2e
+```
+
+每个 provider 都必须确认 WebView2/session 创建、主窗口发现、真实 Rust IPC、全不选恒等、临时 `rules.yaml`、设置保存、进程退出和目录清理成功。
+
+#### 4. 执行设置恢复和损坏 fixture
+
+```powershell
+npm run test:restart-settings --prefix e2e
+npm run test:restart-settings:webdriver --prefix e2e
+npm run test:corrupt-settings --prefix e2e
+npm run test:corrupt-settings:webdriver --prefix e2e
+```
+
+重启恢复入口会使用同一临时设置目录启动两次应用，验证规则选择、最近输入和真实 Rust IPC 输出恢复。损坏 fixture 入口覆盖主文件损坏且备份有效、无备份，以及主备份均损坏三种情况。
+
+#### 5. 执行 NTFS ACL 保存失败测试
+
+该步骤只能在 Windows 原生执行，不能使用 WSL `chmod`、Linux 权限映射或只读文件属性替代：
+
+```powershell
+npm run test:acl-settings --prefix e2e
+npm run test:acl-settings:webdriver --prefix e2e
+```
+
+runner 会使用 `icacls.exe` 为当前用户添加目录级写入 deny ACE，验证设置保存失败提示、`rules.yaml` 目标路径、应用未崩溃以及真实 Rust IPC 仍可用。测试结束时必须自动移除 deny ACE、恢复继承并删除临时目录；失败时先保留设置 fixture 到 artifact。
+
+#### 6. 执行 Windows Terminal/TUI 回归
+
+```powershell
+& .\src-tauri\target\release\copypolish-tui.exe
+```
+
+在 Windows Terminal + PowerShell 7 中验证 raw-mode、规则顺序、裸字符和 Ctrl 快捷键、粘贴/bracketed paste、格式化、复制/OSC 52、保存、退出、重启恢复以及终端状态清理。记录 Windows Terminal、PowerShell、窗口尺寸、字体、编码和 OSC 52 结果。
+
+#### 7. 失败留证与清理
+
+失败时保留对应 provider 的 `e2e/artifacts/`，至少包括 WDIO 日志、应用 stdout/stderr、manifest、退出状态、失败截图、page source、版本信息和临时设置 fixture。完成后确认：
+
+```powershell
+Get-Process | Where-Object { $_.ProcessName -match 'chinese-copywriting-formatter|wdio|node' }
+Get-NetTCPConnection -State Listen | Where-Object { $_.LocalPort -eq 4445 -or $_.LocalPort -ge 44000 }
+Get-ChildItem .\e2e\artifacts -Recurse
+Get-ChildItem . -Force -Filter 'rules.yaml*'
+git status --short
+```
+
+成功运行不得残留 CopyPolish、WDIO、Node 测试进程或监听端口，仓库根目录不得出现 `rules.yaml` / `rules.yaml.bak`。ACL 测试必须确认权限已恢复后才能结束。
+
+#### Windows-only 验收边界
+
+| 项目 | Windows 原生要求 | 当前 Linux/WSL 可做的工作 |
+| --- | --- | --- |
+| WebView2 双 provider | 真实 Windows WebView2/session 和进程清理 | 可验证 Linux/WSLg provider smoke |
+| 设置重启恢复 | 使用 Windows binary 实际启动两次 | 可验证跨平台设置恢复语义 |
+| 损坏设置 fixture | 可复验 Windows WebView2 提示 | 可验证文件损坏/备份恢复语义 |
+| NTFS ACL | 必须使用 `icacls.exe` 真实 deny ACE | 只能 typecheck 或显式跳过，不能宣称通过 |
+| Windows Terminal/TUI | 必须使用可交互 Windows Terminal + PowerShell 7 | 可运行 Linux 非交互 TUI smoke，不能替代 raw-mode/OSC 52 |
+| DPI、窄窗口、剪贴板 | 必须在 Windows 桌面实际观察并留证 | 不能由普通浏览器或 Linux GUI 替代 |
+
 ### 7.1 环境与构建
 
 - [x] 记录 commit、Windows 版本、Node/npm、Rust host、Visual Studio Build Tools、WebView2 Runtime、Windows Terminal 和 PowerShell 版本；
