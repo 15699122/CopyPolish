@@ -778,9 +778,9 @@ cargo build --manifest-path src-tauri/Cargo.toml --features tui --release --bin 
 - TUI：Windows release 构建通过；`--stdin --no-config` 输出 `在 LeanCloud 上，花了 5000 元！`。
 - 清理：无 CopyPolish、WDIO 残留进程/监听端口，仓库根目录无 `rules.yaml*`。
 
-自动化缺口：尚未建立 GUI 视觉/DPI 自动截图与 page source、Windows Terminal raw-mode/OSC 52 自动 artifact、双 provider 受控失败完整诊断包自检、真实 Tauri `Ctrl+,` 流程下的 React 19 `act` warning 闭环，以及 GitLab Windows 可选 E2E stage。设置重启恢复、三种损坏设置 fixture 和 NTFS ACL 保存失败均已通过两个 provider 的专用 runner，相关人工回归也已完成，TUI-EDIT-DELETE-001 已关闭。
+自动化缺口：尚未建立 GUI 视觉/DPI 自动截图与 page source、Windows Terminal raw-mode/OSC 52 自动 artifact、双 provider 受控失败完整诊断包自检、真实 Tauri `Ctrl+,` 流程下的 React 19 `act` warning 闭环，以及 GitLab Windows 可选 E2E stage。统一 artifact 基础设施已接入两个 provider，可在失败时收集 screenshot、page source、设置 fixture、manifest 和 result；设置重启恢复、三种损坏设置 fixture 和 NTFS ACL 保存失败均已通过两个 provider 的专用 runner，相关人工回归也已完成，TUI-EDIT-DELETE-001 已关闭。
 
-本次修复后复验（2026-08-31）：embedded provider 与标准 W3C provider 各 3 个最小 smoke 用例均通过（设置链路 2/2、默认格式化 1/1）；三种损坏设置 fixture 在两个 provider 中各 3/3 通过；重启恢复在两个 provider 中的 write/read 阶段各 1/1 通过；NTFS ACL 保存失败在两个 provider 中各 1/1 通过；`cargo test user_settings::tests` 16/16 通过；`cargo test --features tui` 148/148 通过；Windows TUI release 构建和 `--stdin --no-config` smoke 通过。Windows Terminal raw-mode/OSC 52 及 GUI 视觉/DPI 的自动化 artifact 仍待补齐，但对应 Windows 人工回归已完成。
+本次修复后复验（2026-08-31）：embedded provider 与标准 W3C provider 各 3 个最小 smoke 用例均通过（设置链路 2/2、默认格式化 1/1）；三种损坏设置 fixture 在两个 provider 中各 3/3 通过；重启恢复在两个 provider 中的 write/read 阶段各 1/1 通过；NTFS ACL 保存失败在两个 provider 中各 1/1 通过；统一 artifact 基础设施随两个 provider 启动 smoke 通过并生成 manifest/result；`cargo test user_settings::tests` 16/16 通过；`cargo test --features tui` 148/148 通过；Windows TUI release 构建和 `--stdin --no-config` smoke 通过。Windows Terminal raw-mode/OSC 52 及 GUI 视觉/DPI 的自动化 artifact、受控失败完整诊断包自检仍待补齐，但对应 Windows 人工回归已完成。
 
 ### 9.5 历史修复前手动基线（2026-08-31，不作为当前结论）
 

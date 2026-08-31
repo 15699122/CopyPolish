@@ -3,6 +3,7 @@ import fs from "node:fs";
 import fsPromises from "node:fs/promises";
 import http from "node:http";
 import path from "node:path";
+import { writeResult } from "./artifacts.js";
 
 export type WebDriverApp = {
   child: ChildProcess;
@@ -80,21 +81,6 @@ export async function startWebDriverApp(port: number): Promise<WebDriverApp> {
     fs.closeSync(stderrFd);
   });
   const app: WebDriverApp = { child, port, pid: child.pid, artifactDir };
-  await fsPromises.writeFile(
-    path.join(artifactDir, "manifest.json"),
-    `${JSON.stringify({
-      provider: "tauri-plugin-webdriver",
-      port,
-      pid: child.pid,
-      binaryPath,
-      platform: process.platform,
-      node: process.version,
-      commit: process.env.CI_COMMIT_SHA ?? "local",
-      settingsDir,
-    }, null, 2)}\n`,
-    "utf8",
-  );
-
   try {
     await waitForStatus(port, child);
   } catch (error) {
@@ -137,9 +123,9 @@ export async function stopWebDriverApp(app: WebDriverApp): Promise<void> {
     });
   }
 
-  await fsPromises.writeFile(
-    path.join(app.artifactDir, "exit.json"),
-    `${JSON.stringify({ code: app.child.exitCode, signal: app.child.signalCode }, null, 2)}\n`,
-    "utf8",
-  );
+  await writeResult(app.artifactDir, {
+    status: "application-stopped",
+    code: app.child.exitCode,
+    signal: app.child.signalCode,
+  });
 }
