@@ -5,6 +5,67 @@
 本文专门区分“可以在当前 Linux/WSL 环境完成的开发工作”和“必须在 Windows 桌面环境完成的验证工作”。
 **构建检查通过不等于真实 GUI E2E 通过**：只有在真实桌面会话中启动 Tauri 二进制并完成 WebView、IPC 和设置链路后，才可以将对应 smoke 标记为通过。
 
+## Windows 原生执行摘要
+
+以下步骤是 Windows 验证的最短完整路径。必须在 Windows 原生桌面、Windows Terminal + PowerShell 7 中执行；WSL 只能用于代码检查和跨平台 smoke，不能替代 WebView2、NTFS ACL、DPI、剪贴板或 raw-mode 验证。
+
+### Windows 前置条件
+
+- 使用当前 commit 的 checkout，优先放在短路径目录；
+- Node 满足 `>=24 <25`；
+- Rust toolchain 使用 `x86_64-pc-windows-msvc`；
+- 安装 Visual Studio Build Tools、WebView2 Runtime、Windows Terminal 和 PowerShell 7；
+- 记录 Windows、Node/npm、Rust、WebView2、Windows Terminal、PowerShell 和 commit SHA；
+- 不使用旧 binary、旧 `frontend/dist` 或用户真实设置目录。
+
+### Windows 执行顺序
+
+在项目根目录执行：
+
+```powershell
+npm ci --prefix frontend
+npm ci --prefix e2e
+npm run build:app --prefix e2e
+npm run build:app:webdriver --prefix e2e
+npm run typecheck --prefix e2e
+cargo build --manifest-path src-tauri/Cargo.toml --features tui --release --bin copypolish-tui
+```
+
+然后按以下顺序运行：
+
+```powershell
+# GUI 基础链路
+npm run test --prefix e2e
+npm run test:webdriver --prefix e2e
+
+# 设置恢复和损坏文件
+npm run test:restart-settings --prefix e2e
+npm run test:restart-settings:webdriver --prefix e2e
+npm run test:corrupt-settings --prefix e2e
+npm run test:corrupt-settings:webdriver --prefix e2e
+
+# Windows-only NTFS ACL 故障注入
+npm run test:acl-settings --prefix e2e
+npm run test:acl-settings:webdriver --prefix e2e
+```
+
+ACL 入口内部使用 `icacls.exe` 添加当前用户的目录写入 deny ACE，并在 `finally` 中恢复权限。禁止使用 Linux `chmod`、WSL 权限映射或只读属性模拟该步骤。当前仓库已提供 ACL harness 和两个 provider 入口，但在 Windows 原生执行前不得将该自动化标记为通过。
+
+最后构建并启动 TUI：
+
+```powershell
+cargo build --manifest-path src-tauri/Cargo.toml --features tui --release --bin copypolish-tui
+& .\src-tauri\target\release\copypolish-tui.exe
+```
+
+需要实际验证 raw-mode、规则面板、快捷键、粘贴、保存、重启恢复、OSC 52 和退出后的终端状态；这些项目不能由 Linux 非交互 smoke 或普通浏览器预览替代。
+
+### Windows 结果记录与清理
+
+每个 provider 单独记录：测试命令、通过数、耗时、随机端口、binary/commit、WebView2/session 结果、artifact 路径和失败诊断。失败时保留 `e2e/artifacts/` 中的 WDIO 日志、应用 stdout/stderr、manifest、退出状态、截图、page source、版本信息和临时设置 fixture。
+
+测试完成后确认没有 CopyPolish、WDIO 或 Node 残留进程/监听端口，仓库根目录没有 `rules.yaml*`，ACL deny 已移除、继承已恢复且临时目录可以删除。详细 PowerShell 检查命令和验收表见 [testing.md 第 7.0 节](testing.md#70-windows-原生专用步骤总览)。
+
 ## 1. 当前状态
 
 截至 2026-08-31：
