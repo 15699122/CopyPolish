@@ -917,7 +917,7 @@ P0.2 只有在以下条件全部满足后才能标记完成。括号中的状态
 自动化与留证仍未覆盖：
 
 - GUI 浅色/深色、100%/125%/150% DPI 和窄窗口的自动截图、page source 与环境清单；
-- Windows Terminal + PowerShell 7 raw-mode、规则面板、粘贴和 OSC 52 交互的自动 artifact；
+- Windows Terminal + PowerShell 7 raw-mode、规则面板、粘贴和 OSC 52 交互的自动 artifact；非交互 transcript 已由 `test:tui-transcript` 覆盖，但不能替代真实终端交互；
 - 真实 Tauri `Ctrl+,` 用户流对 React 19 `act` warning 的闭环判断；
 - GitLab Windows 可选 E2E stage 的重复执行、始终上传 artifact 和稳定性统计。
 
@@ -927,4 +927,4 @@ P0.2 只有在以下条件全部满足后才能标记完成。括号中的状态
 重启恢复已由 `test:restart-settings` 和
 `test:restart-settings:webdriver` 入口覆盖，不再属于未完成项。
 
-因此，后续工作应先固化 GUI/Terminal artifact 和 React 19 告警闭环，再接入 GitLab Windows 可选 E2E stage 并评估更严格门禁。当前未完成项不再包括 Windows 手动功能回归、损坏设置 fixture、重启恢复、NTFS ACL 故障注入、受控失败诊断包或 TUI 编辑器 Delete 边界。
+因此，后续工作应先固化 Terminal 交互 artifact 和 React 19 告警闭环，再接入 GitLab Windows 可选 E2E stage 并评估更严格门禁。GUI 主题/窄窗口 artifact、受控失败诊断包和 TUI 非交互 transcript 已完成；当前未完成项不再包括 Windows 手动功能回归、损坏设置 fixture、重启恢复、NTFS ACL 故障注入或 TUI 编辑器 Delete 边界。

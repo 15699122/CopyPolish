@@ -31,7 +31,7 @@
 尚未闭环的是自动化和留证能力，不应重新标记为功能未测：
 
 - [ ] GUI 浅色/深色、100%/125%/150% DPI 和窄窗口的自动截图、page source 与环境清单；主题/窄窗口 artifact 已由双 provider 验证，Windows 三档 DPI 仍需原生环境执行；
-- [ ] Windows Terminal TUI raw-mode、规则面板、粘贴、OSC 52、保存/退出/重启恢复的自动 artifact；
+- [ ] Windows Terminal TUI raw-mode、规则面板、粘贴、OSC 52、保存/退出/重启恢复的自动 artifact；非交互 transcript 已由 `test:tui-transcript` 覆盖，不能替代真实终端交互；
 - [x] embedded/W3C 受控失败时完整诊断包自检：stdout/stderr、WDIO log、manifest、exit status、截图、page source 和设置 fixture 均已验证；统一 artifact 基础设施已完成；
 - [ ] 通过真实 Tauri `Ctrl+,` 用户流确认 React 19 `act` warning 是否仅存在于 jsdom；
 - [ ] GitLab Windows 可选 E2E stage 的重复执行、`when: always` artifact 上传和稳定性统计。
@@ -81,7 +81,7 @@ npm test --prefix frontend -- --run
 
 TUI 非交互链路已在 Linux 上完成自动化 smoke：验证 `--help`、stdin 格式化、文件输入/输出、
 `--rules none` 恒等、未知规则 key 警告、缺失文件返回码 1，以及约 1.29 MB 输入的恒等处理。
-这些检查不替代真实 raw-mode 终端、Windows Terminal 交互或 Tauri 窗口行为 E2E；本次修复后的 TUI/GUI 回归和双 provider 连续稳定性已由人工完成，设置与 ACL 故障注入已自动化，Terminal/GUI artifact 固化仍待补齐。
+这些检查不替代真实 raw-mode 终端、Windows Terminal 交互或 Tauri 窗口行为 E2E；本次修复后的 TUI/GUI 回归和双 provider 连续稳定性已由人工完成，设置与 ACL 故障注入已自动化，非交互 transcript 已通过 `test:tui-transcript` 留证，Terminal/GUI 交互 artifact 固化仍待补齐。
 
 ## 7. Windows 原生回归清单（已完成）
 
@@ -393,6 +393,16 @@ spec 验证设置窗口显示保存失败、错误文本包含 `rules.yaml`，�
 - flaky 失败的复现次数和诊断结论。
 
 当前版本两个 provider 的连续稳定性统计已完成并记录；损坏设置 fixture、重启恢复、NTFS ACL 自动化、统一 artifact 基础设施、受控失败 artifact 自检和主题/窄窗口 GUI artifact 已完成。仍需补齐 Windows 三档 DPI 记录、TUI 专用 artifact、React 19 warning 闭环和 GitLab stage 固化后，才可作为阻塞式合并门禁。
+
+### 7.11 TUI 非交互 transcript artifact
+
+使用以下入口采集 TUI 非交互模式的输入、stdout、stderr、退出码、命令参数、白名单环境摘要和结果汇总：
+
+```bash
+npm run test:tui-transcript --prefix e2e
+```
+
+当前 Linux/WSL 验证结果为 4/4 通过，覆盖默认格式化、`--rules none` 恒等、未知规则 warning 和缺失输入文件错误。该入口可以在 Windows 原生复用，但不替代 Windows Terminal raw-mode、规则面板、剪贴板或 OSC 52 交互 artifact。
 
 ## 8. 测试完成标准
 
