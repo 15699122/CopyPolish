@@ -3,6 +3,21 @@ import { DialogFooter } from "@/components/ui/dialog";
 import { isSettingsLoadNoticeAlert, settingsLoadNoticeText } from "@/lib/settingsLoadNotices";
 import type { SettingsLoadNotice } from "@/lib/tauri";
 
+function abbreviatePath(path: string, maxLength = 56): string {
+  if (path.length <= maxLength) return path;
+
+  const separator = path.includes("\\") ? "\\" : "/";
+  const parts = path.split(separator);
+  const isWindowsDrive = /^[A-Za-z]:$/.test(parts[0] ?? "");
+  const prefix = isWindowsDrive ? `${parts[0]}${separator}` : path.startsWith(separator) ? separator : "";
+  const remainder = isWindowsDrive || prefix ? parts.slice(1) : parts;
+  const suffixParts = remainder.slice(-2);
+  const suffix = suffixParts.join(separator);
+  const available = Math.max(8, maxLength - prefix.length - suffix.length - 2);
+  const leading = remainder.slice(0, -2).join(separator);
+  return `${prefix}${leading.slice(0, available)}…${separator}${suffix}`;
+}
+
 /** 设置保存状态；由 App 中的 useSettingsPersistence 提供。 */
 export type SettingsStatus = "idle" | "saving" | "saved" | "error";
 
@@ -57,13 +72,13 @@ export function SettingsFooter({
               >
                 设置文件：
                 <span
-                  className="relative inline max-w-full truncate align-bottom underline decoration-dotted decoration-muted-foreground/60 underline-offset-4 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="inline-block max-w-full min-w-0 align-bottom underline decoration-dotted decoration-muted-foreground/60 underline-offset-4 outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   tabIndex={0}
                   title={settingsPath}
                   aria-label={`设置文件完整路径：${settingsPath}`}
                   data-testid="settings-path"
                 >
-                  {settingsPath}
+                  {abbreviatePath(settingsPath)}
                 </span>
               </span>
             )}

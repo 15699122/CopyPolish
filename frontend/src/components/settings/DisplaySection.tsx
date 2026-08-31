@@ -19,7 +19,7 @@ export function DisplaySection({
 }: DisplaySectionProps) {
   return (
     <div className="space-y-2" data-testid="font-settings">
-      <div>
+      <div className="space-y-1.5">
         <h3 className="text-sm font-semibold">字体</h3>
         <p className="text-xs text-muted-foreground">选择界面显示字体；未安装的字体会自动使用系统回退字体。</p>
       </div>

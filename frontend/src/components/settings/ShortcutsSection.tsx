@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import {
   SHORTCUT_ACTIONS,
@@ -62,22 +64,21 @@ export function ShortcutsSection({
 
   return (
     <div className="space-y-2" data-testid="shortcut-settings">
-      <div>
+      <div className="space-y-1.5">
         <h3 className="text-sm font-semibold">快捷键</h3>
         <p className="text-xs text-muted-foreground">
           关闭后应用不再处理任何自定义组合键；设置窗口仍可用 Esc 关闭。
         </p>
       </div>
-      <label className="flex w-fit cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-accent">
-        <input
-          type="checkbox"
+      <div className="flex w-fit items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-accent">
+        <Checkbox
+          id="shortcuts-toggle"
           checked={shortcutsEnabled}
-          onChange={(event) => onShortcutsEnabledChange(event.target.checked)}
+          onCheckedChange={(checked) => onShortcutsEnabledChange(checked === true)}
           data-testid="shortcuts-toggle"
-          className="h-4 w-4 shrink-0"
         />
-        <span className="text-sm">启用应用快捷键</span>
-      </label>
+        <Label htmlFor="shortcuts-toggle" className="cursor-pointer text-sm">启用应用快捷键</Label>
+      </div>
       <div className={cn("space-y-1.5", !shortcutsEnabled && "opacity-50")}>
         {SHORTCUT_ACTIONS.map((action) => (
           <div
@@ -118,7 +119,7 @@ export function ShortcutsSection({
         {shortcutMessage ?? ""}
       </span>
       <Button
-        variant="secondary"
+        variant="ghost"
         size="sm"
         disabled={!shortcutsEnabled}
         data-testid="reset-shortcuts"
