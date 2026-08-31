@@ -238,7 +238,7 @@ describe("App 主流程", () => {
     expect(screen.getByTestId("theme-options")).toHaveClass("grid-cols-[1.35fr_1fr_1fr]");
     expect(screen.getByTestId("theme-options").children).toHaveLength(3);
     expect(screen.getByTestId("theme-system")).toBeInTheDocument();
-    expect(screen.getByTestId("theme-system")).toHaveAttribute("type", "checkbox");
+    expect(screen.getByTestId("theme-system")).toHaveAttribute("role", "checkbox");
     expect(screen.getByTestId("theme-system")).toBeChecked();
     expect(screen.getByTestId("theme-light")).toBeDisabled();
     expect(screen.getByTestId("theme-dark")).toBeDisabled();

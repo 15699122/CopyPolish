@@ -269,7 +269,7 @@ export default function App() {
           </CardHeader>
           <CardContent className="flex min-h-0 min-w-0 flex-1 flex-col">
             <div
-              className="relative min-h-0 w-full flex-1 overflow-auto rounded-md border bg-background px-3 py-2"
+              className="relative min-h-0 w-full flex-1 overflow-auto rounded-md border border-input bg-background px-3 py-2 shadow-sm"
               data-testid="output-scroller"
             >
               {!output && !error && (

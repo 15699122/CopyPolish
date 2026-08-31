@@ -1,4 +1,6 @@
 import { cn } from "@/lib/utils";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import type { ThemeMode, UiScale } from "@/lib/tauri";
 
 interface ThemeSectionProps {
@@ -23,16 +25,15 @@ export function ThemeSection({
     <div className="space-y-2">
       <h3 className="text-sm font-semibold">主题</h3>
       <div className="grid w-full grid-cols-[1.35fr_1fr_1fr] gap-1.5" data-testid="theme-options">
-        <label className="flex w-full min-w-0 cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-accent">
-          <input
-            type="checkbox"
+        <div className="flex w-full min-w-0 items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-accent">
+          <Checkbox
+            id="theme-system"
             checked={followingSystem}
-            onChange={(event) => onFollowSystemChange(event.target.checked)}
+            onCheckedChange={(checked) => onFollowSystemChange(checked === true)}
             data-testid="theme-system"
-            className="h-4 w-4 shrink-0"
           />
-          <span className="text-sm">跟随系统</span>
-        </label>
+          <Label htmlFor="theme-system" className="cursor-pointer text-sm">跟随系统</Label>
+        </div>
         {([
           ["light", "浅色"],
           ["dark", "深色"],
