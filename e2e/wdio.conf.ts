@@ -1,12 +1,17 @@
 import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
+import { prepareSettingsFixture } from "./support/settings-fixtures.js";
 
 const e2eDir = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(e2eDir, "..");
 const artifactsDir = path.join(e2eDir, "artifacts");
 const settingsDir = process.env.COPYPOLISH_E2E_SETTINGS_DIR ?? fs.mkdtempSync(path.join(e2eDir, "settings-"));
 process.env.COPYPOLISH_E2E_SETTINGS_DIR = settingsDir;
+prepareSettingsFixture(
+  settingsDir,
+  process.env.COPYPOLISH_E2E_SETTINGS_FIXTURE as Parameters<typeof prepareSettingsFixture>[1],
+);
 fs.mkdirSync(path.join(artifactsDir, "logs"), { recursive: true });
 fs.mkdirSync(path.join(artifactsDir, "screenshots"), { recursive: true });
 fs.mkdirSync(path.join(artifactsDir, "wdio"), { recursive: true });
