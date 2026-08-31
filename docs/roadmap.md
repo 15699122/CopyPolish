@@ -40,7 +40,7 @@
 - [x] 参考 `Choochmeque/tauri-plugin-webdriver` 建立并行标准 WebDriver provider PoC（固定 `0.2.1`，Linux/WSLg smoke 通过；不替换当前 provider）；
 - [x] 覆盖启动、真实引擎输出和默认示例；
 - [x] 覆盖全不选恒等、规则切换和快捷键开关（双 provider 自动化最小链路及修复后 GUI/TUI 人工回归已完成；TUI-EDIT-DELETE-001 已关闭）；
-- [x] 覆盖 GUI 设置重启恢复、损坏设置 fixture 和不可写目录保存失败提示（修复后 Windows 手动回归已完成；自动化故障注入仍待补齐）；
+- [x] 覆盖 GUI 设置重启恢复、损坏设置 fixture 和不可写目录保存失败提示（修复后 Windows 手动回归已完成；三种损坏设置 fixture 已在两个 provider 自动化通过）；
 - [x] 使用临时设置目录，禁止污染真实 `rules.yaml`；
 - [x] Linux 和 Windows 各保留至少一条真实链路，稳定后再纳入合并门禁（Linux/WSLg 与 Windows WebView2 修复后最小链路、双 provider 5 次稳定性统计及人工回归已完成；GitLab 可选 stage 和自动化故障注入仍待执行；不使用 GitHub Actions，见决策 6）。
 
@@ -93,7 +93,7 @@
 - [x] TUI 独立资产决策（决策 1）：发布 `CopyPolish-tui-windows-x64.7z`（内含 `CopyPolish-tui.exe`）与 `CopyPolish-tui-linux-x86_64.7z`（内含 `copypolish-tui`），与桌面版共享 Release、tag、SHA256SUMS 与发布方式；`verify_release_assets.py` 与 GitLab pipeline 已支持七资产校验；
 - [x] 为 embedded 与标准 W3C provider 各连续运行至少 5 次，记录 flaky、启动耗时、端口冲突、残留进程和 artifact 完整性；
 - [x] 修复 TUI-EDIT-DELETE-001：补齐最后一个 grapheme 的 Right/Delete 边界，并覆盖 ASCII、Unicode、emoji、组合字符和 TUI Delete 事件回归；
-- [ ] 将 Windows 设置故障注入和 TUI/GUI 回归固化为可重复 spec，并在稳定性统计完成后评估 GitLab Windows 可选 stage；
+- [ ] 将 Windows 设置重启恢复和 NTFS ACL 故障注入、TUI/GUI 回归及 Terminal artifact 固化为可重复 spec，并评估 GitLab Windows 可选 stage；损坏设置 fixture 自动化已完成。
 - [ ] 持续执行依赖审计、许可证清单更新和工具链升级 Runbook。
 
 ## 规则扩展准入

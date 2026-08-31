@@ -714,9 +714,9 @@ cargo build --manifest-path src-tauri/Cargo.toml --features tui --release --bin 
 - NTFS ACL：当前用户写入被拒绝，权限恢复和临时目录删除均成功。
 - 清理：无 CopyPolish、WDIO 残留进程/监听端口，仓库根目录无 `rules.yaml*`。
 
-自动化缺口：尚无专用 GUI spec 自动验证“第二次启动恢复”“三种损坏设置 fixture”“ACL 下保存失败提示”，也未建立 Windows Terminal raw-mode/OSC 52 的自动 artifact 收集；上述项目的修复后人工回归已完成，TUI-EDIT-DELETE-001 也已关闭。
+自动化缺口：尚无专用 GUI spec 自动验证“第二次启动恢复”和“ACL 下保存失败提示”，也未建立 Windows Terminal raw-mode/OSC 52 的自动 artifact 收集；三种损坏设置 fixture 已通过专用 runner 在两个 provider 中自动化验证，上述项目的修复后人工回归已完成，TUI-EDIT-DELETE-001 也已关闭。
 
-本次修复后复验（2026-08-31）：embedded provider 与标准 W3C provider 各 3 个用例均通过（设置链路 2/2、默认格式化 1/1）；`cargo test user_settings::tests` 16/16 通过；`cargo test --features tui` 148/148 通过；Windows TUI release 构建和 `--stdin --no-config` smoke 通过；NTFS ACL 拒写、恢复和 fixture 删除通过。故障注入 GUI、Windows Terminal raw-mode/OSC 52 及 GUI 视觉/DPI 的自动化覆盖仍待补齐，但对应 Windows 人工回归已完成。
+本次修复后复验（2026-08-31）：embedded provider 与标准 W3C provider 各 3 个最小 smoke 用例均通过（设置链路 2/2、默认格式化 1/1）；三种损坏设置 fixture 在两个 provider 中各 3/3 通过；`cargo test user_settings::tests` 16/16 通过；`cargo test --features tui` 148/148 通过；Windows TUI release 构建和 `--stdin --no-config` smoke 通过；NTFS ACL 拒写、恢复和 fixture 删除通过。重启恢复和 ACL 保存失败尚无专用自动化 spec，Windows Terminal raw-mode/OSC 52 及 GUI 视觉/DPI 的自动化 artifact 仍待补齐，但对应 Windows 人工回归已完成。
 
 ### 9.5 历史修复前手动基线（2026-08-31，不作为当前结论）
 
@@ -853,8 +853,10 @@ P0.2 只有在以下条件全部满足后才能标记完成。括号中的状态
 自动化仍未覆盖：
 
 - Windows 专用 GUI 重启恢复自动化 spec；
-- Windows GUI 损坏设置 fixture 自动化 spec；
 - Windows ACL 下真实 GUI 保存失败提示自动化 spec；
 - Windows Terminal + PowerShell 7 raw-mode、规则面板和 OSC 52 交互的自动化 artifact 收集。
 
-因此，后续工作应将已完成的手动步骤固化为可重复的 GUI 故障注入 spec 和 Terminal artifact 收集，再评估 GitLab 可选 E2E stage 是否纳入更严格门禁。当前未完成项不再包括 Windows 手动回归或 TUI 编辑器 Delete 边界。
+三种损坏设置 fixture 已由 `test:corrupt-settings` 和
+`test:corrupt-settings:webdriver` 入口覆盖，不再属于未完成项。
+
+因此，后续工作应将已完成的手动步骤继续固化为重启恢复/NTFS ACL GUI 故障注入 spec 和 Terminal artifact 收集，再评估 GitLab 可选 E2E stage 是否纳入更严格门禁。当前未完成项不再包括 Windows 手动回归、损坏设置 fixture 或 TUI 编辑器 Delete 边界。

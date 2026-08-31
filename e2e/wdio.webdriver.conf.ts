@@ -2,12 +2,18 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { startWebDriverApp, stopWebDriverApp, type WebDriverApp } from "./support/webdriver-app.js";
+import { prepareSettingsFixture } from "./support/settings-fixtures.js";
 
 const e2eDir = path.dirname(fileURLToPath(import.meta.url));
 const artifactsDir = process.env.COPYPOLISH_E2E_ARTIFACT_DIR
   ?? path.join(e2eDir, "artifacts", "webdriver");
 const port = Number(process.env.TAURI_WEBDRIVER_PORT ?? 4445);
 let app: WebDriverApp | undefined;
+
+prepareSettingsFixture(
+  process.env.COPYPOLISH_E2E_SETTINGS_DIR ?? "",
+  process.env.COPYPOLISH_E2E_SETTINGS_FIXTURE as Parameters<typeof prepareSettingsFixture>[1],
+);
 
 export const config: WebdriverIO.Config = {
   runner: "local",
