@@ -9,6 +9,9 @@ import packageJson from "./package.json" with { type: "json" };
 const host = process.env.TAURI_DEV_HOST;
 
 export default defineConfig({
+  // Tauri 使用 custom protocol/asset URL 加载打包后的前端资源；相对基路径
+  // 避免生成 `/assets/...` 这类只适用于 HTTP 根路径的绝对资源地址。
+  base: "./",
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {

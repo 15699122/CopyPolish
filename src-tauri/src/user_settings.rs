@@ -169,6 +169,13 @@ pub struct LoadedUserSettings {
 
 /// 设置保存目录：优先使用当前可执行文件所在目录，失败时回退当前工作目录。
 fn settings_dir() -> PathBuf {
+    #[cfg(feature = "e2e")]
+    if let Ok(dir) = std::env::var("COPYPOLISH_E2E_SETTINGS_DIR") {
+        if !dir.is_empty() {
+            return PathBuf::from(dir);
+        }
+    }
+
     if let Ok(exe) = std::env::current_exe() {
         if let Some(dir) = exe.parent() {
             return dir.to_path_buf();
