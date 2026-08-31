@@ -5,16 +5,22 @@ mod commands;
 pub mod engine;
 mod user_settings;
 
+#[cfg(all(feature = "e2e-wdio", feature = "e2e-webdriver"))]
+compile_error!("e2e-wdio and e2e-webdriver cannot be enabled together");
+
 #[cfg(feature = "tui")]
 pub mod tui;
 
 pub fn run() {
     let builder = tauri::Builder::default();
 
-    #[cfg(feature = "e2e")]
+    #[cfg(feature = "e2e-wdio")]
     let builder = builder
         .plugin(tauri_plugin_wdio::init())
         .plugin(tauri_plugin_wdio_webdriver::init());
+
+    #[cfg(feature = "e2e-webdriver")]
+    let builder = builder.plugin(tauri_plugin_webdriver::init());
 
     builder
         .invoke_handler(tauri::generate_handler![
