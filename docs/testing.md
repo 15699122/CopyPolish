@@ -19,7 +19,7 @@
 | Markdown/HTML/LaTeX | span、嵌套结构、未闭合结构、后续文本不吞并、保护 fixture | 继续扩展真实文档样本 |
 | Unicode | grapheme、emoji、组合符、CJK Ext-B | Unicode 数据/工具链升级回归 |
 | 单位和数学 | 有限词典、复合单位、数学边界 | 按真实语料扩展词典 |
-| 设置 | Rust Windows 测试 16/16；Windows 真实 GUI 修复后已手动完成保存、重启恢复、损坏 fixture、ACL 保存失败及视觉/DPI/窄窗口回归；损坏设置 fixture 已在两个 provider 自动化通过 | embedded/W3C Windows E2E 已复验真实 WebView2、IPC、全不选恒等、临时路径和规则保存；仍需将重启恢复和 NTFS ACL 故障流程固化为可重复自动化 spec |
+| 设置 | Rust Windows 测试 16/16；Windows 真实 GUI 修复后已手动完成保存、重启恢复、损坏 fixture、ACL 保存失败及视觉/DPI/窄窗口回归；损坏设置和重启恢复已在两个 provider 自动化通过 | embedded/W3C Windows E2E 已复验真实 WebView2、IPC、全不选恒等、临时路径和规则保存；仍需将 NTFS ACL 故障流程固化为可重复自动化 spec |
 | 前端状态 | 防抖、竞态、错误、主题、字体、快捷键 | 真实 IPC E2E |
 | TUI | CLI、编辑器、规则、OSC 52、共享设置；Linux 非交互 smoke；Windows release、stdin 及修复后 Windows Terminal 手动回归 | Rust TUI 148/148、Windows release/stdin 和 Windows Terminal 修复后手动回归已通过；TUI-EDIT-DELETE-001 已修复，仍需将故障场景固化为自动化 artifact |
 | 发布脚本 | 主要由脚本和人工 Runbook 覆盖 | 参数和失败路径自动化测试 |
@@ -63,7 +63,7 @@ npm test --prefix frontend -- --run
 
 ## 6. 桌面验证缺口
 
-当前 mock 测试不能完全替代真实桌面验证。Linux/WSLg 与 Windows WebView2 最小链路、修复后 Windows GUI/TUI/设置/ACL 手动回归及双 provider 稳定性验证均已完成；TUI-EDIT-DELETE-001 已通过编辑器边界修复和回归测试关闭。损坏设置三种 fixture 已在 embedded/W3C provider 中自动化通过；重启恢复、NTFS ACL 自动化和 Terminal artifact 固化仍是后续工程工作。
+当前 mock 测试不能完全替代真实桌面验证。Linux/WSLg 与 Windows WebView2 最小链路、修复后 Windows GUI/TUI/设置/ACL 手动回归及双 provider 稳定性验证均已完成；TUI-EDIT-DELETE-001 已通过编辑器边界修复和回归测试关闭。损坏设置三种 fixture 和重启恢复已在 embedded/W3C provider 中自动化通过；NTFS ACL 自动化和 Terminal artifact 固化仍是后续工程工作。
 
 TUI 非交互链路已在 Linux 上完成自动化 smoke：验证 `--help`、stdin 格式化、文件输入/输出、
 `--rules none` 恒等、未知规则 key 警告、缺失文件返回码 1，以及约 1.29 MB 输入的恒等处理。
@@ -242,7 +242,18 @@ npm run test:corrupt-settings:webdriver --prefix e2e
 
 当前 Linux/WSLg 验证结果：embedded provider 3/3、标准 W3C provider 3/3 通过。该入口覆盖跨平台文件损坏语义，但不替代 Windows NTFS ACL 自动化。
 
-### 7.8 双 provider 稳定性统计（已完成）
+### 7.8 设置重启恢复自动化入口
+
+使用以下入口在同一临时 `rules.yaml` 目录中连续启动两次应用：第一次保存“全不选”和最近输入，第二次验证规则、输入和真实 Rust IPC 输出恢复。
+
+```bash
+npm run test:restart-settings --prefix e2e
+npm run test:restart-settings:webdriver --prefix e2e
+```
+
+当前 Linux/WSLg 验证结果：embedded provider 的 write/read 阶段各 1/1 通过，标准 W3C provider 的 write/read 阶段各 1/1 通过。该入口验证跨平台设置恢复语义，仍需在 Windows 原生环境复验，并不覆盖 NTFS ACL 拒写。
+
+### 7.9 双 provider 稳定性统计（已完成）
 
 在同一 commit、同一环境下，两个 provider 各连续运行至少 5 次，记录：
 
@@ -253,7 +264,7 @@ npm run test:corrupt-settings:webdriver --prefix e2e
 - artifact 是否完整；
 - flaky 失败的复现次数和诊断结论。
 
-当前版本两个 provider 的连续稳定性统计已完成并记录；损坏设置 fixture 自动化也已完成。仍需将重启恢复、NTFS ACL 自动化故障注入、artifact 收集和 GitLab stage 固化后，才可作为阻塞式合并门禁。
+当前版本两个 provider 的连续稳定性统计已完成并记录；损坏设置 fixture 和重启恢复自动化也已完成。仍需将 NTFS ACL 自动化故障注入、artifact 收集和 GitLab stage 固化后，才可作为阻塞式合并门禁。
 
 ## 8. 测试完成标准
 
