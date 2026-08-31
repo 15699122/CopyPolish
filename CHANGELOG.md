@@ -9,6 +9,7 @@
 - 新增贡献指南、架构说明和测试指南。
 - 新增项目变更记录。
 - 新增独立 WebdriverIO + Tauri embedded provider E2E 工程，覆盖真实启动、Rust IPC 默认排版、全不选恒等和临时设置文件隔离。
+- 新增基于 `tauri-plugin-webdriver` 0.2.1 的并行标准 WebDriver E2E provider，复用现有 smoke 并保持原 embedded provider 可回退。
 
 ### Changed
 
@@ -16,6 +17,10 @@
 - 统一 GitHub 分支 CI、GitLab tag 构建和本地验证流程的说明。
 - E2E 构建增加 `custom-protocol`、条件 capability 和测试专用 `withGlobalTauri` 配置，生产构建不加载 WebDriver plugin。
 - E2E 前端资源使用相对路径，并按 spec 启动独立 WDIO 进程，避免测试间共享 `rules.yaml` 状态。
+- 标准 WebDriver provider 使用随机 localhost 端口、独立应用进程和运行 artifact；其前端不加载 `@wdio/tauri-plugin`。
+- 记录并完成 Windows 原生验证：Node 24.19.0、Rust 1.98.0 MSVC、WebView2 Runtime 151.0.4129.107；embedded 与标准 W3C WebDriver provider 均通过修复后的真实 WebView2/Rust IPC 最小 smoke，Windows GUI/TUI 手动回归、设置 Rust 测试 16/16、TUI MSVC release/stdin smoke、NTFS ACL 拒写/恢复夹具和双 provider 稳定性验证均已完成。
+- 修复 TUI 规则面板展示顺序、输入区可打印字符误触全局快捷键、bracketed paste 以及最后一个 grapheme 的 Delete/Right 边界；修复后的 Windows Terminal raw-mode、规则排序、`Get-Clipboard` 完整粘贴、新快捷键语义和编辑器边界已完成手动回归。
+- 统一桌面 GUI 输出框边框阴影、设置标题间距、恢复按钮、长路径中间省略和主题/快捷键复选框样式；Linux/WSLg 前端测试与构建及 Windows WebView2 下的 DPI、窄窗口和视觉回归均已完成。
 - 抽离前端规则目录加载（`useRuleCatalog`）和清空输入反馈（`useClearFeedback`），降低 `App.tsx` 编排复杂度。
 - 拆分设置界面为独立分区组件（主题、显示、快捷键、规则、状态 Footer），`SettingsDialog.tsx` 负责编排。
 - 抽取设置提醒文案与判定到 `frontend/src/lib/settingsLoadNotices.ts`，主界面与设置 Footer 共用，消除重复并精简 `App.tsx`。

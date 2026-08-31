@@ -1,6 +1,6 @@
 # Tauri 2 真实 E2E 路线选型分析（决策记录）
 
-> 状态：方案已评审选定，待真实桌面环境执行 Spike。
+> 状态：方案 A 已建立并通过 Linux/WSLg 基线；方案 E 已完成 Linux/WSLg 并行 PoC，并于 2026-08-31 在 Windows WebView2 上完成最小对照 smoke。TUI 事件路由、规则排序、编辑器边界和 GUI 样式随后完成修复；修复后的双 provider 最小回归、Windows GUI/TUI 手动回归及连续稳定性验证均已完成。自动化故障注入和 CI artifact 收集仍待补齐。
 > 前置阅读：[roadmap.md](roadmap.md) P0.2 节。
 
 ## 1. 候选方案
@@ -11,6 +11,7 @@
 | B. WebdriverIO + `@wdio/tauri-service`（tauri-driver） | 服务自动管理 `tauri-driver` + 平台原生 driver（Windows: EdgeDriver；Linux: WebKitWebDriver） | Windows / Linux | `webkit2gtk-driver`（Linux）或 Edge（Windows）；服务自动同步 EdgeDriver 版本 | 同上 |
 | C. 直接驱动 `tauri-driver`（自建 harness，无 Node） | Tauri 官方 CLI + WebDriver 协议（Selenium 或任意客户端） | 仅 Windows / Linux（macOS 无 WKWebView driver） | `tauri-driver` crate + 平台 driver | Tauri 官方，但生态示例少 |
 | D. 浏览器模式（renderer-only） | Tauri 前端跑在普通 Chrome + Vite dev server，`invoke()` 被拦截可 mock | 全平台（不含原生行为） | 仅 Node + Chrome | 同 A |
+| E. `tauri-plugin-webdriver` + 标准 WebdriverIO client | 应用内直接启动 W3C WebDriver HTTP server，WDIO 通过 `127.0.0.1:<port>` 连接 | Linux / Windows / macOS（上游另有移动端实现） | 单一 Rust 插件；不需要 `@wdio/tauri-service` 或 `@wdio/tauri-plugin` | 上游 release `0.2.1`；main 分支持续维护，需固定版本并自行验证 |
 
 ## 2. 评估要点
 
@@ -26,6 +27,7 @@
 - B 依赖 Linux `webkit2gtk-driver` 与 CI 镜像的 WebKitGTK 版本严格一致（本项目 GitLab 镜像为 `rust:1.98-bookworm`，需加装 `webkit2gtk-driver`）；
 - C 生态最少，失败排查成本最高；
 - D 无法覆盖 Tauri 原生窗口行为（无边框拖动、最小尺寸等），不能替代真实链路。
+- E 的上游 release 与 main 分支版本能力可能不同；插件暴露 HTTP 自动化接口，必须保持测试 feature 隔离；标准 WebDriver 不自动提供当前方案的前后端日志聚合和 `browser.tauri.execute()` 能力。
 
 ## 3. 选定结论
 
@@ -36,15 +38,57 @@
 3. IPC mock 与日志开箱即用，直接服务"损坏设置恢复"等故障注入用例；
 4. WebdriverIO 官方维护、文档与示例应用齐全。
 
-**Spike 验证清单**（真实桌面环境，Windows Terminal + PowerShell 7 / Linux 桌面）：
+**方案 A Spike 验证清单**（真实桌面环境，Windows Terminal + PowerShell 7 / Linux 桌面）：
 
-- [ ] `e2e` feature flag 下集成两个 wdio 插件，release 构建不受影响；
-- [ ] `npm create wdio` 脚手架 + `driverProvider: 'embedded'` 启动真实应用；
-- [ ] 用例 1：启动 → 默认样例格式化（`在LeanCloud上，花了5000元`）；
-- [ ] 用例 2：设置保存 → 重启恢复（读写 `settings.json` 真实路径）；
-- [ ] 用例 3：注入损坏的 `settings.json` → 应用降级默认值并提示；
-- [ ] 用例 4：不可写目录错误提示；
-- [ ] 确认前端 React 19 `act` warning 是否随真实用户流消失（P0.2 顺带项）。
+- [x] `e2e` feature flag 下集成两个 wdio 插件，release 构建不受影响；
+- [x] `npm create wdio` 脚手架 + `driverProvider: 'embedded'` 启动真实应用；
+- [x] 用例 1：启动 → 默认样例格式化（`在LeanCloud上，花了5000元`）；
+- [x] 用例 2：设置保存 → 重启恢复（读写 `rules.yaml` 真实路径，Windows 人工回归已完成）；
+- [x] 用例 3：注入损坏的 `rules.yaml` → 应用降级默认值并提示（Windows 人工回归已完成）；
+- [x] 用例 4：不可写目录错误提示（Windows NTFS ACL 人工回归已完成）；
+- [ ] 确认前端 React 19 `act` warning 是否随真实用户流消失（当前仍保留为 jsdom 环境告警跟踪项）。
+
+### 3.1 参考插件方案 E 的并行 PoC 结果
+
+截至 2026-08-31，当前仓库已在不删除方案 A 的前提下增加 `e2e-webdriver` feature 和独立 WDIO 配置，固定使用 `tauri-plugin-webdriver = 0.2.1`。该方案：
+
+- 可与当前 Tauri `2.11.5`、Rust `1.98` 和 Linux WebKitGTK 环境编译；
+- 通过随机 localhost 端口启动应用内 W3C WebDriver server；
+- 通过真实 WebView 和 Rust IPC 完成默认示例格式化；
+- 通过全不选恒等、临时设置目录和真实 `rules.yaml` 保存 smoke；
+- 不加载 `@wdio/tauri-plugin`、不使用 E2E capability 和 `withGlobalTauri`；
+- Windows WebView2 最小启动、session、真实 IPC、设置保存和清理，以及 GUI 重启恢复、损坏设置、ACL 保存失败、规则/快捷键、窗口/DPI 和 Terminal TUI 的修复后人工回归、双 provider 各 5 次稳定性统计均已完成；TUI-EDIT-DELETE-001 也已通过 Rust 回归测试和 Windows 定向复验关闭。可重复自动化故障注入和 CI artifact 收集仍待执行。
+
+对应入口：
+
+```bash
+npm run build:app:webdriver --prefix e2e
+npm run test:webdriver --prefix e2e
+```
+
+- 当前结论：方案 E 与方案 A 均已达到本次修复后的最小 Windows WebView2 smoke（各 3 个用例通过），且修复后 GUI/TUI 人工回归和双 provider 稳定性验证已完成；方案 A 仍为主路线。TUI-EDIT-DELETE-001 已关闭，自动化故障注入和 CI artifact 收集仍待补齐。
+
+#### Windows 原生对照记录模板
+
+Windows 验证必须对方案 A 和方案 E 使用同一 commit、同一 Node/Rust/WebView2 环境和等价临时设置 fixture。记录以下结果：
+
+| 项目 | 方案 A：embedded | 方案 E：标准 W3C WebDriver | 备注 |
+| --- | --- | --- | --- |
+| binary 构建 | 通过 | 通过 | Node 24.19.0、MSVC、Rust MSVC |
+| WebView2 启动 | 通过 | 通过 | WebView2 Runtime 151.0.4129.107 |
+| session 创建 | 通过 | 通过 | embedded session；W3C 随机端口 55755/53010 |
+| 主窗口发现 | 通过 | 通过 | 真实打包前端窗口 |
+| 默认格式化与 Rust IPC | 通过 | 通过 | `在LeanCloud上，花了5000元` |
+| 设置保存 | 通过 | 通过 | 临时 `rules.yaml` |
+| 重启恢复 | 手动通过 | 手动通过 | 自动化专用 spec 待补 |
+| 损坏设置恢复 | 手动通过 | 手动通过 | 自动化三种 fixture spec 待补 |
+| ACL 不可写目录 | 手动通过 | 手动通过 | 拒写/恢复/删除及 GUI 保存失败提示已手动确认 |
+| 失败诊断 | 手动通过 | 手动通过 | 手动记录已完成；可重复故障 artifact 待补 |
+| 进程和端口清理 | 通过 | 通过 | 无残留进程/监听端口 |
+
+方案 E 已达到方案 A 的本次修复后最小 Windows WebView2 smoke，方案 A 仍为主路线。只有当后续自动化故障注入和 artifact 收集证明标准协议 provider 在诊断能力上没有明显劣势时，才重新评估主路线。
+
+TUI-EDIT-DELETE-001 已关闭：`TextEditor` 的最后一个 grapheme 边界已修复，并由 Rust 编辑器/TUI 事件回归和 Windows Terminal 定向复验覆盖。
 
 **门禁策略**：Spike 通过后，E2E 先作为 GitLab `master` tag pipeline 的可选 stage（不阻塞 tag 发布），稳定后再考虑纳入 `dev` 合并门禁；不使用 GitHub Actions（见决策 6）。
 
