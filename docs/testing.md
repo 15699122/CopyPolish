@@ -30,7 +30,7 @@
 
 尚未闭环的是自动化和留证能力，不应重新标记为功能未测：
 
-- [ ] GUI 浅色/深色、100%/125%/150% DPI 和窄窗口的自动截图、page source 与环境清单；
+- [ ] GUI 浅色/深色、100%/125%/150% DPI 和窄窗口的自动截图、page source 与环境清单；主题/窄窗口 artifact 已由双 provider 验证，Windows 三档 DPI 仍需原生环境执行；
 - [ ] Windows Terminal TUI raw-mode、规则面板、粘贴、OSC 52、保存/退出/重启恢复的自动 artifact；
 - [x] embedded/W3C 受控失败时完整诊断包自检：stdout/stderr、WDIO log、manifest、exit status、截图、page source 和设置 fixture 均已验证；统一 artifact 基础设施已完成；
 - [ ] 通过真实 Tauri `Ctrl+,` 用户流确认 React 19 `act` warning 是否仅存在于 jsdom；
@@ -392,7 +392,7 @@ spec 验证设置窗口显示保存失败、错误文本包含 `rules.yaml`，�
 - artifact 是否完整；
 - flaky 失败的复现次数和诊断结论。
 
-当前版本两个 provider 的连续稳定性统计已完成并记录；损坏设置 fixture、重启恢复、NTFS ACL 自动化、统一 artifact 基础设施和受控失败 artifact 自检已完成。仍需补齐 GUI/TUI 专用 artifact、React 19 warning 闭环和 GitLab stage 固化后，才可作为阻塞式合并门禁。
+当前版本两个 provider 的连续稳定性统计已完成并记录；损坏设置 fixture、重启恢复、NTFS ACL 自动化、统一 artifact 基础设施、受控失败 artifact 自检和主题/窄窗口 GUI artifact 已完成。仍需补齐 Windows 三档 DPI 记录、TUI 专用 artifact、React 19 warning 闭环和 GitLab stage 固化后，才可作为阻塞式合并门禁。
 
 ## 8. 测试完成标准
 
