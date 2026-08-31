@@ -116,7 +116,7 @@ pub fn render(frame: &mut Frame, app: &App) {
     };
     let selected = app.selected_keys().len();
     let footer = format!(
-        " {status} · 规则 {selected}/{} · Tab 切换 · r 规则 · c 复制 · Ctrl+S 保存 · ? 帮助 · q 退出",
+        " {status} · 规则 {selected}/{} · Tab 切换 · Ctrl+R 规则 · c 复制 · Ctrl+S 保存 · Ctrl+? 帮助 · Ctrl+Q 退出",
         app.rules.len()
     );
     frame.render_widget(Paragraph::new(footer), root[2]);
@@ -167,14 +167,14 @@ fn render_help(frame: &mut Frame) {
         "",
         "Tab / Shift+Tab  切换输入、输出和规则区域",
         "Ctrl+Enter       立即排版",
-        "r                打开规则面板",
+        "Ctrl+R           打开规则面板（非输入区也可用 r）",
         "Space / Enter     切换当前规则",
         "a / d / n          全选 / 恢复默认 / 全不选",
         "c                复制输出（OSC 52）",
         "Ctrl+S           保存规则与最近输入到 rules.yaml",
-        "x                清空输入",
-        "? / Esc           帮助 / 关闭覆盖层",
-        "q                退出（退出时自动保存设置）",
+        "Ctrl+X           清空输入",
+        "Ctrl+? / Esc      帮助 / 关闭覆盖层",
+        "Ctrl+Q           退出（退出时自动保存设置）",
         "",
         "Esc 关闭此帮助",
     ];
