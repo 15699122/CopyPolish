@@ -26,7 +26,7 @@
 - 新增 embedded/W3C GUI 视觉 artifact 入口，采集正常/窄窗口及浅色/深色设置窗口的 screenshot、page source 和状态 metadata；Windows 三档 DPI 仍需原生环境执行。
 - 新增 TUI 非交互 transcript artifact 入口，覆盖默认格式化、`--rules none` 恒等、未知规则 warning 和缺失输入文件错误，并保存输入、stdout、stderr、退出码及环境摘要；不替代 Windows Terminal raw-mode/OSC 52 交互。
 - 记录并完成 Windows 原生验证：Node 24.19.0、npm 11.17.0、Rust 1.98.0 MSVC、WebView2 Runtime 151.0.4129.107、Windows Terminal 1.24.11911.0、PowerShell 7.6.5；前端 57/57、设置 Rust 测试 16/16、Rust/TUI 148/148 通过，TUI MSVC release/stdin smoke 通过。
-- embedded 与标准 W3C WebDriver provider 的真实 WebView2/Rust IPC 普通用例各 3/3、设置重启 write/read 各 1/1、三种损坏设置 fixture 各 3/3、NTFS ACL 各 1/1 通过；Windows GUI/TUI 手动回归和双 provider 稳定性验证均已完成。后续仅补 GUI/TUI 自动 artifact、React 19 `act` warning 闭环和 GitLab Windows 可选 E2E。
+- embedded 与标准 W3C WebDriver provider 的真实 WebView2/Rust IPC 普通用例各 3/3、设置重启 write/read 各 1/1、三种损坏设置 fixture 各 3/3、NTFS ACL 各 1/1 通过；统一 artifact、受控失败 probe、GUI 主题/窄窗口 artifact 和 TUI 非交互 transcript 也已验证。Windows GUI/TUI 手动回归和双 provider 稳定性验证均已完成。后续仅补 Windows 三档 DPI 原生记录、Terminal 交互 artifact、React 19 `act` warning 闭环和 GitLab Windows 可选 E2E。
 - 修复 TUI 规则面板展示顺序、输入区可打印字符误触全局快捷键、bracketed paste 以及最后一个 grapheme 的 Delete/Right 边界；修复后的 Windows Terminal raw-mode、规则排序、`Get-Clipboard` 完整粘贴、新快捷键语义和编辑器边界已完成手动回归。
 - 统一桌面 GUI 输出框边框阴影、设置标题间距、恢复按钮、长路径中间省略和主题/快捷键复选框样式；Linux/WSLg 前端测试与构建及 Windows WebView2 下的 DPI、窄窗口和视觉回归均已完成。
 - 抽离前端规则目录加载（`useRuleCatalog`）和清空输入反馈（`useClearFeedback`），降低 `App.tsx` 编排复杂度。

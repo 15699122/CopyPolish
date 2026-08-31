@@ -19,9 +19,9 @@
 - Markdown/HTML/LaTeX 保护仍是保守扫描器，不是完整 CommonMark/HTML 解析器；
 - 保护层仍部分使用内部 placeholder；
 - 1 MB 级 Markdown/LaTeX 语料仍需进一步减少分配和重复扫描；
-- 真实 Tauri 桌面链路已在 Linux/WSLg 和 Windows WebView2 建立；本次 TUI/GUI 修复后的双 provider 最小 E2E、设置恢复、损坏设置、NTFS ACL、GUI/TUI 手动回归、Rust 设置/TUI、TUI stdin 和双 provider 稳定性验证均已完成。TUI-EDIT-DELETE-001 已通过 grapheme 边界修复和回归测试关闭；Terminal/GUI artifact 固化仍待补齐；
+- 真实 Tauri 桌面链路已在 Linux/WSLg 和 Windows WebView2 建立；本次 TUI/GUI 修复后的双 provider 最小 E2E、设置恢复、损坏设置、NTFS ACL、GUI/TUI 手动回归、Rust 设置/TUI、TUI stdin 和双 provider 稳定性验证均已完成。统一 E2E artifact、受控失败诊断、GUI 主题/窄窗口 artifact 和 TUI 非交互 transcript 已完成；TUI-EDIT-DELETE-001 已通过 grapheme 边界修复和回归测试关闭；Windows 三档 DPI 原生记录、Terminal 交互 artifact、React 19 warning 闭环和 GitLab 可选 stage 仍待补齐；
 - `App.tsx` 和设置组件仍有进一步降低编排复杂度的空间；
-- TUI 跨终端手动 smoke 和正式资产决策已完成；自动化 Terminal artifact 仍待补齐。
+- TUI 跨终端手动 smoke、非交互 transcript artifact 和正式资产决策已完成；Windows Terminal raw-mode/OSC 52 交互 artifact 仍待补齐。
 
 ## P0：流程与桌面验证
 
@@ -97,7 +97,7 @@
 - [ ] 固化 GUI 浅色/深色、100%/125%/150% DPI 和窄窗口的自动截图、page source 与环境清单；主题/窄窗口场景和统一 artifact 基础设施已完成，待补 Windows 三档 DPI 原生执行与记录；
 - [ ] 固化 Windows Terminal TUI raw-mode、规则面板、粘贴、OSC 52、保存/退出/重启恢复的自动 artifact；非交互 transcript 已由 `test:tui-transcript` 覆盖，待补真实终端交互 artifact；
 - [x] 增加 embedded/W3C 受控失败探针，验证 stdout/stderr、WDIO log、manifest、exit status、截图、page source 和设置 fixture 的完整诊断包；统一 artifact 基础设施和双 provider 自检已完成；
-- [ ] 接入并连续验证 GitLab Windows 可选 E2E stage，使用 `allow_failure: true` 和 `artifacts: when: always` 收集稳定性数据。
+- [ ] 接入并连续验证 GitLab Windows 可选 E2E stage，使用 `allow_failure: true` 和 `artifacts: when: always` 收集稳定性数据；统一 artifact 和受控失败 probe 已具备接入条件。
 - [ ] 持续执行依赖审计、许可证清单更新和工具链升级 Runbook。
 
 ## 规则扩展准入
