@@ -31,7 +31,7 @@ span-aware 混合管线、规则注册表、阶段依赖、结构/语义 span �
 
 - [ ] 建立真实语料 corpus（技术文档、产品文案、Markdown README、HTML/LaTeX 科研文本、单位/化学式/emoji、未闭合结构），记录应保持结构与已知争议点；
 - [ ] 增加属性测试：幂等性、非法 UTF-8 边界、受保护 span 不变、CRLF/LF round trip、任意规则选择不 panic、legacy key 归一化稳定、GUI/TUI 输出一致；
-- [ ] 增加注册表与 README 规则表一致性自动检查（数量、stable key、默认状态、展示名）；
+- [x] 增加注册表与 README 规则表一致性自动检查（`src-tauri/tests/readme_registry.rs`：表格行数、分类、展示名、「，默认关闭」后缀、stable key 与 `enabled_defaults` 一致性，2 项测试）；
 - [ ] 继续按真实语料扩展有限单位词典；
 - [ ] Placeholder 重构（决策 2）先做小型设计 Spike：比较受控 placeholder、全程 span/TextEdit、分段 rope 三方案，用现有 fixture 与 1 MB corpus 做输出兼容和性能对照；可维护性收益明确后再实施。
 
