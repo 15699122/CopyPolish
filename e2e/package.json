@@ -20,6 +20,7 @@
     "typecheck": "tsc --noEmit"
   },
   "overrides": {
+    "deepmerge-ts": "8.0.2",
     "serialize-javascript": "7.1.1"
   },
   "devDependencies": {

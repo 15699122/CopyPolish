@@ -44,7 +44,7 @@
 - 将前端业务 hook 编排集中到 `frontend/src/hooks/useAppController.ts`，使 `App.tsx` 仅负责页面渲染和组件组合；不引入全局状态库。
 - 浏览器预览增加醒目的「演示模式」标识，明确其最小化 fallback 不代表桌面版 Rust 引擎的完整行为。
 - 新增 `useAppController` 独立编排契约测试，覆盖设置恢复、清空后的空输入保存、输入格式化/保存调度连接和浏览器演示模式。
-- 修复 E2E 测试链的 `serialize-javascript` 高危告警：在 `e2e/package.json` 增加 npm `overrides` 固定到 `7.1.1`，保留 WebdriverIO 9/Mocha 10；`npm ci`、E2E 类型检查和依赖审计均通过。审计告警由 16 项降为 14 项 high，剩余告警属于其他 WebdriverIO/浏览器工具传递依赖，记录见 `docs/decisions/wdio-serialize-javascript.md`。
+- 修复 E2E 测试链的 `serialize-javascript` 和 `deepmerge-ts` 高危告警：分别通过 npm `overrides` 固定到 `7.1.1` 和 `8.0.2`，保留 WebdriverIO 9/Mocha 10；干净安装、E2E 类型检查、运行时导入和依赖审计均通过。审计告警由 16 项降为 13 项 high，剩余告警属于其他 WebdriverIO/浏览器工具传递依赖，记录见 `docs/decisions/wdio-transitive-dependencies.md`。
 - 统一 E2E runner 的临时设置目录清理：通用 embedded、W3C smoke 和损坏设置入口在子进程异常或失败时也会执行 `finally`，调试保留设置的显式例外保持不变。
 - 重新生成第三方许可证清单：改为以 `frontend/package-lock.json` 的完整 `packages` 条目为准，并写入生成日期；当前 Rust 431 条、npm 294 条，许可证字段缺失 0 条。
 - 新增真实文档语料回归集 `src-tauri/tests/fixtures/real-world-corpus.yaml`，覆盖产品文案、技术文档、README、HTML/LaTeX、单位/化学式、emoji、未闭合结构和 CRLF。
