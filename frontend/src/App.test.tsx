@@ -28,9 +28,9 @@ beforeEach(() => {
 
 const mocks = vi.hoisted(() => {
   const rules = [
-    { key: "rule-a", section: "空格", name: "中英文之间增加空格", disputed: false, default: true },
-    { key: "rule-b", section: "空格", name: "中文与数字之间增加空格", disputed: false, default: true },
-    { key: "rule-c", section: "争议", name: "争议规则", disputed: true, default: false },
+    { key: "rule-a", section: "空格", name: "中英文之间增加空格", description: "在中文与拉丁字母之间增加空格。", kind: "typography", risk: "safe", disputed: false, default: true },
+    { key: "rule-b", section: "空格", name: "中文与数字之间增加空格", description: "在中文与数字之间增加空格。", kind: "typography", risk: "safe", disputed: false, default: true },
+    { key: "rule-c", section: "争议", name: "争议规则", description: "这是一条需要复核的规则。", kind: "typography", risk: "contextual", disputed: true, default: false },
   ];
   return {
     rules,
@@ -251,6 +251,12 @@ describe("App 主流程", () => {
     expect(screen.getByTestId("editor-font-size-select")).toHaveValue("normal");
     expect(screen.getByTestId("ui-scale-select")).toHaveValue("normal");
     expect(screen.getByText("中英文之间增加空格")).toBeVisible();
+    expect(screen.getByText("在中文与拉丁字母之间增加空格。")).toBeVisible();
+    const safeRule = screen.getByTestId("rule-rule-a").parentElement;
+    expect(safeRule).not.toBeNull();
+    expect(safeRule).toHaveTextContent("[排版]");
+    expect(safeRule).toHaveTextContent("· 低风险");
+    expect(safeRule).toHaveTextContent("在中文与拉丁字母之间增加空格。");
     expect(screen.getByText("中文与数字之间增加空格")).toBeVisible();
     expect(screen.getByText("争议规则")).toBeVisible();
     // 默认开启的规则展示在默认关闭的规则之前（仅展示顺序，不影响执行顺序）。

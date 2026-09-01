@@ -40,7 +40,7 @@ span-aware 混合管线、规则注册表、阶段依赖、结构/语义 span �
 ## P0：文本清洗工作流基线
 
 - [x] 完成参考 `paper-assistant` 的功能对照和产品边界决策：CopyPolish 扩展为“文本清洗与规范排版”工具，但不解析 PDF/DOCX 文件本体、不加入翻译/AI/Grammarly；记录见 [decisions/text-cleaning-workflow.md](decisions/text-cleaning-workflow.md)。
-- [ ] 扩展规则元数据以区分清洗、字符转换、规范排版及风险等级，并保持 README、GUI、TUI 和 CLI 的稳定 key 兼容；
+- [x] 扩展规则元数据以区分清洗、字符转换、规范排版及风险等级，并保持 README、GUI、TUI 和 CLI 的稳定 key 兼容；`RuleMeta` 的说明、类型和风险字段已接入 Rust、GUI、TUI、README 一致性测试，stable key 和设置兼容性保持不变；
 - [ ] 设计并实现清洗/转换/排版的统一请求模型；自定义替换和预设不能伪装成静态 `RuleDef`，核心 phase/依赖顺序不得被任意拖拽覆盖；
 
 ## P1：来源文本清洗

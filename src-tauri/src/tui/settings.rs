@@ -11,7 +11,7 @@
 
 use std::collections::BTreeSet;
 
-use crate::engine::{RuleMeta, RuleSelection};
+use crate::engine::{RuleKind, RuleMeta, RuleRisk, RuleSelection};
 use crate::user_settings;
 
 /// 从共享设置加载出的、TUI 关心的配置子集。
@@ -125,6 +125,9 @@ mod tests {
                 key: key.to_string(),
                 section: "测试".to_string(),
                 name: format!("规则 {key}"),
+                description: format!("测试规则 {key}"),
+                kind: RuleKind::Typography,
+                risk: RuleRisk::Safe,
                 disputed: false,
                 default: index < 2,
             })

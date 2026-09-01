@@ -88,7 +88,7 @@ src-tauri/src/
 
 ## 4. 规则注册表
 
-`src-tauri/src/engine/registry.rs` 是静态排版规则的唯一事实来源。每个 `RuleDef` 包含稳定机器 key、展示元数据、默认启用状态、执行阶段、依赖、legacy key 别名和规则实现函数。
+`src-tauri/src/engine/registry.rs` 是静态排版规则的唯一事实来源。每个 `RuleDef` 包含稳定机器 key、展示元数据、默认启用状态、执行阶段、依赖、legacy key 别名和规则实现函数。`RuleMeta` 还向 GUI、TUI 和其他调用方提供规则说明、类型（清洗/转换/排版）和风险等级（低风险/需复核/高风险）；这些字段只影响展示和后续预设准入，不改变当前规则执行结果。
 
 前端通过 `get_rules` 动态取得元数据，因此新增规则通常不需要修改前端。新增规则必须同步测试、README 规则表、设置迁移兼容性和 CHANGELOG。
 

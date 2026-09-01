@@ -2,7 +2,7 @@
 //
 // 注册表（registry.rs）是规则的唯一事实来源；README 的规则表必须与之同步。
 // 本测试防止两份数据漂移：每条注册规则都能在 README 表格中找到对应行，
-// 行内的展示名、默认状态后缀（「，默认关闭」）和 stable key 与注册表一致，
+// 行内的展示名、类型、风险、默认状态后缀（「，默认关闭」）和 stable key 与注册表一致，
 // 且表格行数与注册表规则数相同。
 
 use std::path::PathBuf;
@@ -18,8 +18,8 @@ static README: LazyLock<String> = LazyLock::new(|| {
         .unwrap_or_else(|error| panic!("无法读取 README.md（{}）：{error}", path.display()))
 });
 
-/// 提取 README 规则表数据行：`| 分类 | 规则名 | \`stable.key\` |`。
-fn readme_rule_rows() -> Vec<(String, String, String)> {
+/// 提取 README 规则表数据行：`| 分类 | 类型 | 风险 | 规则名 | \`stable.key\` |`。
+fn readme_rule_rows() -> Vec<(String, String, String, String, String)> {
     let mut rows = Vec::new();
     for line in README.lines() {
         let line = line.trim();
@@ -27,10 +27,11 @@ fn readme_rule_rows() -> Vec<(String, String, String)> {
             continue;
         }
         let cells: Vec<&str> = line.trim_matches('|').split('|').map(str::trim).collect();
-        if cells.len() != 3 {
+        if cells.len() != 5 {
             continue;
         }
-        let (section, name, key_cell) = (cells[0], cells[1], cells[2]);
+        let (section, kind, risk, name, key_cell) =
+            (cells[0], cells[1], cells[2], cells[3], cells[4]);
         if section == "分类" || section.contains("---") {
             continue;
         }
@@ -40,6 +41,8 @@ fn readme_rule_rows() -> Vec<(String, String, String)> {
         }
         rows.push((
             section.to_string(),
+            kind.to_string(),
+            risk.to_string(),
             name.to_string(),
             key_cell.trim_matches('`').to_string(),
         ));
@@ -66,13 +69,35 @@ fn readme_rule_table_matches_registry() {
         let meta = &rule.meta;
         let row = rows
             .iter()
-            .find(|(_, _, key)| key == &meta.key)
+            .find(|(_, _, _, _, key)| key == &meta.key)
             .unwrap_or_else(|| panic!("README 规则表缺少 stable key `{}`", meta.key));
 
-        let (section, name, _) = row;
+        let (section, kind, risk, name, _) = row;
         assert_eq!(
             section, &meta.section,
             "规则 `{}` 的分类与注册表不一致",
+            meta.key
+        );
+
+        let expected_kind = match meta.kind {
+            engine::RuleKind::Cleanup => "清洗",
+            engine::RuleKind::Conversion => "转换",
+            engine::RuleKind::Typography => "排版",
+        };
+        assert_eq!(
+            kind, expected_kind,
+            "规则 `{}` 的类型与注册表不一致",
+            meta.key
+        );
+
+        let expected_risk = match meta.risk {
+            engine::RuleRisk::Safe => "低风险",
+            engine::RuleRisk::Contextual => "需复核",
+            engine::RuleRisk::Destructive => "高风险",
+        };
+        assert_eq!(
+            risk, expected_risk,
+            "规则 `{}` 的风险与注册表不一致",
             meta.key
         );
 
@@ -87,6 +112,21 @@ fn readme_rule_table_matches_registry() {
             "规则 `{}` 的展示名/默认状态标注与注册表不一致",
             meta.key
         );
+    }
+}
+
+#[test]
+fn registry_rule_metadata_is_complete_and_safe_defaults_are_consistent() {
+    for rule in engine::rules() {
+        let meta = &rule.meta;
+        assert!(
+            !meta.description.trim().is_empty(),
+            "规则 `{}` 缺少说明",
+            meta.key
+        );
+        if meta.risk == engine::RuleRisk::Destructive {
+            assert!(!meta.default, "高风险规则 `{}` 不应默认启用", meta.key);
+        }
     }
 }
 
