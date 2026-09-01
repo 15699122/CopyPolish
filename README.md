@@ -145,9 +145,9 @@ shortcuts:
 
 如果检测到旧版本设置文件、主设置文件损坏或备份文件损坏，应用会在主界面和设置窗口显示对应提醒；主设置损坏时会优先尝试从 `rules.yaml.bak` 恢复。
 
-## 终端版（实验性）
+## 终端版（Beta）
 
-除桌面 GUI 外，项目还提供基于 Ratatui 的终端界面 `copypolish-tui`，与桌面版共用同一 Rust 排版引擎和 `rules.yaml` 规则设置。需从源码构建：
+除桌面 GUI 外，项目还提供基于 Ratatui 的终端界面 `copypolish-tui`，与桌面版共用同一 Rust 排版引擎和 `rules.yaml` 规则设置。TUI 定位为 **Beta**：CLI 参数、规则选择和设置文件格式保持兼容；终端显示能力（emoji 宽度、OSC 52 剪贴板）取决于终端支持，SSH 环境不在验证范围内。需从源码构建：
 
 ```bash
 # 交互式终端界面
