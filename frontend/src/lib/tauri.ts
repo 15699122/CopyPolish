@@ -111,7 +111,8 @@ export type SettingsLoadNotice =
   | "legacy_settings_corrupt"
   | "primary_settings_corrupt_recovered_from_backup"
   | "primary_settings_corrupt_no_usable_backup"
-  | "backup_settings_corrupt";
+  | "backup_settings_corrupt"
+  | "using_app_data_fallback";
 
 export interface UserSettings {
   enabled: string[];

@@ -1,6 +1,6 @@
 # 设置存储策略决策（ADR）
 
-> **状态**：Proposed（建议采纳，待维护者确认后进入实施）。
+> **状态**：Accepted（2026-09-01 维护者确认采纳方案 B，并已按实施约束落地）。
 > 背景与相关约束见 [architecture.md](../architecture.md) §5 与 [roadmap.md](../roadmap.md)。
 
 ## 1. 问题
@@ -49,4 +49,5 @@
 
 | 日期 | 结论 |
 | --- | --- |
-| 2026-09-01 | 提出 Proposed，建议方案 B；未实施，等待维护者确认 |
+| 2026-09-01 | 提出 Proposed，建议方案 B |
+| 2026-09-01 | 维护者确认采纳方案 B；已落地：`user_settings.rs` 启动时一次性路径决策（`resolve_storage_dir`）、`UsingAppDataFallback` 提醒、6 项决策单测；TUI/GUI 自动共用 |
