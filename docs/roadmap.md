@@ -22,8 +22,9 @@ span-aware 混合管线、规则注册表、阶段依赖、结构/语义 span �
 
 ## P0：依赖与安全维护
 
-- [x] 运行当前依赖审计（`verify.py --profile audit` 口径）：frontend 生产依赖 0 漏洞；e2e 测试链报告 16 项（1 中危、15 高危），涉及 `@wdio`、`puppeteer`、`extract-zip`、`deepmerge-ts`、`mocha` 和 `serialize-javascript` 等传递依赖；当前可用修复路径需要 WebdriverIO/@wdio major 变更，暂不执行，随升级统一评估；Cargo 0 漏洞、20 项允许的 unsound 警告（`lru` 等传递依赖）；
-- [ ] 跟随 WebdriverIO/@wdio 大版本升级时一并解决 e2e 测试链 `serialize-javascript` 高危告警；
+- [x] 运行当前依赖审计（`verify.py --profile audit` 口径）：frontend 生产依赖 0 漏洞；e2e 测试链在 2026-09-01 复核后报告 14 项 high，涉及 `@wdio`、`puppeteer`、`extract-zip`、`deepmerge-ts` 等传递依赖；Cargo 0 漏洞、20 项允许的 unsound 警告（`lru` 等传递依赖）；
+- [x] 修复 e2e 测试链 `serialize-javascript` 高危告警：在 `e2e/package.json` 增加 npm `overrides` 固定到 `7.1.1`，保留 WebdriverIO 9/Mocha 10；`npm ci`、类型检查和审计验证通过，决策记录见 [decisions/wdio-serialize-javascript.md](decisions/wdio-serialize-javascript.md)。
+- [ ] 持续跟随 WebdriverIO/@wdio 及浏览器工具升级，处理剩余 14 项 E2E 传递依赖 high 告警；
 - [x] 对 `serde_yaml`（上游 deprecated）迁移做独立 Spike：结论为**暂不迁移、保持观察**（无漏洞告警、使用面仅 2 处；若迁移首选 API 兼容的 `serde-yaml-ng` 并跑全量 round-trip 对照），记录见 [decisions/serde-yaml-migration.md](decisions/serde-yaml-migration.md)；
 - [x] 重新生成并审阅 `docs/licenses.md`（2026-09-01：生成脚本改为读取 `frontend/package-lock.json` 的完整 `packages` 条目；Rust 431 条、npm 294 条、许可证字段缺失 0 条；重复生成结果稳定）。
 

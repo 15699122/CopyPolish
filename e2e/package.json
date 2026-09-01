@@ -19,6 +19,9 @@
     "test:debug": "tsx scripts/run-specs.ts --logLevel debug",
     "typecheck": "tsc --noEmit"
   },
+  "overrides": {
+    "serialize-javascript": "7.1.1"
+  },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
     "@types/node": "^24.13.3",

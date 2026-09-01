@@ -20,7 +20,8 @@
 14. [decisions/settings-storage-policy.md](decisions/settings-storage-policy.md)：设置存储策略决策（Accepted，方案 B 已落地）。
 15. [decisions/serde-yaml-migration.md](decisions/serde-yaml-migration.md)：serde_yaml 迁移 Spike（结论：暂不迁移）。
 16. [decisions/placeholder-migration.md](decisions/placeholder-migration.md)：Placeholder 重构 Spike（结论：暂不重构，保持当前混合管线）。
-17. [archive/decisions/e2e-provider-selection.md](archive/decisions/e2e-provider-selection.md)：E2E provider 选型决策（已归档，仅保留选型依据）。
+17. [decisions/wdio-serialize-javascript.md](decisions/wdio-serialize-javascript.md)：E2E `serialize-javascript` 修复记录（采用 npm override，保留 WebdriverIO 9）。
+18. [archive/decisions/e2e-provider-selection.md](archive/decisions/e2e-provider-selection.md)：E2E provider 选型决策（已归档，仅保留选型依据）。
 
 ## 文档职责
 
@@ -36,6 +37,7 @@
 | `secrets-management.md` | 加密凭据、接收者、轮换与灾难恢复 | 凭据结构或恢复流程变化时 |
 | `upgrade-runbook.md` | Node、Rust、Tauri、React/Vite 升级、验收和回滚 | 工具链、依赖或升级门禁变化时 |
 | `decisions/placeholder-migration.md` | Placeholder 重构方案比较、性能基线和重新评估条件 | 重构 Spike 重新测量或决策变化时 |
+| `decisions/wdio-serialize-javascript.md` | E2E `serialize-javascript` 修复方案、验证结果和后续升级约束 | E2E 依赖升级或审计结果变化时 |
 | `e2e-development.md` | 真实 Tauri GUI E2E 的实现、测试和跨平台环境边界 | E2E 工程或桌面验证流程变化时 |
 | `windows-e2e-runbook.md` | 必须依赖 Windows 原生环境的 DPI、Terminal 交互和 GitLab Windows E2E 留证流程 | Windows 验证矩阵、artifact 或 Windows runner 流程变化时 |
 | `benchmarks/icu4x-spike.md` | ICU4X 技术验证、成本数据和依赖决策 | Spike 重新测量或依赖决策变化时 |
