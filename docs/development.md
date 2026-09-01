@@ -94,4 +94,5 @@ python3 scripts/verify.py --profile ci
 - [release/manual-release.md](release/manual-release.md)：本地/GitLab 构建和手动发布；
 - [upgrade-runbook.md](upgrade-runbook.md)：工具链和依赖升级；
 - [secrets-management.md](secrets-management.md)：SOPS/age 凭据管理；
-- [../CHANGELOG.md](../CHANGELOG.md)：版本变化记录。
+- [../CHANGELOG.md](../CHANGELOG.md)：版本变化记录；
+- [windows-e2e-runbook.md](windows-e2e-runbook.md)：Windows 原生 DPI、Windows Terminal 交互 artifact 和可选 GitLab Windows E2E stage。

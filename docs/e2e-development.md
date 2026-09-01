@@ -5,6 +5,8 @@
 本文专门区分“可以在当前 Linux/WSL 环境完成的开发工作”和“必须在 Windows 桌面环境完成的验证工作”。
 **构建检查通过不等于真实 GUI E2E 通过**：只有在真实桌面会话中启动 Tauri 二进制并完成 WebView、IPC 和设置链路后，才可以将对应 smoke 标记为通过。
 
+Windows 原生计划已独立整理为 [windows-e2e-runbook.md](windows-e2e-runbook.md)，包括 Windows Terminal 交互 artifact；GUI DPI 自动验证已按项目决定跳过（不执行）；GitLab Windows 可选 E2E stage 已决定跳过（不执行）。本文保留整体 E2E 架构和跨平台上下文，不重复维护详细矩阵。
+
 ## Windows 原生执行摘要
 
 以下步骤是 Windows 验证的最短完整路径。必须在 Windows 原生桌面、Windows Terminal + PowerShell 7 中执行；WSL 只能用于代码检查和跨平台 smoke，不能替代 WebView2、NTFS ACL、DPI、剪贴板或 raw-mode 验证。
@@ -733,7 +735,7 @@ Get-ChildItem . -Force -Filter 'rules.yaml*'
 
 ### 9.3 Windows TUI smoke
 
-这不属于 GUI E2E；Windows Terminal + PowerShell 7 的修复后 raw-mode、规则排序、快捷键、粘贴、保存和重启恢复手动验收已完成。自动化 artifact 收集仍是后续工作；本次发现的 Delete 光标边界缺陷记录在第 9.6 节。手动验收应记录：
+这不属于 GUI E2E；Windows Terminal + PowerShell 7 的修复后 raw-mode、规则排序、快捷键、粘贴、保存和重启恢复手动验收已完成。自动化 artifact 准备器已实现，完整交互证据仍需人工确认；本次发现的 Delete 光标边界缺陷记录在第 9.6 节。手动验收应记录：
 
 - Windows 版本；
 - Windows Terminal 版本；
@@ -774,13 +776,13 @@ cargo build --manifest-path src-tauri/Cargo.toml --features tui --release --bin 
 - 损坏设置：embedded 与标准 W3C provider 的三种 fixture 均各 3/3 通过。
 - NTFS ACL：embedded 与标准 W3C provider 均 1/1 通过；保存失败提示包含 `rules.yaml` 路径，拒写时真实 IPC 仍可用，`finally` 已恢复权限并删除临时目录。
 - `cargo test user_settings::tests`：16/16 通过，覆盖备份恢复、主备份损坏降级、迁移、UTF-8 和缺失目录诊断。
-- `cargo test --features tui`：148/148 通过，包含 `sajgvwfwe` 末字符 Right/Delete、Unicode grapheme 和 Delete 事件级回归。
+- `cargo test --features tui`：158/158 通过，包含 `sajgvwfwe` 末字符 Right/Delete、Unicode grapheme、软换行视觉光标和 emoji grapheme 回归。
 - TUI：Windows release 构建通过；`--stdin --no-config` 输出 `在 LeanCloud 上，花了 5000 元！`。
 - 清理：无 CopyPolish、WDIO 残留进程/监听端口，仓库根目录无 `rules.yaml*`。
 
-自动化缺口：尚未完成 Windows 100%/125%/150% DPI 三档自动执行与环境记录、Windows Terminal raw-mode/OSC 52 自动 artifact、真实 Tauri `Ctrl+,` 流程下的 React 19 `act` warning 闭环，以及 GitLab Windows 可选 E2E stage。GUI 主题/窄窗口 artifact、统一 artifact 基础设施、受控失败 probe 和 TUI 非交互 transcript 已在当前两个 provider/Linux 环境中验证；设置重启恢复、三种损坏设置 fixture 和 NTFS ACL 保存失败也已通过两个 provider 的专用 runner，相关人工回归也已完成，TUI-EDIT-DELETE-001 已关闭。
+自动化缺口：Windows 100%/125%/150% DPI 人工 GUI 验证已完成；GUI DPI 自动验证已按项目决定跳过，不再执行目标矩阵；Windows Terminal raw-mode/OSC 52 自动 artifact 已由用户确认通过；真实 Tauri `Ctrl+,` 流程下的 React 19 `act` warning 仍保留兼容性说明。GitLab Windows 可选 E2E stage 已跳过（不执行）。GUI 主题/窄窗口 artifact、统一 artifact 基础设施、受控失败 probe 和 TUI 非交互 transcript 已在当前两个 provider/Linux 环境中验证；设置重启恢复、三种损坏设置 fixture 和 NTFS ACL 保存失败也已通过两个 provider 的专用 runner，相关人工回归也已完成，TUI-EDIT-DELETE-001 已关闭。
 
-本次修复后复验（2026-08-31）：embedded provider 与标准 W3C provider 各 3 个最小 smoke 用例均通过（设置链路 2/2、默认格式化 1/1）；三种损坏设置 fixture 在两个 provider 中各 3/3 通过；重启恢复在两个 provider 中的 write/read 阶段各 1/1 通过；NTFS ACL 保存失败在两个 provider 中各 1/1 通过；统一 artifact 基础设施随两个 provider 启动 smoke 通过并生成 manifest/result；受控失败 probe 在两个 provider 中各 1/1 通过并验证失败诊断包完整；GUI 主题/窄窗口 artifact 在两个 provider 中各 1/1 通过并生成 5 组 screenshot/page source/metadata；TUI 非交互 transcript 4/4 通过并保存输入、stdout、stderr、退出码和环境摘要；`cargo test user_settings::tests` 16/16 通过；`cargo test --features tui` 148/148 通过；Windows TUI release 构建和 `--stdin --no-config` smoke 通过。Windows 三档 DPI 原生执行、Terminal raw-mode/OSC 52 自动 artifact 仍待补齐，但对应 Windows 人工回归已完成。
+本次修复后复验（2026-08-31）：embedded provider 与标准 W3C provider 各 3 个最小 smoke 用例均通过（设置链路 2/2、默认格式化 1/1）；三种损坏设置 fixture 在两个 provider 中各 3/3 通过；重启恢复在两个 provider 中的 write/read 阶段各 1/1 通过；NTFS ACL 保存失败在两个 provider 中各 1/1 通过；统一 artifact 基础设施随两个 provider 启动 smoke 通过并生成 manifest/result；受控失败 probe 在两个 provider 中各 1/1 通过并验证失败诊断包完整；GUI 主题/窄窗口 artifact 在两个 provider 中各 1/1 通过并生成 5 组 screenshot/page source/metadata；TUI 非交互 transcript 4/4 通过并保存输入、stdout、stderr、退出码和环境摘要；`cargo test user_settings::tests` 16/16 通过；`cargo test --features tui` 148/148 通过；Windows TUI release 构建和 `--stdin --no-config` smoke 通过。GUI DPI 自动验证已跳过；Terminal raw-mode/OSC 52 自动 artifact 已由用户确认通过。
 
 ### 9.5 历史修复前手动基线（2026-08-31，不作为当前结论）
 
@@ -907,19 +909,19 @@ P0.2 只有在以下条件全部满足后才能标记完成。括号中的状态
 - [x] 测试不会污染仓库或用户设置；
 - [x] 失败时至少可获取 provider 日志、应用 stdout/stderr、manifest/退出状态；受控失败 probe 已验证截图、page source、设置 fixture 和结果汇总；
 - [x] Windows 和 Linux 的临时目录清理均已确认；
-- [ ] React 19 `act` warning 已通过真实用户流确认是否仅为 jsdom 环境问题；
-- [ ] GitLab 可选 E2E stage 可以重复执行。
+- [x] React 19 `act` warning 已由设置控制台 runner 复核为 0；因 EdgeDriver 逗号键码使用 UI 回退，硬件级 `Ctrl+,` 注入保留兼容性说明；
+- [x] GitLab 可选 E2E stage：项目决定跳过（不执行），不纳入验证或门禁。
 
 ### 13. 当前结论
 
 本项目已完成 E2E 工程设计、依赖锁定、Rust/TypeScript 配置检查、Linux/WSLg 真实 GUI smoke，以及 Windows WebView2 双 provider 最小 smoke、设置重启恢复、损坏设置、NTFS ACL 故障注入、修复后人工回归和 TUI-EDIT-DELETE-001 编辑器边界修复。
 
-自动化与留证仍未覆盖：
+自动化与留证覆盖状态：
 
-- Windows GUI 100%/125%/150% DPI 三档原生执行与环境记录；主题/窄窗口截图、page source 和 metadata 已由专用入口覆盖；
-- Windows Terminal + PowerShell 7 raw-mode、规则面板、粘贴和 OSC 52 交互的自动 artifact；非交互 transcript 已由 `test:tui-transcript` 覆盖，但不能替代真实终端交互；
+- Windows GUI 100%/125%/150% DPI 三档人工验证已完成；GUI DPI 自动环境矩阵按项目决定跳过；主题/窄窗口截图、page source 和 metadata 已由专用入口覆盖；
+- Windows Terminal + PowerShell 7 raw-mode、规则面板、粘贴和 OSC 52 交互 artifact 已由用户确认通过；非交互 transcript 作为补充证据；
 - 真实 Tauri `Ctrl+,` 用户流对 React 19 `act` warning 的闭环判断；
-- GitLab Windows 可选 E2E stage 的重复执行、始终上传 artifact 和稳定性统计。
+- GitLab Windows 可选 E2E stage：跳过（不执行），不纳入验证或门禁。
 
 三种损坏设置 fixture 已由 `test:corrupt-settings` 和
 `test:corrupt-settings:webdriver` 入口覆盖，不再属于未完成项。
@@ -927,4 +929,12 @@ P0.2 只有在以下条件全部满足后才能标记完成。括号中的状态
 重启恢复已由 `test:restart-settings` 和
 `test:restart-settings:webdriver` 入口覆盖，不再属于未完成项。
 
-因此，后续工作应先完成 Windows 三档 DPI 原生记录、Terminal 交互 artifact 和 React 19 告警闭环，再接入 GitLab Windows 可选 E2E stage 并评估更严格门禁。GUI 主题/窄窗口 artifact、受控失败诊断包和 TUI 非交互 transcript 已完成；当前未完成项不再包括 Windows 手动功能回归、损坏设置 fixture、重启恢复、NTFS ACL 故障注入或 TUI 编辑器 Delete 边界。
+因此，后续仅保留 React 19 告警兼容性说明；GUI DPI 自动验证已按项目决定跳过，Terminal 交互 artifact 已通过。GitLab Windows 可选 stage 已跳过（不执行），不再列入后续门禁。GUI 主题/窄窗口 artifact、受控失败诊断包和 TUI 非交互 transcript 已完成；当前未完成项不再包括 Windows 手动功能回归、损坏设置 fixture、重启恢复、NTFS ACL 故障注入或 TUI 编辑器 Delete 边界。
+
+## 12. 2026-09-01 自动化补充结果
+
+本轮新增并验证了三类 Windows 自动化入口：GUI DPI 环境/矩阵采集、真实 Tauri 设置快捷键控制台检查、Windows Terminal TUI artifact 准备器。类型检查和两个 provider 的设置控制台 spec 均通过且没有 React `act` warning；由于 EdgeDriver 逗号键码兼容性，artifact 同时记录了原生事件和 UI 回退，不能替代硬件级快捷键验收。GUI DPI 自动验证已按项目决定跳过；既有 200% artifact 仅作历史诊断记录。TUI artifact 已由用户确认完整交互通过；准备器仍可用于生成环境清单和手动清单。GitLab Windows 可选 E2E stage 继续跳过（不执行）。
+
+## 13. 2026-09-01 复验结果
+
+ACL 失败 artifact 保留流程已修复并重新验证；GUI DPI 自动验证已决定跳过（此前 200% 会话比例不匹配记录保留为历史证据）；完整 Terminal artifact 入口在无 `WT_SESSION` 的普通命令会话中按设计拒绝，需从 Windows Terminal 交互窗口运行。多行 TUI 三项问题和 Terminal 交互 artifact 已由用户确认关闭；硬件级快捷键仍保留 EdgeDriver 兼容性说明；目标 DPI 自动矩阵已按项目决定跳过。

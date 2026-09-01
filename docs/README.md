@@ -16,6 +16,7 @@
 10. [benchmarks/icu4x-spike.md](benchmarks/icu4x-spike.md)：ICU4X 技术验证及不引入结论；
 11. [development/gitlab-mcp.md](development/gitlab-mcp.md)：可选的 GitLab Build Service 诊断工具说明。
 12. [e2e-development.md](e2e-development.md)：真实 Tauri GUI E2E 的开发步骤、环境边界和验收标准。
+13. [windows-e2e-runbook.md](windows-e2e-runbook.md)：Windows 原生 DPI、Windows Terminal 交互 artifact 和 GitLab Windows E2E stage。
 
 ## 文档职责
 
@@ -31,6 +32,7 @@
 | `secrets-management.md` | 加密凭据、接收者、轮换与灾难恢复 | 凭据结构或恢复流程变化时 |
 | `upgrade-runbook.md` | Node、Rust、Tauri、React/Vite 升级、验收和回滚 | 工具链、依赖或升级门禁变化时 |
 | `e2e-development.md` | 真实 Tauri GUI E2E 的实现、测试和跨平台环境边界 | E2E 工程或桌面验证流程变化时 |
+| `windows-e2e-runbook.md` | 必须依赖 Windows 原生环境的 DPI、Terminal 交互和 GitLab Windows E2E 留证流程 | Windows 验证矩阵、artifact 或 Windows runner 流程变化时 |
 | `benchmarks/icu4x-spike.md` | ICU4X 技术验证、成本数据和依赖决策 | Spike 重新测量或依赖决策变化时 |
 | `benchmarks/` | 可重复测量的方法和结果 | 基准重新测量时 |
 | `archive/` | 已完成版本的计划、验收和历史决策 | 只追加必要更正，不承载新任务 |

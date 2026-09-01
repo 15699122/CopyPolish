@@ -19,9 +19,9 @@
 - Markdown/HTML/LaTeX 保护仍是保守扫描器，不是完整 CommonMark/HTML 解析器；
 - 保护层仍部分使用内部 placeholder；
 - 1 MB 级 Markdown/LaTeX 语料仍需进一步减少分配和重复扫描；
-- 真实 Tauri 桌面链路已在 Linux/WSLg 和 Windows WebView2 建立；本次 TUI/GUI 修复后的双 provider 最小 E2E、设置恢复、损坏设置、NTFS ACL、GUI/TUI 手动回归、Rust 设置/TUI、TUI stdin 和双 provider 稳定性验证均已完成。统一 E2E artifact、受控失败诊断、GUI 主题/窄窗口 artifact 和 TUI 非交互 transcript 已完成；TUI-EDIT-DELETE-001 已通过 grapheme 边界修复和回归测试关闭；Windows 三档 DPI 原生记录、Terminal 交互 artifact、React 19 warning 闭环和 GitLab 可选 stage 仍待补齐；
+- 真实 Tauri 桌面链路已在 Linux/WSLg 和 Windows WebView2 建立；本次 TUI/GUI 修复后的双 provider 最小 E2E、设置恢复、损坏设置、NTFS ACL、GUI/TUI 手动回归、Rust 设置/TUI、TUI stdin 和双 provider 稳定性验证均已完成。统一 E2E artifact、受控失败诊断、GUI 主题/窄窗口 artifact 和 TUI 非交互 transcript 已完成；TUI-EDIT-DELETE-001 已通过 grapheme 边界修复和回归测试关闭；Windows Terminal 交互 artifact 已由用户确认通过、WT-TUI-001/002/003 已关闭；React 19 `act` warning 已由设置控制台 runner 复核为 0（硬件级快捷键保留 EdgeDriver 兼容性说明）；GUI DPI 自动验证已跳过（人工三档 DPI 已完成）；
 - `App.tsx` 和设置组件仍有进一步降低编排复杂度的空间；
-- TUI 跨终端手动 smoke、非交互 transcript artifact 和正式资产决策已完成；Windows Terminal raw-mode/OSC 52 交互 artifact 仍待补齐。
+- TUI 跨终端手动 smoke、非交互 transcript artifact 和正式资产决策已完成；Windows Terminal raw-mode/OSC 52 交互 artifact 已由用户确认通过，WT-TUI-001/002/003 已关闭。
 
 ## P0：流程与桌面验证
 
@@ -94,11 +94,14 @@
 - [x] 为 embedded 与标准 W3C provider 各连续运行至少 5 次，记录 flaky、启动耗时、端口冲突、残留进程和 artifact 完整性；
 - [x] 修复 TUI-EDIT-DELETE-001：补齐最后一个 grapheme 的 Right/Delete 边界，并覆盖 ASCII、Unicode、emoji、组合字符和 TUI Delete 事件回归；
 - [x] 执行并记录 Windows NTFS ACL 故障注入 spec：embedded 与标准 W3C provider 各 1/1 通过，权限恢复和 fixture 删除成功；
-- [ ] 固化 GUI 浅色/深色、100%/125%/150% DPI 和窄窗口的自动截图、page source 与环境清单；主题/窄窗口场景和统一 artifact 基础设施已完成，待补 Windows 三档 DPI 原生执行与记录；
-- [ ] 固化 Windows Terminal TUI raw-mode、规则面板、粘贴、OSC 52、保存/退出/重启恢复的自动 artifact；非交互 transcript 已由 `test:tui-transcript` 覆盖，待补真实终端交互 artifact；
+- [x] GUI 浅色/深色、100%/125%/150% DPI 和窄窗口人工验证已完成；GUI DPI 自动 artifact 按项目决定跳过（不执行、不纳入门禁）；
+- [x] 修复 Windows Terminal 自动换行后的多行显示缺陷（WT-TUI-001/002/003）：源码已加入视觉换行实现并在 Windows MSVC 上通过 158/158 Rust 测试，且已由用户确认在真实 Windows Terminal 中复验通过；
+- [x] 固化 Windows Terminal TUI raw-mode、规则面板、粘贴、OSC 52、保存/退出/重启恢复的真实交互 artifact；WT-TUI-001/002/003 已由用户确认复验通过；
 - [x] 增加 embedded/W3C 受控失败探针，验证 stdout/stderr、WDIO log、manifest、exit status、截图、page source 和设置 fixture 的完整诊断包；统一 artifact 基础设施和双 provider 自检已完成；
-- [ ] 接入并连续验证 GitLab Windows 可选 E2E stage，使用 `allow_failure: true` 和 `artifacts: when: always` 收集稳定性数据；统一 artifact 和受控失败 probe 已具备接入条件。
+- [x] GitLab Windows 可选 E2E stage：跳过（不执行）；项目决定不配置、不运行，不计作测试通过。
 - [ ] 持续执行依赖审计、许可证清单更新和工具链升级 Runbook。
+
+Windows 原生验证的状态与执行步骤统一见 [windows-e2e-runbook.md](windows-e2e-runbook.md)。Windows Terminal 交互 artifact 已由用户确认通过、WT-TUI-001/002/003 已关闭；GUI DPI 自动验证已跳过（人工三档 DPI 已完成）；GitLab Windows 可选 stage 已跳过（不执行）。仍在进行的是按 Runbook 的定期依赖审计、清理记录和结果摘要维护，以及硬件级快捷键兼容性的现场说明。
 
 ## 规则扩展准入
 
@@ -127,3 +130,10 @@ E：TUI 跨终端验证和产品化决策
 ```
 
 每完成一项，只更新本文件的待办状态；若架构、命令或流程发生变化，再同步更新对应权威文档和 `CHANGELOG.md`。
+
+## 2026-09-01 自动化进度快照
+
+- [x] GUI DPI 自动验证决策：跳过（不执行）；三档人工 GUI 验证保持已完成。
+- [x] 实现设置快捷键控制台 runner；embedded/WebDriver 各 1/1、React `act` warning 0。EdgeDriver 逗号键码导致测试记录 `webdriverCodeFallback` 和 UI 回退，因此硬件级 `Ctrl+,` 注入仍需单独确认。
+- [x] Windows Terminal TUI artifact 完整交互已由用户确认通过，`--prepare-only` 仍用于生成环境 manifest 和手动清单。
+- [x] GitLab Windows 可选 E2E stage：跳过（不执行）。

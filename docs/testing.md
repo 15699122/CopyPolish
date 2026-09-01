@@ -2,6 +2,8 @@
 
 ## 1. 测试层次
 
+必须依赖 Windows 原生环境的剩余 E2E 计划、步骤、artifact 结构和 GitLab runner 要求集中见 [windows-e2e-runbook.md](windows-e2e-runbook.md)。本文继续作为测试层次、功能映射和已有验证结果的入口。
+
 | 层次 | 位置 | 目的 |
 | --- | --- | --- |
 | Rust 单元/集成测试 | `src-tauri/src/**`、`src-tauri/tests/fixtures/` | 验证规则、管线、保护层、Unicode、设置和 TUI 状态 |
@@ -19,22 +21,24 @@
 | Markdown/HTML/LaTeX | span、嵌套结构、未闭合结构、后续文本不吞并、保护 fixture | 继续扩展真实文档样本 |
 | Unicode | grapheme、emoji、组合符、CJK Ext-B | Unicode 数据/工具链升级回归 |
 | 单位和数学 | 有限词典、复合单位、数学边界 | 按真实语料扩展词典 |
-| 设置 | Rust Windows 测试 16/16；Windows 真实 GUI 修复后已手动完成保存、重启恢复、损坏 fixture、ACL 保存失败及视觉/DPI/窄窗口回归；损坏设置、重启恢复和 NTFS ACL 已在两个 provider 自动化通过；统一 artifact、受控失败 probe 和 GUI 主题/窄窗口 artifact 已实现 | embedded/W3C Windows E2E 已复验真实 WebView2、IPC、全不选恒等、临时路径、规则保存、ACL 拒写恢复和失败留证；仍需在 Windows 三档 DPI 原生执行、GitLab Windows stage 中验证 artifact 完整性 |
+| 设置 | Rust Windows 测试 16/16；Windows 真实 GUI 修复后已手动完成保存、重启恢复、损坏 fixture、ACL 保存失败及视觉/DPI/窄窗口回归；损坏设置、重启恢复和 NTFS ACL 已在两个 provider 自动化通过；统一 artifact、受控失败 probe 和 GUI 主题/窄窗口 artifact 已实现 | embedded/W3C Windows E2E 已复验真实 WebView2、IPC、全不选恒等、临时路径、规则保存、ACL 拒写恢复和失败留证；三档人工 DPI 已完成，GUI DPI 自动验证已跳过（不执行）；三档人工 GUI 验证已完成；GitLab Windows stage 已跳过 |
 | 前端状态 | 防抖、竞态、错误、主题、字体、快捷键 | 真实 IPC E2E |
-| TUI | CLI、编辑器、规则、OSC 52、共享设置；Linux 非交互 smoke/transcript；Windows release、stdin 及修复后 Windows Terminal 手动回归 | Rust TUI 148/148、Windows release/stdin、非交互 transcript 和 Windows Terminal 修复后手动回归已通过；TUI-EDIT-DELETE-001 已修复，仍需将真实 Terminal raw-mode/OSC 52 交互固化为自动化 artifact |
+| TUI | CLI、编辑器、规则、OSC 52、共享设置；Linux 非交互 smoke/transcript；Windows release、stdin 及修复后 Windows Terminal 手动回归 | Rust TUI 158/158、Windows release/stdin 和非交互 transcript 已通过；本轮多行显示源码修复已由用户确认在 Windows Terminal 复验通过；TUI-EDIT-DELETE-001 已修复，真实 Terminal raw-mode/OSC 52 交互 artifact 已通过 |
 | 发布脚本 | 主要由脚本和人工 Runbook 覆盖 | 参数和失败路径自动化测试 |
 
-### 2.1 2026-08-31 Windows 原生验证快照
+### 2.1 Windows 原生验证快照
 
-当前没有待执行的 Windows 功能性手动回归。前端测试 57/57、Rust 设置测试 16/16、Rust/TUI 测试 148/148 均通过；embedded 与标准 W3C provider 的普通 WebView2/Rust IPC 用例各 3/3、设置重启 write/read 各 1/1、三种损坏设置 fixture 各 3/3、NTFS ACL 各 1/1 通过。统一 artifact、受控失败 probe、GUI 主题/窄窗口 artifact 和 TUI 非交互 transcript 已验证；Windows TUI release 构建和 `--stdin --no-config` smoke 通过，TUI-EDIT-DELETE-001 的 ASCII/Unicode grapheme 与事件级回归已纳入 148 项测试。
+前端测试 57/57、Rust 设置测试 16/16、Rust/TUI 测试 158/158 均通过；embedded 与标准 W3C provider 的普通 WebView2/Rust IPC 用例各 3/3、设置重启 write/read 各 1/1、三种损坏设置 fixture 各 3/3、NTFS ACL 各 1/1 通过。统一 artifact、受控失败 probe、GUI 主题/窄窗口 artifact 和 TUI 非交互 transcript 已验证；Windows TUI release 构建和 `--stdin --no-config` smoke 通过，TUI-EDIT-DELETE-001 已关闭。
 
-尚未闭环的是平台专用自动化和留证能力，不应重新标记为功能未测：
+> **2026-09-01**：Windows Terminal 交互复验发现三个多行显示缺陷（WT-TUI-001 额外行绘制到状态栏、WT-TUI-002 光标不可见、WT-TUI-003 emoji 显示），证据见 [windows-terminal-tui-manual.md](windows-terminal-tui-manual.md)。已按与 ratatui 渲染等价的视觉换行重算光标与滚动（`src-tauri/src/tui/wrap.rs`），并新增 10 项 Rust/UI 回归；本轮 Windows MSVC 上 158/158 通过，真实 Windows Terminal 复验已由用户确认通过。
 
-- [ ] GUI 浅色/深色、100%/125%/150% DPI 和窄窗口的自动截图、page source 与环境清单；主题/窄窗口 artifact 已由双 provider 验证，Windows 三档 DPI 原生执行与记录仍待完成；
-- [ ] Windows Terminal TUI raw-mode、规则面板、粘贴、OSC 52、保存/退出/重启恢复的自动 artifact；非交互 transcript 已由 `test:tui-transcript` 覆盖，不能替代真实终端交互；
+平台专用自动化与留证已按项目决策达到当前范围：GUI DPI 自动矩阵决定不执行、GitLab Windows stage 决定跳过（不执行）；Windows Terminal 交互 artifact 已由用户确认通过。详细执行步骤见 [Windows 原生 E2E 与交互留证 Runbook](windows-e2e-runbook.md)：
+
+- [x] GUI 100%/125%/150% DPI 和窄窗口人工验证已完成；GUI DPI 自动截图/矩阵验证按项目决定跳过（不执行、不纳入门禁）；
+- [x] Windows Terminal TUI raw-mode、规则面板、粘贴、OSC 52、保存/退出/重启恢复的真实交互 artifact 已通过（用户确认）；非交互 transcript 仍作为补充证据；
 - [x] embedded/W3C 受控失败时完整诊断包自检：stdout/stderr、WDIO log、manifest、exit status、截图、page source 和设置 fixture 均已验证；统一 artifact 基础设施已完成；
-- [ ] 通过真实 Tauri `Ctrl+,` 用户流确认 React 19 `act` warning 是否仅存在于 jsdom；
-- [ ] GitLab Windows 可选 E2E stage 的重复执行、`when: always` artifact 上传和稳定性统计；
+- [ ] 通过真实 Tauri 设置控制台 runner 检查 React 19 `act` warning；两个 provider 各 1/1、warning=0，但 EdgeDriver 使用 UI 回退，硬件快捷键仍需人工确认；
+- [x] GitLab Windows 可选 E2E stage：跳过（不执行）；项目决定不配置、不运行，不计作测试通过；
 
 非阻断告警：E2E 依赖审计报告 16 个已知漏洞（1 个中危、15 个高危）；Cargo 在 E 盘调试构建中曾报告增量缓存目录 `os error 5`，但相关编译、测试和 release 构建均以退出码 0 完成。
 
@@ -77,11 +81,11 @@ npm test --prefix frontend -- --run
 
 ## 6. 桌面验证缺口
 
-当前 mock 测试不能完全替代真实桌面验证。Linux/WSLg 与 Windows WebView2 最小链路、修复后 Windows GUI/TUI/设置/ACL 手动回归及双 provider 稳定性验证均已完成；TUI-EDIT-DELETE-001 已通过编辑器边界修复和回归测试关闭。损坏设置三种 fixture、重启恢复和 NTFS ACL 已在 embedded/W3C provider 中自动化通过；统一 artifact、受控失败诊断、GUI 主题/窄窗口截图和 TUI 非交互 transcript 已完成，仍待补 Windows 三档 DPI 原生记录、Terminal 交互 artifact、React 19 warning 和 GitLab stage。
+当前 mock 测试不能完全替代真实桌面验证。Linux/WSLg 与 Windows WebView2 最小链路、修复后 Windows GUI/TUI/设置/ACL 手动回归及双 provider 稳定性验证均已完成；TUI-EDIT-DELETE-001 已通过编辑器边界修复和回归测试关闭。损坏设置三种 fixture、重启恢复和 NTFS ACL 已在 embedded/W3C provider 中自动化通过；统一 artifact、受控失败诊断、GUI 主题/窄窗口截图和 TUI 非交互 transcript 已完成，GUI DPI 自动验证已按项目决定跳过；硬件级快捷键兼容性仍保留诊断说明；GitLab stage 已跳过。
 
 TUI 非交互链路已在 Linux 上完成自动化 smoke：验证 `--help`、stdin 格式化、文件输入/输出、
 `--rules none` 恒等、未知规则 key 警告、缺失文件返回码 1，以及约 1.29 MB 输入的恒等处理。
-这些检查不替代真实 raw-mode 终端、Windows Terminal 交互或 Tauri 窗口行为 E2E；本次修复后的 TUI/GUI 回归和双 provider 连续稳定性已由人工完成，设置与 ACL 故障注入、非交互 transcript 和基础 GUI artifact 已自动化，Terminal 交互 artifact 固化仍待补齐。
+这些检查不替代真实 raw-mode 终端、Windows Terminal 交互或 Tauri 窗口行为 E2E；本次修复后的 TUI/GUI 回归和双 provider 连续稳定性已由人工完成，设置与 ACL 故障注入、非交互 transcript 和基础 GUI artifact 已自动化，Terminal 交互 artifact 已通过。
 
 ## 7. Windows 原生回归清单（已完成）
 
@@ -260,7 +264,7 @@ cargo build --manifest-path src-tauri/Cargo.toml --features tui --release --bin 
 - [x] `rules.yaml` 和 `.bak` 均损坏（embedded/W3C 自动化通过）；
 - [x] NTFS ACL 拒绝写入后保存失败提示正确（Windows 原生 embedded/W3C 各 1/1 通过）；
 - [x] ACL harness 在 `finally` 中恢复，临时目录可删除；
-- [ ] Windows ACL 失败时保留 stdout/stderr、WDIO log、manifest、exit status、截图、page source 和设置 fixture；
+- [x] Windows ACL 失败时保留 stdout/stderr、WDIO log、manifest、exit status、截图、page source 和设置 fixture；
 - [x] 成功后无 CopyPolish、WDIO、Node 测试残留进程和监听端口。
 
 ### 7.6 修复后手动核验记录（已完成）
@@ -392,7 +396,7 @@ spec 验证设置窗口显示保存失败、错误文本包含 `rules.yaml`，�
 - artifact 是否完整；
 - flaky 失败的复现次数和诊断结论。
 
-当前版本两个 provider 的连续稳定性统计已完成并记录；损坏设置 fixture、重启恢复、NTFS ACL 自动化、统一 artifact 基础设施、受控失败 artifact 自检、主题/窄窗口 GUI artifact 和 TUI 非交互 transcript 已完成。仍需补齐 Windows 三档 DPI 记录、Terminal 交互 artifact、React 19 warning 闭环和 GitLab stage 固化后，才可作为阻塞式合并门禁。
+当前版本两个 provider 的连续稳定性统计已完成并记录；损坏设置 fixture、重启恢复、NTFS ACL 自动化、统一 artifact 基础设施、受控失败 artifact 自检、主题/窄窗口 GUI artifact 和 TUI 非交互 transcript 已完成。React 19 warning 闭环和硬件级快捷键兼容性仍保留说明；Terminal 交互 artifact 已通过；GUI DPI 自动验证和 GitLab Windows stage 均已跳过。
 
 ### 7.11 TUI 非交互 transcript artifact
 
@@ -404,6 +408,12 @@ npm run test:tui-transcript --prefix e2e
 
 当前 Linux/WSL 验证结果为 4/4 通过，覆盖默认格式化、`--rules none` 恒等、未知规则 warning 和缺失输入文件错误。该入口可以在 Windows 原生复用，但不替代 Windows Terminal raw-mode、规则面板、剪贴板或 OSC 52 交互 artifact。
 
+### 7.12 Windows 剩余计划入口
+
+Windows 100%/125%/150% DPI 人工 GUI 验证已完成；GUI DPI 自动验证已跳过（不执行），不纳入自动矩阵；Windows Terminal 交互 artifact 已通过（用户确认）。GitLab Windows 可选 E2E stage 已跳过（不执行），不计作通过。请按 [windows-e2e-runbook.md](windows-e2e-runbook.md) 执行，并分别记录 DPI 三档的缩放/主题/窗口矩阵和原始 artifact、Terminal raw-mode/规则面板/快捷键/Unicode 粘贴/OSC 52/保存重启/终端清理。
+
+当前 `.gitlab-ci.yml` 只有 Windows release build；可选 E2E stage 已决定跳过（不执行），Runbook 中的 YAML 仅保留为历史设计参考。
+
 ## 8. 测试完成标准
 
 - 没有新增未解释的 warning；
@@ -411,3 +421,16 @@ npm run test:tui-transcript --prefix e2e
 - Markdown 链接检查通过；
 - 密钥扫描通过；
 - 涉及规则、设置、Tauri 或发布时已完成相应额外验证。
+
+### 7.13 2026-09-01 自动化补充结果
+
+- E2E TypeScript 类型检查通过。
+- 设置快捷键控制台 runner：embedded 与标准 WebDriver 各 1/1 通过，`actWarningCount=0`。由于当前 EdgeDriver 将逗号键上报为 `code=","`，两个 artifact 均记录原生键事件诊断并通过 UI “打开设置”回退完成界面/控制台验证；不得把它表述为硬件级 `Ctrl+,` 注入已独立通过。
+- GUI DPI 自动验证已按项目决定跳过（不执行）；既有 200% artifact 仅作历史诊断记录，三档人工 GUI 验证保持完成。
+- Windows Terminal TUI artifact 已由用户确认完整交互通过；`--prepare-only` 仍可用于生成 `manifest.json`、`result.json` 和 `manual-checklist.json`，实际交互结果以用户确认的 artifact 为准。
+
+### 7.14 2026-09-01 复验记录
+
+- ACL fixture 保留路径已修复：先解除 deny ACE，再复制 `settings-fixture`，最后删除临时目录；embedded/WebDriver 测试均通过，保留目录包含 `rules.yaml`，权限恢复和清理完成。
+- GUI DPI 自动验证已决定跳过，不再切换 Windows 显示设置或重新执行目标矩阵。
+- 早期普通命令会话运行完整 Windows Terminal TUI artifact 时因缺 `WT_SESSION` 按设计退出；`--prepare-only` 可生成手动清单。用户随后在真实 Windows Terminal 完成 WT-TUI-001/002/003 真实终端复验和完整交互 artifact，并确认通过。
