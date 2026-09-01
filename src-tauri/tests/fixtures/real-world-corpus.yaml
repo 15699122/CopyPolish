@@ -19,6 +19,14 @@
   expected: |
     请运行 `cargo test --manifest-path src-tauri/Cargo.toml` 验证 Rust 1.98.0，并检查输出目录中的 rules.yaml。
 
+- name: 部署文档中的容量和网络速率
+  selection:
+    mode: defaults
+  input: |
+    构建缓存占用256MiB，发布包大小为1GiB，建议使用1Gbps链路上传。
+  expected: |
+    构建缓存占用 256 MiB，发布包大小为 1 GiB，建议使用 1 Gbps 链路上传。
+
 - name: README 中的链接列表和普通正文
   selection:
     mode: defaults
