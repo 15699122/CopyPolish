@@ -40,7 +40,7 @@
 - [x] 通过真实 Tauri 设置控制台 runner 检查 React 19 `act` warning：两个 provider 各 1/1、warning=0；EdgeDriver 使用 UI 回退，硬件快捷键保留兼容性说明（现场人工确认）；
 - [x] GitLab Windows 可选 E2E stage：跳过（不执行）；项目决定不配置、不运行，不计作测试通过；
 
-非阻断告警：E2E 依赖审计报告 16 个已知漏洞（1 个中危、15 个高危），涉及多个 WebdriverIO/浏览器工具传递依赖，其中包括 `serialize-javascript`；当前 npm 提供的修复路径要求 WebdriverIO/@wdio major 变更。Cargo 在 E 盘调试构建中曾报告增量缓存目录 `os error 5`，但相关编译、测试和 release 构建均以退出码 0 完成。
+非阻断告警：E2E 依赖审计报告 14 个 high，涉及多个 WebdriverIO/浏览器工具传递依赖；`serialize-javascript` 已通过 `e2e/package.json` 的 npm `overrides` 固定到 `7.1.1`，不再出现在审计结果中。剩余告警继续在依赖升级时跟踪。Cargo 在 E 盘调试构建中曾报告增量缓存目录 `os error 5`，但相关编译、测试和 release 构建均以退出码 0 完成。
 
 ## 3. 常用命令
 
