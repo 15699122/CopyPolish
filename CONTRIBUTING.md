@@ -46,7 +46,8 @@ npm run tauri --prefix frontend -- dev
 5. 根据变更影响更新 README、开发文档、路线图和 `CHANGELOG.md`；
 6. 运行对应验证 profile；
 7. 检查 diff、敏感信息和 Markdown 链接；
-8. 提交 Pull Request。
+8. 测试产生的本地 artifact（截图、日志、临时设置、`e2e/artifacts/`）在结果记录到文档或 `CHANGELOG.md` 后用 `python3 scripts/clean.py --generated` 清理，不入库、不上传远程；
+9. 提交 Pull Request。
 
 ## 4. 验证分级
 
@@ -124,7 +125,7 @@ PR 描述应说明：
 - 文档已更新，或明确确认无需更新；
 - `CHANGELOG.md` 的 `Unreleased` 已反映重要变化；
 - Markdown 链接、密钥扫描和 `git diff --check` 通过；
-- 没有提交 `node_modules`、`dist`、`target`、本地设置或明文凭据；
+- 测试运行产物已本地清理（`scripts/clean.py --generated`），未提交 `node_modules`、`dist`、`target`、本地设置或明文凭据；
 - 涉及桌面能力时完成 Tauri smoke；
 - 涉及规则时验证默认状态、稳定 key、迁移、GUI/TUI 兼容性和幂等性。
 

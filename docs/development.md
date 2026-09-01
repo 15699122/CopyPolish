@@ -43,6 +43,18 @@ npm run tauri --prefix frontend -- build --no-bundle
 
 构建缓存和前端产物是可再生目录，不提交：`frontend/node_modules/`、`frontend/dist/`、`src-tauri/target/`、`src-tauri/gen/`。
 
+## 清理本地生成目录
+
+测试运行产物和构建缓存只在本地留存；远程仓库仅记录测试结论。使用统一的安全清理入口（白名单删除，不做宽泛通配）：
+
+```bash
+python3 scripts/clean.py --dry-run     # 预览
+python3 scripts/clean.py --generated   # 构建缓存 + e2e artifact/临时设置目录
+python3 scripts/clean.py --deep        # 额外删除 node_modules（下次验证需重新 npm ci）
+```
+
+约定：每轮 Windows/Linux 测试在把结果摘要写入文档或 `CHANGELOG.md` 后，执行 `--generated` 清理本地 artifact；截图、日志、临时设置 fixture 不入库、不上传远程。
+
 ## TUI
 
 ```bash

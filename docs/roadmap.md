@@ -16,14 +16,14 @@ span-aware 混合管线、规则注册表、阶段依赖、结构/语义 span �
 
 ## P0：仓库卫生与事实来源收敛
 
-- [ ] 增加统一的安全清理入口（清理 `src-tauri/target/`、`frontend/dist/`、`src-tauri/gen/`、`scripts/__pycache__/`、`e2e/artifacts/` 等可再生目录，禁止宽泛递归删除）；
-- [ ] 将「测试后清理本地 artifact、远程仅记录测试结论」写入 `docs/development.md` 与 `CONTRIBUTING.md`；
-- [ ] 推送前复核未推送提交不含截图、日志、临时设置或 artifact 路径。
+- [x] 增加统一的安全清理入口（`scripts/clean.py`，白名单删除 `src-tauri/target/`、`frontend/dist/`、`src-tauri/gen/`、`scripts/__pycache__/`、`e2e/artifacts/` 与 `e2e/settings-*`，支持 `--dry-run`/`--deep`）；
+- [x] 将「测试后清理本地 artifact、远程仅记录测试结论」写入 `docs/development.md` 与 `CONTRIBUTING.md`；
+- [x] 推送前复核未推送提交不含截图、日志、临时设置或 artifact 路径（2026-09-01 复核：`origin/dev..HEAD` 全部为源码/文档，无二进制、日志或设置文件）。
 
 ## P0：依赖与安全维护
 
-- [ ] 运行当前依赖审计（`verify.py --profile audit`），分类处理：生产漏洞 / 仅测试依赖漏洞 / 无可用修复 / 升级破坏兼容；
-- [ ] 优先处理 E2E 工具链（`e2e/package.json`）的高危依赖；
+- [x] 运行当前依赖审计（`verify.py --profile audit` 口径）：frontend 生产依赖 0 漏洞；e2e 依赖 16 项（1 中危、15 高危）全部来自 `mocha → serialize-javascript`（仅测试链，修复需破坏性降级 `@wdio/mocha-framework` 到 v8，暂不执行，随 WebdriverIO 大版本升级评估）；Cargo 0 漏洞、20 项允许的 unsound 警告（`lru` 等传递依赖）；
+- [ ] 跟随 WebdriverIO/@wdio 大版本升级时一并解决 e2e 测试链 `serialize-javascript` 高危告警；
 - [ ] 对 `serde_yaml`（上游 deprecated）迁移做独立 Spike；
 - [ ] 重新生成并审阅 `docs/licenses.md`。
 
