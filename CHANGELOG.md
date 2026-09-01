@@ -8,6 +8,7 @@
 
 - 新增统一本地清理入口 `scripts/clean.py`（白名单删除构建缓存、`e2e/artifacts/` 和 `e2e/settings-*` 临时设置目录，支持 `--dry-run`/`--deep`），并约定测试结果记录后清理本地 artifact、远程仅记录测试结论。
 - 新增注册表与 README 规则表一致性自动检查（`src-tauri/tests/readme_registry.rs`），防止 stable key、展示名、分类和默认状态在两份数据间漂移。
+- 新增引擎属性回归测试（`src-tauri/tests/properties.rs`，确定性伪随机语料，不引入新依赖）：幂等性、任意规则选择健壮性、emoji grapheme 边界、CRLF/CR 换行还原、保护结构不被改写和 legacy key 归一化幂等。
 - 新增贡献指南、架构说明和测试指南。
 - 新增项目变更记录。
 - 新增独立 WebdriverIO + Tauri embedded provider E2E 工程，覆盖真实启动、Rust IPC 默认排版、全不选恒等和临时设置文件隔离。
