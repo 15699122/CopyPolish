@@ -52,6 +52,7 @@ span-aware 混合管线、规则注册表、阶段依赖、结构/语义 span �
 ## P2：前端编排收敛
 
 - [x] 将 `App.tsx` 的业务 hook 编排与设置组装抽出到 `useAppController`，不引入全局状态库；`App.tsx` 仅负责页面渲染和组件组合。
+- [x] 为 `useAppController` 增加独立编排契约测试（`frontend/src/hooks/useAppController.test.ts`）：覆盖设置恢复、清空后的空输入保存、输入格式化/保存调度连接和浏览器演示模式。
 - [x] 为浏览器 fallback 增加醒目的「演示模式」标识（`data-testid="demo-mode-banner"`），明确浏览器预览不代表桌面版 Rust 引擎的完整行为。
 
 ## P2：发布持续维护
