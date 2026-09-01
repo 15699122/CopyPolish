@@ -142,6 +142,19 @@ front matter、fenced code、引用定义、缩进代码、表格分隔行、HTM
    优先级应低于 `editable_rules` 与 `scan_spans` 的优化；
 3. `editable_rules` 在两种语料下都是单一最大阶段（纯中文下占 66%），是首选优化目标。
 
+### Placeholder 重构 Spike 复测（2026-09-01）
+
+使用同一 `profile_stages` 工具、Rust release profile、1 MB 语料和 5 轮平均重新观测：
+
+| 语料 | 总耗时 | protect | placeholder_spacing | restore | 合计 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Markdown/LaTeX 密集 | 131.72 ms | 3.72 ms | 4.55 ms | 7.69 ms | 15.96 ms（约 12.1%） |
+| 纯中文（对照） | 58.41 ms | 0.04 ms | 0.05 ms | 0.13 ms | 0.22 ms（约 0.4%） |
+
+本次 Spike 结论：placeholder 相关阶段不是当前主要性能热点；在没有结构边界缺陷或
+增量编辑需求的情况下，不以潜在架构简化为理由替换稳定实现。正式决策见
+[`docs/decisions/placeholder-migration.md`](../decisions/placeholder-migration.md)。
+
 ## 二级归因（dev，2026-08-30）
 
 新增 `per_rule_timings` 与 `scan_split_timings`（同样在 `profile-stages` feature 下），
