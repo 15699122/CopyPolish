@@ -47,6 +47,7 @@
 - 重新生成第三方许可证清单：改为以 `frontend/package-lock.json` 的完整 `packages` 条目为准，并写入生成日期；当前 Rust 431 条、npm 294 条，许可证字段缺失 0 条。
 - 新增真实文档语料回归集 `src-tauri/tests/fixtures/real-world-corpus.yaml`，覆盖产品文案、技术文档、README、HTML/LaTeX、单位/化学式、emoji、未闭合结构和 CRLF。
 - 扩展有限单位词典以覆盖真实技术语料中的二进制容量（`KiB/MiB/GiB/TiB`）和比特速率（`bps/kbps/Mbps/Gbps/Tbps`），并保留 `bit/bytes` 普通单词反例。
+- 完成 Placeholder 重构设计 Spike：基于 1 MB 分阶段性能基线和真实语料兼容性评估，暂不进行大规模重构，继续采用“TextEdit + 受控 placeholder”的混合管线；决策与重新评估条件见 `docs/decisions/placeholder-migration.md`。
 - 优化 Markdown 行内代码扫描，降低大量反引号文本的重复查找开销，并保持多长度 delimiter 与未闭合 delimiter 行为。
 - 优化结构 span 仲裁，减少复杂 Markdown/LaTeX 文本中的 O(n²) 重叠检查开销，并保持优先级与嵌套结构语义。
 - 缩小可编辑规则阶段的保护预扫描范围，仅扫描不透明结构与化学式，减少重复语义扫描开销并保持保护边界。
