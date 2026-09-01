@@ -40,27 +40,30 @@ for (const fixture of SETTINGS_FIXTURES as readonly SettingsFixture[]) {
   const args = [wdioCli, "run", path.join(e2eDir, config), "--spec", spec];
 
   console.log(`\n=== Running ${useWebdriver ? "W3C" : "embedded"} corrupt-settings fixture: ${fixture} ===`);
-  const result = spawnSync(process.execPath, args, {
-    cwd: e2eDir,
-    env: {
-      ...process.env,
-      COPYPOLISH_E2E_SETTINGS_DIR: settingsDir,
-      COPYPOLISH_E2E_SETTINGS_FIXTURE: fixture,
-      ...(useWebdriver
-        ? {
-            TAURI_WEBDRIVER_PORT: String(port),
-            COPYPOLISH_E2E_ARTIFACT_DIR: artifactDir,
-            VITE_COPYPOLISH_E2E_PROVIDER: "webdriver",
-          }
-        : {}),
-    },
-    stdio: "inherit",
-  });
+  try {
+    const result = spawnSync(process.execPath, args, {
+      cwd: e2eDir,
+      env: {
+        ...process.env,
+        COPYPOLISH_E2E_SETTINGS_DIR: settingsDir,
+        COPYPOLISH_E2E_SETTINGS_FIXTURE: fixture,
+        ...(useWebdriver
+          ? {
+              TAURI_WEBDRIVER_PORT: String(port),
+              COPYPOLISH_E2E_ARTIFACT_DIR: artifactDir,
+              VITE_COPYPOLISH_E2E_PROVIDER: "webdriver",
+            }
+          : {}),
+      },
+      stdio: "inherit",
+    });
 
-  if (result.error) throw result.error;
-  if (result.status !== 0) {
+    if (result.error) throw result.error;
+    if (result.status !== 0) {
+      process.exitCode = result.status ?? 1;
+      break;
+    }
+  } finally {
     if (!process.env.COPYPOLISH_E2E_KEEP_SETTINGS) fs.rmSync(settingsDir, { recursive: true, force: true });
-    process.exit(result.status ?? 1);
   }
-  if (!process.env.COPYPOLISH_E2E_KEEP_SETTINGS) fs.rmSync(settingsDir, { recursive: true, force: true });
 }
