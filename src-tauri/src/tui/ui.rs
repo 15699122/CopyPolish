@@ -1,3 +1,5 @@
+use super::app::{App, FocusedPane, Overlay, Status};
+use super::wrap;
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
@@ -5,9 +7,6 @@ use ratatui::{
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Wrap},
     Frame,
 };
-use unicode_width::UnicodeWidthStr;
-
-use super::app::{App, FocusedPane, Overlay, Status};
 
 pub fn render(frame: &mut Frame, app: &App) {
     let root = Layout::default()
@@ -52,9 +51,15 @@ pub fn render(frame: &mut Frame, app: &App) {
         Color::DarkGray
     };
     let input_area = body[0];
+    let input_inner_width = input_area.width.saturating_sub(2).max(1);
     let input_inner_height = input_area.height.saturating_sub(2).max(1) as usize;
-    let (cursor_line, _) = app.input.line_column();
-    let input_scroll = cursor_line.saturating_sub(input_inner_height.saturating_sub(1)) as u16;
+    // 光标位置按“与 ratatui 渲染一致的视觉行”计算，而不是按逻辑行 + 整行宽度。
+    // 这样软换行后光标不会越过输入框绘制到状态栏也仍保持可见。
+    let cursor_visual =
+        wrap::cursor_visual(app.input.text(), app.input.cursor(), input_inner_width);
+    let input_scroll = cursor_visual
+        .row
+        .saturating_sub(input_inner_height.saturating_sub(1)) as u16;
     let output_style = if app.focused == FocusedPane::Output {
         Color::Cyan
     } else {
@@ -86,19 +91,16 @@ pub fn render(frame: &mut Frame, app: &App) {
     );
 
     if app.focused == FocusedPane::Input {
-        let visible_line = cursor_line.saturating_sub(input_scroll as usize);
-        let line_start = app.input.text()[..app.input.cursor()]
-            .rfind('\n')
-            .map_or(0, |index| index + 1);
-        let column_text = &app.input.text()[line_start..app.input.cursor()];
+        // visible_row 是光标相对滚动后的可见视觉行，保证其在输入框内部。
+        let visible_row = cursor_visual.row - input_scroll as usize;
         let cursor_x = input_area
             .x
             .saturating_add(1)
-            .saturating_add(column_text.width() as u16);
+            .saturating_add(cursor_visual.col);
         let cursor_y = input_area
             .y
             .saturating_add(1)
-            .saturating_add(visible_line as u16);
+            .saturating_add(visible_row as u16);
         if cursor_x < input_area.right().saturating_sub(1)
             && cursor_y < input_area.bottom().saturating_sub(1)
         {
