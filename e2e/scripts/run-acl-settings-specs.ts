@@ -70,9 +70,18 @@ try {
   exitCode = result.status ?? 1;
   process.exitCode = exitCode;
 } finally {
-  if (process.env.COPYPOLISH_E2E_KEEP_SETTINGS && fs.existsSync(fixture.settingsDir)) {
-    fs.mkdirSync(path.join(artifactDir, "settings-fixture"), { recursive: true });
-    fs.cpSync(fixture.settingsDir, path.join(artifactDir, "settings-fixture"), { recursive: true });
+  const keepSettings = Boolean(process.env.COPYPOLISH_E2E_KEEP_SETTINGS);
+  if (keepSettings) {
+    restoreWindowsAclFixture(fixture, false);
+    try {
+      if (fs.existsSync(fixture.settingsDir)) {
+        fs.mkdirSync(path.join(artifactDir, "settings-fixture"), { recursive: true });
+        fs.cpSync(fixture.settingsDir, path.join(artifactDir, "settings-fixture"), { recursive: true });
+      }
+    } finally {
+      restoreWindowsAclFixture(fixture, true);
+    }
+  } else {
+    restoreWindowsAclFixture(fixture, true);
   }
-  restoreWindowsAclFixture(fixture);
 }

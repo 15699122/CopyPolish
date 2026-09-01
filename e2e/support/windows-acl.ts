@@ -53,7 +53,7 @@ export function createWindowsAclFixture(rootDir: string): WindowsAclFixture {
   return { settingsDir, settingsPath, user };
 }
 
-export function restoreWindowsAclFixture(fixture: WindowsAclFixture): void {
+export function restoreWindowsAclFixture(fixture: WindowsAclFixture, removeFixture = true): void {
   if (process.platform !== "win32") return;
 
   try {
@@ -62,7 +62,9 @@ export function restoreWindowsAclFixture(fixture: WindowsAclFixture): void {
     try {
       runWindowsCommand("icacls.exe", [fixture.settingsDir, "/inheritance:e"]);
     } finally {
-      fs.rmSync(fixture.settingsDir, { recursive: true, force: true });
+      if (removeFixture) {
+        fs.rmSync(fixture.settingsDir, { recursive: true, force: true });
+      }
     }
   }
 }
