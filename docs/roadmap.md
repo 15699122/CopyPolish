@@ -25,7 +25,7 @@ span-aware 混合管线、规则注册表、阶段依赖、结构/语义 span �
 - [x] 运行当前依赖审计（`verify.py --profile audit` 口径）：frontend 生产依赖 0 漏洞；e2e 依赖 16 项（1 中危、15 高危）全部来自 `mocha → serialize-javascript`（仅测试链，修复需破坏性降级 `@wdio/mocha-framework` 到 v8，暂不执行，随 WebdriverIO 大版本升级评估）；Cargo 0 漏洞、20 项允许的 unsound 警告（`lru` 等传递依赖）；
 - [ ] 跟随 WebdriverIO/@wdio 大版本升级时一并解决 e2e 测试链 `serialize-javascript` 高危告警；
 - [x] 对 `serde_yaml`（上游 deprecated）迁移做独立 Spike：结论为**暂不迁移、保持观察**（无漏洞告警、使用面仅 2 处；若迁移首选 API 兼容的 `serde-yaml-ng` 并跑全量 round-trip 对照），记录见 [decisions/serde-yaml-migration.md](decisions/serde-yaml-migration.md)；
-- [ ] 重新生成并审阅 `docs/licenses.md`。
+- [x] 重新生成并审阅 `docs/licenses.md`（2026-09-01：生成脚本改为读取 `frontend/package-lock.json` 的完整 `packages` 条目；Rust 431 条、npm 294 条、许可证字段缺失 0 条；重复生成结果稳定）。
 
 ## P1：引擎正确性
 
