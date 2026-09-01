@@ -17,8 +17,6 @@
     "test:artifact-probe:webdriver": "tsx scripts/run-artifact-failure-probe.ts --webdriver",
     "test:gui-visual-artifacts": "tsx scripts/run-gui-visual-artifacts.ts",
     "test:gui-visual-artifacts:webdriver": "tsx scripts/run-gui-visual-artifacts.ts --webdriver",
-    "test:gui-dpi": "tsx scripts/run-gui-dpi-pair.ts",
-    "test:gui-dpi-matrix": "tsx scripts/validate-gui-dpi-matrix.ts",
     "test:settings-shortcut-console": "tsx scripts/run-settings-shortcut-console.ts",
     "test:settings-shortcut-console:webdriver": "tsx scripts/run-settings-shortcut-console.ts --webdriver",
     "test:tui-transcript": "tsx scripts/run-tui-transcript.ts",
