@@ -59,7 +59,10 @@ try {
     });
 
     if (result.error) throw result.error;
-    if (result.status !== 0) process.exit(result.status ?? 1);
+    if (result.status !== 0) {
+      process.exitCode = result.status ?? 1;
+      break;
+    }
   }
 } finally {
   if (!process.env.COPYPOLISH_E2E_KEEP_SETTINGS) {

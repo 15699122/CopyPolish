@@ -25,19 +25,22 @@ for (const spec of specs) {
   const args = [wdioCli, "run", path.join(e2eDir, "wdio.conf.ts"), "--spec", spec, ...extraArgs.filter((_, index) => index !== requestedSpec && index !== requestedSpec + 1)];
   console.log(`\n=== Running isolated E2E spec: ${path.relative(e2eDir, spec)} ===`);
 
-  const result = spawnSync(process.execPath, args, {
-    cwd: e2eDir,
-    env: {
-      ...process.env,
-      COPYPOLISH_E2E_SETTINGS_DIR: settingsDir,
-    },
-    stdio: "inherit",
-  });
+  try {
+    const result = spawnSync(process.execPath, args, {
+      cwd: e2eDir,
+      env: {
+        ...process.env,
+        COPYPOLISH_E2E_SETTINGS_DIR: settingsDir,
+      },
+      stdio: "inherit",
+    });
 
-  fs.rmSync(settingsDir, { recursive: true, force: true });
-
-  if (result.error) throw result.error;
-  if (result.status !== 0) {
-    process.exit(result.status ?? 1);
+    if (result.error) throw result.error;
+    if (result.status !== 0) {
+      process.exitCode = result.status ?? 1;
+      break;
+    }
+  } finally {
+    fs.rmSync(settingsDir, { recursive: true, force: true });
   }
 }

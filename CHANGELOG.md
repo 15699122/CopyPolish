@@ -43,6 +43,7 @@
 - 抽取设置提醒文案与判定到 `frontend/src/lib/settingsLoadNotices.ts`，主界面与设置 Footer 共用，消除重复并精简 `App.tsx`。
 - 将前端业务 hook 编排集中到 `frontend/src/hooks/useAppController.ts`，使 `App.tsx` 仅负责页面渲染和组件组合；不引入全局状态库。
 - 浏览器预览增加醒目的「演示模式」标识，明确其最小化 fallback 不代表桌面版 Rust 引擎的完整行为。
+- 统一 E2E runner 的临时设置目录清理：通用 embedded、W3C smoke 和损坏设置入口在子进程异常或失败时也会执行 `finally`，调试保留设置的显式例外保持不变。
 - 优化 Markdown 行内代码扫描，降低大量反引号文本的重复查找开销，并保持多长度 delimiter 与未闭合 delimiter 行为。
 - 优化结构 span 仲裁，减少复杂 Markdown/LaTeX 文本中的 O(n²) 重叠检查开销，并保持优先级与嵌套结构语义。
 - 缩小可编辑规则阶段的保护预扫描范围，仅扫描不透明结构与化学式，减少重复语义扫描开销并保持保护边界。

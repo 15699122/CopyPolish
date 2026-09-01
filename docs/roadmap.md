@@ -43,7 +43,7 @@ span-aware 混合管线、规则注册表、阶段依赖、结构/语义 span �
 
 - [x] Embedded provider 保留完整回归；标准 W3C provider 缩减为兼容性 smoke（session、主窗口、一次真实格式化、一次设置保存、退出清理）；`specs/w3c/smoke.spec.ts` 已建立，`wdio.webdriver.conf.ts` 与 `run-webdriver-specs.ts` 已同步指向 `specs/w3c/`，`package.json` 中各 `:webdriver` 专项脚本已移除。
 - [x] 处置 GUI DPI 自动矩阵脚本（`run-gui-dpi-pair.ts`、`validate-gui-dpi-matrix.ts` 已删除，`test:gui-dpi` 命令移除；`run-gui-visual-artifacts.ts` 保留并记录 DPI 环境元数据）：DPI 采用发布前人工检查。
-- [ ] 所有 runner 增加统一 finally 清理；测试结果只记录摘要，不提交 artifact。
+- [x] 所有会创建临时设置目录的 runner 均使用统一 `try/finally` 清理路径，并将非零子进程状态写入 `process.exitCode` 后退出循环；测试结果只记录摘要，不提交 artifact。
 
 ## P2：TUI 产品定位
 
