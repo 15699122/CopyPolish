@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 
 const e2eDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const wdioCli = path.join(e2eDir, "node_modules", "@wdio", "cli", "bin", "wdio.js");
-const specsDir = path.join(e2eDir, "specs");
+const specsDir = path.join(e2eDir, "specs", "w3c");
 const extraArgs = process.argv.slice(2);
 
 async function findFreePort(): Promise<number> {
