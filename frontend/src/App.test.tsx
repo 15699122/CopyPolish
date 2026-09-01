@@ -136,6 +136,9 @@ describe("App 主流程", () => {
 
   it("输入框显示示例型占位符，输出框空状态显示引导提示", async () => {
     await setup();
+    expect(screen.getByTestId("demo-mode-banner")).toHaveTextContent(
+      "演示模式：当前运行在浏览器预览中",
+    );
     const input = screen.getByTestId("input-textarea");
     expect(input).toHaveAttribute(
       "placeholder",

@@ -1,4 +1,3 @@
-import { useMemo, useRef } from "react";
 import { Check, Copy, Eraser } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -12,29 +11,11 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { AppTitleBar } from "@/components/AppTitleBar";
 import { SettingsDialog } from "@/components/SettingsDialog";
-import { useFormatter } from "@/hooks/useFormatter";
-import { useInputFormatting } from "@/hooks/useInputFormatting";
-import { useClipboardStatus } from "@/hooks/useClipboardStatus";
-import { useSettingsActions } from "@/hooks/useSettingsActions";
-import { useSettingsPersistence } from "@/hooks/useSettingsPersistence";
-import { useSettingsLoader } from "@/hooks/useSettingsLoader";
-import { useSettingsDialog } from "@/hooks/useSettingsDialog";
-import { useShortcuts } from "@/hooks/useShortcuts";
-import { useThemeAndFont } from "@/hooks/useThemeAndFont";
-import { useWindowControls } from "@/hooks/useWindowControls";
-import { useRuleCatalog } from "@/hooks/useRuleCatalog";
-import { useClearFeedback } from "@/hooks/useClearFeedback";
+import { useAppController } from "@/hooks/useAppController";
 import { isSettingsLoadNoticeAlert, settingsLoadNoticeText } from "@/lib/settingsLoadNotices";
-import {
-  isTauri,
-  type Rule,
-  type RuleSelection,
-  type UserSettings,
-} from "@/lib/tauri";
 
 export const APP_NAME = "文案净排";
 const APP_REFERENCE_NAME = "CopyPolish";
-const NORMAL_DEBOUNCE_MS = 160;
 const LONG_TEXT_THRESHOLD = 50_000;
 const SLOW_FORMAT_THRESHOLD_MS = 100;
 
@@ -43,162 +24,31 @@ const SLOW_FORMAT_THRESHOLD_MS = 100;
  * 排版由 Tauri 侧 Rust 引擎完成；浏览器预览时走内置演示回退实现。
  */
 export default function App() {
-  const { open: settingsOpen, triggerRef: settingsTriggerRef, onOpenChange: onSettingsOpenChange } =
-    useSettingsDialog();
-
-  const rulesRef = useRef<Rule[]>([]);
-  const getRuleSelection = useMemo(
-    () => (selected: string[]): RuleSelection => {
-      const ruleCount = rulesRef.current.length;
-      if (selected.length === 0) return { mode: "none" };
-      if (selected.length === ruleCount && ruleCount > 0) return { mode: "all" };
-      return { mode: "only", keys: selected };
-    },
-    [],
-  );
   const {
+    isDemoMode,
     output,
     error,
     isFormatting,
     lastFormatDuration,
-    scheduleFormat,
-    cancelFormat,
-    clearOutput,
-    clearError,
-    reportError,
-  } = useFormatter({ getSelection: getRuleSelection });
-
-  const { copied, copy: copyOutput } = useClipboardStatus({
-    getText: () => output,
-    onError: reportError,
-    resetMs: 1200,
-  });
-
-  const {
-    enabled,
-    setEnabled,
-    theme,
-    setTheme,
-    font,
-    setFont,
-    editorFontSize,
-    setEditorFontSize,
-    uiScale,
-    setUiScale,
-    shortcutsEnabled,
-    setShortcutsEnabled,
-    shortcutBindings,
-    setShortcutBindings,
-    settingsLoadNotices,
-    settingsPath,
-    appVersion,
-    isHydrated,
-    loadSettings,
-  } = useSettingsLoader({
-    onRestoreInput: (restoredInput, restoredEnabled) => {
-      setInput(restoredInput);
-      scheduleFormat(restoredInput, restoredEnabled);
-    },
-    onLoadError: reportError,
-  });
-
-  const { rules } = useRuleCatalog({ loadSettings, onError: reportError });
-  rulesRef.current = rules;
-
-  const enabledSet = useMemo(() => new Set(enabled), [enabled]);
-
-  function currentSettings(next: Partial<UserSettings> = {}): UserSettings {
-    return {
-      enabled,
-      last_input: input,
-      theme,
-      font,
-      editor_font_size: editorFontSize,
-      ui_scale: uiScale,
-      shortcuts: {
-        enabled: shortcutsEnabled,
-        bindings: shortcutBindings,
-      },
-      ...next,
-    };
-  }
-
-  const { settingsStatus, settingsError, persistSettings, schedulePersist } = useSettingsPersistence({
-    getSettings: currentSettings,
-    isHydrated,
-    debounceMs: NORMAL_DEBOUNCE_MS,
-  });
-
-  const { input, setInput, onInputChange } = useInputFormatting({
-    enabled,
-    scheduleFormat,
-    schedulePersist,
-  });
-
-  const {
-    onToggleRule,
-    onSetAll,
-    onResetDefaults,
-    onThemeChange,
-    onFollowSystemChange,
-    onFontChange,
-    onResetFont,
-    onEditorFontSizeChange,
-    onUiScaleChange,
-    onShortcutsEnabledChange,
-    onSaveShortcutBinding,
-    onResetShortcuts,
-  } = useSettingsActions({
-    rules,
-    enabled,
-    enabledSet,
     input,
-    setEnabled,
-    setTheme,
-    setFont,
-    setEditorFontSize,
-    setUiScale,
-    setShortcutsEnabled,
-    setShortcutBindings,
-    shortcutsEnabled,
-    shortcutBindings,
-    scheduleFormat,
-    persistSettings,
-  });
-
-  // 快捷键监听与分发：总开关关闭时不注册；IME 组合态不触发；
-  // 仅在精确匹配绑定时 preventDefault。Esc 仍由 Radix Dialog 原生处理。
-  useShortcuts({
-    enabled: shortcutsEnabled,
-    bindings: shortcutBindings,
-    onFormatNow: () => scheduleFormat(input, enabled, 0),
-    onCopyOutput: () => {
-      void copyOutput();
-    },
-    onOpenSettings: () => onSettingsOpenChange(true),
-  });
-
-  useThemeAndFont({ theme, font, editorFontSize, uiScale });
-
-  const { onMinimize, onToggleMaximize, onClose, onHeaderMouseDown } = useWindowControls({
-    onError: reportError,
-  });
-
-  const { cleared, clear: onClear } = useClearFeedback({
-    clearInput: () => setInput(""),
-    clearOutput,
-    cancelFormat,
-    clearError,
-    persistEmptyInput: () => persistSettings({ enabled, last_input: "" }),
-    durationMs: 1200,
-  });
+    onInputChange,
+    copied,
+    copyOutput,
+    cleared,
+    onClear,
+    settingsDialogProps,
+    onMinimize,
+    onToggleMaximize,
+    onClose,
+    onHeaderMouseDown,
+  } = useAppController();
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background text-foreground">
       <AppTitleBar
         appName={APP_NAME}
         referenceName={APP_REFERENCE_NAME}
-        tauri={isTauri()}
+        tauri={!isDemoMode}
         onMouseDown={onHeaderMouseDown}
         onDoubleClick={onToggleMaximize}
         onMinimize={onMinimize}
@@ -206,14 +56,24 @@ export default function App() {
         onClose={onClose}
       />
 
-      {settingsLoadNotices.length > 0 && (
+      {settingsDialogProps.settingsLoadNotices.length > 0 && (
         <div
           className="border-b border-amber-200 bg-amber-50 px-6 py-2 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100"
-          role={settingsLoadNotices.some(isSettingsLoadNoticeAlert) ? "alert" : "status"}
+          role={settingsDialogProps.settingsLoadNotices.some(isSettingsLoadNoticeAlert) ? "alert" : "status"}
           aria-live="polite"
           data-testid="settings-load-notices"
         >
-          {settingsLoadNotices.map(settingsLoadNoticeText).join(" ")}
+          {settingsDialogProps.settingsLoadNotices.map(settingsLoadNoticeText).join(" ")}
+        </div>
+      )}
+
+      {isDemoMode && (
+        <div
+          className="border-b border-sky-200 bg-sky-50 px-6 py-2 text-sm text-sky-900 dark:border-sky-900/60 dark:bg-sky-950/40 dark:text-sky-100"
+          role="status"
+          data-testid="demo-mode-banner"
+        >
+          演示模式：当前运行在浏览器预览中，排版结果使用最小化回退实现，不代表桌面版 Rust 引擎的完整行为。
         </div>
       )}
 
@@ -294,37 +154,7 @@ export default function App() {
 
       {/* 操作栏 */}
       <footer className="flex items-center gap-2 border-t px-6 py-4">
-        <SettingsDialog
-          open={settingsOpen}
-          onOpenChange={onSettingsOpenChange}
-          triggerRef={settingsTriggerRef}
-          rules={rules}
-          enabled={enabled}
-          enabledSet={enabledSet}
-          theme={theme}
-          font={font}
-          editorFontSize={editorFontSize}
-          uiScale={uiScale}
-          settingsLoadNotices={settingsLoadNotices}
-          appVersion={appVersion}
-          settingsStatus={settingsStatus}
-          settingsError={settingsError}
-          settingsPath={settingsPath}
-          onToggleRule={onToggleRule}
-          onSetAll={onSetAll}
-          onResetDefaults={onResetDefaults}
-          onThemeChange={onThemeChange}
-          onFollowSystemChange={onFollowSystemChange}
-          onFontChange={onFontChange}
-          onResetFont={onResetFont}
-          onEditorFontSizeChange={onEditorFontSizeChange}
-          onUiScaleChange={onUiScaleChange}
-          shortcutsEnabled={shortcutsEnabled}
-          shortcutBindings={shortcutBindings}
-          onShortcutsEnabledChange={onShortcutsEnabledChange}
-          onSaveShortcutBinding={onSaveShortcutBinding}
-          onResetShortcuts={onResetShortcuts}
-        />
+        <SettingsDialog {...settingsDialogProps} />
 
         <Button variant="outline" size="sm" data-testid="clear-input" onClick={onClear}>
           {cleared ? (

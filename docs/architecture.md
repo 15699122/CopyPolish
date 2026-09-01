@@ -98,6 +98,7 @@ TUI 通过自己的设置门面复用同一文件，但只修改规则选择和�
 | 优化 span 仲裁 | `engine/spans.rs::arbitrate_spans`、span 优先级回归测试 |
 | 修改单位/数学识别 | `engine/semantic_tokens.rs`、`engine/unit_lexicon.rs` |
 | 修改前端格式化状态 | `frontend/src/hooks/useFormatter.ts`、`useInputFormatting.ts` |
+| 修改前端页面编排 | `frontend/src/hooks/useAppController.ts`、`frontend/src/App.tsx` |
 | 修改规则目录加载 | `frontend/src/hooks/useRuleCatalog.ts` |
 | 修改清空输入反馈 | `frontend/src/hooks/useClearFeedback.ts` |
 | 修改设置提醒文案/判定 | `frontend/src/lib/settingsLoadNotices.ts` |
