@@ -6,6 +6,7 @@
 
 ### Added
 
+- 新增设置存储回退（ADR 方案 B，`docs/decisions/settings-storage-policy.md`）：程序目录不可写时自动改用平台应用数据目录（Windows `%APPDATA%\CopyPolish`、Linux/macOS `~/.config/CopyPolish`）保存 `rules.yaml`，主界面提示实际生效位置；便携用户行为不变。新增 6 项存储决策单测（同目录优先、双位置并存、只读回退等）。
 - 新增统一本地清理入口 `scripts/clean.py`（白名单删除构建缓存、`e2e/artifacts/` 和 `e2e/settings-*` 临时设置目录，支持 `--dry-run`/`--deep`），并约定测试结果记录后清理本地 artifact、远程仅记录测试结论。
 - 新增注册表与 README 规则表一致性自动检查（`src-tauri/tests/readme_registry.rs`），防止 stable key、展示名、分类和默认状态在两份数据间漂移。
 - 新增引擎属性回归测试（`src-tauri/tests/properties.rs`，确定性伪随机语料，不引入新依赖）：幂等性、任意规则选择健壮性、emoji grapheme 边界、CRLF/CR 换行还原、保护结构不被改写和 legacy key 归一化幂等。

@@ -158,6 +158,8 @@ pub enum SettingsLoadNotice {
     PrimarySettingsCorruptRecoveredFromBackup,
     PrimarySettingsCorruptNoUsableBackup,
     BackupSettingsCorrupt,
+    /// exe 目录不可写，设置已回退保存到平台应用数据目录。
+    UsingAppDataFallback,
 }
 
 /// 设置加载结果及加载阶段产生的提醒。
@@ -167,25 +169,116 @@ pub struct LoadedUserSettings {
     pub notices: Vec<SettingsLoadNotice>,
 }
 
-/// 设置保存目录：优先使用当前可执行文件所在目录，失败时回退当前工作目录。
-fn settings_dir() -> PathBuf {
-    #[cfg(any(feature = "e2e-wdio", feature = "e2e-webdriver"))]
-    if let Ok(dir) = std::env::var("COPYPOLISH_E2E_SETTINGS_DIR") {
-        if !dir.is_empty() {
-            return PathBuf::from(dir);
-        }
-    }
+/// 设置保存目录决策（ADR：docs/decisions/settings-storage-policy.md，方案 B）：
+/// 1. E2E 注入目录优先（仅 e2e feature）；
+/// 2. exe 同目录已存在任何设置文件（rules.yaml / .bak / 旧 JSON）→ 继续使用；
+/// 3. exe 同目录可写 → 继续使用（现有便携用户行为不变）；
+/// 4. exe 目录不可写 → 回退平台应用数据目录（Windows `%APPDATA%\CopyPolish`、
+///    Linux/macOS `$XDG_CONFIG_HOME/CopyPolish` 或 `~/.config/CopyPolish`），
+///    并标记 fallback 以便 UI 提示；
+/// 5. 均不可用 → 维持 exe 目录，让保存错误按原诊断信息呈现。
+///
+/// 决策在进程内只做一次（OnceLock 缓存），不在保存时改变位置。
+struct StorageDecision {
+    dir: PathBuf,
+    uses_app_data_fallback: bool,
+}
 
-    if let Ok(exe) = std::env::current_exe() {
-        if let Some(dir) = exe.parent() {
-            return dir.to_path_buf();
+static STORAGE: std::sync::OnceLock<StorageDecision> = std::sync::OnceLock::new();
+
+/// 平台应用数据目录（不保证存在）。
+fn app_data_dir() -> Option<PathBuf> {
+    #[cfg(target_os = "windows")]
+    {
+        std::env::var_os("APPDATA").map(|base| PathBuf::from(base).join("CopyPolish"))
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let base = std::env::var_os("XDG_CONFIG_HOME")
+            .map(PathBuf::from)
+            .filter(|path| path.is_absolute())
+            .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".config")))?;
+        Some(base.join("CopyPolish"))
+    }
+}
+
+/// 目录中是否已存在任何形式的设置文件。
+fn dir_has_any_settings(dir: &Path) -> bool {
+    dir.join(SETTINGS_FILE_NAME).exists()
+        || dir.join(SETTINGS_BACKUP_FILE_NAME).exists()
+        || dir.join(LEGACY_SETTINGS_FILE_NAME).exists()
+}
+
+/// 通过创建临时探针文件判断目录可写性；探针随后立即删除。
+pub(crate) fn dir_is_writable(dir: &Path) -> bool {
+    let probe = dir.join(format!(".copypolish-write-probe-{}", std::process::id()));
+    match fs::File::create(&probe) {
+        Ok(_) => {
+            let _ = fs::remove_file(&probe);
+            true
+        }
+        Err(_) => false,
+    }
+}
+
+/// 纯决策函数：返回 (生效目录, 是否回退到应用数据目录)。供单元测试注入。
+fn resolve_storage_dir(exe_dir: Option<&Path>, app_dir: Option<&Path>) -> (PathBuf, bool) {
+    if let Some(exe) = exe_dir {
+        if dir_has_any_settings(exe) {
+            return (exe.to_path_buf(), false);
+        }
+        if dir_is_writable(exe) {
+            return (exe.to_path_buf(), false);
         }
     }
-    std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+    if let Some(app) = app_dir {
+        if fs::create_dir_all(app).is_ok() && dir_is_writable(app) {
+            return (app.to_path_buf(), true);
+        }
+    }
+    (
+        exe_dir
+            .map(Path::to_path_buf)
+            .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))),
+        false,
+    )
+}
+
+fn storage() -> &'static StorageDecision {
+    STORAGE.get_or_init(|| {
+        #[cfg(any(feature = "e2e-wdio", feature = "e2e-webdriver"))]
+        if let Ok(dir) = std::env::var("COPYPOLISH_E2E_SETTINGS_DIR") {
+            if !dir.is_empty() {
+                return StorageDecision {
+                    dir: PathBuf::from(dir),
+                    uses_app_data_fallback: false,
+                };
+            }
+        }
+
+        let exe_dir = std::env::current_exe()
+            .ok()
+            .and_then(|exe| exe.parent().map(Path::to_path_buf));
+        let (dir, fallback) = resolve_storage_dir(exe_dir.as_deref(), app_data_dir().as_deref());
+        StorageDecision {
+            dir,
+            uses_app_data_fallback: fallback,
+        }
+    })
+}
+
+/// 设置文件所在目录（进程内决策一次）。
+pub fn settings_dir() -> PathBuf {
+    storage().dir.clone()
 }
 
 pub fn settings_path() -> PathBuf {
-    settings_dir().join(SETTINGS_FILE_NAME)
+    storage().dir.join(SETTINGS_FILE_NAME)
+}
+
+/// 当前是否因 exe 目录不可写而回退到平台应用数据目录。
+pub fn uses_app_data_fallback() -> bool {
+    storage().uses_app_data_fallback
 }
 
 /// 从指定路径读取 YAML 设置；文件缺失或解析失败时返回 None（调用方自行回落默认值）。
@@ -338,7 +431,13 @@ pub fn load_from_dir(dir: &Path) -> Option<UserSettings> {
 }
 
 pub fn load_with_status() -> Option<LoadedUserSettings> {
-    load_from_dir_with_status(&settings_dir())
+    let mut loaded = load_from_dir_with_status(&settings_dir())?;
+    if uses_app_data_fallback() {
+        loaded
+            .notices
+            .push(SettingsLoadNotice::UsingAppDataFallback);
+    }
+    Some(loaded)
 }
 
 pub fn save(settings: &UserSettings) -> Result<(), String> {
@@ -358,6 +457,114 @@ mod tests {
         path.push(format!("ccw-user-settings-test-{pid}-{n}-{tag}.yaml"));
         let _ = fs::remove_file(&path);
         path
+    }
+
+    // ---- 存储目录决策（ADR 方案 B）----
+
+    fn unique_dir(tag: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "ccw-storage-{}-{}-{}",
+            tag,
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn exe_dir_with_existing_settings_wins_over_app_dir() {
+        // 双位置并存：exe 目录已有设置文件时必须继续使用 exe 目录。
+        let exe = unique_dir("exe-priority");
+        let app = unique_dir("app-priority");
+        fs::write(exe.join(SETTINGS_FILE_NAME), "enabled: []\n").unwrap();
+        fs::write(app.join(SETTINGS_FILE_NAME), "enabled: [stale]\n").unwrap();
+
+        let (dir, fallback) = resolve_storage_dir(Some(&exe), Some(&app));
+        assert_eq!(dir, exe);
+        assert!(!fallback);
+        let _ = fs::remove_dir_all(&exe);
+        let _ = fs::remove_dir_all(&app);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn readonly_exe_dir_falls_back_to_app_data_dir() {
+        use std::os::unix::fs::PermissionsExt;
+        let exe = unique_dir("exe-readonly");
+        let app = unique_dir("app-readonly");
+        fs::set_permissions(&exe, fs::Permissions::from_mode(0o555)).unwrap();
+
+        let (dir, fallback) = resolve_storage_dir(Some(&exe), Some(&app));
+        // 恢复权限以便清理。
+        fs::set_permissions(&exe, fs::Permissions::from_mode(0o755)).unwrap();
+        assert_eq!(dir, app);
+        assert!(fallback);
+        let _ = fs::remove_dir_all(&exe);
+        let _ = fs::remove_dir_all(&app);
+    }
+
+    #[test]
+    fn writable_exe_dir_is_preferred_without_settings() {
+        let exe = unique_dir("exe-fresh");
+        let app = unique_dir("app-fresh");
+        let (dir, fallback) = resolve_storage_dir(Some(&exe), Some(&app));
+        assert_eq!(dir, exe);
+        assert!(!fallback);
+        let _ = fs::remove_dir_all(&exe);
+        let _ = fs::remove_dir_all(&app);
+    }
+
+    #[test]
+    fn backup_or_legacy_files_also_pin_exe_dir() {
+        let exe = unique_dir("exe-bak");
+        let app = unique_dir("app-bak");
+        fs::write(exe.join(SETTINGS_BACKUP_FILE_NAME), "enabled: []\n").unwrap();
+        assert!(dir_has_any_settings(&exe));
+        let (dir, fallback) = resolve_storage_dir(Some(&exe), Some(&app));
+        assert_eq!(dir, exe);
+        assert!(!fallback);
+
+        let exe2 = unique_dir("exe-legacy");
+        fs::write(exe2.join(LEGACY_SETTINGS_FILE_NAME), "{}").unwrap();
+        let (dir2, _) = resolve_storage_dir(Some(&exe2), Some(&app));
+        assert_eq!(dir2, exe2);
+        let _ = fs::remove_dir_all(&exe);
+        let _ = fs::remove_dir_all(&exe2);
+        let _ = fs::remove_dir_all(&app);
+    }
+
+    #[test]
+    fn unwritable_everywhere_keeps_exe_dir_and_reports_save_error() {
+        use std::os::unix::fs::PermissionsExt;
+        let exe = unique_dir("exe-both-readonly");
+        let app = unique_dir("app-both-readonly");
+        fs::set_permissions(&exe, fs::Permissions::from_mode(0o555)).unwrap();
+        fs::set_permissions(&app, fs::Permissions::from_mode(0o555)).unwrap();
+
+        let (dir, fallback) = resolve_storage_dir(Some(&exe), Some(&app));
+        // 仍在只读状态下验证：保存按原语义返回带路径的诊断错误，而不是静默丢弃。
+        let error = save_to(&dir.join(SETTINGS_FILE_NAME), &UserSettings::default())
+            .expect_err("save should fail in readonly dir");
+        assert!(error.contains("failed"));
+        fs::set_permissions(&exe, fs::Permissions::from_mode(0o755)).unwrap();
+        fs::set_permissions(&app, fs::Permissions::from_mode(0o755)).unwrap();
+        assert_eq!(dir, exe);
+        assert!(!fallback);
+        let _ = fs::remove_dir_all(&exe);
+        let _ = fs::remove_dir_all(&app);
+    }
+
+    #[test]
+    fn write_probe_detects_writability() {
+        let dir = unique_dir("probe");
+        assert!(dir_is_writable(&dir));
+        // 探针文件不应残留。
+        assert!(!dir_has_any_settings(&dir));
+        let _ = fs::remove_dir_all(&dir);
     }
 
     #[test]
