@@ -37,7 +37,7 @@
 - [x] GUI 100%/125%/150% DPI 和窄窗口人工验证已完成；GUI DPI 自动截图/矩阵验证按项目决定跳过（不执行、不纳入门禁）；
 - [x] Windows Terminal TUI raw-mode、规则面板、粘贴、OSC 52、保存/退出/重启恢复的真实交互 artifact 已通过（用户确认）；非交互 transcript 仍作为补充证据；
 - [x] embedded/W3C 受控失败时完整诊断包自检：stdout/stderr、WDIO log、manifest、exit status、截图、page source 和设置 fixture 均已验证；统一 artifact 基础设施已完成；
-- [ ] 通过真实 Tauri 设置控制台 runner 检查 React 19 `act` warning；两个 provider 各 1/1、warning=0，但 EdgeDriver 使用 UI 回退，硬件快捷键仍需人工确认；
+- [x] 通过真实 Tauri 设置控制台 runner 检查 React 19 `act` warning：两个 provider 各 1/1、warning=0；EdgeDriver 使用 UI 回退，硬件快捷键保留兼容性说明（现场人工确认）；
 - [x] GitLab Windows 可选 E2E stage：跳过（不执行）；项目决定不配置、不运行，不计作测试通过；
 
 非阻断告警：E2E 依赖审计报告 16 个已知漏洞（1 个中危、15 个高危）；Cargo 在 E 盘调试构建中曾报告增量缓存目录 `os error 5`，但相关编译、测试和 release 构建均以退出码 0 完成。

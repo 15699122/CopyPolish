@@ -48,10 +48,7 @@
 - 优化表格分隔线扫描，避免为每个候选行创建临时单元格数组，并保持对齐标记与合法性边界。
 
 
-- 新增 GUI DPI 自动 artifact 采集与矩阵校验（记录 WebView2 `devicePixelRatio`、窗口/屏幕尺寸及 provider）；新增设置快捷键控制台检查和 Windows Terminal TUI artifact 准备器。2026-09-01 Windows 会话两个 GUI provider 实际为 200%，目标 100%/125%/150% 矩阵已按项目决定跳过；设置控制台两个 provider 各 1/1 且无 React `act` warning，但因 EdgeDriver 逗号键码使用 UI 回退；TUI 准备器通过并保留手动确认边界。
-- 复验未完成 Windows 项：ACL 失败 fixture 留证流程已修复并验证；GUI DPI 自动验证已按项目决定跳过（不执行，三档人工验证保留）；早期普通命令会话运行完整 Terminal artifact 因缺少 `WT_SESSION` 被安全阻止；用户随后在真实 Windows Terminal 交互窗口完成复验并通过，WT-TUI-001/002/003 已关闭。
-
-- 用户确认 Windows Terminal TUI artifact 全流程通过：raw-mode、跨行编辑、emoji、规则面板、bracketed paste、OSC 52、保存/重启和终端清理均完成；WT-TUI-001/002/003 已关闭。GUI DPI 自动验证按项目决定跳过。
+- 新增 GUI DPI 自动 artifact 采集与矩阵校验、设置快捷键控制台检查和 Windows Terminal TUI artifact 准备器。GUI DPI 自动矩阵随后按项目决定跳过（不执行，三档人工验证保留）；设置控制台两个 provider 各 1/1 且无 React `act` warning（EdgeDriver 逗号键码使用 UI 回退，硬件级快捷键保留兼容性说明）；Windows Terminal TUI 完整交互 artifact 已由用户在真实 Windows Terminal 中确认通过（raw-mode、跨行编辑、emoji、规则面板、bracketed paste、OSC 52、保存/重启和终端清理），WT-TUI-001/002/003 已关闭；早期普通命令会话运行完整 Terminal artifact 因缺少 `WT_SESSION` 被安全阻止，属历史记录。
 
 ### Removed
 

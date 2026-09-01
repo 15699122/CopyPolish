@@ -1,9 +1,11 @@
-# Tauri 2 真实 E2E 路线选型分析（决策记录）
+# Tauri 2 真实 E2E 路线选型分析（决策记录，已归档）
 
-> 状态：方案 A 已建立并通过 Linux/WSLg 基线；方案 E 已完成 Linux/WSLg 并行 PoC，并于 2026-08-31 在 Windows WebView2 上完成最小对照 smoke。TUI 事件路由、规则排序、编辑器边界和 GUI 样式随后完成修复；修复后的双 provider 最小回归、设置重启恢复、损坏设置、NTFS ACL、Windows GUI/TUI 手动回归、连续稳定性、统一 artifact、受控失败 probe、GUI 主题/窄窗口 artifact 和 TUI 非交互 transcript 均已完成。剩余工作为 Windows 三档 DPI 原生记录、Terminal 交互 artifact、React 19 告警闭环和 GitLab Windows 可选 E2E。
-> 前置阅读：[roadmap.md](roadmap.md) P0.2 节。
+> **归档说明**：本决策已关闭。选定方案 A（embedded）为主路线、方案 E（标准 W3C WebDriver）为并行 provider；后续执行状态统一记录在 [e2e-development.md](../../e2e-development.md) 与 [windows-e2e-runbook.md](../../windows-e2e-runbook.md)。Windows 原生验证已全部完成或按项目决策跳过；本文仅保留选型依据，不维护进度状态。
+>
+> 状态：方案 A 已建立并通过 Linux/WSLg 基线；方案 E 已完成 Linux/WSLg 并行 PoC，并于 2026-08-31 在 Windows WebView2 上完成最小对照 smoke。TUI 事件路由、规则排序、编辑器边界和 GUI 样式随后完成修复；修复后的双 provider 最小回归、设置重启恢复、损坏设置、NTFS ACL、Windows GUI/TUI 手动回归、连续稳定性、统一 artifact、受控失败 probe、GUI 主题/窄窗口 artifact 和 TUI 非交互 transcript 均已完成。Windows 三档 DPI 人工验证已完成（自动矩阵决定不执行）、Terminal 交互 artifact 已由用户确认通过、React 19 告警已由设置控制台 runner 复核为 0、GitLab Windows 可选 E2E 已决定跳过（不执行）。
+> 前置阅读：[roadmap.md](../../roadmap.md)。
 
-Windows 原生剩余验证的详细矩阵、artifact 规范和 GitLab runner 接入要求见 [windows-e2e-runbook.md](windows-e2e-runbook.md)。provider 选型本文只记录 A/E 的技术差异；DPI、Terminal 和 CI 结果不得在两个文档中分别维护。
+Windows 原生验证的详细矩阵、artifact 规范和 GitLab runner 接入要求见 [windows-e2e-runbook.md](../../windows-e2e-runbook.md)。provider 选型本文只记录 A/E 的技术差异；DPI、Terminal 和 CI 结果不得在两个文档中分别维护。
 
 ## 1. 候选方案
 
