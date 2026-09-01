@@ -37,7 +37,7 @@ span-aware 混合管线、规则注册表、阶段依赖、结构/语义 span �
 
 ## P1：设置存储策略决策
 
-- [ ] 形成产品决策文档（纯便携 / 便携优先 + 应用数据目录回退 / portable.flag 标记），确定后再改存储行为；当前继续加强只读目录提示。
+- [ ] 确认存储策略 ADR（[decisions/settings-storage-policy.md](decisions/settings-storage-policy.md)，建议方案 B：便携优先 + 应用数据目录回退）；确认后按 ADR 实施约束落地（路径决策、UI 提示、TUI/GUI 共用、测试三用例、README/CHANGELOG 同步）。
 
 ## P2：E2E 收敛
 
