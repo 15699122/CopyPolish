@@ -16,7 +16,7 @@ Linux、WSL/WSLg 和普通 Chrome 可以验证部分业务语义，但不能替�
 - Windows Terminal + PowerShell 7 下的 raw-mode、规则排序、快捷键、粘贴、OSC 52、保存和重启恢复的人工回归（**单行输入场景**）；
 - TUI grapheme 编辑边界修复及 Rust/TUI 回归。
 
-> **2026-09-01 更新**：Windows Terminal 交互复验已发现三个新的**多行/自动换行显示缺陷**（见 [windows-terminal-tui-manual.md](windows-terminal-tui-manual.md) 与 `docs/assets/` 证据截图），使“Terminal 功能性人工回归已完成”的表述只能限定在单行输入范围。这三个问题已在修复版本中完成，并由用户确认通过真实 Windows Terminal 复验；该段保留为历史发现记录。
+> **2026-09-01 更新**：Windows Terminal 交互复验曾发现三个**多行/自动换行显示缺陷**（详见 [windows-terminal-tui-manual.md](windows-terminal-tui-manual.md)，问题证据截图仅本地留存、测试后已按约定清理，不入库）。这三个问题已在修复版本中完成，并由用户确认通过真实 Windows Terminal 复验；该段保留为历史发现记录。
 
 ### 1.2 仍需完成的 Windows 专项
 
@@ -212,7 +212,7 @@ $env:COPYPOLISH_E2E_SETTINGS_DIR = $settingsDir
 
 #### 复验证据与关闭条件
 
-- 每个 WT-TUI 项保存修复目标、修复前后截图（glob 指向 `docs/assets/`）、按键序列、环境信息和操作记录。
+- 每个 WT-TUI 项保存修复目标、修复前后截图（仅本地 artifact，测试后清理，不入库）、按键序列、环境信息和操作记录。
 - WT-TUI-001/002/003 已由用户确认在同一 Windows Terminal 环境中复验通过，交互 artifact 已完成；GitLab Windows stage 已跳过，不参与后续门禁。
 
 ### 4.4 交互步骤与预期
@@ -358,7 +358,7 @@ Artifact 路径：
 - [e2e-development.md](e2e-development.md)：整体 E2E 架构、provider 和跨平台边界；
 - [testing.md](testing.md)：测试层次、已有结果和 Windows 验收索引；
 - [roadmap.md](roadmap.md)：尚未完成的 Windows 计划和完成门槛；
-- [e2e-driver-options.md](e2e-driver-options.md)：embedded 与标准 W3C provider 选型；
+- [archive/decisions/e2e-provider-selection.md](archive/decisions/e2e-provider-selection.md)：embedded 与标准 W3C provider 选型（已归档决策）；
 - [release/manual-release.md](release/manual-release.md)：Windows 构建、打包和发布验收。
 
 ## 8. 2026-09-01 自动化执行快照
