@@ -58,7 +58,11 @@ src-tauri/src/
   → lib/tauri.ts
   → commands::format_text
   → engine::format_text
+  → 目标工作流配置
+  → 来源文本清洗（规划中）
+  → 可选字符转换（规划中）
   → registry + span scanner + TextEdit + protection
+  → 固定阶段的规范排版
   → 输出结果
 ```
 
@@ -66,21 +70,29 @@ src-tauri/src/
 
 ### Rust 格式化管线
 
+当前生产管线为规范排版主线；来源文本清洗和字符转换仍处于规划阶段。目标工作流在实现后应遵循以下顺序：
+
 1. 统一换行符并记录原始换行风格；
-2. 在可编辑区间执行标点和名词规则；
-3. 扫描结构/语义 span；
-4. 将不可编辑结构转换为内部保护占位符；
-5. 在受保护文本上执行结构边界、文本边界和清理规则；
-6. 处理占位符边界空格；
-7. 还原原文并恢复换行风格。
+2. 在明确范围内执行用户自定义字面量替换；
+3. 在可编辑区间执行来源文本清洗；
+4. 执行可选的字符转换；简转繁和繁转简必须互斥；
+5. 扫描结构/语义 span；
+6. 将不可编辑结构转换为内部保护占位符；
+7. 在受保护文本上执行结构边界、文本边界和规范排版规则；
+8. 处理占位符边界空格；
+9. 还原原文并恢复换行风格。
 
 所有生产规则阶段都经过 `edit_plan.rs` 的 TextEdit 应用层。保护层仍可使用内部 placeholder，但不存在第二套生产 pipeline。
 
+清洗规则不能以无结构全文替换取代 span 保护。默认应遵循“宁漏清洗，不破坏 Markdown、LaTeX、URL、邮箱、代码和化学式”的边界。
+
 ## 4. 规则注册表
 
-`src-tauri/src/engine/registry.rs` 是规则的唯一事实来源。每个 `RuleDef` 包含稳定机器 key、展示元数据、默认启用状态、执行阶段、依赖、legacy key 别名和规则实现函数。
+`src-tauri/src/engine/registry.rs` 是静态排版规则的唯一事实来源。每个 `RuleDef` 包含稳定机器 key、展示元数据、默认启用状态、执行阶段、依赖、legacy key 别名和规则实现函数。
 
 前端通过 `get_rules` 动态取得元数据，因此新增规则通常不需要修改前端。新增规则必须同步测试、README 规则表、设置迁移兼容性和 CHANGELOG。
+
+需要运行时参数的自定义替换、预设和简繁转换不应伪装成静态 `RuleDef`：它们应通过 `FormatRequest` 或独立配置模型传入，再由同一个 Rust pipeline 执行。核心规则顺序仍由 phase 和依赖图决定，用户不能任意拖拽改变保护与排版阶段。
 
 ## 5. 设置和兼容性
 
@@ -93,6 +105,9 @@ TUI 通过自己的设置门面复用同一文件，但只修改规则选择和�
 | 任务 | 首选文件 |
 | --- | --- |
 | 修改规则行为 | `engine/rule_impls.rs`、`engine/registry.rs`、Rust fixture/测试 |
+| 增加来源文本清洗 | `engine/rule_impls.rs`、`engine/protection.rs`、清洗 fixture；高风险规则先补 ADR |
+| 增加运行时替换/预设 | `engine/model.rs`、`engine/pipeline.rs`、`commands.rs`、`frontend/src/lib/tauri.ts` |
+| 增加简繁转换 | 先补 `docs/decisions/` Spike，再扩展 `engine/model.rs`、设置和 CLI |
 | 修改保护边界 | `engine/spans.rs`、`engine/protection.rs`、保护 fixture |
 | 优化 inline-code 扫描 | `engine/spans.rs::scan_inline_code_spans`、结构 span 回归测试 |
 | 优化 span 仲裁 | `engine/spans.rs::arbitrate_spans`、span 优先级回归测试 |

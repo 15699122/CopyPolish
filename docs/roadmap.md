@@ -37,6 +37,30 @@ span-aware 混合管线、规则注册表、阶段依赖、结构/语义 span �
 - [x] 按真实技术语料扩展有限单位词典：补充二进制容量 `KiB/MiB/GiB/TiB` 和比特速率 `bps/kbps/Mbps/Gbps/Tbps`，并增加 `bit/bytes` 普通单词反例。
 - [x] 完成 Placeholder 重构设计 Spike：比较受控 placeholder、全程 span/TextEdit、分段 rope 三方案，并用现有 fixture、真实语料和 1 MB `profile-stages` 基线做兼容性/性能归因；结论为暂不大规模重构，保持当前混合管线，记录见 [decisions/placeholder-migration.md](decisions/placeholder-migration.md)。
 
+## P0：文本清洗工作流基线
+
+- [x] 完成参考 `paper-assistant` 的功能对照和产品边界决策：CopyPolish 扩展为“文本清洗与规范排版”工具，但不解析 PDF/DOCX 文件本体、不加入翻译/AI/Grammarly；记录见 [decisions/text-cleaning-workflow.md](decisions/text-cleaning-workflow.md)。
+- [ ] 扩展规则元数据以区分清洗、字符转换、规范排版及风险等级，并保持 README、GUI、TUI 和 CLI 的稳定 key 兼容；
+- [ ] 设计并实现清洗/转换/排版的统一请求模型；自定义替换和预设不能伪装成静态 `RuleDef`，核心 phase/依赖顺序不得被任意拖拽覆盖；
+
+## P1：来源文本清洗
+
+- [ ] 增加方括号、中文方括号引用角标清理：默认关闭，不能误删 Markdown 链接、代码、公式或 URL；
+- [ ] 增加连续空行和普通文本重复空格清理：保护代码、公式、表格和硬换行；
+- [ ] 增加数值标点异常空格修复：覆盖小数点、时间/比例等场景，并补充误改反例；
+- [ ] 增加康熙部首修复：采用独立核验的 Unicode 映射，默认关闭并记录数据来源；
+- [ ] 增加结构感知的 PDF 段内软换行修复和 CJK 内部异常空格清理：默认关闭，先以真实 PDF/CAJ 语料建立保护与失败基线；
+
+## P1：字符转换与用户工作流
+
+- [ ] 完成全角 ASCII 转半角 Spike/实现：不使用全文 NFKC，和现有半角数字规则保持边界清晰；
+- [ ] 完成简繁转换 Spike：确认 Rust 依赖、许可证、词汇级语义、跨平台构建和性能；通过后以互斥 `none`/`t2s`/`s2t` 模式实现；
+- [ ] 增加自定义字面量替换：支持启停、顺序、删除和选中文本创建替换；首版不支持用户正则；
+- [ ] 增加中文文案、PDF 清洗和技术文档预设；预设只展开为统一请求模型，不复制规则实现；
+- [ ] 增加实时/手动输出模式、自动/左右/上下布局和输入输出统计；
+- [ ] 增加复制后的显式动作（保留/复制并清空），不使用窗口失焦自动复制或自动清空；
+- [ ] 增加静态帮助和首次使用提示，明确高风险清洗规则、结构保护和浏览器演示模式边界。
+
 ## P1：设置存储策略决策
 
 - [x] 确认存储策略 ADR（[decisions/settings-storage-policy.md](decisions/settings-storage-policy.md)）并按方案 B 落地：exe 目录优先，不可写时回退平台应用数据目录并提示 `UsingAppDataFallback`；TUI/GUI 共用；6 项决策单测覆盖（同目录优先/双位置并存/只读回退/均不可读/探针/legacy 固定）。

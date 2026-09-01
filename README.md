@@ -2,7 +2,7 @@
 
 > 项目名称：**文案净排**（英文：**CopyPolish**）。
 
-文案净排（CopyPolish）是一款本地桌面端中文文案排版工具，用于按照 [chinese-copywriting-guidelines](https://github.com/sparanoid/chinese-copywriting-guidelines) 的简体中文文案规范，自动整理中文、英文、数字、单位和标点之间的格式。
+文案净排（CopyPolish）是一款本地优先的中文文本清洗与规范排版工具，适用于网页文案、技术文档以及从 PDF、CAJ、Zotero 等来源复制的文本。它按照 [chinese-copywriting-guidelines](https://github.com/sparanoid/chinese-copywriting-guidelines) 的简体中文文案规范，整理中文、英文、数字、单位和标点之间的格式；后续还将逐步增加来源文本清洗和字符转换能力。
 
 应用采用 Tauri 2 + React + shadcn/ui 桌面界面，排版引擎由 Rust 实现。左侧输入原文，右侧实时显示规范化结果；规则可逐条启用或关闭。
 
@@ -18,6 +18,16 @@
 - **Unicode 边界安全**：排版按 grapheme cluster 判定中英/中数边界，emoji 组合序列（如 ZWJ 家庭 emoji）与组合附加符不会被拆开；CJK 扩展区汉字（如 `𠀀`）与普通汉字同样参与插空。
 - **本地优先**：文本处理在本机完成，不依赖远程服务。
 - **用户设置持久化**：默认保存在程序同目录的 `rules.yaml`；程序目录不可写时自动回退到平台应用数据目录，启动时自动恢复。
+
+### 功能分层
+
+当前版本已经提供的是**规范排版**能力；“来源文本清洗”和“字符转换”是后续扩展方向，尚未全部实现：
+
+- **规范排版**：中文、英文、数字、单位和标点的上下文相关格式化，并保护 Markdown、LaTeX、URL、邮箱、代码和化学式；
+- **来源文本清洗（规划中）**：针对 PDF/CAJ 等复制结果的异常空格、软换行、引用角标和异常字符；
+- **字符转换（规划中）**：更完整的全角/半角处理、有限 Unicode 等价字符和可选简繁转换。
+
+应用不解析 PDF/DOCX 文件本体，也不提供翻译、AI 写作或在线语法检查服务。
 
 ## 下载与运行
 
@@ -92,6 +102,8 @@ Windows 版依赖系统的 WebView2 Evergreen Runtime。Windows 10/11 通常已�
 | 空格 | 全角标点与其他字符之间不加空格 | `spacing.no-space-around-fw-punct` |
 
 > 说明：排版规则尽量贴近规范，但自然语言文本存在上下文差异。建议在重要文案发布前人工复核一次。
+
+> 规划中的 PDF 文本清洗规则可能改变空格、断行或引用标记，默认会保持关闭，并在实现和测试完成后单独记录风险与适用场景。
 
 ## 文本保护范围
 
