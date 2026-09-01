@@ -25,9 +25,12 @@
 - 新增 embedded/W3C 受控失败 artifact probe：先验证真实 Rust IPC，再按预期失败，并自动校验失败退出码、截图、page source、日志、manifest、result 和设置 fixture。
 - 新增 embedded/W3C GUI 视觉 artifact 入口，采集正常/窄窗口及浅色/深色设置窗口的 screenshot、page source 和状态 metadata；Windows 三档 DPI 仍需原生环境执行。
 - 新增 TUI 非交互 transcript artifact 入口，覆盖默认格式化、`--rules none` 恒等、未知规则 warning 和缺失输入文件错误，并保存输入、stdout、stderr、退出码及环境摘要；不替代 Windows Terminal raw-mode/OSC 52 交互。
+- 新增 Windows 原生 E2E 留证 Runbook，单独整理 GUI 100%/125%/150% DPI artifact、Windows Terminal 交互 artifact 和 GitLab Windows 可选 E2E stage 的前置条件、执行步骤、失败诊断、清理要求与完成门槛；文档不将尚未接入的 Windows CI stage 误记为已完成。
 - 记录并完成 Windows 原生验证：Node 24.19.0、npm 11.17.0、Rust 1.98.0 MSVC、WebView2 Runtime 151.0.4129.107、Windows Terminal 1.24.11911.0、PowerShell 7.6.5；前端 57/57、设置 Rust 测试 16/16、Rust/TUI 148/148 通过，TUI MSVC release/stdin smoke 通过。
-- embedded 与标准 W3C WebDriver provider 的真实 WebView2/Rust IPC 普通用例各 3/3、设置重启 write/read 各 1/1、三种损坏设置 fixture 各 3/3、NTFS ACL 各 1/1 通过；统一 artifact、受控失败 probe、GUI 主题/窄窗口 artifact 和 TUI 非交互 transcript 也已验证。Windows GUI/TUI 手动回归和双 provider 稳定性验证均已完成。后续仅补 Windows 三档 DPI 原生记录、Terminal 交互 artifact、React 19 `act` warning 闭环和 GitLab Windows 可选 E2E。
+- embedded 与标准 W3C WebDriver provider 的真实 WebView2/Rust IPC 普通用例各 3/3、设置重启 write/read 各 1/1、三种损坏设置 fixture 各 3/3、NTFS ACL 各 1/1 通过；统一 artifact、受控失败 probe、GUI 主题/窄窗口 artifact 和 TUI 非交互 transcript 也已验证。Windows GUI/TUI 手动回归和双 provider 稳定性验证均已完成。后续补项已闭环或按项目决策跳过：Windows 三档 DPI 人工验证已完成（自动矩阵决定不执行）、Windows Terminal 交互 artifact 已由用户确认通过、React 19 `act` warning 已由设置控制台 runner 复核为 0 并保留硬件键兼容性说明、GitLab Windows 可选 E2E stage 已决定跳过。
 - 修复 TUI 规则面板展示顺序、输入区可打印字符误触全局快捷键、bracketed paste 以及最后一个 grapheme 的 Delete/Right 边界；修复后的 Windows Terminal raw-mode、规则排序、`Get-Clipboard` 完整粘贴、新快捷键语义和编辑器边界已完成手动回归。
+- 修复 Windows Terminal 自动换行后的多行显示缺陷（WT-TUI-001 额外行绘制/状态栏重叠、WT-TUI-002 光标不可见）：新增与 ratatui 渲染等价的视觉换行布局（`src-tauri/src/tui/wrap.rs`），光标与滚动改按视觉行而非逻辑行计算，并新增 10 项 Rust/UI 回归（含 CJK、emoji grapheme 与 ratatui 渲染等价校验）。Windows MSVC 完整 TUI 测试已增至 158/158 通过；WT-TUI-003（emoji 显示）一并纳入修复范围，WT-TUI-001/002/003 均已在真实 Windows Terminal 中由用户确认复验通过并关闭。
+- 2026-09-01 Windows 复验：前端 57/57、TUI 158/158、TUI transcript 4/4、双 provider 普通 E2E 各 3/3、重启设置 write/read、三种损坏设置、NTFS ACL、GUI artifact 和受控失败 probe 全部达到预期。100%/125%/150% DPI 人工 GUI 验证已完成；GitLab Windows 可选 E2E stage 已决定跳过（不执行）。
 - 统一桌面 GUI 输出框边框阴影、设置标题间距、恢复按钮、长路径中间省略和主题/快捷键复选框样式；Linux/WSLg 前端测试与构建及 Windows WebView2 下的 DPI、窄窗口和视觉回归均已完成。
 - 抽离前端规则目录加载（`useRuleCatalog`）和清空输入反馈（`useClearFeedback`），降低 `App.tsx` 编排复杂度。
 - 拆分设置界面为独立分区组件（主题、显示、快捷键、规则、状态 Footer），`SettingsDialog.tsx` 负责编排。
@@ -43,6 +46,12 @@
 - 优化美元数学候选扫描，避免对连续反斜杠进行重复回扫，并保持奇偶转义、单/双美元和跨行边界语义。
 - 合并 URL 与邮箱候选扫描，减少一次全文遍历，并保持 URL 优先、邮箱边界和大小写语义。
 - 优化表格分隔线扫描，避免为每个候选行创建临时单元格数组，并保持对齐标记与合法性边界。
+
+
+- 新增 GUI DPI 自动 artifact 采集与矩阵校验（记录 WebView2 `devicePixelRatio`、窗口/屏幕尺寸及 provider）；新增设置快捷键控制台检查和 Windows Terminal TUI artifact 准备器。2026-09-01 Windows 会话两个 GUI provider 实际为 200%，目标 100%/125%/150% 矩阵已按项目决定跳过；设置控制台两个 provider 各 1/1 且无 React `act` warning，但因 EdgeDriver 逗号键码使用 UI 回退；TUI 准备器通过并保留手动确认边界。
+- 复验未完成 Windows 项：ACL 失败 fixture 留证流程已修复并验证；GUI DPI 自动验证已按项目决定跳过（不执行，三档人工验证保留）；早期普通命令会话运行完整 Terminal artifact 因缺少 `WT_SESSION` 被安全阻止；用户随后在真实 Windows Terminal 交互窗口完成复验并通过，WT-TUI-001/002/003 已关闭。
+
+- 用户确认 Windows Terminal TUI artifact 全流程通过：raw-mode、跨行编辑、emoji、规则面板、bracketed paste、OSC 52、保存/重启和终端清理均完成；WT-TUI-001/002/003 已关闭。GUI DPI 自动验证按项目决定跳过。
 
 ### Removed
 
