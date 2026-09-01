@@ -17,6 +17,7 @@
 
 ### Changed
 
+- TUI 从「实验性」正式定位为 **Beta**：CLI 参数、规则选择和 `rules.yaml` 设置格式保持兼容；终端显示能力（emoji、OSC 52）依赖终端支持，SSH 不在验证范围。
 - 重组开发文档、文档导航和后续路线图，明确当前事实、操作手册、计划和历史归档的职责边界。
 - 统一 GitHub 分支 CI、GitLab tag 构建和本地验证流程的说明。
 - E2E 构建增加 `custom-protocol`、条件 capability 和测试专用 `withGlobalTauri` 配置，生产构建不加载 WebDriver plugin。

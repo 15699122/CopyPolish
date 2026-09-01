@@ -17,8 +17,9 @@
 11. [development/gitlab-mcp.md](development/gitlab-mcp.md)：可选的 GitLab Build Service 诊断工具说明。
 12. [e2e-development.md](e2e-development.md)：真实 Tauri GUI E2E 的开发步骤、环境边界和验收标准。
 13. [windows-e2e-runbook.md](windows-e2e-runbook.md)：Windows 原生 DPI、Windows Terminal 交互 artifact 和 GitLab Windows E2E stage。
-14. [decisions/settings-storage-policy.md](decisions/settings-storage-policy.md)：设置存储策略决策（Proposed）。
-15. [archive/decisions/e2e-provider-selection.md](archive/decisions/e2e-provider-selection.md)：E2E provider 选型决策（已归档，仅保留选型依据）。
+14. [decisions/settings-storage-policy.md](decisions/settings-storage-policy.md)：设置存储策略决策（Accepted，方案 B 已落地）。
+15. [decisions/serde-yaml-migration.md](decisions/serde-yaml-migration.md)：serde_yaml 迁移 Spike（结论：暂不迁移）。
+16. [archive/decisions/e2e-provider-selection.md](archive/decisions/e2e-provider-selection.md)：E2E provider 选型决策（已归档，仅保留选型依据）。
 
 ## 文档职责
 
