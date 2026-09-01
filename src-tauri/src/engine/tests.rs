@@ -193,6 +193,13 @@ fn registry_contains_migrated_rules_with_defaults() {
 }
 
 #[test]
+fn rule_metadata_enums_serialize_with_stable_wire_values() {
+    let json = serde_json::to_value(&rules()[0].meta).expect("rule metadata should serialize");
+    assert_eq!(json["kind"], "typography");
+    assert_eq!(json["risk"], "contextual");
+}
+
+#[test]
 fn registry_legacy_aliases_are_unique_and_do_not_shadow_stable_keys() {
     let stable_keys: std::collections::HashSet<&str> =
         rules().iter().map(|rule| rule.key()).collect();
@@ -289,6 +296,9 @@ fn registry_dependency_graph_rejects_unknown_and_cyclic_edges() {
                 key: key.to_string(),
                 section: "test".to_string(),
                 name: key.to_string(),
+                description: "测试规则".to_string(),
+                kind: crate::engine::RuleKind::Typography,
+                risk: crate::engine::RuleRisk::Safe,
                 disputed: false,
                 default: false,
             },

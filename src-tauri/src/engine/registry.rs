@@ -10,7 +10,7 @@
 //   前端均无需改动。
 // =============================================================================
 
-use super::model::RuleMeta;
+use super::model::{RuleKind, RuleMeta, RuleRisk};
 use super::rule_impls;
 use std::collections::{HashMap, HashSet};
 
@@ -111,11 +111,15 @@ fn def(
     legacy: &'static [&'static str],
     apply: fn(&str) -> String,
 ) -> RuleDef {
+    let (description, kind, risk) = metadata_for_key(key, name, disputed);
     RuleDef {
         meta: RuleMeta {
             key: key.to_string(),
             section: section.to_string(),
             name: name.to_string(),
+            description: description.to_string(),
+            kind,
+            risk,
             disputed,
             default,
         },
@@ -124,6 +128,95 @@ fn def(
         after: dependencies_for_key(key).1,
         legacy,
         apply,
+    }
+}
+
+/// 为现有静态规则集中生成面向用户的说明和风险分类。
+///
+/// 规则调用点继续保持原有参数形态，避免在元数据扩展时遗漏 stable key、
+/// 默认状态或 legacy alias；后续新增规则必须在这里补充明确的分类和描述。
+fn metadata_for_key(key: &str, _name: &str, disputed: bool) -> (&'static str, RuleKind, RuleRisk) {
+    use keys::*;
+    match key {
+        PUNCT_NO_REPETITION => (
+            "折叠连续重复标点，并规范连续叹号和问号的组合。",
+            RuleKind::Typography,
+            RuleRisk::Contextual,
+        ),
+        PUNCT_FULLWIDTH_CJK => (
+            "在中文语境中将适合的半角标点转换为中文全角标点，不处理 URL、代码和公式。",
+            RuleKind::Typography,
+            RuleRisk::Contextual,
+        ),
+        TEXT_HALFWIDTH_DIGITS => (
+            "仅将全角数字 ０–９ 转换为 ASCII 半角数字。",
+            RuleKind::Conversion,
+            RuleRisk::Safe,
+        ),
+        TEXT_ASCII_PUNCT_IN_LATIN => (
+            "在可识别的英文片段中恢复半角标点，不对全文执行无上下文标点互转。",
+            RuleKind::Typography,
+            RuleRisk::Contextual,
+        ),
+        TEXT_UNICODE_EQUIVALENTS => (
+            "仅转换有限的等价 Unicode 单位字符，不执行全文 NFKC。",
+            RuleKind::Conversion,
+            RuleRisk::Contextual,
+        ),
+        NAMING_PROPER_NOUNS => (
+            "将有限词典中的专有名词统一为约定大小写。",
+            RuleKind::Typography,
+            RuleRisk::Contextual,
+        ),
+        NAMING_EXPAND_ABBREVIATIONS => (
+            "将有限词典中的不推荐缩写替换为约定写法。",
+            RuleKind::Typography,
+            RuleRisk::Contextual,
+        ),
+        SPACING_AROUND_LINKS => (
+            "在链接与相邻中文之间增加空格；属于可争议的排版偏好。",
+            RuleKind::Typography,
+            RuleRisk::Contextual,
+        ),
+        PUNCT_CORNER_QUOTES => (
+            "在中文语境中将符合条件的直引号转换为直角引号。",
+            RuleKind::Typography,
+            RuleRisk::Contextual,
+        ),
+        SPACING_CJK_LATIN => (
+            "在中文与拉丁字母之间增加空格，并尊重 grapheme 和保护边界。",
+            RuleKind::Typography,
+            RuleRisk::Safe,
+        ),
+        SPACING_CJK_NUMBER => (
+            "在中文与数字之间增加空格，并尊重单位和结构保护边界。",
+            RuleKind::Typography,
+            RuleRisk::Safe,
+        ),
+        SPACING_NUMBER_UNIT => (
+            "在数字与已识别的单位之间增加空格。",
+            RuleKind::Typography,
+            RuleRisk::Contextual,
+        ),
+        SPACING_TEMPERATURE_CJK => (
+            "在摄氏度或华氏度符号与中文之间增加空格。",
+            RuleKind::Typography,
+            RuleRisk::Contextual,
+        ),
+        SPACING_NO_SPACE_AROUND_FW_PUNCT => (
+            "移除全角标点与相邻字符之间不必要的空格。",
+            RuleKind::Typography,
+            RuleRisk::Safe,
+        ),
+        _ => (
+            "未分类规则。",
+            RuleKind::Typography,
+            if disputed {
+                RuleRisk::Contextual
+            } else {
+                RuleRisk::Safe
+            },
+        ),
     }
 }
 

@@ -9,6 +9,18 @@ interface RulesSectionProps {
   onToggleRule: (key: string) => void;
 }
 
+const kindLabels = {
+  cleanup: "清洗",
+  conversion: "转换",
+  typography: "排版",
+} as const;
+
+const riskLabels = {
+  safe: "低风险",
+  contextual: "需复核",
+  destructive: "高风险",
+} as const;
+
 /** 规则分组列表；分组仅影响展示顺序，不改变执行顺序。 */
 export function RulesSection({ rules, enabledSet, onToggleRule }: RulesSectionProps) {
   const groups = useMemo(() => {
@@ -40,9 +52,22 @@ export function RulesSection({ rules, enabledSet, onToggleRule }: RulesSectionPr
                   aria-label={rule.name}
                 />
                 <Label htmlFor={`rule-${rule.key}`} className="min-w-0 flex-1 text-sm leading-5">
-                  {rule.name}
-                  {rule.disputed && (
-                    <span className="ml-1 text-xs text-muted-foreground">（争议，默认关闭）</span>
+                  <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                    <span>{rule.name}</span>
+                    {rule.kind && (
+                      <span className="text-xs text-muted-foreground">[{kindLabels[rule.kind]}]</span>
+                    )}
+                    {rule.risk && (
+                      <span className="text-xs text-muted-foreground">· {riskLabels[rule.risk]}</span>
+                    )}
+                    {rule.disputed && (
+                      <span className="text-xs text-muted-foreground">（争议，默认关闭）</span>
+                    )}
+                  </span>
+                  {rule.description && (
+                    <span className="mt-1 block text-xs font-normal text-muted-foreground">
+                      {rule.description}
+                    </span>
                   )}
                 </Label>
               </div>

@@ -1,5 +1,6 @@
 use super::app::{App, FocusedPane, Overlay, Status};
 use super::wrap;
+use crate::engine::{RuleKind, RuleRisk};
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
@@ -140,9 +141,19 @@ fn render_rules(frame: &mut Frame, app: &App) {
         } else {
             "[ ]"
         };
+        let kind = match rule.kind {
+            RuleKind::Cleanup => "清洗",
+            RuleKind::Conversion => "转换",
+            RuleKind::Typography => "排版",
+        };
+        let risk = match rule.risk {
+            RuleRisk::Safe => "低风险",
+            RuleRisk::Contextual => "需复核",
+            RuleRisk::Destructive => "高风险",
+        };
         let disputed = if rule.disputed { " · 争议" } else { "" };
         ListItem::new(format!(
-            "{marker} {} · {}{disputed}",
+            "{marker} {} · {} [{kind} · {risk}]{disputed}",
             rule.section, rule.name
         ))
     });

@@ -15,6 +15,9 @@ export interface Rule {
   key: string;
   section: string;
   name: string;
+  description?: string;
+  kind?: "cleanup" | "conversion" | "typography";
+  risk?: "safe" | "contextual" | "destructive";
   disputed: boolean;
   default: boolean;
 }
