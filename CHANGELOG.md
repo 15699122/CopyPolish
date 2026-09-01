@@ -57,6 +57,7 @@
 
 ### Removed
 
+- 移除 GUI DPI 自动矩阵脚本与命令（`run-gui-dpi-pair.ts`、`validate-gui-dpi-matrix.ts`、`test:gui-dpi*`）：项目维持「DPI 采用发布前人工检查」决策；GUI 视觉 artifact 入口保留。
 - 移除已失效的 VS Code `reference` Python 分析路径配置。
 
 ## [0.5.0] - 2026-08-28

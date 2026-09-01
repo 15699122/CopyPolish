@@ -64,36 +64,6 @@ async function validateArtifacts(artifactDir: string): Promise<number> {
   return dpi.actualScale;
 }
 
-async function recordDpiMatrix(artifactDir: string, actualScale: number): Promise<void> {
-  const matrixDir = path.join(e2eDir, "artifacts", "gui-dpi-matrix");
-  const matrixPath = path.join(matrixDir, "matrix.json");
-  await fs.promises.mkdir(matrixDir, { recursive: true });
-  let entries: Array<Record<string, unknown>> = [];
-  try {
-    const previous = JSON.parse(await fs.promises.readFile(matrixPath, "utf8")) as {
-      entries?: Array<Record<string, unknown>>;
-    };
-    entries = previous.entries ?? [];
-  } catch {
-    // 首次采集从空矩阵开始。
-  }
-  const provider = useWebdriver ? "webdriver" : "embedded";
-  entries = entries.filter((entry) => entry.provider !== provider || entry.actualScale !== actualScale);
-  entries.push({
-    provider,
-    actualScale,
-    artifactDir: path.relative(e2eDir, artifactDir).replaceAll("\\", "/"),
-    recordedAt: new Date().toISOString(),
-  });
-  entries.sort((a, b) => Number(a.actualScale) - Number(b.actualScale)
-    || String(a.provider).localeCompare(String(b.provider)));
-  await fs.promises.writeFile(
-    matrixPath,
-    `${JSON.stringify({ schemaVersion: 1, requiredScales: [100, 125, 150], entries }, null, 2)}\n`,
-    "utf8",
-  );
-}
-
 const settingsDir = fs.mkdtempSync(path.join(e2eDir, "settings-gui-visual-"));
 const artifactDir = path.join(
   e2eDir,
@@ -130,8 +100,7 @@ try {
   if (result.status !== 0) process.exitCode = result.status ?? 1;
   if (result.status === 0) {
     const actualScale = await validateArtifacts(artifactDir);
-    await recordDpiMatrix(artifactDir, actualScale);
-    console.log(`GUI DPI artifact recorded: ${actualScale}% -> ${artifactDir}`);
+    console.log(`GUI visual artifacts recorded (DPI ${actualScale}%): ${artifactDir}`);
   }
 } finally {
   fs.rmSync(settingsDir, { recursive: true, force: true });

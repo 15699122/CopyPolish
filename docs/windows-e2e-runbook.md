@@ -369,7 +369,7 @@ Artifact 路径：
 - `npm run test:settings-shortcut-console --prefix e2e`：embedded 1/1 通过；
 - `npm run test:settings-shortcut-console:webdriver --prefix e2e`：标准 WebDriver 1/1 通过；两个 provider 均无 React `act` warning。当前 EdgeDriver 将 `Ctrl+,` 的原生事件报告为 `code=","`，因此 artifact 明确记录 `webdriverCodeFallback=true`、`uiButtonFallback=true`；设置窗口和控制台告警链路已自动核验，但这两个结果不等价于硬件级快捷键注入已独立通过。
 - GUI DPI 自动验证：项目决定跳过（不执行）；此前采集到的 200% 环境 artifact 仅作诊断记录，三档人工 GUI 验证保留为完成结果。
-- `npm run test:gui-dpi-matrix --prefix e2e`：不再执行，GUI DPI 自动矩阵不纳入当前项目验证范围。
+- GUI DPI 自动矩阵脚本（`test:gui-dpi` / `test:gui-dpi-matrix`）已随项目决策移除：DPI 采用发布前人工检查；`test:gui-visual-artifacts` 保留并继续记录 `dpi-environment.json`。
 - `npm run test:tui-terminal-artifact:prepare --prefix e2e`：通过，生成环境 manifest、手动清单和 `manualConfirmationRequired=true`；早期普通命令会话缺 `WT_SESSION` 时完整入口按设计拒绝。用户后续在真实 Windows Terminal 交互窗口完成 raw-mode/Terminal 外观/OSC 52 等按第 4 节的确认并通过。
 
 GUI DPI 和 GitLab Windows stage 已跳过；Windows Terminal TUI 交互 artifact 已由用户在真实 Windows Terminal 中确认通过，审计原始 artifact 保留在 Windows 原生测试机（`e2e/artifacts/` 被 `.gitignore` 忽略），可作为后续审计补充，但不再视为功能或复验未完成。
