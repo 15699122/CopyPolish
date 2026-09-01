@@ -10,6 +10,7 @@
 - Rust 排版引擎：`src-tauri/src/engine/`；
 - TUI：启用 Cargo feature `tui` 的 `copypolish-tui`；
 - 当前行为事实来源：Rust engine；浏览器 fallback 仅用于 UI 预览；
+- 当前产品边界：已交付规范排版；来源文本清洗和字符转换按 [text-cleaning-workflow.md](decisions/text-cleaning-workflow.md) 规划，未实现能力不得写成当前行为；
 - 当前后续任务：见 [roadmap.md](roadmap.md)。
 
 ## 工具链和初始化
@@ -81,11 +82,12 @@ python3 scripts/verify.py --profile ci
 
 1. 前端只能通过 `frontend/src/lib/tauri.ts` 访问后端，不直接调用 `invoke`；
 2. 新规则必须加入 `src-tauri/src/engine/registry.rs`，使用稳定 key、明确阶段/依赖/默认状态和 legacy 策略；
-3. 规则、保护层、设置和 TUI 变更必须补充对应测试；
-4. 保护层遵循“宁漏格式化，不破坏结构”；
-5. 不使用默认全文 NFKC 改写文本；
-6. 设置测试使用系统临时目录，不污染仓库内 `rules.yaml`；
-7. 不提交可再生目录、用户设置、明文 SOPS 文件或 age 私钥。
+3. 需要运行时参数的预设、自定义替换和转换模式不得伪装成静态规则，必须经过明确的数据模型和 IPC/CLI 设计；
+4. 规则、保护层、设置和 TUI 变更必须补充对应测试；
+5. 保护层遵循“宁漏格式化，不破坏结构”；
+6. 不使用默认全文 NFKC 改写文本；
+7. 设置测试使用系统临时目录，不污染仓库内 `rules.yaml`；
+8. 不提交可再生目录、用户设置、明文 SOPS 文件或 age 私钥。
 
 ## CI、发布和安全
 
@@ -105,6 +107,7 @@ python3 scripts/verify.py --profile ci
 - [roadmap.md](roadmap.md)：只包含未完成事项；
 - [release/manual-release.md](release/manual-release.md)：本地/GitLab 构建和手动发布；
 - [upgrade-runbook.md](upgrade-runbook.md)：工具链和依赖升级；
+- [decisions/text-cleaning-workflow.md](decisions/text-cleaning-workflow.md)：文本清洗工作流和架构边界；
 - [secrets-management.md](secrets-management.md)：SOPS/age 凭据管理；
 - [../CHANGELOG.md](../CHANGELOG.md)：版本变化记录；
 - [windows-e2e-runbook.md](windows-e2e-runbook.md)：Windows 原生 DPI、Windows Terminal 交互 artifact 和可选 GitLab Windows E2E stage。
