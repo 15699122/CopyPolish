@@ -7,6 +7,7 @@ import json
 import subprocess
 import sys
 from collections import defaultdict
+from datetime import date
 from pathlib import Path
 
 
@@ -14,6 +15,7 @@ ROOT = Path(__file__).resolve().parent.parent
 OUTPUT = ROOT / "docs" / "licenses.md"
 MANIFEST = ROOT / "src-tauri" / "Cargo.toml"
 FRONTEND_MODULES = ROOT / "frontend" / "node_modules"
+FRONTEND_LOCKFILE = ROOT / "frontend" / "package-lock.json"
 
 
 def cargo_packages() -> list[tuple[str, str, str]]:
@@ -34,20 +36,20 @@ def cargo_packages() -> list[tuple[str, str, str]]:
 
 
 def npm_packages() -> list[tuple[str, str, str]]:
-    if not FRONTEND_MODULES.is_dir():
-        raise RuntimeError("frontend/node_modules 不存在，请先运行 npm ci --prefix frontend")
+    if not FRONTEND_LOCKFILE.is_file():
+        raise RuntimeError("frontend/package-lock.json 不存在")
 
+    lockfile = json.loads(FRONTEND_LOCKFILE.read_text(encoding="utf-8"))
     rows: dict[tuple[str, str], str] = {}
-    package_files = list(FRONTEND_MODULES.glob("*/package.json"))
-    package_files.extend(FRONTEND_MODULES.glob("@*/*/package.json"))
-    for path in package_files:
-        package = json.loads(path.read_text(encoding="utf-8"))
-        name = package.get("name", path.parent.name)
+    for package_path, package in lockfile.get("packages", {}).items():
+        if not package_path:
+            continue
+        package_name = package_path.rsplit("node_modules/", 1)[-1]
         version = package.get("version", "UNKNOWN")
         license_name = package.get("license")
         if not license_name and package.get("licenses"):
             license_name = "SEE LICENSE"
-        rows[(name, version)] = license_name or "UNKNOWN"
+        rows[(package_name, version)] = license_name or "UNKNOWN"
     return sorted(
         [(name, version, license_name) for (name, version), license_name in rows.items()],
         key=lambda row: (row[0], row[1]),
@@ -74,9 +76,9 @@ def generate() -> None:
         "",
         "本清单由 `python3 scripts/generate_licenses.py` 生成，不手工编辑。Rust 依赖来自",
         "`src-tauri/Cargo.lock` 对应的 `cargo metadata --locked`；npm 依赖来自",
-        "`frontend/package-lock.json` 安装后的 `frontend/node_modules/**/package.json`。",
+        "`frontend/package-lock.json` 的 `packages` 条目。",
         "",
-        "> 生成日期：由脚本运行时写入；依赖升级后必须重新生成并审阅差异。",
+        f"> 生成日期：{date.today().isoformat()}；依赖升级后必须重新生成并审阅差异。",
         "",
         "## 汇总",
         "",
