@@ -4,8 +4,8 @@
 
 ## 1. 背景
 
-E2E 测试链的 `@wdio/mocha-framework@9.31.5` 依赖 `mocha@10.8.2`，后者默认解析
-到 `serialize-javascript@6.0.2`。npm 审计将该版本报告为 high，直接采用 npm 建议
+E2E 测试链的 `@wdio/mocha-framework@9.31.5` 依赖 `mocha@10.8.2`。在本次修复前，
+后者默认解析到 `serialize-javascript@6.0.2`。npm 审计将该版本报告为 high，直接采用 npm 建议
 的修复会把 WebdriverIO/@wdio 降到 major 7/8，风险和变更范围过大。
 
 ## 2. Spike 结果
