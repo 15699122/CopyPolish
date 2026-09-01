@@ -79,6 +79,12 @@ npm test --prefix frontend -- --run
 - 同时关注 LF/CRLF、Unicode 边界和重复格式化；
 - 设置读写测试使用系统临时目录，禁止写仓库内固定路径。
 
+### 5.1 真实文档语料
+
+`src-tauri/tests/fixtures/real-world-corpus.yaml` 用于保留接近实际使用场景的混合文本，当前覆盖产品文案、技术命令、README/Markdown 链接与表格、HTML/LaTeX 科研文本、单位、化学式、emoji、未闭合结构和 CRLF。每条样本同时记录 `name`、规则选择、输入和当前预期输出，并由黄金 fixture 测试验证格式化结果与幂等性。
+
+真实语料中的稳定边界行为应直接记录在该样本的 `expected` 中；若结果变化，应先说明结构保护或规则语义变化，再更新样本和 CHANGELOG，禁止用批量重写掩盖行为漂移。原始用户文档、截图、日志和测试运行 artifact 不得放入 corpus，也不得上传远程仓库。
+
 ## 6. 桌面验证缺口
 
 当前 mock 测试不能完全替代真实桌面验证。Linux/WSLg 与 Windows WebView2 最小链路、修复后 Windows GUI/TUI/设置/ACL 手动回归及双 provider 稳定性验证均已完成；TUI-EDIT-DELETE-001 已通过编辑器边界修复和回归测试关闭。损坏设置三种 fixture、重启恢复和 NTFS ACL 已在 embedded/W3C provider 中自动化通过；统一 artifact、受控失败诊断、GUI 主题/窄窗口截图和 TUI 非交互 transcript 已完成，GUI DPI 自动验证已按项目决定跳过；硬件级快捷键兼容性仍保留诊断说明；GitLab stage 已跳过。

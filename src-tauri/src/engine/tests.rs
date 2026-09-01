@@ -86,6 +86,10 @@ fn load_passing_golden_cases() -> Vec<(String, GoldenCase)> {
             "newline-and-idempotence.yaml",
             include_str!("../../tests/fixtures/newline-and-idempotence.yaml"),
         ),
+        (
+            "real-world-corpus.yaml",
+            include_str!("../../tests/fixtures/real-world-corpus.yaml"),
+        ),
     ]
     .into_iter()
     .flat_map(|(file, yaml)| parse_fixture(file, yaml))

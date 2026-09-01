@@ -29,7 +29,7 @@ span-aware 混合管线、规则注册表、阶段依赖、结构/语义 span �
 
 ## P1：引擎正确性
 
-- [ ] 建立真实语料 corpus（技术文档、产品文案、Markdown README、HTML/LaTeX 科研文本、单位/化学式/emoji、未闭合结构），记录应保持结构与已知争议点；
+- [x] 建立真实语料 corpus（`src-tauri/tests/fixtures/real-world-corpus.yaml`，覆盖技术文档、产品文案、Markdown README、HTML/LaTeX 科研文本、单位/化学式/emoji、未闭合结构和 CRLF，8 条样本）；每条样本记录结构保护要求与当前预期输出。
 - [x] 增加属性测试（`src-tauri/tests/properties.rs`，确定性伪随机语料：幂等性、任意规则选择不 panic、emoji grapheme 不拆分、CRLF/CR 换行还原、fenced code/行内代码/URL/邮箱/LaTeX/化学式保护、legacy key 归一化幂等，5 项测试）；
 - [x] 增加注册表与 README 规则表一致性自动检查（`src-tauri/tests/readme_registry.rs`：表格行数、分类、展示名、「，默认关闭」后缀、stable key 与 `enabled_defaults` 一致性，2 项测试）；
 - [ ] 继续按真实语料扩展有限单位词典；
