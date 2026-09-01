@@ -17,7 +17,7 @@
 - **Markdown / LaTeX 保护**：尽量避免误改代码块、行内代码、链接、图片链接、URL、邮箱和公式内容。
 - **Unicode 边界安全**：排版按 grapheme cluster 判定中英/中数边界，emoji 组合序列（如 ZWJ 家庭 emoji）与组合附加符不会被拆开；CJK 扩展区汉字（如 `𠀀`）与普通汉字同样参与插空。
 - **本地优先**：文本处理在本机完成，不依赖远程服务。
-- **用户设置持久化**：规则开关、主题与最近输入保存在程序同目录的 `rules.yaml`，启动时自动恢复。
+- **用户设置持久化**：默认保存在程序同目录的 `rules.yaml`；程序目录不可写时自动回退到平台应用数据目录，启动时自动恢复。
 
 ## 下载与运行
 
@@ -34,7 +34,7 @@ GitLab 仅作为 Linux/Windows Release 构建服务，不作为日常开发或�
 
 Windows 版依赖系统的 WebView2 Evergreen Runtime。Windows 10/11 通常已内置；如无法启动，请从微软官网安装 WebView2 Runtime。
 
-> 注意：Windows 版为便携版，不提供安装器。建议将程序放在有写权限的目录中运行，以便保存 `rules.yaml` 用户设置。
+> 注意：Windows 版为便携版，不提供安装器。程序目录可写时设置保存在同目录；若目录不可写，应用会自动回退到 `%APPDATA%\CopyPolish`。
 
 ## 基本使用
 
@@ -114,7 +114,7 @@ Windows 版依赖系统的 WebView2 Evergreen Runtime。Windows 10/11 通常已�
 
 ## 用户设置
 
-用户设置保存在程序相同目录下的：
+用户设置的默认保存路径为：
 
 ```text
 rules.yaml
@@ -141,7 +141,7 @@ shortcuts:
 
 旧版设置文件缺少 `shortcuts` 字段时，自动回退为启用并使用默认组合键。
 
-文件缺失或损坏时，应用会使用内置默认规则集。若程序放在只读目录（如 `Program Files`），应用会自动改用平台应用数据目录（Windows `%APPDATA%\CopyPolish`，Linux/macOS `~/.config/CopyPolish` 或 `$XDG_CONFIG_HOME`）保存设置，并在主界面提示；实际生效路径始终显示在设置窗口底部。
+文件缺失或损坏时，应用会使用内置默认规则集。若程序放在只读目录（如 `Program Files`），应用会自动改用平台应用数据目录（Windows `%APPDATA%\CopyPolish`，Linux/macOS `~/.config/CopyPolish` 或 `$XDG_CONFIG_HOME`）保存设置，并在主界面提示；实际生效路径始终显示在设置窗口底部。程序目录与应用数据目录同时存在时，优先使用程序目录设置。
 
 如果检测到旧版本设置文件、主设置文件损坏或备份文件损坏，应用会在主界面和设置窗口显示对应提醒；主设置损坏时会优先尝试从 `rules.yaml.bak` 恢复。
 
