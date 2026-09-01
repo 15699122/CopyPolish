@@ -10,7 +10,7 @@ Linux、WSL/WSLg 和普通 Chrome 可以验证部分业务语义，但不能替�
 
 以下 Windows 功能性验证已经完成：
 
-- WebView2 双 provider 最小启动、session、真实 Rust IPC 和进程清理；
+- WebView2 embedded provider 最小启动、session、真实 Rust IPC 和进程清理；标准 W3C provider 已于 2026-09-01 收敛为兼容性 smoke（`specs/w3c/smoke.spec.ts`），不再与 embedded provider 并行跑完整回归；
 - 设置保存、重启恢复、损坏设置恢复和 NTFS ACL 拒写；
 - GUI 主题/窄窗口 artifact 基础入口；
 - Windows Terminal + PowerShell 7 下的 raw-mode、规则排序、快捷键、粘贴、OSC 52、保存和重启恢复的人工回归（**单行输入场景**）；
@@ -94,7 +94,7 @@ cargo build --manifest-path src-tauri/Cargo.toml --features tui --release --bin 
 | Windows 缩放 | 100%、125%、150% |
 | 主题 | 浅色、深色；跟随系统可作为补充 |
 | 窗口 | 默认/正常窗口、至少一个窄窗口 |
-| provider | embedded；条件允许时执行标准 W3C provider 对照 |
+| provider | embedded（标准 W3C provider 已于 2026-09-01 收敛为兼容性 smoke，不再并行跑完整回归） |
 | 设置目录 | 每次使用全新的临时目录 |
 | 应用状态 | 冷启动，不能沿用上一次进程或旧窗口状态 |
 
@@ -366,8 +366,7 @@ Artifact 路径：
 本轮在 Windows native environment Windows 原生 checkout 执行了新增自动化入口：
 
 - `npm run typecheck --prefix e2e`：通过；
-- `npm run test:settings-shortcut-console --prefix e2e`：embedded 1/1 通过；
-- `npm run test:settings-shortcut-console:webdriver --prefix e2e`：标准 WebDriver 1/1 通过；两个 provider 均无 React `act` warning。当前 EdgeDriver 将 `Ctrl+,` 的原生事件报告为 `code=","`，因此 artifact 明确记录 `webdriverCodeFallback=true`、`uiButtonFallback=true`；设置窗口和控制台告警链路已自动核验，但这两个结果不等价于硬件级快捷键注入已独立通过。
+- `npm run test:settings-shortcut-console --prefix e2e`：embedded 1/1 通过；标准 W3C provider 已收敛为兼容性 smoke（`specs/w3c/smoke.spec.ts`），不再单独跑设置控制台 spec。两个 provider 均无 React `act` warning。当前 EdgeDriver 将 `Ctrl+,` 的原生事件报告为 `code=","`，因此 artifact 明确记录 `webdriverCodeFallback=true`、`uiButtonFallback=true`；设置窗口和控制台告警链路已自动核验，但这两个结果不等价于硬件级快捷键注入已独立通过。
 - GUI DPI 自动验证：项目决定跳过（不执行）；此前采集到的 200% 环境 artifact 仅作诊断记录，三档人工 GUI 验证保留为完成结果。
 - GUI DPI 自动矩阵脚本（`test:gui-dpi` / `test:gui-dpi-matrix`）已随项目决策移除：DPI 采用发布前人工检查；`test:gui-visual-artifacts` 保留并继续记录 `dpi-environment.json`。
 - `npm run test:tui-terminal-artifact:prepare --prefix e2e`：通过，生成环境 manifest、手动清单和 `manualConfirmationRequired=true`；早期普通命令会话缺 `WT_SESSION` 时完整入口按设计拒绝。用户后续在真实 Windows Terminal 交互窗口完成 raw-mode/Terminal 外观/OSC 52 等按第 4 节的确认并通过。
@@ -376,7 +375,7 @@ GUI DPI 和 GitLab Windows stage 已跳过；Windows Terminal TUI 交互 artifac
 
 ## 9. 2026-09-01 复验结果
 
-本轮复验结论：ACL 失败 fixture 留证路径已修复并在 embedded/WebDriver 中通过；GUI DPI 自动验证按项目决定跳过；此前无 `WT_SESSION` 的命令会话尝试已被用户后续真实 Windows Terminal 通过结果取代，完整 TUI artifact 和 WT-TUI-001/002/003 现标记通过。
+本轮复验结论：ACL 失败 fixture 留证路径已修复并在 embedded provider 中通过；GUI DPI 自动验证按项目决定跳过；此前无 `WT_SESSION` 的命令会话尝试已被用户后续真实 Windows Terminal 通过结果取代，完整 TUI artifact 和 WT-TUI-001/002/003 现标记通过。标准 W3C provider 已于 2026-09-01 收敛为兼容性 smoke（`specs/w3c/smoke.spec.ts`），不再与 embedded provider 并行跑完整回归。
 
 ## 10. Windows Terminal TUI artifact 通过记录（2026-09-01）
 

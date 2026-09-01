@@ -3,6 +3,7 @@
 > **归档说明**：本决策已关闭。选定方案 A（embedded）为主路线、方案 E（标准 W3C WebDriver）为并行 provider；后续执行状态统一记录在 [e2e-development.md](../../e2e-development.md) 与 [windows-e2e-runbook.md](../../windows-e2e-runbook.md)。Windows 原生验证已全部完成或按项目决策跳过；本文仅保留选型依据，不维护进度状态。
 >
 > 状态：方案 A 已建立并通过 Linux/WSLg 基线；方案 E 已完成 Linux/WSLg 并行 PoC，并于 2026-08-31 在 Windows WebView2 上完成最小对照 smoke。TUI 事件路由、规则排序、编辑器边界和 GUI 样式随后完成修复；修复后的双 provider 最小回归、设置重启恢复、损坏设置、NTFS ACL、Windows GUI/TUI 手动回归、连续稳定性、统一 artifact、受控失败 probe、GUI 主题/窄窗口 artifact 和 TUI 非交互 transcript 均已完成。Windows 三档 DPI 人工验证已完成（自动矩阵决定不执行）、Terminal 交互 artifact 已由用户确认通过、React 19 告警已由设置控制台 runner 复核为 0、GitLab Windows 可选 E2E 已决定跳过（不执行）。
+> **2026-09-01 收敛**：方案 E（标准 W3C WebDriver）已从并行完整回归缩减为兼容性 smoke，仅保留 `specs/w3c/smoke.spec.ts`（session 创建、主窗口发现、1 次真实格式化、1 次设置保存、正常退出与清理）。`wdio.webdriver.conf.ts` 与 `run-webdriver-specs.ts` 已同步指向 `specs/w3c/`，`package.json` 中各 `:webdriver` 专项脚本已移除。方案 A（embedded）仍为唯一完整回归主路线。
 > 前置阅读：[roadmap.md](../../roadmap.md)。
 
 Windows 原生验证的详细矩阵、artifact 规范和 GitLab runner 接入要求见 [windows-e2e-runbook.md](../../windows-e2e-runbook.md)。provider 选型本文只记录 A/E 的技术差异；DPI、Terminal 和 CI 结果不得在两个文档中分别维护。
@@ -54,7 +55,7 @@ Windows 原生验证的详细矩阵、artifact 规范和 GitLab runner 接入要
 
 Windows 原生验证状态（按最新结论）：三档 DPI 人工验证已完成（自动矩阵决定不执行）；Windows Terminal 交互 artifact 已由用户确认通过、WT-TUI-001/002/003 已关闭；可选 GitLab Windows E2E stage 已决定跳过（不执行）。
 
-### 3.1 参考插件方案 E 的并行 PoC 结果
+### 3.1 参考插件方案 E 的并行 PoC 结果与收敛
 
 截至 2026-08-31，当前仓库已在不删除方案 A 的前提下增加 `e2e-webdriver` feature 和独立 WDIO 配置，固定使用 `tauri-plugin-webdriver = 0.2.1`。该方案：
 
@@ -65,14 +66,14 @@ Windows 原生验证状态（按最新结论）：三档 DPI 人工验证已完�
 - 不加载 `@wdio/tauri-plugin`、不使用 E2E capability 和 `withGlobalTauri`；
 - Windows WebView2 最小启动、session、真实 IPC、设置保存和清理，以及 GUI 重启恢复、损坏设置、ACL 保存失败、规则/快捷键、窗口/DPI 和 Terminal TUI 的修复后人工回归、双 provider 各 5 次稳定性统计均已完成；设置恢复、损坏设置、ACL 故障注入、受控失败诊断、GUI 主题/窄窗口 artifact 和 TUI 非交互 transcript 也已自动化通过。TUI-EDIT-DELETE-001 已通过 Rust 回归测试和 Windows 定向复验关闭；Windows Terminal 交互 artifact 已由用户确认通过、WT-TUI-001/002/003 已关闭；Windows DPI 三档人工验证已完成（自动矩阵决定不执行）、CI stage 已决定跳过。
 
+**2026-09-01 收敛**：方案 E 已从并行完整回归缩减为兼容性 smoke。当前仅保留 `specs/w3c/smoke.spec.ts`，覆盖：session 创建、主窗口发现、1 次真实格式化、1 次设置保存、正常退出与清理。`wdio.webdriver.conf.ts` 的 specs 已指向 `./specs/w3c/**/*.spec.ts`，`run-webdriver-specs.ts` 已同步指向 `specs/w3c/`，`package.json` 中各 `:webdriver` 专项脚本已移除。方案 A（embedded）仍为唯一完整回归主路线。只有当后续 artifact 收集证明标准协议 provider 在诊断能力上没有明显劣势时，才重新评估主路线。
+
 对应入口：
 
 ```bash
 npm run build:app:webdriver --prefix e2e
 npm run test:webdriver --prefix e2e
 ```
-
-- 当前结论：方案 E 与方案 A 均已达到本次修复后的 Windows WebView2 smoke（各 3 个普通用例、重启 write/read、3 个损坏 fixture 和 1 个 ACL 用例通过），并在当前环境完成受控失败诊断、GUI 主题/窄窗口 artifact 和 TUI 非交互 transcript；修复后 GUI/TUI 人工回归和双 provider 稳定性验证也已完成。方案 A 仍为主路线。TUI-EDIT-DELETE-001 已关闭；Windows Terminal 交互 artifact 已由用户确认通过、WT-TUI-001/002/003 已关闭；Windows DPI 三档人工验证已完成（自动矩阵决定不执行）；GitLab Windows 可选 E2E stage 已决定跳过。React 19 告警闭环已由设置控制台 runner 复核为 0，硬件级快捷键保留 EdgeDriver 兼容性说明。
 
 #### Windows 原生对照记录模板
 
@@ -92,7 +93,7 @@ Windows 验证必须对方案 A 和方案 E 使用同一 commit、同一 Node/Ru
 | 失败诊断 | 自动 probe 通过 | 自动 probe 通过 | manifest/result、日志、截图、page source 和 fixture 已验证 |
 | 进程和端口清理 | 通过 | 通过 | 无残留进程/监听端口 |
 
-方案 E 已达到方案 A 的本次修复后 Windows WebView2 smoke 和设置/ACL 故障注入覆盖，方案 A 仍为主路线。只有当后续 artifact 收集证明标准协议 provider 在诊断能力上没有明显劣势时，才重新评估主路线。
+**2026-09-01 收敛后**：方案 E 仅作为兼容性 smoke 保留（`specs/w3c/smoke.spec.ts`），不再与方案 A 并行跑完整回归。方案 A 仍为唯一完整回归主路线。
 
 TUI-EDIT-DELETE-001 已关闭：`TextEditor` 的最后一个 grapheme 边界已修复，并由 Rust 编辑器/TUI 事件回归和 Windows Terminal 定向复验覆盖。
 

@@ -42,16 +42,13 @@ npm run test:webdriver --prefix e2e
 
 # 设置恢复和损坏文件
 npm run test:restart-settings --prefix e2e
-npm run test:restart-settings:webdriver --prefix e2e
 npm run test:corrupt-settings --prefix e2e
-npm run test:corrupt-settings:webdriver --prefix e2e
 
 # Windows-only NTFS ACL 故障注入
 npm run test:acl-settings --prefix e2e
-npm run test:acl-settings:webdriver --prefix e2e
 ```
 
-ACL 入口内部使用 `icacls.exe` 添加当前用户的目录写入 deny ACE，并在 `finally` 中恢复权限。禁止使用 Linux `chmod`、WSL 权限映射或只读属性模拟该步骤。当前仓库已提供 ACL harness 和两个 provider 入口，并已于 2026-08-31 在 Windows 原生环境中通过验证。
+ACL 入口内部使用 `icacls.exe` 添加当前用户的目录写入 deny ACE，并在 `finally` 中恢复权限。禁止使用 Linux `chmod`、WSL 权限映射或只读属性模拟该步骤。当前仓库已提供 ACL harness，并已于 2026-08-31 在 Windows 原生环境中通过验证。标准 W3C provider 已收敛为兼容性 smoke（`specs/w3c/smoke.spec.ts`），不再与 embedded provider 并行跑完整回归。
 
 最后构建并启动 TUI：
 
@@ -80,7 +77,7 @@ cargo build --manifest-path src-tauri/Cargo.toml --features tui --release --bin 
 - 默认 Tauri 配置仍使用现有 `src-tauri/tauri.conf.json` 和生产 capability；
 - 当前 Linux/WSLg 已通过真实 GUI smoke：embedded WebDriver、WebView、真实 `format_text` IPC、全不选恒等和设置路径/保存链路均已验证；本次通过日期为 2026-08-30。
 - 参考项目 `Choochmeque/tauri-plugin-webdriver` 的 `0.2.1` 版本已作为并行 provider 完成 Linux/WSLg PoC；标准 WebDriver 连接、真实 WebView、真实 IPC、全不选恒等和设置保存均已通过，本次复核日期为 2026-08-31。
-- Windows 原生最小桌面链路及修复后的 GUI/TUI/设置/ACL/双 provider 回归均已完成；TUI-EDIT-DELETE-001 已通过编辑器边界修复、Rust 回归测试和 Windows 定向复验关闭。ACL 专用故障注入 spec 已在两个 provider 下通过，后续仅需继续完善失败时的 CI artifact 收集。
+- Windows 原生最小桌面链路及修复后的 GUI/TUI/设置/ACL/双 provider 回归均已完成；TUI-EDIT-DELETE-001 已通过编辑器边界修复、Rust 回归测试和 Windows 定向复验关闭。ACL 专用故障注入 spec 已通过，后续仅需继续完善失败时的 CI artifact 收集。标准 W3C provider 已于 2026-09-01 收敛为兼容性 smoke（`specs/w3c/smoke.spec.ts`），不再与 embedded provider 并行跑完整回归。
 
 本环境已完成的前置确认：
 
@@ -923,17 +920,17 @@ P0.2 只有在以下条件全部满足后才能标记完成。括号中的状态
 - 真实 Tauri `Ctrl+,` 用户流对 React 19 `act` warning 的闭环判断；
 - GitLab Windows 可选 E2E stage：跳过（不执行），不纳入验证或门禁。
 
-三种损坏设置 fixture 已由 `test:corrupt-settings` 和
-`test:corrupt-settings:webdriver` 入口覆盖，不再属于未完成项。
+三种损坏设置 fixture 已由 `test:corrupt-settings` 入口覆盖，不再属于未完成项。
 
-重启恢复已由 `test:restart-settings` 和
-`test:restart-settings:webdriver` 入口覆盖，不再属于未完成项。
+重启恢复已由 `test:restart-settings` 入口覆盖，不再属于未完成项。
+
+标准 W3C provider 已于 2026-09-01 收敛为兼容性 smoke（`specs/w3c/smoke.spec.ts`），各 `:webdriver` 专项脚本已从 `package.json` 移除。
 
 因此，后续仅保留 React 19 告警兼容性说明；GUI DPI 自动验证已按项目决定跳过，Terminal 交互 artifact 已通过。GitLab Windows 可选 stage 已跳过（不执行），不再列入后续门禁。GUI 主题/窄窗口 artifact、受控失败诊断包和 TUI 非交互 transcript 已完成；当前未完成项不再包括 Windows 手动功能回归、损坏设置 fixture、重启恢复、NTFS ACL 故障注入或 TUI 编辑器 Delete 边界。
 
 ## 12. 2026-09-01 自动化补充结果
 
-本轮新增并验证了三类 Windows 自动化入口：GUI DPI 环境/矩阵采集、真实 Tauri 设置快捷键控制台检查、Windows Terminal TUI artifact 准备器。类型检查和两个 provider 的设置控制台 spec 均通过且没有 React `act` warning；由于 EdgeDriver 逗号键码兼容性，artifact 同时记录了原生事件和 UI 回退，不能替代硬件级快捷键验收。GUI DPI 自动验证已按项目决定跳过；既有 200% artifact 仅作历史诊断记录。TUI artifact 已由用户确认完整交互通过；准备器仍可用于生成环境清单和手动清单。GitLab Windows 可选 E2E stage 继续跳过（不执行）。
+本轮新增并验证了三类 Windows 自动化入口：GUI DPI 环境/矩阵采集、真实 Tauri 设置快捷键控制台检查、Windows Terminal TUI artifact 准备器。类型检查和设置控制台 spec 均通过且没有 React `act` warning；由于 EdgeDriver 逗号键码兼容性，artifact 同时记录了原生事件和 UI 回退，不能替代硬件级快捷键验收。GUI DPI 自动验证已按项目决定跳过；既有 200% artifact 仅作历史诊断记录。TUI artifact 已由用户确认完整交互通过；准备器仍可用于生成环境清单和手动清单。GitLab Windows 可选 E2E stage 继续跳过（不执行）。标准 W3C provider 已于 2026-09-01 收敛为兼容性 smoke（`specs/w3c/smoke.spec.ts`）。
 
 ## 13. 2026-09-01 复验结果
 

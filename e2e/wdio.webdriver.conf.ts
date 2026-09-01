@@ -32,7 +32,7 @@ prepareSettingsFixture(
 
 export const config: WebdriverIO.Config = {
   runner: "local",
-  specs: ["./specs/**/*.spec.ts"],
+  specs: ["./specs/w3c/**/*.spec.ts"],
   maxInstances: 1,
   hostname: "127.0.0.1",
   port,
