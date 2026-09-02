@@ -52,6 +52,11 @@ describe("useSettingsLoader", () => {
           open_settings: "CtrlOrCmd+Comma",
         },
       },
+      replacements: [
+        { from: "TODO", to: "待办", active: true },
+        { from: "FIXME", to: "修复", active: false },
+      ],
+      conversion: "s2t",
       notices: ["primary_settings_corrupt_recovered_from_backup"],
     });
     const onRestoreInput = vi.fn();
@@ -70,13 +75,26 @@ describe("useSettingsLoader", () => {
     expect(result.current.uiScale).toBe("small");
     expect(result.current.shortcutsEnabled).toBe(false);
     expect(result.current.shortcutBindings.format_now).toBe("CtrlOrCmd+KeyF");
+    expect(result.current.replacements).toEqual([
+      { from: "TODO", to: "待办", active: true },
+      { from: "FIXME", to: "修复", active: false },
+    ]);
+    expect(result.current.conversion).toBe("s2t");
     expect(result.current.settingsLoadNotices).toEqual([
       "primary_settings_corrupt_recovered_from_backup",
     ]);
     expect(result.current.settingsPath).toBe("/tmp/rules.yaml");
     expect(result.current.appVersion).toBe("0.5.0-test");
     expect(result.current.isHydrated()).toBe(true);
-    expect(onRestoreInput).toHaveBeenCalledWith("恢复内容", ["rule-b"], [], "none");
+    expect(onRestoreInput).toHaveBeenCalledWith(
+      "恢复内容",
+      ["rule-b"],
+      [
+        { from: "TODO", to: "待办", active: true },
+        { from: "FIXME", to: "修复", active: false },
+      ],
+      "s2t",
+    );
     expect(mocks.getUserSettings).toHaveBeenCalledOnce();
     expect(onLoadError).not.toHaveBeenCalled();
   });
@@ -96,6 +114,31 @@ describe("useSettingsLoader", () => {
     expect(result.current.isHydrated()).toBe(true);
     await waitFor(() => expect(mocks.getSettingsPath).toHaveBeenCalledOnce());
     expect(onRestoreInput).not.toHaveBeenCalled();
+    expect(onLoadError).not.toHaveBeenCalled();
+  });
+
+  it("旧设置缺少替换和转换字段时使用 GUI 默认值", async () => {
+    mocks.getUserSettings.mockResolvedValue({
+      enabled: ["rule-a"],
+      last_input: "旧输入",
+      theme: "system",
+      font: "system",
+      editor_font_size: "normal",
+      ui_scale: "normal",
+      shortcuts: undefined,
+      notices: [],
+    });
+    const onRestoreInput = vi.fn();
+    const onLoadError = vi.fn();
+    const { result } = renderHook(() => useSettingsLoader({ onRestoreInput, onLoadError }));
+
+    await act(async () => {
+      await result.current.loadSettings(rules, ["rule-a"]);
+    });
+
+    expect(result.current.replacements).toEqual([]);
+    expect(result.current.conversion).toBe("none");
+    expect(onRestoreInput).toHaveBeenCalledWith("旧输入", ["rule-a"], [], "none");
     expect(onLoadError).not.toHaveBeenCalled();
   });
 });

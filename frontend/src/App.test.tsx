@@ -185,15 +185,24 @@ describe("App 主流程", () => {
     const input = screen.getByTestId("input-textarea");
     await user.type(input, "hello");
 
-    await user.keyboard("{Control>}{Enter}{/Control}");
+    await act(async () => {
+      fireEvent.keyDown(input, { code: "Enter", ctrlKey: true, key: "Enter" });
+      await Promise.resolve();
+    });
     await waitFor(() => expect(mocks.formatText).toHaveBeenCalledWith(expect.objectContaining({ text: "hello" })));
 
     await waitFor(() => expect(screen.getByTestId("output-text")).toHaveTextContent("格式化(hello)"));
-    await user.keyboard("{Control>}{Shift>}c{/Shift}{/Control}");
+    await act(async () => {
+      fireEvent.keyDown(input, { code: "KeyC", ctrlKey: true, shiftKey: true, key: "C" });
+      await Promise.resolve();
+    });
     await waitFor(() => expect(screen.getByTestId("copy-status")).toHaveTextContent("已复制"));
 
     document.body.focus();
-    await user.keyboard("{Control>},{/Control}");
+    await act(async () => {
+      fireEvent.keyDown(document.body, { code: "Comma", ctrlKey: true, key: "," });
+      await Promise.resolve();
+    });
     await waitFor(() => expect(screen.getByTestId("settings-dialog")).toBeInTheDocument());
     await user.click(screen.getByTestId("settings-done"));
     await waitFor(() => expect(screen.getByTestId("open-settings")).toHaveFocus());
@@ -521,6 +530,86 @@ describe("App 主流程", () => {
     );
     await user.click(screen.getByTestId("open-settings"));
     expect(screen.getByTestId("settings-load-notice-primary_settings_corrupt_recovered_from_backup")).toBeInTheDocument();
+  });
+
+  it("替换列表和简繁转换会实时更新请求并持久化", async () => {
+    mockFormat((t) => `格式化(${t})`);
+    const { user } = await setup();
+    await user.type(screen.getByTestId("input-textarea"), "TODO");
+    await waitFor(() => expect(screen.getByTestId("output-text")).toHaveTextContent("格式化(TODO)"));
+
+    await user.click(screen.getByTestId("open-settings"));
+    await user.click(screen.getByTestId("replacement-add"));
+    await user.type(screen.getByTestId("replacement-from-0"), "TODO");
+    await user.type(screen.getByTestId("replacement-to-0"), "待办");
+    await user.selectOptions(screen.getByTestId("conversion-select"), "s2t");
+
+    await waitFor(() =>
+      expect(mocks.formatText).toHaveBeenLastCalledWith({
+        text: "TODO",
+        selection: { mode: "only", keys: ["rule-a", "rule-b"] },
+        replacements: [{ from: "TODO", to: "待办", active: true }],
+        conversion: "s2t",
+      }),
+    );
+    await waitFor(() =>
+      expect(mocks.saveUserSettings).toHaveBeenCalledWith(
+        expect.objectContaining({
+          replacements: [{ from: "TODO", to: "待办", active: true }],
+          conversion: "s2t",
+        }),
+      ),
+    );
+
+    await user.click(screen.getByTestId("replacement-remove-0"));
+    await waitFor(() =>
+      expect(mocks.formatText).toHaveBeenLastCalledWith({
+        text: "TODO",
+        selection: { mode: "only", keys: ["rule-a", "rule-b"] },
+        replacements: [],
+        conversion: "s2t",
+      }),
+    );
+  });
+
+  it("启动恢复替换项、转换模式和最近输入", async () => {
+    mocks.getUserSettings.mockResolvedValue({
+      enabled: ["rule-a", "rule-b"],
+      last_input: "TODO",
+      theme: "system",
+      font: "system",
+      editor_font_size: "normal",
+      ui_scale: "normal",
+      shortcuts: {
+        enabled: true,
+        bindings: {
+          format_now: "CtrlOrCmd+Enter",
+          copy_output: "CtrlOrCmd+Shift+KeyC",
+          open_settings: "CtrlOrCmd+Comma",
+        },
+      },
+      replacements: [{ from: "TODO", to: "待办", active: false }],
+      conversion: "t2s",
+      notices: [],
+    });
+    mockFormat((t) => `格式化(${t})`);
+    const { user } = await setup();
+
+    expect(screen.getByTestId("input-textarea")).toHaveValue("TODO");
+    await waitFor(() =>
+      expect(mocks.formatText).toHaveBeenCalledWith({
+        text: "TODO",
+        selection: { mode: "only", keys: ["rule-a", "rule-b"] },
+        replacements: [{ from: "TODO", to: "待办", active: false }],
+        conversion: "t2s",
+      }),
+    );
+
+    await user.click(screen.getByTestId("open-settings"));
+    expect(screen.getByTestId("replacement-from-0")).toHaveValue("TODO");
+    expect(screen.getByTestId("replacement-to-0")).toHaveValue("待办");
+    expect(screen.getByTestId("replacement-active-0")).not.toBeChecked();
+    expect(screen.getByTestId("conversion-select")).toHaveValue("t2s");
   });
 });
 

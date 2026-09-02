@@ -209,7 +209,11 @@ export function useAppController(): UseAppControllerResult {
   useShortcuts({
     enabled: settings.shortcutsEnabled,
     bindings: settings.shortcutBindings,
-    onFormatNow: () => formatter.scheduleFormat(input.input, settings.enabled, 0),
+    onFormatNow: () =>
+      formatter.scheduleFormat(input.input, settings.enabled, 0, {
+        replacements: settings.replacements,
+        conversion: settings.conversion,
+      }),
     onCopyOutput: clipboard.copy,
     onOpenSettings: () => dialog.onOpenChange(true),
   });

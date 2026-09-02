@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "build:app": "tsx scripts/build-app.ts",
+    "build:app:simplified-trad": "tsx scripts/build-app.ts --feature simplified-trad-conversion",
     "build:app:webdriver": "tsx scripts/build-app-webdriver.ts",
     "test": "tsx scripts/run-specs.ts",
     "test:webdriver": "tsx scripts/run-webdriver-specs.ts",

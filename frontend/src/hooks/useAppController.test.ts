@@ -79,9 +79,9 @@ const mocks = vi.hoisted(() => {
         open_settings: "CtrlOrCmd+Comma",
       },
       setShortcutBindings: vi.fn(),
-      replacements: [],
+      replacements: [] as { from: string; to: string; active: boolean }[],
       setReplacements: vi.fn(),
-      conversion: "none" as const,
+      conversion: "none" as "none" | "t2s" | "s2t",
       setConversion: vi.fn(),
       settingsLoadNotices: [],
       settingsPath: null,
@@ -94,6 +94,7 @@ const mocks = vi.hoisted(() => {
     inputOptions: undefined as unknown,
     clearOptions: undefined as unknown,
     isTauri: vi.fn(() => false),
+    shortcutOptions: undefined as unknown,
   };
 });
 
@@ -150,7 +151,9 @@ vi.mock("./useSettingsPersistence", () => ({
 }));
 
 vi.mock("./useShortcuts", () => ({
-  useShortcuts: vi.fn(),
+  useShortcuts: (options: unknown) => {
+    mocks.shortcutOptions = options;
+  },
 }));
 
 vi.mock("./useThemeAndFont", () => ({
@@ -175,6 +178,7 @@ describe("useAppController", () => {
     mocks.loaderOptions = undefined;
     mocks.inputOptions = undefined;
     mocks.clearOptions = undefined;
+    mocks.shortcutOptions = undefined;
     mocks.isTauri.mockReturnValue(false);
   });
 
@@ -215,6 +219,24 @@ describe("useAppController", () => {
       ["rule-a", "rule-b"],
       undefined,
       { replacements: [], conversion: "none" },
+    );
+  });
+
+  it("快捷键立即排版携带当前替换和转换设置", () => {
+    mocks.settings.replacements = [{ from: "A", to: "甲", active: true }];
+    mocks.settings.conversion = "s2t";
+    renderHook(() => useAppController());
+
+    const shortcuts = mocks.shortcutOptions as {
+      onFormatNow: () => void;
+    };
+    shortcuts.onFormatNow();
+
+    expect(mocks.formatter.scheduleFormat).toHaveBeenCalledWith(
+      "当前输入",
+      ["rule-a"],
+      0,
+      { replacements: [{ from: "A", to: "甲", active: true }], conversion: "s2t" },
     );
   });
 

@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | Rust 单元/集成测试 | `src-tauri/src/**`、`src-tauri/tests/fixtures/` | 验证规则、管线、保护层、Unicode、设置和 TUI 状态 |
 | 前端 hook 测试 | `frontend/src/hooks/*.test.ts` | 验证异步状态、竞态、防抖、持久化和窗口交互 |
-| 前端组件测试 | `frontend/src/App.test.tsx` | 验证用户操作、设置窗口、快捷键和界面反馈 |
+| 前端组件测试 | `frontend/src/components/**/*.test.tsx`、`frontend/src/App.test.tsx` | 验证组件用户操作、设置窗口、快捷键和界面反馈 |
 | 性能门禁 | `scripts/check_performance.py`、`src-tauri/examples/unicode_baseline.rs` | 捕获数量级性能回退，不替代 profiling |
 | 桌面 smoke/E2E | 当前主要为人工验证 | 验证真实 Tauri IPC、窗口、设置和平台行为 |
 
@@ -22,9 +22,9 @@
 | Markdown/HTML/LaTeX | span、嵌套结构、未闭合结构、后续文本不吞并、保护 fixture | 继续扩展真实文档样本 |
 | Unicode | grapheme、emoji、组合符、CJK Ext-B | Unicode 数据/工具链升级回归 |
 | 单位和数学 | 有限词典、复合单位、数学边界 | 按真实语料扩展词典 |
-| 自定义替换与简繁转换设置 | Rust 请求/设置 fixture；前端设置加载、持久化、请求透传、实时重排和旧设置兼容；默认与 `simplified-trad-conversion` feature 构建覆盖 | TUI 控件、真实 GUI 重启恢复 E2E、预设选择界面 |
+| 自定义替换与简繁转换设置 | Rust 请求/设置 fixture；GUI 组件交互、App 级添加/编辑/启停/删除/转换选择、设置加载、持久化、请求透传、实时重排、快捷键立即排版和旧设置兼容；默认与 `simplified-trad-conversion` feature 构建覆盖；embedded GUI E2E 已覆盖保存、替换输出、重启恢复及 feature 下双向真实转换 | TUI 控件、CLI/TUI 共享设置行为、W3C/Windows 平台对应留证、预设选择界面 |
 | 设置 | Rust Windows 测试 16/16；Windows 真实 GUI 修复后已手动完成保存、重启恢复、损坏 fixture、ACL 保存失败及视觉/DPI/窄窗口回归；损坏设置、重启恢复和 NTFS ACL 已在两个 provider 自动化通过；统一 artifact、受控失败 probe 和 GUI 主题/窄窗口 artifact 已实现 | embedded/W3C Windows E2E 已复验真实 WebView2、IPC、全不选恒等、临时路径、规则保存、ACL 拒写恢复和失败留证；三档人工 DPI 已完成，GUI DPI 自动验证已跳过（不执行）；三档人工 GUI 验证已完成；GitLab Windows stage 已跳过 |
-| 前端状态 | 防抖、竞态、错误、主题、字体、快捷键 | 真实 IPC E2E |
+| 前端状态 | 防抖、竞态、错误、主题、字体、快捷键以及替换/转换设置透传 | 真实 IPC E2E |
 | TUI | CLI、编辑器、规则、OSC 52、共享设置；Linux 非交互 smoke/transcript；Windows release、stdin 及修复后 Windows Terminal 手动回归 | Rust TUI 158/158、Windows release/stdin 和非交互 transcript 已通过；本轮多行显示源码修复已由用户确认在 Windows Terminal 复验通过；TUI-EDIT-DELETE-001 已修复，真实 Terminal raw-mode/OSC 52 交互 artifact 已通过 |
 | 发布脚本 | 主要由脚本和人工 Runbook 覆盖 | 参数和失败路径自动化测试 |
 
@@ -371,16 +371,22 @@ npm run test:corrupt-settings:webdriver --prefix e2e
 
 ### 7.8 设置重启恢复自动化入口
 
-使用以下入口在同一临时 `rules.yaml` 目录中连续启动两次应用：第一次保存“全不选”和最近输入，第二次验证规则、输入和真实 Rust IPC 输出恢复。
+使用以下入口在同一临时 `rules.yaml` 目录中连续启动两次应用：第一次保存“全不选”、替换项、转换模式和最近输入，第二次验证规则、替换项、转换模式、原始最近输入以及按恢复设置重新格式化后的输出和真实 Rust IPC 输出恢复。
 
 ```bash
 npm run test:restart-settings --prefix e2e
 npm run test:restart-settings:webdriver --prefix e2e
 ```
 
-当前 Linux/WSLg 与 Windows 原生验证结果：embedded provider 的 write/read 阶段各 1/1 通过，标准 W3C provider 的 write/read 阶段各 1/1 通过。该入口验证跨平台设置恢复语义；NTFS ACL 拒写由独立入口验证。
+当前已有 runner 和 spec 覆盖上述字段；重启用例在“全不选”状态下验证原始输入和设置恢复，随后由独立格式化步骤验证恢复的替换结果；替换执行也由 GUI 保存用例在“全选”状态下验证。本入口已在当前 Linux/WSL embedded provider 完成定向复验；W3C/Windows 仍按平台单独留证。NTFS ACL 拒写由独立入口验证。
 
-### 7.9 NTFS ACL 保存失败自动化入口
+### 7.9 GUI 替换与简繁转换保存入口
+
+`selection-and-persistence.spec.ts` 已增加真实 embedded GUI 用例，覆盖打开设置、添加替换、编辑来源/目标、选择 `s2t`、等待保存、读取临时 `rules.yaml` 以及关闭设置后的真实格式化输出。该用例通过 `test` runner 执行，使用独立的 `COPYPOLISH_E2E_SETTINGS_DIR`，不会写入仓库根目录。
+
+默认 E2E 构建只验证设置保存、恢复和替换行为；默认构建下简繁转换仍是占位实现。使用 `npm run build:app:simplified-trad --prefix e2e` 构建后，再运行 `npm run test --prefix e2e -- --spec specs/simplified-trad-conversion.spec.ts`，可验证 `s2t`/`t2s` 双向真实 GUI/Rust IPC 输出；当前 Linux/WSL embedded provider 为 2/2 通过。完整结构保护回归仍由 Rust feature fixture 覆盖。
+
+### 7.10 NTFS ACL 保存失败自动化入口
 
 该入口仅允许在 Windows 原生环境运行，使用 `icacls.exe` 为当前用户添加目录级 `(OI)(CI)(W)` deny ACE；不使用 Linux `chmod`、WSL 权限映射或只读属性模拟 NTFS ACL。runner 会先写入有效 `rules.yaml`，再启动 provider，最后在 `finally` 中移除 deny、恢复继承并删除临时目录。
 
@@ -393,7 +399,7 @@ spec 验证设置窗口显示保存失败、错误文本包含 `rules.yaml`，�
 
 2026-08-31 Windows 原生结果：embedded provider 1/1、标准 W3C provider 1/1 通过；两个 runner 均完成 deny ACE 注入、保存失败与真实 IPC 验证，并在 `finally` 中恢复 ACL、删除 fixture。
 
-### 7.10 双 provider 稳定性统计（已完成）
+### 7.11 双 provider 稳定性统计（已完成）
 
 在同一 commit、同一环境下，两个 provider 各连续运行至少 5 次，记录：
 
@@ -406,7 +412,7 @@ spec 验证设置窗口显示保存失败、错误文本包含 `rules.yaml`，�
 
 当前版本两个 provider 的连续稳定性统计已完成并记录；损坏设置 fixture、重启恢复、NTFS ACL 自动化、统一 artifact 基础设施、受控失败 artifact 自检、主题/窄窗口 GUI artifact 和 TUI 非交互 transcript 已完成。React 19 warning 闭环和硬件级快捷键兼容性仍保留说明；Terminal 交互 artifact 已通过；GUI DPI 自动验证和 GitLab Windows stage 均已跳过。
 
-### 7.11 TUI 非交互 transcript artifact
+### 7.12 TUI 非交互 transcript artifact
 
 使用以下入口采集 TUI 非交互模式的输入、stdout、stderr、退出码、命令参数、白名单环境摘要和结果汇总：
 
@@ -416,7 +422,7 @@ npm run test:tui-transcript --prefix e2e
 
 当前 Linux/WSL 验证结果为 4/4 通过，覆盖默认格式化、`--rules none` 恒等、未知规则 warning 和缺失输入文件错误。该入口可以在 Windows 原生复用，但不替代 Windows Terminal raw-mode、规则面板、剪贴板或 OSC 52 交互 artifact。
 
-### 7.12 Windows 剩余计划入口
+### 7.13 Windows 剩余计划入口
 
 Windows 100%/125%/150% DPI 人工 GUI 验证已完成；GUI DPI 自动验证已跳过（不执行），不纳入自动矩阵；Windows Terminal 交互 artifact 已通过（用户确认）。GitLab Windows 可选 E2E stage 已跳过（不执行），不计作通过。请按 [windows-e2e-runbook.md](windows-e2e-runbook.md) 执行，并分别记录 DPI 三档的缩放/主题/窗口矩阵和原始 artifact、Terminal raw-mode/规则面板/快捷键/Unicode 粘贴/OSC 52/保存重启/终端清理。
 
@@ -430,14 +436,14 @@ Windows 100%/125%/150% DPI 人工 GUI 验证已完成；GUI DPI 自动验证已�
 - 密钥扫描通过；
 - 涉及规则、设置、Tauri 或发布时已完成相应额外验证。
 
-### 7.13 2026-09-01 自动化补充结果
+### 7.14 2026-09-01 自动化补充结果
 
 - E2E TypeScript 类型检查通过。
 - 设置快捷键控制台 runner：embedded 与标准 WebDriver 各 1/1 通过，`actWarningCount=0`。由于当前 EdgeDriver 将逗号键上报为 `code=","`，两个 artifact 均记录原生键事件诊断并通过 UI “打开设置”回退完成界面/控制台验证；不得把它表述为硬件级 `Ctrl+,` 注入已独立通过。
 - GUI DPI 自动验证已按项目决定跳过（不执行）；既有 200% artifact 仅作历史诊断记录，三档人工 GUI 验证保持完成。
 - Windows Terminal TUI artifact 已由用户确认完整交互通过；`--prepare-only` 仍可用于生成 `manifest.json`、`result.json` 和 `manual-checklist.json`，实际交互结果以用户确认的 artifact 为准。
 
-### 7.14 2026-09-01 复验记录
+### 7.15 2026-09-01 复验记录
 
 - ACL fixture 保留路径已修复：先解除 deny ACE，再复制 `settings-fixture`，最后删除临时目录；embedded/WebDriver 测试均通过，保留目录包含 `rules.yaml`，权限恢复和清理完成。
 - GUI DPI 自动验证已决定跳过，不再切换 Windows 显示设置或重新执行目标矩阵。

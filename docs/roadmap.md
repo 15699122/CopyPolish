@@ -57,6 +57,9 @@ span-aware 混合管线、规则注册表、阶段依赖、结构/语义 span �
 - [x] 完成简繁转换 Spike 并用 `opencc-fmmseg`（MIT、OpenCC 风格词典 + FMM 分词）接入：确认许可证/纯 Rust/性能/体积（1 MB `s2t` ≈130 MB/s、字节增量约 2.1 MB），结构感知只转可编辑区间；以 `simplified-trad-conversion` 可选 feature 落地（默认构建不启用，保持占位）。决策与语义边界见 `docs/decisions/simplified-trad-conversion-spike.md`；
 - [x] 增加自定义字面量替换（有序、仅 active、span 保护前执行、首版不支持正则）：作为请求层阶段随统一请求模型落地；
 - [x] 在桌面 GUI 中接入替换列表和简繁转换选择器，完成请求透传、实时重排与 `rules.yaml` 持久化；
+- [x] 补齐 GUI 替换/转换交互回归：覆盖组件操作、设置恢复、旧字段默认值、持久化、实时请求以及快捷键立即排版设置透传；
+- [x] 增加并验证 GUI E2E 的替换/转换保存与重启恢复 spec：Linux/WSL embedded provider 的设置保存与替换输出 3/3、重启恢复 write/read 各 1/1 通过；W3C/Windows 仍按平台单独留证，默认构建下简繁转换实际输出仍需 feature 构建验证；
+- [x] 增加并验证简繁转换 feature 专用 GUI E2E 构建与 spec：Linux/WSL embedded provider 双向真实转换 2/2 通过；W3C/Windows 仍按平台单独留证；
 - [ ] 在 TUI 中接入替换列表和简繁转换控件；
 - [ ] 增加中文文案、PDF 清洗和技术文档预设；预设只展开为统一请求模型，不复制规则实现；
 - [ ] 增加实时/手动输出模式、自动/左右/上下布局和输入输出统计；
