@@ -545,6 +545,7 @@ mod tests {
         let _ = fs::remove_dir_all(&app);
     }
 
+    #[cfg(unix)]
     #[test]
     fn unwritable_everywhere_keeps_exe_dir_and_reports_save_error() {
         use std::os::unix::fs::PermissionsExt;

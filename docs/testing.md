@@ -31,6 +31,7 @@
 ### 2.1 Windows 原生验证快照
 
 前端测试 57/57、Rust 设置测试 16/16、Rust/TUI 测试 158/158 均通过；embedded 与标准 W3C provider 的普通 WebView2/Rust IPC 用例各 3/3、设置重启 write/read 各 1/1、三种损坏设置 fixture 各 3/3、NTFS ACL 各 1/1 通过。统一 artifact、受控失败 probe、GUI 主题/窄窗口 artifact 和 TUI 非交互 transcript 已验证；Windows TUI release 构建和 `--stdin --no-config` smoke 通过，TUI-EDIT-DELETE-001 已关闭。
+**2026-09-02 新一轮 Windows 复验补充**：前端单测 69/69、E2E typecheck、embedded/WebDriver/简繁 feature/TUI release 构建通过；W3C smoke 2/2、重启恢复 2/2、损坏设置 3/3、NTFS ACL 1/1、GUI 视觉 artifact 1/1、设置快捷键控制台 1/1、TUI transcript 4/4 通过。新 binary 的 embedded 完整回归在 `selection-and-persistence.spec.ts` 第三个 case 失败（替换设置未作用于真实 GUI 输出）；独立简繁 feature spec 重试为 2/2 通过（s2t、t2s）。失败 artifact 保留，相关项目暂不关闭。另：Windows 下 `cargo test --manifest-path src-tauri/Cargo.toml --features tui` 因 `user_settings.rs:550-562` 的 Unix-only `PermissionsExt`/`from_mode` 测试代码编译失败（E0433/E0599）；TUI release 构建仍通过。
 
 > **2026-09-01**：Windows Terminal 交互复验发现三个多行显示缺陷（WT-TUI-001 额外行绘制到状态栏、WT-TUI-002 光标不可见、WT-TUI-003 emoji 显示），证据见 [windows-terminal-tui-manual.md](windows-terminal-tui-manual.md)。已按与 ratatui 渲染等价的视觉换行重算光标与滚动（`src-tauri/src/tui/wrap.rs`），并新增 10 项 Rust/UI 回归；本轮 Windows MSVC 上 158/158 通过，真实 Windows Terminal 复验已由用户确认通过。
 

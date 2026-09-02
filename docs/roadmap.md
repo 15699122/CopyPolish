@@ -103,3 +103,8 @@ span-aware 混合管线、规则注册表、阶段依赖、结构/语义 span �
 7. `CHANGELOG.md` 中的用户可见变化说明。
 
 每完成一项，只更新本文件的待办状态；若架构、命令或流程发生变化，再同步更新对应权威文档和 `CHANGELOG.md`。
+
+
+## 2026-09-02 Windows 复验补充
+
+本轮 E 盘原生验证完成环境、构建、W3C smoke、设置恢复/损坏/ACL、GUI 视觉 artifact 和 TUI transcript；embedded 完整回归的 `selection-and-persistence.spec.ts` 替换输出 case 失败，简繁 feature spec 重试为 2/2 通过（s2t、t2s）；embedded 替换输出 case 和 Windows Rust/TUI 测试仍有失败，详见 `docs/windows-e2e-runbook.md`。
