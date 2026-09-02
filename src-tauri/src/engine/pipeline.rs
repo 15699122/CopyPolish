@@ -22,9 +22,26 @@ use super::protection::{
 };
 use super::spans::{scan_all_spans, TextSpan};
 
+#[cfg(feature = "simplified-trad-conversion")]
+use opencc_fmmseg::{OpenCC, OpenccConfig};
+
 /// 格式化文本的正式入口。
 pub fn format_text(req: &FormatRequest) -> Result<String, String> {
     format_text_impl(req)
+}
+
+/// 返回当前文本中应受结构保护、禁止清洗/转换改写的不透明区间。
+/// 与 `apply_replacements` / `apply_character_conversion` 共用，保证
+/// 自定义替换与字符转换都不会改写 Markdown 链接、URL、代码、公式或化学式内部。
+fn opaque_ranges(text: &str) -> Vec<(usize, usize)> {
+    scan_all_spans(text)
+        .into_iter()
+        .filter(|span| {
+            span.priority == super::spans::SpanPriority::OpaqueStructure
+                || span.kind == super::spans::SpanKind::ChemicalFormula
+        })
+        .map(|span| (span.start, span.end))
+        .collect()
 }
 
 /// 应用自定义字面量替换（有序、仅 active 项）。
@@ -38,15 +55,7 @@ fn apply_replacements(text: &str, replacements: &[ReplacementPair]) -> String {
         if !pair.active || pair.from.is_empty() {
             continue;
         }
-        let protected_ranges: Vec<(usize, usize)> = scan_all_spans(&out)
-            .into_iter()
-            .filter(|span| {
-                span.priority == super::spans::SpanPriority::OpaqueStructure
-                    || span.kind == super::spans::SpanKind::ChemicalFormula
-            })
-            .map(|span| (span.start, span.end))
-            .collect();
-
+        let protected_ranges = opaque_ranges(&out);
         let mut next = String::with_capacity(out.len());
         let mut cursor = 0usize;
         while let Some(relative_start) = out[cursor..].find(&pair.from) {
@@ -74,15 +83,64 @@ fn apply_replacements(text: &str, replacements: &[ReplacementPair]) -> String {
 
 /// 应用字符转换（简繁）。
 ///
-/// 当前仅 `None` 实际生效；`TraditionalToSimplified` 与
-/// `SimplifiedToTraditional` 为 Spike 后的互斥模式占位，未实现时返回原文。
+/// 未启用 `simplified-trad-conversion` feature 时为互斥占位：仅 `None`
+/// 实际生效，T2S/S2T 返回原文。
+#[cfg(not(feature = "simplified-trad-conversion"))]
 fn apply_character_conversion(text: &str, conversion: CharacterConversion) -> String {
     match conversion {
         CharacterConversion::None => text.to_string(),
-        // 简繁转换依赖与词汇级语义留待独立 Spike；占位保持原文。
+        // 简繁转换依赖与词汇级语义由独立 Spike 决策；默认构建占位保持原文。
         CharacterConversion::TraditionalToSimplified
         | CharacterConversion::SimplifiedToTraditional => text.to_string(),
     }
+}
+
+/// 启用 `simplified-trad-conversion` 时的字符转换实现。
+///
+/// 通过 `opencc-fmmseg`（MIT，OpenCC 风格词典 + FMM 分词）实现互斥的
+/// T2S/S2T；转换只作用于可编辑区间，不改写结构 span。转换器以
+/// `OnceLock` 缓存（内置压缩词典解压成本高），`convert_with_config`
+/// 以 `&self` 调用，可安全跨请求共享。
+#[cfg(feature = "simplified-trad-conversion")]
+fn apply_character_conversion(text: &str, conversion: CharacterConversion) -> String {
+    match conversion {
+        CharacterConversion::None => text.to_string(),
+        CharacterConversion::TraditionalToSimplified => {
+            static T2S: std::sync::OnceLock<OpenCC> = std::sync::OnceLock::new();
+            let conv = T2S.get_or_init(OpenCC::new);
+            convert_editable(text, |segment| convert_traditional(conv, segment))
+        }
+        CharacterConversion::SimplifiedToTraditional => {
+            static S2T: std::sync::OnceLock<OpenCC> = std::sync::OnceLock::new();
+            let conv = S2T.get_or_init(OpenCC::new);
+            convert_editable(text, |segment| convert_simplified(conv, segment))
+        }
+    }
+}
+
+#[cfg(feature = "simplified-trad-conversion")]
+fn convert_traditional(conv: &OpenCC, segment: &str) -> String {
+    conv.convert_with_config(segment, OpenccConfig::T2s, false)
+}
+
+#[cfg(feature = "simplified-trad-conversion")]
+fn convert_simplified(conv: &OpenCC, segment: &str) -> String {
+    conv.convert_with_config(segment, OpenccConfig::S2t, false)
+}
+
+/// 对文本的可编辑区间逐个应用转换函数，跳过不透明结构，再重组。
+#[cfg(feature = "simplified-trad-conversion")]
+fn convert_editable(text: &str, mut convert: impl FnMut(&str) -> String) -> String {
+    let ranges = opaque_ranges(text);
+    let mut out = String::with_capacity(text.len());
+    let mut cursor = 0usize;
+    for &(start, end) in &ranges {
+        out.push_str(&convert(&text[cursor..start]));
+        out.push_str(&text[start..end]);
+        cursor = end;
+    }
+    out.push_str(&convert(&text[cursor..]));
+    out
 }
 
 fn normalize_newlines(text: &str) -> (String, &'static str) {

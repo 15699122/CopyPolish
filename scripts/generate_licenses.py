@@ -18,9 +18,14 @@ FRONTEND_MODULES = ROOT / "frontend" / "node_modules"
 FRONTEND_LOCKFILE = ROOT / "frontend" / "package-lock.json"
 
 
-def cargo_packages() -> list[tuple[str, str, str]]:
+def cargo_packages(features: str = "") -> list[tuple[str, str, str]]:
+    cmd = ["cargo", "metadata", "--manifest-path", str(MANIFEST), "--locked", "--format-version", "1"]
+    if features:
+        # 传入 Cargo features，使可选依赖（如 `simplified-trad-conversion`）
+        # 进入许可证清单；默认不启用，与默认构建一致。
+        cmd += ["--features", features]
     result = subprocess.run(
-        ["cargo", "metadata", "--manifest-path", str(MANIFEST), "--locked", "--format-version", "1"],
+        cmd,
         cwd=ROOT,
         check=True,
         capture_output=True,
@@ -62,8 +67,8 @@ def table(rows: list[tuple[str, str, str]]) -> str:
     return "\n".join(lines)
 
 
-def generate() -> None:
-    rust = cargo_packages()
+def generate(features: str = "") -> None:
+    rust = cargo_packages(features)
     npm = npm_packages()
     all_rows = rust + npm
     unknown = [(source, row) for source, rows in (("Rust", rust), ("npm", npm)) for row in rows if row[2] == "UNKNOWN"]
@@ -99,8 +104,13 @@ def generate() -> None:
 
 
 if __name__ == "__main__":
+    features = ""
+    if "--features" in sys.argv:
+        index = sys.argv.index("--features")
+        if index + 1 < len(sys.argv):
+            features = sys.argv[index + 1]
     try:
-        generate()
+        generate(features)
     except (OSError, RuntimeError, subprocess.CalledProcessError, json.JSONDecodeError) as error:
         print(f"许可证清单生成失败：{error}", file=sys.stderr)
         raise SystemExit(1)

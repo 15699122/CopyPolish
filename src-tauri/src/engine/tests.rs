@@ -1252,3 +1252,48 @@ fn preset_expands_to_the_same_request_fields() {
         CharacterConversion::TraditionalToSimplified
     );
 }
+
+// ---- 简繁转换（Spike 接入）-----------------------------------------------
+
+/// 非 `simplified-trad-conversion` 构建下，T2S/S2T 保持互斥占位：返回原文。
+#[cfg(not(feature = "simplified-trad-conversion"))]
+#[test]
+fn conversion_modes_are_placeholders_without_feature() {
+    let request = FormatRequest {
+        text: "後設資料".to_string(),
+        selection: RuleSelection::None,
+        conversion: CharacterConversion::TraditionalToSimplified,
+        ..Default::default()
+    };
+    assert_eq!(format_text(&request).unwrap(), "後設資料");
+    let request = FormatRequest {
+        text: "设计".to_string(),
+        selection: RuleSelection::None,
+        conversion: CharacterConversion::SimplifiedToTraditional,
+        ..Default::default()
+    };
+    assert_eq!(format_text(&request).unwrap(), "设计");
+}
+
+/// 启用 `simplified-trad-conversion` 时的转换回归：基本 T2S/S2T、
+/// 结构保护（链接/URL/代码/公式内部不被改写）、只转可编辑区间。
+#[cfg(feature = "simplified-trad-conversion")]
+#[test]
+fn simplified_trad_conversion_fixtures() {
+    let cases: Vec<RequestGoldenCase> = serde_yaml::from_str(include_str!(
+        "../../tests/fixtures/simplified-trad-conversion.yaml"
+    ))
+    .expect("failed to parse simplified-trad-conversion.yaml");
+
+    for case in cases {
+        let request = FormatRequest {
+            text: case.request.text,
+            selection: case.request.selection,
+            replacements: case.request.replacements,
+            conversion: case.request.conversion,
+        };
+        let actual = format_text(&request)
+            .unwrap_or_else(|error| panic!("fixture {} failed: {error}", case.name));
+        assert_eq!(actual, case.expected, "fixture {} mismatch", case.name);
+    }
+}

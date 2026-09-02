@@ -60,7 +60,7 @@ src-tauri/src/
   → engine::format_text
   → FormatRequest（规则选择、字面量替换、字符转换）
   → 来源文本清洗（当前已实现方括号引用角标、连续空格和连续空行；其他清洗规则逐步加入）
-  → 可选字符转换（当前模型已接入，具体简繁转换待 Spike）
+  → 可选字符转换（互斥简繁转换，随 `simplified-trad-conversion` feature 启用）
   → registry + span scanner + TextEdit + protection
   → 固定阶段的规范排版
   → 输出结果
@@ -70,12 +70,12 @@ src-tauri/src/
 
 ### Rust 格式化管线
 
-当前生产管线已经包含首批来源文本清洗规则：方括号引用角标、普通文本连续 ASCII 空格和普通文本连续空行。`FormatRequest` 已承载有序字面量替换与互斥字符转换模式；简繁转换的具体实现仍待独立 Spike。目标工作流遵循以下顺序：
+当前生产管线已经包含首批来源文本清洗规则：方括号引用角标、普通文本连续 ASCII 空格和普通文本连续空行。`FormatRequest` 已承载有序字面量替换与互斥字符转换模式；启用 `simplified-trad-conversion` feature 时，简繁转换通过 `opencc-fmmseg`（MIT）实现并只作用于可编辑区间，默认构建不启用（保持占位）。目标工作流遵循以下顺序：
 
 1. 统一换行符并记录原始换行风格；
 2. 临时扫描结构 span，仅在可编辑区间执行有序用户自定义字面量替换；
 3. 在可编辑区间执行来源文本清洗；
-4. 执行可选的字符转换；简转繁和繁转简由 `CharacterConversion` 互斥表达，当前非 `None` 模式保持原文；
+4. 执行可选的字符转换；简转繁和繁转简由 `CharacterConversion` 互斥表达，启用 `simplified-trad-conversion` 时由 `opencc-fmmseg` 实现并只改写可编辑区间，否则非 `None` 模式保持原文；
 5. 扫描结构/语义 span；
 6. 将不可编辑结构转换为内部保护占位符；
 7. 在受保护文本上执行结构边界、文本边界和规范排版规则；
@@ -107,7 +107,7 @@ TUI 通过自己的设置门面复用同一文件，但只修改规则选择和�
 | 修改规则行为 | `engine/rule_impls.rs`、`engine/registry.rs`、Rust fixture/测试 |
 | 增加来源文本清洗 | `engine/rule_impls.rs`、`engine/protection.rs`、清洗 fixture；高风险规则先补 ADR |
 | 增加运行时替换/预设 | `engine/model.rs`、`engine/pipeline.rs`、`commands.rs`、`frontend/src/lib/tauri.ts` |
-| 增加简繁转换 | 先补 `docs/decisions/` Spike，再扩展 `engine/model.rs`、设置和 CLI |
+| 增加简繁转换 | 已以 `opencc-fmmseg` 接入（`engine/pipeline.rs` + `simplified-trad-conversion` feature）；扩展语义或地区词需补 `docs/decisions/` 记录 |
 | 修改保护边界 | `engine/spans.rs`、`engine/protection.rs`、保护 fixture |
 | 优化 inline-code 扫描 | `engine/spans.rs::scan_inline_code_spans`、结构 span 回归测试 |
 | 优化 span 仲裁 | `engine/spans.rs::arbitrate_spans`、span 优先级回归测试 |
