@@ -40,6 +40,10 @@ cargo build --manifest-path src-tauri/Cargo.toml --features tui --release --bin 
 npm run test --prefix e2e
 npm run test:webdriver --prefix e2e
 
+# 简繁转换 feature 的 embedded GUI 双向真实输出
+npm run build:app:simplified-trad --prefix e2e
+npm run test --prefix e2e -- --spec specs/simplified-trad-conversion.spec.ts
+
 # 设置恢复和损坏文件
 npm run test:restart-settings --prefix e2e
 npm run test:corrupt-settings --prefix e2e
@@ -48,7 +52,7 @@ npm run test:corrupt-settings --prefix e2e
 npm run test:acl-settings --prefix e2e
 ```
 
-ACL 入口内部使用 `icacls.exe` 添加当前用户的目录写入 deny ACE，并在 `finally` 中恢复权限。禁止使用 Linux `chmod`、WSL 权限映射或只读属性模拟该步骤。当前仓库已提供 ACL harness，并已于 2026-08-31 在 Windows 原生环境中通过验证。标准 W3C provider 已收敛为兼容性 smoke（`specs/w3c/smoke.spec.ts`），不再与 embedded provider 并行跑完整回归。
+ACL 入口内部使用 `icacls.exe` 添加当前用户的目录写入 deny ACE，并在 `finally` 中恢复权限。禁止使用 Linux `chmod`、WSL 权限映射或只读属性模拟该步骤。当前仓库已提供 ACL harness，并已于 2026-08-31 在 Windows 原生环境中通过验证。标准 W3C provider 已收敛为兼容性 smoke（`specs/w3c/smoke.spec.ts`），不再与 embedded provider 并行跑完整回归；feature 简繁转换目前只保留 embedded GUI 专用入口，W3C 不运行该 spec。
 
 最后构建并启动 TUI：
 
@@ -623,6 +627,8 @@ npm run build:app:webdriver --prefix e2e
 npm run test:webdriver --prefix e2e
 ```
 
+`test:webdriver` 当前只运行 `specs/w3c/smoke.spec.ts`；它使用此前构建的 W3C provider binary，验证 session、主窗口、一次真实格式化、一次设置保存和退出清理。不要再寻找或调用已移除的设置恢复、损坏设置、ACL、视觉 artifact `:webdriver` 专项脚本。
+
 单独运行启动用例：
 
 ```powershell
@@ -843,6 +849,8 @@ npm run build:app:webdriver --prefix e2e
 npm run test:webdriver --prefix e2e
 npm run test:webdriver --prefix e2e -- --spec specs/startup-formatting.spec.ts
 ```
+
+标准 W3C provider 的当前构建入口是 `npm run build:app:webdriver --prefix e2e`；它使用 `VITE_COPYPOLISH_E2E_PROVIDER=webdriver` 构建前端，并以 `e2e-webdriver` feature 生成 W3C provider binary。W3C 测试仍只运行兼容性 smoke，不存在设置恢复、损坏设置、ACL 或视觉 artifact 的独立 `:webdriver` 测试脚本。
 
 ### 10.3 失败诊断
 

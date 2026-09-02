@@ -95,9 +95,9 @@ TUI 非交互链路已在 Linux 上完成自动化 smoke：验证 `--help`、std
 `--rules none` 恒等、未知规则 key 警告、缺失文件返回码 1，以及约 1.29 MB 输入的恒等处理。
 这些检查不替代真实 raw-mode 终端、Windows Terminal 交互或 Tauri 窗口行为 E2E；本次修复后的 TUI/GUI 回归和双 provider 连续稳定性已由人工完成，设置与 ACL 故障注入、非交互 transcript 和基础 GUI artifact 已自动化，Terminal 交互 artifact 已通过。
 
-## 7. Windows 原生回归清单（已完成）
+## 7. Windows 原生回归清单（当前执行与已完成记录）
 
-以下项目必须在 Windows 原生、可交互的 Windows Terminal + PowerShell 7 会话中执行。WSL、Linux GUI、普通浏览器预览和旧 binary 不能替代本清单。
+以下项目必须在 Windows 原生、可交互的 Windows Terminal + PowerShell 7 会话中执行。WSL、Linux GUI、普通浏览器预览和旧 binary 不能替代本清单。当前 Windows 仍需执行或重新留证的重点是：默认 embedded GUI 完整回归、`simplified-trad-conversion` feature 的 embedded GUI 双向转换、标准 W3C 兼容性 smoke、NTFS ACL 保存失败和按需 GUI 视觉 artifact；Windows Terminal/TUI 交互、三档 DPI 人工检查及其余设置故障项已有结果，不应重复记为未完成。
 
 ### 7.0 Windows 原生专用步骤总览
 
@@ -132,11 +132,18 @@ npm run typecheck --prefix e2e
 cargo build --manifest-path src-tauri/Cargo.toml --features tui --release --bin copypolish-tui
 ```
 
-两个 GUI provider 都必须使用当前 commit 构建的 binary；不能复用旧 binary 或旧 `frontend/dist`。标准 W3C provider 运行前还必须完成 `build:app:webdriver`。
+如需验证 feature 构建下的真实简繁转换，另行执行以下命令。该步骤会覆盖 `src-tauri/target/debug/` 中的 embedded binary，完成后不要用该 binary 判定默认构建行为：
+
+```powershell
+npm run build:app:simplified-trad --prefix e2e
+npm run test --prefix e2e -- --spec specs/simplified-trad-conversion.spec.ts
+```
+
+两个 GUI provider 都必须使用当前 commit 构建的 binary；不能复用旧 binary 或旧 `frontend/dist`。标准 W3C provider 运行前还必须完成 `build:app:webdriver`。若执行 feature 简繁转换验证，必须先完成 `build:app:simplified-trad`，并在同一环境下运行对应 spec。
 
 #### 3. 依次执行 GUI provider 测试
 
-先执行 embedded provider，再执行标准 W3C provider：
+先执行 embedded provider 的完整回归，再执行标准 W3C provider 的兼容性 smoke。标准 W3C provider 已收敛到 `specs/w3c/smoke.spec.ts`，不再有设置恢复、损坏设置、ACL 或视觉 artifact 的独立 `:webdriver` 命令：
 
 ```powershell
 npm run test --prefix e2e
@@ -149,9 +156,7 @@ npm run test:webdriver --prefix e2e
 
 ```powershell
 npm run test:restart-settings --prefix e2e
-npm run test:restart-settings:webdriver --prefix e2e
 npm run test:corrupt-settings --prefix e2e
-npm run test:corrupt-settings:webdriver --prefix e2e
 ```
 
 重启恢复入口会使用同一临时设置目录启动两次应用，验证规则选择、最近输入和真实 Rust IPC 输出恢复。损坏 fixture 入口覆盖主文件损坏且备份有效、无备份，以及主备份均损坏三种情况。
@@ -162,7 +167,6 @@ npm run test:corrupt-settings:webdriver --prefix e2e
 
 ```powershell
 npm run test:acl-settings --prefix e2e
-npm run test:acl-settings:webdriver --prefix e2e
 ```
 
 runner 会使用 `icacls.exe` 为当前用户添加目录级写入 deny ACE，验证设置保存失败提示、`rules.yaml` 目标路径、应用未崩溃以及真实 Rust IPC 仍可用。测试结束时必须自动移除 deny ACE、恢复继承并删除临时目录；失败时先保留设置 fixture 到 artifact。
@@ -362,7 +366,6 @@ TUI-EDIT-DELETE-001（2026-08-31）已修复：`TextEditor` 现在将最后一�
 
 ```bash
 npm run test:corrupt-settings --prefix e2e
-npm run test:corrupt-settings:webdriver --prefix e2e
 ```
 
 每个 fixture 都会在 provider 启动前写入独立临时目录，并验证恢复/降级提醒和真实 Rust IPC 格式化。未提供 `COPYPOLISH_E2E_SETTINGS_FIXTURE` 时，`corrupt-settings.spec.ts` 会显式跳过，避免污染普通 smoke。
@@ -375,10 +378,9 @@ npm run test:corrupt-settings:webdriver --prefix e2e
 
 ```bash
 npm run test:restart-settings --prefix e2e
-npm run test:restart-settings:webdriver --prefix e2e
 ```
 
-当前已有 runner 和 spec 覆盖上述字段；重启用例在“全不选”状态下验证原始输入和设置恢复，随后由独立格式化步骤验证恢复的替换结果；替换执行也由 GUI 保存用例在“全选”状态下验证。本入口已在当前 Linux/WSL embedded provider 完成定向复验；W3C/Windows 仍按平台单独留证。NTFS ACL 拒写由独立入口验证。
+当前已有 runner 和 spec 覆盖上述字段；重启用例在“全不选”状态下验证原始输入和设置恢复，随后由独立格式化步骤验证恢复的替换结果；替换执行也由 GUI 保存用例在“全选”状态下验证。本入口在 Windows 上只运行 embedded provider；标准 W3C provider 只运行兼容性 smoke。NTFS ACL 拒写由独立入口验证。
 
 ### 7.9 GUI 替换与简繁转换保存入口
 
@@ -392,7 +394,6 @@ npm run test:restart-settings:webdriver --prefix e2e
 
 ```powershell
 npm run test:acl-settings --prefix e2e
-npm run test:acl-settings:webdriver --prefix e2e
 ```
 
 spec 验证设置窗口显示保存失败、错误文本包含 `rules.yaml`，以及保存失败后应用仍能通过真实 Rust IPC 工作。非 Windows 环境会明确输出跳过并返回成功；这不代表 ACL 场景已通过。失败时 runner 会在恢复权限前复制设置 fixture 到 provider artifact 目录。
