@@ -7,12 +7,25 @@
 // 并安全丢弃未知规则。
 // =============================================================================
 
-use crate::engine::{self, RuleMeta};
+use crate::engine::{self, CharacterConversion, ReplacementPair, RuleMeta};
 
-/// format_text(text, selection) -> String
+/// format_text(text, selection, replacements, conversion) -> String
+///
+/// `replacements` 与 `conversion` 为可选的请求层阶段；默认空 / None 时
+/// 输出与扩展前完全一致，旧调用方可只传 `{ text, selection }`。
 #[tauri::command]
-pub fn format_text(text: String, selection: engine::RuleSelection) -> Result<String, String> {
-    let req = engine::FormatRequest { text, selection };
+pub fn format_text(
+    text: String,
+    selection: engine::RuleSelection,
+    replacements: Option<Vec<ReplacementPair>>,
+    conversion: Option<CharacterConversion>,
+) -> Result<String, String> {
+    let req = engine::FormatRequest {
+        text,
+        selection,
+        replacements: replacements.unwrap_or_default(),
+        conversion: conversion.unwrap_or_default(),
+    };
     engine::format_text(&req)
 }
 

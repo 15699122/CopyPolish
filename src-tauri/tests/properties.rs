@@ -110,6 +110,7 @@ fn format(text: &str, selection: &RuleSelection) -> String {
     engine::format_text(&FormatRequest {
         text: text.to_string(),
         selection: selection.clone(),
+        ..Default::default()
     })
     .expect("format_text 不应返回错误")
 }

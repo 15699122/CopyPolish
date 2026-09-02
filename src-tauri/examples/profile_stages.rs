@@ -40,6 +40,7 @@ fn main() {
         let request = FormatRequest {
             text: text.clone(),
             selection: RuleSelection::All,
+            ..Default::default()
         };
         // 预热。
         let _ = format_text_stage_timings(&request);
@@ -50,6 +51,7 @@ fn main() {
             let request = FormatRequest {
                 text: text.clone(),
                 selection: RuleSelection::All,
+                ..Default::default()
             };
             let stage_start = Instant::now();
             let timings = match format_text_stage_timings(&request) {
@@ -104,6 +106,7 @@ fn main() {
     let request = FormatRequest {
         text: md_text,
         selection: RuleSelection::All,
+        ..Default::default()
     };
     let mut rules: Vec<(&'static str, f64)> = per_rule_timings(&request)
         .into_iter()

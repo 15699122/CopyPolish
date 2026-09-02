@@ -88,6 +88,7 @@ impl App {
         let request = FormatRequest {
             text: self.input.text().to_string(),
             selection: self.selection.clone(),
+            ..Default::default()
         };
         match engine::format_text(&request) {
             Ok(output) => {

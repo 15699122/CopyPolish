@@ -11,10 +11,28 @@ struct GoldenCase {
     expected: String,
 }
 
+#[derive(serde::Deserialize)]
+struct RequestGoldenCase {
+    name: String,
+    request: RequestGoldenInput,
+    expected: String,
+}
+
+#[derive(serde::Deserialize)]
+struct RequestGoldenInput {
+    text: String,
+    selection: RuleSelection,
+    #[serde(default)]
+    replacements: Vec<ReplacementPair>,
+    #[serde(default)]
+    conversion: CharacterConversion,
+}
+
 fn req(text: &str) -> FormatRequest {
     FormatRequest {
         text: text.to_string(),
         selection: RuleSelection::Defaults,
+        ..Default::default()
     }
 }
 
@@ -109,6 +127,8 @@ fn golden_fixtures_match_expected_output() {
         let request = FormatRequest {
             text: case.input.clone(),
             selection: case.selection.clone(),
+
+            ..Default::default()
         };
         let actual = format_text(&request).unwrap_or_else(|error| {
             panic!("fixture {file} / {} failed to format: {error}", case.name)
@@ -147,12 +167,16 @@ fn passing_golden_fixtures_are_idempotent() {
         let request = FormatRequest {
             text: case.input,
             selection: case.selection,
+
+            ..Default::default()
         };
         let once = format_text(&request)
             .unwrap_or_else(|error| panic!("fixture {file} / {} failed: {error}", case.name));
         let twice = format_text(&FormatRequest {
             text: once.clone(),
             selection: request.selection,
+
+            ..Default::default()
         })
         .unwrap_or_else(|error| panic!("fixture {file} / {} failed twice: {error}", case.name));
         assert_eq!(
@@ -446,6 +470,8 @@ fn formats_punctuation_and_proper_nouns() {
     let with_nouns = FormatRequest {
         text: "使用 github 登录".to_string(),
         selection: RuleSelection::Only { keys: enabled },
+
+        ..Default::default()
     };
     assert_eq!(format_text(&with_nouns).unwrap(), "使用 GitHub 登录");
 }
@@ -470,6 +496,8 @@ fn disabled_rules_are_not_applied() {
         selection: RuleSelection::Only {
             keys: vec![keys::PUNCT_NO_REPETITION.to_string()],
         },
+
+        ..Default::default()
     };
     assert_eq!(format_text(&none).unwrap(), "在LeanCloud上");
 }
@@ -484,6 +512,8 @@ fn unknown_keys_are_safely_ignored() {
                 keys::SPACING_CJK_NUMBER.to_string(),
             ],
         },
+
+        ..Default::default()
     };
     assert_eq!(format_text(&mixed).unwrap(), "花了 5000 元");
 }
@@ -495,6 +525,8 @@ fn explicit_rule_selection_modes_are_unambiguous() {
     let all = FormatRequest {
         text: text.to_string(),
         selection: RuleSelection::All,
+
+        ..Default::default()
     };
     assert_eq!(
         format_text(&all).unwrap(),
@@ -504,6 +536,8 @@ fn explicit_rule_selection_modes_are_unambiguous() {
     let defaults = FormatRequest {
         text: text.to_string(),
         selection: RuleSelection::Defaults,
+
+        ..Default::default()
     };
     assert_eq!(
         format_text(&defaults).unwrap(),
@@ -515,12 +549,16 @@ fn explicit_rule_selection_modes_are_unambiguous() {
         selection: RuleSelection::Only {
             keys: vec![keys::PUNCT_NO_REPETITION.to_string()],
         },
+
+        ..Default::default()
     };
     assert_eq!(format_text(&only).unwrap(), "在LeanCloud上，花了5000元！");
 
     let none = FormatRequest {
         text: text.to_string(),
         selection: RuleSelection::None,
+
+        ..Default::default()
     };
     assert_eq!(format_text(&none).unwrap(), text);
 }
@@ -539,6 +577,8 @@ fn rule_selection_key_order_does_not_change_pipeline_order() {
                 keys::SPACING_TEMPERATURE_CJK.to_string(),
             ],
         },
+
+        ..Default::default()
     };
     let reverse = FormatRequest {
         text: text.to_string(),
@@ -551,6 +591,8 @@ fn rule_selection_key_order_does_not_change_pipeline_order() {
                 keys::NAMING_PROPER_NOUNS.to_string(),
             ],
         },
+
+        ..Default::default()
     };
     assert_eq!(
         format_text(&forward).unwrap(),
@@ -597,11 +639,15 @@ fn representative_rule_compositions_are_idempotent() {
             selection: RuleSelection::Only {
                 keys: selected.iter().map(|key| (*key).to_string()).collect(),
             },
+
+            ..Default::default()
         };
         let once = format_text(&request).unwrap();
         let twice = format_text(&FormatRequest {
             text: once.clone(),
             selection: request.selection.clone(),
+
+            ..Default::default()
         })
         .unwrap();
         assert_eq!(once, twice, "composition is not idempotent: {text}");
@@ -643,6 +689,8 @@ fn unicode_equivalents_are_explicit_and_do_not_change_defaults() {
         selection: RuleSelection::Only {
             keys: vec![keys::TEXT_UNICODE_EQUIVALENTS.to_string()],
         },
+
+        ..Default::default()
     };
     assert_eq!(format_text(&selected).unwrap(), "单位10μm与3Å");
 
@@ -650,6 +698,8 @@ fn unicode_equivalents_are_explicit_and_do_not_change_defaults() {
     let all = FormatRequest {
         text: source_with_math.to_string(),
         selection: RuleSelection::All,
+
+        ..Default::default()
     };
     assert_eq!(
         format_text(&all).unwrap(),
@@ -1067,6 +1117,8 @@ fn semantic_edit_plan_matches_production_on_semantic_fixtures() {
             let request = FormatRequest {
                 text: case.input.clone(),
                 selection: case.selection.clone(),
+
+                ..Default::default()
             };
             let production = format_text(&request)
                 .unwrap_or_else(|error| panic!("fixture {file} / {} failed: {error}", case.name));
@@ -1088,6 +1140,8 @@ fn final_cleanup_edit_path_does_not_touch_inline_code() {
         selection: RuleSelection::Only {
             keys: vec![keys::SPACING_NO_SPACE_AROUND_FW_PUNCT.to_string()],
         },
+
+        ..Default::default()
     };
     // 注意：行内占位符边缘补空格是既有生产行为；清理本身不改写行内代码内部。
     assert_eq!(
@@ -1108,6 +1162,8 @@ fn final_cleanup_runs_after_structure_boundary_rules() {
                 keys::SPACING_NO_SPACE_AROUND_FW_PUNCT.to_string(),
             ],
         },
+
+        ..Default::default()
     };
     assert_eq!(format_text(&request).unwrap(), "说「你好」一下");
 }
@@ -1121,11 +1177,15 @@ fn final_cleanup_is_idempotent_via_production_path() {
     let once = format_text(&FormatRequest {
         text: "你好， 世界 ！ 继续".to_string(),
         selection: selection.clone(),
+
+        ..Default::default()
     })
     .unwrap();
     let twice = format_text(&FormatRequest {
         text: once.clone(),
         selection,
+
+        ..Default::default()
     })
     .unwrap();
     assert_eq!(once, twice);
@@ -1147,4 +1207,48 @@ fn inline_placeholder_spacing_scales_to_thousands_of_placeholders() {
     let output = protection::space_around_inline_placeholders(&text, &placeholders);
     // 每个占位符前补一个空格；除末尾占位符（后无字符）外，后侧也各补一个空格。
     assert_eq!(output.len(), text.len() + 2 * count - 1);
+}
+
+#[test]
+fn request_model_replacement_and_conversion_fixtures() {
+    let cases: Vec<RequestGoldenCase> = serde_yaml::from_str(include_str!(
+        "../../tests/fixtures/replacement-and-conversion.yaml"
+    ))
+    .expect("failed to parse replacement-and-conversion.yaml");
+
+    for case in cases {
+        let request = FormatRequest {
+            text: case.request.text,
+            selection: case.request.selection,
+            replacements: case.request.replacements,
+            conversion: case.request.conversion,
+        };
+        let actual = format_text(&request)
+            .unwrap_or_else(|error| panic!("fixture {} failed: {error}", case.name));
+        assert_eq!(actual, case.expected, "fixture {} mismatch", case.name);
+    }
+}
+
+#[test]
+fn preset_expands_to_the_same_request_fields() {
+    let preset = Preset {
+        key: "test".to_string(),
+        name: "测试".to_string(),
+        description: "测试预设".to_string(),
+        selection: RuleSelection::None,
+        replacements: vec![ReplacementPair {
+            from: "A".to_string(),
+            to: "B".to_string(),
+            active: true,
+        }],
+        conversion: CharacterConversion::TraditionalToSimplified,
+    };
+    let request = preset.to_request("输入".to_string());
+    assert_eq!(request.text, "输入");
+    assert_eq!(request.selection, RuleSelection::None);
+    assert_eq!(request.replacements, preset.replacements);
+    assert_eq!(
+        request.conversion,
+        CharacterConversion::TraditionalToSimplified
+    );
 }
