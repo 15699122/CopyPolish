@@ -947,4 +947,4 @@ ACL 失败 artifact 保留流程已修复并重新验证；GUI DPI 自动验证�
 
 ## 2026-09-02 Windows 复验补充
 
-Node 24.19.0、Rust 1.98.0 MSVC、WebView2 151.0.4129.107 下，前端 69/69、W3C smoke 2/2、设置重启 2/2、损坏设置 3/3、NTFS ACL 1/1、GUI 视觉 artifact 1/1、设置快捷键 1/1、TUI transcript 4/4 均通过。新 binary 的 embedded `selection-and-persistence.spec.ts` 第三个 case 未将替换设置作用到真实 GUI 输出；`simplified-trad-conversion.spec.ts` 重试为 2/2 通过（s2t、t2s）。失败 artifact 保留，不能据此宣称 Windows GUI 全部通过。
+Node 24.19.0、Rust 1.98.0 MSVC、WebView2 151.0.4129.107 下，前端 69/69、W3C smoke 2/2、设置重启 2/2、损坏设置 3/3、NTFS ACL 1/1、GUI 视觉 artifact 1/1、设置快捷键 1/1、TUI transcript 4/4 均通过。旧 binary 的 embedded `selection-and-persistence.spec.ts` 第三个 case 未将替换设置作用到真实 GUI 输出；当前已增加原生输入事件、保存序列保护和 E2E 诊断，Linux/WSL 定向回归已恢复为 3/3，Windows 需使用当前修复 binary 重新留证。`simplified-trad-conversion.spec.ts` 在正确先构建 feature binary 后为 2/2 通过（s2t、t2s）。

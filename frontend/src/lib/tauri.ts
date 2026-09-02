@@ -78,12 +78,40 @@ export async function formatText(request: FormatRequest): Promise<string> {
     if (request.selection.mode === "none") return request.text;
     return fallbackFormat(request.text);
   }
-  return invoke<string>("format_text", {
+  const payload = {
     text: request.text,
     selection: request.selection,
     replacements: request.replacements ?? null,
     conversion: request.conversion ?? null,
-  });
+  };
+  const e2e = import.meta.env.VITE_COPYPOLISH_E2E === "true";
+  if (e2e) {
+    window.__COPYPOLISH_E2E__ = {
+      ...window.__COPYPOLISH_E2E__,
+      lastFormatRequest: payload,
+      lastFormatResult: undefined,
+      lastFormatError: undefined,
+    };
+  }
+  try {
+    const result = await invoke<string>("format_text", payload);
+    if (e2e) {
+      window.__COPYPOLISH_E2E__ = {
+        ...window.__COPYPOLISH_E2E__,
+        lastFormatResult: result,
+        lastFormatError: undefined,
+      };
+    }
+    return result;
+  } catch (cause) {
+    if (e2e) {
+      window.__COPYPOLISH_E2E__ = {
+        ...window.__COPYPOLISH_E2E__,
+        lastFormatError: String(cause),
+      };
+    }
+    throw cause;
+  }
 }
 
 /** 浏览器预览为演示模式：规则列表由桌面端注册表提供，此处返回空列表。 */
@@ -218,6 +246,14 @@ export async function saveUserSettings(settings: UserSettings): Promise<void> {
       // localStorage 不可用时静默忽略（预览环境）。
     }
     return;
+  }
+  const e2e = import.meta.env.VITE_COPYPOLISH_E2E === "true";
+  if (e2e) {
+    window.__COPYPOLISH_E2E__ = {
+      ...window.__COPYPOLISH_E2E__,
+      lastSettingsSave: settings,
+      settingsSaveSequence: (window.__COPYPOLISH_E2E__?.settingsSaveSequence ?? 0) + 1,
+    };
   }
   await invoke("save_user_settings", { settings });
 }

@@ -133,6 +133,19 @@ export async function captureBrowserFailure(
       "utf8",
     );
     await browser.saveScreenshot(path.join(artifactDir, "screenshots", `${name}.png`));
+    await fs.writeFile(
+      path.join(artifactDir, `${name}.diagnostics.json`),
+      `${JSON.stringify(await browser.execute(() => ({
+        ...((window as Window & { __COPYPOLISH_E2E__?: Record<string, unknown> }).__COPYPOLISH_E2E__ ?? {}),
+        inputValue: document.querySelector<HTMLTextAreaElement>("[data-testid=\"input-textarea\"]")?.value ?? null,
+        outputText: document.querySelector<HTMLElement>("[data-testid=\"output-text\"]")?.innerText ?? null,
+        settingsStatus: document.querySelector<HTMLElement>("[data-testid=\"settings-status\"]")?.innerText ?? null,
+        conversion: document.querySelector<HTMLSelectElement>("[data-testid=\"conversion-select\"]")?.value ?? null,
+        replacementFrom: document.querySelector<HTMLInputElement>("[data-testid=\"replacement-from-0\"]")?.value ?? null,
+        replacementTo: document.querySelector<HTMLInputElement>("[data-testid=\"replacement-to-0\"]")?.value ?? null,
+      })), null, 2)}\n`,
+      "utf8",
+    );
   } catch (error) {
     await writeArtifactJson(artifactDir, `${name}.error.json`, {
       error: String(error),
