@@ -943,3 +943,8 @@ P0.2 只有在以下条件全部满足后才能标记完成。括号中的状态
 ## 13. 2026-09-01 复验结果
 
 ACL 失败 artifact 保留流程已修复并重新验证；GUI DPI 自动验证已决定跳过（此前 200% 会话比例不匹配记录保留为历史证据）；完整 Terminal artifact 入口在无 `WT_SESSION` 的普通命令会话中按设计拒绝，需从 Windows Terminal 交互窗口运行。多行 TUI 三项问题和 Terminal 交互 artifact 已由用户确认关闭；硬件级快捷键仍保留 EdgeDriver 兼容性说明；目标 DPI 自动矩阵已按项目决定跳过。
+
+
+## 2026-09-02 Windows 复验补充
+
+Node 24.19.0、Rust 1.98.0 MSVC、WebView2 151.0.4129.107 下，前端 69/69、W3C smoke 2/2、设置重启 2/2、损坏设置 3/3、NTFS ACL 1/1、GUI 视觉 artifact 1/1、设置快捷键 1/1、TUI transcript 4/4 均通过。新 binary 的 embedded `selection-and-persistence.spec.ts` 第三个 case 未将替换设置作用到真实 GUI 输出；`simplified-trad-conversion.spec.ts` 重试为 2/2 通过（s2t、t2s）。失败 artifact 保留，不能据此宣称 Windows GUI 全部通过。
