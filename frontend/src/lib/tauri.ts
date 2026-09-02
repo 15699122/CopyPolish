@@ -22,9 +22,19 @@ export interface Rule {
   default: boolean;
 }
 
+export interface ReplacementPair {
+  from: string;
+  to: string;
+  active: boolean;
+}
+
+export type CharacterConversion = "none" | "t2s" | "s2t";
+
 export interface FormatRequest {
   text: string;
   selection: RuleSelection;
+  replacements?: ReplacementPair[];
+  conversion?: CharacterConversion;
 }
 
 export type RuleSelection =
@@ -68,7 +78,12 @@ export async function formatText(request: FormatRequest): Promise<string> {
     if (request.selection.mode === "none") return request.text;
     return fallbackFormat(request.text);
   }
-  return invoke<string>("format_text", { ...request });
+  return invoke<string>("format_text", {
+    text: request.text,
+    selection: request.selection,
+    replacements: request.replacements ?? null,
+    conversion: request.conversion ?? null,
+  });
 }
 
 /** 浏览器预览为演示模式：规则列表由桌面端注册表提供，此处返回空列表。 */

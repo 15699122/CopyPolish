@@ -21,6 +21,7 @@ fn bench(name: &str, text: &str) {
     let request = FormatRequest {
         text: text.to_string(),
         selection: RuleSelection::All,
+        ..Default::default()
     };
     let _ = format_text(&request);
     const ROUNDS: u32 = 5;
@@ -29,6 +30,7 @@ fn bench(name: &str, text: &str) {
         let request = FormatRequest {
             text: text.to_string(),
             selection: RuleSelection::All,
+            ..Default::default()
         };
         if format_text(&request).is_err() {
             println!("{name:>28}: ERR (engine regex backtracking limit)");

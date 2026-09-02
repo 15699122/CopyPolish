@@ -31,7 +31,10 @@ pub mod tokenizer;
 pub(crate) mod unicode_boundaries;
 pub(crate) mod unit_lexicon;
 
-pub use model::{FormatRequest, RuleKind, RuleMeta, RuleRisk, RuleSelection};
+pub use model::{
+    CharacterConversion, FormatRequest, Preset, ReplacementPair, RuleKind, RuleMeta, RuleRisk,
+    RuleSelection,
+};
 pub use pipeline::format_text;
 #[cfg(feature = "profile-stages")]
 pub use pipeline::{
