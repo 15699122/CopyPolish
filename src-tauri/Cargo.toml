@@ -11,6 +11,9 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 
 [features]
 default = []
+# 简繁转换（T2S/S2T）。依赖 opencc-fmmseg（MIT，内置 OpenCC 风格词典，
+# 正向最大匹配分词，无运行时 I/O）。默认构建不启用，避免引入 native(zstd) 编译。
+simplified-trad-conversion = ["dep:opencc-fmmseg"]
 tui = ["dep:ratatui", "dep:crossterm", "dep:unicode-width"]
 # Tauri CLI 在打包时会启用该 feature；embedded E2E 直接用 Cargo 构建，
 # 因此必须显式启用 custom protocol 才能加载内嵌 frontendDist。
@@ -44,6 +47,9 @@ regex = "1"
 # UAX #29 文本边界（grapheme cluster），roadmap §5：
 # 为中英/中数插空规则提供不被 emoji ZWJ、组合附加符切断的判定单位。
 unicode-segmentation = "1.12"
+# 简繁转换（可选，见 `simplified-trad-conversion` feature）。
+# opencc-fmmseg：MIT，OpenCC 词典 + FMM 分词，内置压缩词典、无运行时 I/O。
+opencc-fmmseg = { version = "0.11.5", optional = true }
 
 # Ratatui 终端界面仅在 `--features tui` 时编译，不影响默认 Tauri 构建。
 ratatui = { version = "0.29", optional = true }

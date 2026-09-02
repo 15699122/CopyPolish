@@ -1,0 +1,42 @@
+# 简繁转换回归（仅当构建启用 `simplified-trad-conversion` feature 时执行）。
+# - 依赖 opencc-fmmseg（MIT，OpenCC 风格词典 + FMM 分词，内置压缩词典）。
+# - T2S = OpenccConfig::T2s；S2T = OpenccConfig::S2t。
+# - 转换只作用于可编辑区间：不改写 Markdown 链接、URL、行内代码或 fenced 代码内部。
+# - 语义边界（首版已知，不做“正确转化预期”固化）：
+#   * 地區詞误转：t2s('網路') -> '网路'（大陆应为‘网络’）；
+#   * 一字多义漏转：t2s('乾燥') 保持‘乾燥’（应为‘干燥’）。
+#   这些样本不放入正确断言，而在 Spike 决策文档中记录边界。
+
+# ---- 基本转换 ----
+- name: t2s 基本转换
+  request:
+    text: "後設資料與說明"
+    selection:
+      mode: "none"
+    conversion: "t2s"
+  expected: "后设资料与说明"
+
+- name: s2t 基本转换
+  request:
+    text: "设计软件与打印"
+    selection:
+      mode: "none"
+    conversion: "s2t"
+  expected: "設計軟件與打印"
+
+# ---- 结构保护：只转可编辑区间 ----
+- name: t2s 跳过 Markdown 链接标题与行内代码内部
+  request:
+    text: "請查看 [後設資料](https://example.com) 與 `後設資料` 說明"
+    selection:
+      mode: "none"
+    conversion: "t2s"
+  expected: "请查看 [後設資料](https://example.com) 与 `後設資料` 说明"
+
+- name: s2t 跳过 fenced 代码块内部、转换正文
+  request:
+    text: "設計：\n```\nprint(\"元数据\")\n```\n元数据說明。"
+    selection:
+      mode: "none"
+    conversion: "s2t"
+  expected: "設計：\n```\nprint(\"元数据\")\n```\n元數據說明。"

@@ -59,7 +59,7 @@
     conversion: "none"
   expected: "中文排版"
 
-- name: conversion=t2s 占位保持原文（待 Spike）
+- name: conversion=t2s 对简体样本保持不变（无繁可转）
   request:
     text: "中文排版"
     selection:
@@ -67,7 +67,7 @@
     conversion: "t2s"
   expected: "中文排版"
 
-- name: conversion=s2t 占位保持原文（待 Spike）
+- name: conversion=s2t 对简体样本转换（无繁体字时保持不变）
   request:
     text: "中文排版"
     selection:
