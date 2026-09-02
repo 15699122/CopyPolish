@@ -25,6 +25,10 @@ function createOptions() {
     setFont: vi.fn(),
     setEditorFontSize: vi.fn(),
     setUiScale: vi.fn(),
+    replacements: [{ from: "A", to: "甲", active: true }],
+    setReplacements: vi.fn(),
+    conversion: "s2t" as const,
+    setConversion: vi.fn(),
     setShortcutsEnabled: vi.fn(),
     setShortcutBindings: vi.fn(),
     shortcutsEnabled: false,
@@ -45,10 +49,15 @@ describe("useSettingsActions", () => {
 
     act(() => result.current.onToggleRule("rule-b"));
     expect(options.setEnabled).toHaveBeenCalledWith(["rule-a", "rule-b"]);
-    expect(options.scheduleFormat).toHaveBeenCalledWith("原文", ["rule-a", "rule-b"], 0);
+    expect(options.scheduleFormat).toHaveBeenCalledWith("原文", ["rule-a", "rule-b"], 0, {
+      replacements: [{ from: "A", to: "甲", active: true }],
+      conversion: "s2t",
+    });
     expect(options.persistSettings).toHaveBeenCalledWith({
       enabled: ["rule-a", "rule-b"],
       last_input: "原文",
+      replacements: [{ from: "A", to: "甲", active: true }],
+      conversion: "s2t",
     });
 
     options.setEnabled.mockClear();
@@ -56,8 +65,38 @@ describe("useSettingsActions", () => {
     options.persistSettings.mockClear();
     act(() => result.current.onSetAll(false));
     expect(options.setEnabled).toHaveBeenCalledWith([]);
-    expect(options.scheduleFormat).toHaveBeenCalledWith("原文", [], 0);
-    expect(options.persistSettings).toHaveBeenCalledWith({ enabled: [], last_input: "原文" });
+    expect(options.scheduleFormat).toHaveBeenCalledWith("原文", [], 0, {
+      replacements: [{ from: "A", to: "甲", active: true }],
+      conversion: "s2t",
+    });
+    expect(options.persistSettings).toHaveBeenCalledWith({
+      enabled: [],
+      last_input: "原文",
+      replacements: [{ from: "A", to: "甲", active: true }],
+      conversion: "s2t",
+    });
+  });
+
+  it("替换列表和转换选择会立即重排并保存", () => {
+    const options = createOptions();
+    const { result } = renderHook(() => useSettingsActions(options));
+    const nextReplacements = [{ from: "A", to: "乙", active: false }];
+
+    act(() => {
+      result.current.onReplacementsChange(nextReplacements);
+      result.current.onConversionChange("none");
+    });
+
+    expect(options.setReplacements).toHaveBeenCalledWith(nextReplacements);
+    expect(options.setConversion).toHaveBeenCalledWith("none");
+    expect(options.scheduleFormat).toHaveBeenCalledWith("原文", ["rule-a"], 0, {
+      replacements: nextReplacements,
+      conversion: "s2t",
+    });
+    expect(options.scheduleFormat).toHaveBeenLastCalledWith("原文", ["rule-a"], 0, {
+      replacements: [{ from: "A", to: "甲", active: true }],
+      conversion: "none",
+    });
   });
 
   it("显示设置和快捷键操作保存最新 patch", () => {

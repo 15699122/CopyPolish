@@ -22,6 +22,8 @@ const settings = {
       open_settings: "CtrlOrCmd+Comma",
     },
   },
+  replacements: [],
+  conversion: "none" as const,
 };
 
 describe("useSettingsPersistence", () => {

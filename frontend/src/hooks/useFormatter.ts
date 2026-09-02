@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { formatText, type RuleSelection } from "@/lib/tauri";
+import { formatText, type CharacterConversion, type ReplacementPair, type RuleSelection } from "@/lib/tauri";
 
 const NORMAL_DEBOUNCE_MS = 160;
 const LONG_TEXT_DEBOUNCE_MS = 450;
@@ -12,12 +12,22 @@ export interface UseFormatterOptions {
   getSelection: (enabled: string[]) => RuleSelection;
 }
 
+export interface FormatOptions {
+  replacements?: ReplacementPair[];
+  conversion?: CharacterConversion;
+}
+
 export interface UseFormatterResult {
   output: string;
   error: string | null;
   isFormatting: boolean;
   lastFormatDuration: number | null;
-  scheduleFormat: (input: string, enabled: string[], delayOverride?: number) => void;
+  scheduleFormat: (
+    input: string,
+    enabled: string[],
+    delayOverride?: number,
+    options?: FormatOptions,
+  ) => void;
   cancelFormat: () => void;
   clearOutput: () => void;
   clearError: () => void;
@@ -54,7 +64,7 @@ export function useFormatter({ getSelection }: UseFormatterOptions): UseFormatte
   const reportError = useCallback((cause: unknown) => setError(String(cause)), []);
 
   const scheduleFormat = useCallback(
-    (nextInput: string, enabled: string[], delayOverride?: number) => {
+    (nextInput: string, enabled: string[], delayOverride?: number, options: FormatOptions = {}) => {
       if (debounceRef.current !== null) window.clearTimeout(debounceRef.current);
       const delay = delayOverride ?? getFormatDebounceMs(nextInput);
       debounceRef.current = window.setTimeout(async () => {
@@ -62,10 +72,13 @@ export function useFormatter({ getSelection }: UseFormatterOptions): UseFormatte
         const startedAt = performance.now();
         setIsFormatting(true);
         try {
-          const result = await formatText({
+          const request = {
             text: nextInput,
             selection: callbacksRef.current.getSelection(enabled),
-          });
+            ...(options.replacements !== undefined ? { replacements: options.replacements } : {}),
+            ...(options.conversion !== undefined ? { conversion: options.conversion } : {}),
+          };
+          const result = await formatText(request);
           if (sequenceRef.current === sequence) {
             setOutput(result);
             setLastFormatDuration(Math.round(performance.now() - startedAt));

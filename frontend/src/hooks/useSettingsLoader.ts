@@ -8,6 +8,8 @@ import {
   type EditorFontSize,
   type FontFamily,
   type LoadedUserSettings,
+  type CharacterConversion,
+  type ReplacementPair,
   type Rule,
   type SettingsLoadNotice,
   type ShortcutBindings,
@@ -16,7 +18,12 @@ import {
 } from "@/lib/tauri";
 
 export interface UseSettingsLoaderOptions {
-  onRestoreInput: (input: string, enabled: string[]) => void;
+  onRestoreInput: (
+    input: string,
+    enabled: string[],
+    replacements: ReplacementPair[],
+    conversion: CharacterConversion,
+  ) => void;
   onLoadError: (cause: unknown) => void;
 }
 
@@ -35,6 +42,10 @@ export interface UseSettingsLoaderResult {
   setShortcutsEnabled: (enabled: boolean) => void;
   shortcutBindings: ShortcutBindings;
   setShortcutBindings: (bindings: ShortcutBindings) => void;
+  replacements: ReplacementPair[];
+  setReplacements: (replacements: ReplacementPair[]) => void;
+  conversion: CharacterConversion;
+  setConversion: (conversion: CharacterConversion) => void;
   settingsLoadNotices: SettingsLoadNotice[];
   settingsPath: string | null;
   appVersion: string;
@@ -56,6 +67,8 @@ export function useSettingsLoader({
   const [shortcutBindings, setShortcutBindings] = useState<ShortcutBindings>(
     DEFAULT_SHORTCUT_SETTINGS.bindings,
   );
+  const [replacements, setReplacements] = useState<ReplacementPair[]>([]);
+  const [conversion, setConversion] = useState<CharacterConversion>("none");
   const [settingsLoadNotices, setSettingsLoadNotices] = useState<SettingsLoadNotice[]>([]);
   const [settingsPath, setSettingsPath] = useState<string | null>(null);
   const [appVersion, setAppVersion] = useState(__APP_VERSION__);
@@ -112,8 +125,17 @@ export function useSettingsLoader({
           setShortcutsEnabled(saved.shortcuts.enabled);
           setShortcutBindings(saved.shortcuts.bindings);
         }
+        setReplacements(saved.replacements ?? []);
+        setConversion(saved.conversion ?? "none");
         setSettingsLoadNotices(saved.notices ?? []);
-        if (saved.last_input) callbacksRef.current.onRestoreInput(saved.last_input, restoredEnabled);
+        if (saved.last_input) {
+          callbacksRef.current.onRestoreInput(
+            saved.last_input,
+            restoredEnabled,
+            saved.replacements ?? [],
+            saved.conversion ?? "none",
+          );
+        }
       } else {
         setEnabled(defaults.filter((key) => rules.some((rule) => rule.key === key)));
       }
@@ -141,6 +163,10 @@ export function useSettingsLoader({
     setShortcutsEnabled,
     shortcutBindings,
     setShortcutBindings,
+    replacements,
+    setReplacements,
+    conversion,
+    setConversion,
     settingsLoadNotices,
     settingsPath,
     appVersion,

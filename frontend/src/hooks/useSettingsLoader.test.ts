@@ -76,7 +76,7 @@ describe("useSettingsLoader", () => {
     expect(result.current.settingsPath).toBe("/tmp/rules.yaml");
     expect(result.current.appVersion).toBe("0.5.0-test");
     expect(result.current.isHydrated()).toBe(true);
-    expect(onRestoreInput).toHaveBeenCalledWith("恢复内容", ["rule-b"]);
+    expect(onRestoreInput).toHaveBeenCalledWith("恢复内容", ["rule-b"], [], "none");
     expect(mocks.getUserSettings).toHaveBeenCalledOnce();
     expect(onLoadError).not.toHaveBeenCalled();
   });

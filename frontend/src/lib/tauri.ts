@@ -140,6 +140,8 @@ export interface UserSettings {
   editor_font_size: EditorFontSize;
   ui_scale: UiScale;
   shortcuts: ShortcutSettings;
+  replacements: ReplacementPair[];
+  conversion: CharacterConversion;
 }
 
 export interface LoadedUserSettings extends UserSettings {
@@ -168,6 +170,8 @@ export async function getUserSettings(): Promise<LoadedUserSettings | null> {
         editor_font_size: ensureEditorFontSize(parsed.editor_font_size),
         ui_scale: ensureUiScale(parsed.ui_scale),
         shortcuts: ensureShortcutSettings(parsed.shortcuts),
+        replacements: ensureReplacements(parsed.replacements),
+        conversion: ensureCharacterConversion(parsed.conversion),
         notices: [],
       };
     } catch {
@@ -188,6 +192,8 @@ export async function getUserSettings(): Promise<LoadedUserSettings | null> {
     editor_font_size: ensureEditorFontSize(settings.editor_font_size),
     ui_scale: ensureUiScale(settings.ui_scale),
     shortcuts: ensureShortcutSettings(settings.shortcuts),
+    replacements: ensureReplacements(settings.replacements),
+    conversion: ensureCharacterConversion(settings.conversion),
     notices: loaded.notices ?? [],
   };
 }
@@ -244,4 +250,20 @@ function ensureUiScale(value: unknown): UiScale {
     return value;
   }
   return "normal";
+}
+
+function ensureCharacterConversion(value: unknown): CharacterConversion {
+  if (value === "t2s" || value === "s2t") return value;
+  return "none";
+}
+
+function ensureReplacements(value: unknown): ReplacementPair[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is Partial<ReplacementPair> => typeof item === "object" && item !== null)
+    .map((item) => ({
+      from: typeof item.from === "string" ? item.from : "",
+      to: typeof item.to === "string" ? item.to : "",
+      active: typeof item.active === "boolean" ? item.active : true,
+    }));
 }

@@ -73,7 +73,7 @@ pub struct Preset {
 - `pipeline.rs`：在 `format_text_impl` 的归一化后、span 保护前插入替换与转换阶段
 - `commands.rs`：`format_text` command 透传新字段
 - `frontend/src/lib/tauri.ts`：`FormatRequest` 类型对齐
-- 测试：新增 `replacement-and-conversion.yaml` fixture，覆盖替换顺序、简繁互斥、与排版规则组合
+- 测试：新增 `replacement-and-conversion.yaml` 与简繁转换 fixture，覆盖替换顺序、简繁互斥、与排版规则组合
 
 ## 验证
 
@@ -84,4 +84,4 @@ pub struct Preset {
 ## 备注
 
 - 首版自定义替换**不支持用户正则**（roadmap §P1 明确）
-- 简繁转换的具体 Rust 依赖与词汇级语义留待独立 Spike；模型层先占位 `CharacterConversion::None` 为唯一实际生效值
+- 简繁转换已通过 `simplified-trad-conversion` 可选 feature 接入 `opencc-fmmseg`；默认构建仍保持占位行为，词汇级语义边界和地区词仍依赖 OpenCC 词典并需人工复核

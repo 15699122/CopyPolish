@@ -4,6 +4,8 @@ import {
   DEFAULT_SHORTCUT_SETTINGS,
   type EditorFontSize,
   type FontFamily,
+  type CharacterConversion,
+  type ReplacementPair,
   type Rule,
   type ShortcutAction,
   type ShortcutBindings,
@@ -21,11 +23,18 @@ export interface UseSettingsActionsOptions {
   setFont: (font: FontFamily) => void;
   setEditorFontSize: (size: EditorFontSize) => void;
   setUiScale: (scale: UiScale) => void;
+  replacements?: ReplacementPair[];
+  setReplacements?: (replacements: ReplacementPair[]) => void;
+  conversion?: CharacterConversion;
+  setConversion?: (conversion: CharacterConversion) => void;
   setShortcutsEnabled: (enabled: boolean) => void;
   setShortcutBindings: (bindings: ShortcutBindings) => void;
   shortcutsEnabled: boolean;
   shortcutBindings: ShortcutBindings;
-  scheduleFormat: (input: string, enabled: string[], delayOverride?: number) => void;
+  scheduleFormat: (input: string, enabled: string[], delayOverride?: number, options?: {
+    replacements?: ReplacementPair[];
+    conversion?: CharacterConversion;
+  }) => void;
   persistSettings: (patch?: Partial<UserSettings>) => void;
 }
 
@@ -42,6 +51,8 @@ export interface UseSettingsActionsResult {
   onShortcutsEnabledChange: (enabled: boolean) => void;
   onSaveShortcutBinding: (action: ShortcutAction, binding: string) => void;
   onResetShortcuts: () => void;
+  onReplacementsChange: (replacements: ReplacementPair[]) => void;
+  onConversionChange: (conversion: CharacterConversion) => void;
 }
 
 /** 设置窗口动作：同步更新本地状态、触发重排并提交对应设置 patch。 */
@@ -59,37 +70,43 @@ export function useSettingsActions({
   setShortcutBindings,
   shortcutsEnabled,
   shortcutBindings,
+  replacements,
+  conversion,
+  setReplacements,
+  setConversion,
   scheduleFormat,
   persistSettings,
 }: UseSettingsActionsOptions): UseSettingsActionsResult {
+  const activeReplacements = replacements ?? [];
+  const activeConversion = conversion ?? "none";
   const onToggleRule = useCallback(
     (key: string) => {
       const next = enabledSet.has(key)
         ? enabled.filter((current) => current !== key)
         : [...enabled, key];
       setEnabled(next);
-      scheduleFormat(input, next, 0);
-      persistSettings({ enabled: next, last_input: input });
+      scheduleFormat(input, next, 0, { replacements: activeReplacements, conversion: activeConversion });
+      persistSettings({ enabled: next, last_input: input, replacements: activeReplacements, conversion: activeConversion });
     },
-    [enabled, enabledSet, input, persistSettings, scheduleFormat, setEnabled],
+    [activeConversion, activeReplacements, enabled, enabledSet, input, persistSettings, scheduleFormat, setEnabled],
   );
 
   const onSetAll = useCallback(
     (on: boolean) => {
       const next = on ? rules.map((rule) => rule.key) : [];
       setEnabled(next);
-      scheduleFormat(input, next, 0);
-      persistSettings({ enabled: next, last_input: input });
+      scheduleFormat(input, next, 0, { replacements: activeReplacements, conversion: activeConversion });
+      persistSettings({ enabled: next, last_input: input, replacements: activeReplacements, conversion: activeConversion });
     },
-    [input, persistSettings, rules, scheduleFormat, setEnabled],
+    [activeConversion, activeReplacements, input, persistSettings, rules, scheduleFormat, setEnabled],
   );
 
   const onResetDefaults = useCallback(() => {
     const next = rules.filter((rule) => rule.default).map((rule) => rule.key);
     setEnabled(next);
-    scheduleFormat(input, next, 0);
-    persistSettings({ enabled: next, last_input: input });
-  }, [input, persistSettings, rules, scheduleFormat, setEnabled]);
+    scheduleFormat(input, next, 0, { replacements: activeReplacements, conversion: activeConversion });
+    persistSettings({ enabled: next, last_input: input, replacements: activeReplacements, conversion: activeConversion });
+  }, [activeConversion, activeReplacements, input, persistSettings, rules, scheduleFormat, setEnabled]);
 
   const onThemeChange = useCallback(
     (nextTheme: ThemeMode) => {
@@ -164,6 +181,24 @@ export function useSettingsActions({
     persistSettings({ shortcuts: next });
   }, [persistSettings, setShortcutBindings, setShortcutsEnabled]);
 
+  const onReplacementsChange = useCallback(
+    (nextReplacements: ReplacementPair[]) => {
+      setReplacements?.(nextReplacements);
+      scheduleFormat(input, enabled, 0, { replacements: nextReplacements, conversion: activeConversion });
+      persistSettings({ replacements: nextReplacements, conversion: activeConversion, last_input: input });
+    },
+    [activeConversion, enabled, input, persistSettings, scheduleFormat, setReplacements],
+  );
+
+  const onConversionChange = useCallback(
+    (nextConversion: CharacterConversion) => {
+      setConversion?.(nextConversion);
+      scheduleFormat(input, enabled, 0, { replacements: activeReplacements, conversion: nextConversion });
+      persistSettings({ conversion: nextConversion, replacements: activeReplacements, last_input: input });
+    },
+    [activeReplacements, enabled, input, persistSettings, scheduleFormat, setConversion],
+  );
+
   return {
     onToggleRule,
     onSetAll,
@@ -177,5 +212,7 @@ export function useSettingsActions({
     onShortcutsEnabledChange,
     onSaveShortcutBinding,
     onResetShortcuts,
+    onReplacementsChange,
+    onConversionChange,
   };
 }
