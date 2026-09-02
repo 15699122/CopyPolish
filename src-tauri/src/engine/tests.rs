@@ -90,6 +90,10 @@ fn load_passing_golden_cases() -> Vec<(String, GoldenCase)> {
             "real-world-corpus.yaml",
             include_str!("../../tests/fixtures/real-world-corpus.yaml"),
         ),
+        (
+            "text-cleanup.yaml",
+            include_str!("../../tests/fixtures/text-cleanup.yaml"),
+        ),
     ]
     .into_iter()
     .flat_map(|(file, yaml)| parse_fixture(file, yaml))
@@ -163,7 +167,7 @@ fn passing_golden_fixtures_are_idempotent() {
 fn registry_contains_migrated_rules_with_defaults() {
     let all = rules();
     // 历史规则、温标空格规则和默认关闭的 Unicode 输出规范化规则均已注册。
-    assert_eq!(all.len(), 14);
+    assert_eq!(all.len(), 17);
     assert_eq!(enabled_defaults().len(), 9);
     let disabled: Vec<_> = all
         .iter()
@@ -173,6 +177,9 @@ fn registry_contains_migrated_rules_with_defaults() {
     assert_eq!(
         disabled,
         vec![
+            keys::CLEANUP_REFERENCE_SQUARE,
+            keys::CLEANUP_COLLAPSE_HORIZONTAL_SPACES,
+            keys::CLEANUP_LIMIT_BLANK_LINES,
             keys::TEXT_UNICODE_EQUIVALENTS,
             keys::NAMING_PROPER_NOUNS,
             keys::NAMING_EXPAND_ABBREVIATIONS,
@@ -194,8 +201,12 @@ fn registry_contains_migrated_rules_with_defaults() {
 
 #[test]
 fn rule_metadata_enums_serialize_with_stable_wire_values() {
-    let json = serde_json::to_value(&rules()[0].meta).expect("rule metadata should serialize");
-    assert_eq!(json["kind"], "typography");
+    let cleanup = rules()
+        .iter()
+        .find(|rule| rule.key() == keys::CLEANUP_REFERENCE_SQUARE)
+        .expect("cleanup rule should be registered");
+    let json = serde_json::to_value(&cleanup.meta).expect("rule metadata should serialize");
+    assert_eq!(json["kind"], "cleanup");
     assert_eq!(json["risk"], "contextual");
 }
 
@@ -231,6 +242,9 @@ fn registry_execution_order_is_phase_explicit_and_stable() {
     assert_eq!(
         keys,
         vec![
+            keys::CLEANUP_REFERENCE_SQUARE,
+            keys::CLEANUP_COLLAPSE_HORIZONTAL_SPACES,
+            keys::CLEANUP_LIMIT_BLANK_LINES,
             keys::PUNCT_NO_REPETITION,
             keys::PUNCT_FULLWIDTH_CJK,
             keys::TEXT_HALFWIDTH_DIGITS,

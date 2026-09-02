@@ -6,6 +6,7 @@
 
 ### Added
 
+- 增加首批来源文本清洗规则：可选清理普通文本中的方括号/中文方括号引用角标、连续 ASCII 空格和连续空行；清洗规则默认关闭，并通过 span-aware TextEdit 保护 Markdown 链接、代码、URL 和其他结构。跨行空行清理使用独立的结构边界路径，不参与普通逐行规则循环。
 - 为规则注册表增加用户说明、类型和风险元数据，并在 GUI/TUI 规则面板展示；保留 stable key、默认状态、phase、依赖和既有格式化行为不变，README 表格与注册表一致性测试已同步扩展。
 - 新增文本清洗与规范排版工作流决策（`docs/decisions/text-cleaning-workflow.md`），并将产品描述调整为本地优先的中文文本清洗与规范排版工具；来源文本清洗、字符转换和预设仍属于后续路线图，不代表本版本已经实现。
 - 新增设置存储回退（ADR 方案 B，`docs/decisions/settings-storage-policy.md`）：程序目录不可写时自动改用平台应用数据目录（Windows `%APPDATA%\CopyPolish`、Linux/macOS `~/.config/CopyPolish`）保存 `rules.yaml`，主界面提示实际生效位置；便携用户行为不变。新增 6 项存储决策单测（同目录优先、双位置并存、只读回退等）。

@@ -16,6 +16,9 @@ use std::collections::{HashMap, HashSet};
 
 /// 稳定规则 key 常量。
 pub mod keys {
+    pub const CLEANUP_REFERENCE_SQUARE: &str = "cleanup.reference-square";
+    pub const CLEANUP_COLLAPSE_HORIZONTAL_SPACES: &str = "cleanup.collapse-horizontal-spaces";
+    pub const CLEANUP_LIMIT_BLANK_LINES: &str = "cleanup.limit-blank-lines";
     pub const SPACING_CJK_LATIN: &str = "spacing.cjk-latin";
     pub const SPACING_CJK_NUMBER: &str = "spacing.cjk-number";
     pub const SPACING_NUMBER_UNIT: &str = "spacing.number-unit";
@@ -38,6 +41,7 @@ pub mod keys {
 /// 的顺序由 `execution_rules` 显式决定，而不是由调用方自行推断。
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum RulePhase {
+    Cleanup,
     PunctuationNormalization,
     NamingNormalization,
     StructureBoundary,
@@ -63,6 +67,9 @@ pub struct RuleDef {
 fn phase_for_key(key: &str) -> RulePhase {
     use keys::*;
     match key {
+        CLEANUP_REFERENCE_SQUARE
+        | CLEANUP_COLLAPSE_HORIZONTAL_SPACES
+        | CLEANUP_LIMIT_BLANK_LINES => RulePhase::Cleanup,
         PUNCT_NO_REPETITION
         | PUNCT_FULLWIDTH_CJK
         | TEXT_HALFWIDTH_DIGITS
@@ -82,6 +89,9 @@ fn phase_for_key(key: &str) -> RulePhase {
 fn dependencies_for_key(key: &str) -> (&'static [&'static str], &'static [&'static str]) {
     use keys::*;
     match key {
+        CLEANUP_REFERENCE_SQUARE
+        | CLEANUP_COLLAPSE_HORIZONTAL_SPACES
+        | CLEANUP_LIMIT_BLANK_LINES => (&[], &[]),
         PUNCT_FULLWIDTH_CJK => (&[], &[PUNCT_NO_REPETITION][..]),
         TEXT_HALFWIDTH_DIGITS => (&[], &[PUNCT_FULLWIDTH_CJK][..]),
         TEXT_ASCII_PUNCT_IN_LATIN => (&[], &[TEXT_HALFWIDTH_DIGITS][..]),
@@ -138,6 +148,21 @@ fn def(
 fn metadata_for_key(key: &str, _name: &str, disputed: bool) -> (&'static str, RuleKind, RuleRisk) {
     use keys::*;
     match key {
+        CLEANUP_REFERENCE_SQUARE => (
+            "删除普通文本中的数字引用角标，如 [1]、[2, 3]、[4-7] 和对应的中文方括号形式。",
+            RuleKind::Cleanup,
+            RuleRisk::Contextual,
+        ),
+        CLEANUP_COLLAPSE_HORIZONTAL_SPACES => (
+            "将普通可编辑文本中的连续 ASCII 空格折叠为一个，不改写代码、链接、公式和其他保护结构。",
+            RuleKind::Cleanup,
+            RuleRisk::Contextual,
+        ),
+        CLEANUP_LIMIT_BLANK_LINES => (
+            "将普通文本中的连续空行限制为一个空行，跳过受保护的 Markdown、代码、公式和 HTML 结构。",
+            RuleKind::Cleanup,
+            RuleRisk::Contextual,
+        ),
         PUNCT_NO_REPETITION => (
             "折叠连续重复标点，并规范连续叹号和问号的组合。",
             RuleKind::Typography,
@@ -225,6 +250,33 @@ fn metadata_for_key(key: &str, _name: &str, disputed: bool) -> (&'static str, Ru
 static RULES: std::sync::LazyLock<Vec<RuleDef>> = std::sync::LazyLock::new(|| {
     use keys::*;
     vec![
+        def(
+            CLEANUP_REFERENCE_SQUARE,
+            "文本清洗",
+            "删除方括号引用角标",
+            false,
+            false,
+            &["删除方括号引用角标"],
+            rule_impls::remove_square_reference_badges,
+        ),
+        def(
+            CLEANUP_COLLAPSE_HORIZONTAL_SPACES,
+            "文本清洗",
+            "折叠连续空格",
+            false,
+            false,
+            &["折叠连续空格"],
+            rule_impls::collapse_horizontal_spaces,
+        ),
+        def(
+            CLEANUP_LIMIT_BLANK_LINES,
+            "文本清洗",
+            "限制连续空行",
+            false,
+            false,
+            &["限制连续空行"],
+            rule_impls::limit_blank_lines,
+        ),
         def(
             PUNCT_NO_REPETITION,
             "标点符号",

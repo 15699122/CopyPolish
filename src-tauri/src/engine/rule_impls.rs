@@ -23,6 +23,31 @@ pub fn normalize_spaces(text: &str) -> String {
         .to_string()
 }
 
+/// cleanup.collapse-horizontal-spaces：折叠普通可编辑文本中的连续 ASCII 空格。
+pub fn collapse_horizontal_spaces(text: &str) -> String {
+    normalize_spaces(text)
+}
+
+/// cleanup.reference-square：删除数字方括号引用角标。
+///
+/// Markdown 链接、引用定义、代码和其他结构由上游 span 层排除；此函数本身
+/// 只负责普通可编辑片段中的字面模式，圆括号引用不在本轮范围内。
+pub fn remove_square_reference_badges(text: &str) -> String {
+    static ASCII: OnceLock<Regex> = OnceLock::new();
+    static CJK: OnceLock<Regex> = OnceLock::new();
+    let ascii = ASCII.get_or_init(|| Regex::new(r"\[[0-9]+(?:\s*[,\-–—]\s*[0-9]+)*\]").unwrap());
+    let cjk = CJK.get_or_init(|| Regex::new(r"【[0-9]+(?:\s*[,，\-–—]\s*[0-9]+)*】").unwrap());
+    let text = ascii.replace_all(text, "");
+    cjk.replace_all(&text, "").to_string()
+}
+
+/// cleanup.limit-blank-lines 的单行回退函数。
+/// 跨行压缩由 `edit_plan` 在结构 span 边界上完成；这里保留纯函数入口，
+/// 供注册表和后续预设共享同一规则元数据。
+pub fn limit_blank_lines(text: &str) -> String {
+    text.to_string()
+}
+
 /// text.unicode-equivalents：将已确认等价的 Unicode 单位字符统一为推荐写法。
 ///
 /// 该规则只处理有限映射，不执行全文 NFKC；默认关闭，避免未经用户选择
