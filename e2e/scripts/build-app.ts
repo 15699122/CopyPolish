@@ -10,6 +10,9 @@ const rootDir = path.resolve(e2eDir, "../..");
 const tauriDir = path.join(rootDir, "src-tauri");
 const npmCliPath = process.env.npm_execpath;
 if (!npmCliPath) throw new Error("npm_execpath is unavailable; run this script through npm");
+const extraFeatures = process.argv
+  .flatMap((argument, index, argumentsList) => argument === "--feature" ? [argumentsList[index + 1]] : [])
+  .filter((feature): feature is string => Boolean(feature));
 
 const tauriConfig = JSON.parse(
   await fs.readFile(path.join(tauriDir, "tauri.conf.json"), "utf8"),
@@ -42,7 +45,8 @@ await execFileAsync("cargo", ["clean", "-p", "chinese-copywriting-formatter"], {
   maxBuffer: 10 * 1024 * 1024,
 });
 
-await execFileAsync("cargo", ["build", "--manifest-path", "Cargo.toml", "--features", "e2e"], {
+const cargoFeatures = ["e2e", ...extraFeatures].join(",");
+await execFileAsync("cargo", ["build", "--manifest-path", "Cargo.toml", "--features", cargoFeatures], {
   cwd: tauriDir,
   env: { ...process.env, TAURI_CONFIG: JSON.stringify(tauriConfig) },
   maxBuffer: 10 * 1024 * 1024,
@@ -54,3 +58,4 @@ const binaryName = process.platform === "win32"
 const binaryPath = path.join(tauriDir, "target", "debug", binaryName);
 await fs.access(binaryPath);
 console.log(`E2E binary ready: ${binaryPath}`);
+if (extraFeatures.length > 0) console.log(`Additional Cargo features: ${extraFeatures.join(", ")}`);

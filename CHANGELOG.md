@@ -10,6 +10,9 @@
 - 为规则注册表增加用户说明、类型和风险元数据，并在 GUI/TUI 规则面板展示；保留 stable key、默认状态、phase、依赖和既有格式化行为不变，README 表格与注册表一致性测试已同步扩展。
 - 完成简繁转换 Spike 并接入 `opencc-fmmseg`：以 `simplified-trad-conversion` 可选 feature 提供互斥的 T2S/S2T（MIT、OpenCC 风格词典 + FMM 分词，只改写可编辑区间、保护链接/代码/公式；实测 1 MB `s2t` ≈130 MB/s），默认构建不启用、保持占位；`scripts/generate_licenses.py` 新增 `--features` 参数以纳入可选依赖许可证。决策与语义边界见 `docs/decisions/simplified-trad-conversion-spike.md`。
 - 增加自定义字面量替换：扩展 `FormatRequest` 为统一请求模型（有序、仅 active、span 保护前执行），随 `Preset` 模板一并落地；GUI 已支持添加、编辑、启停和删除替换项，并将列表顺序持久化到设置；TUI 控件和预设选择界面仍在路线图。
+- 补齐 GUI 替换与简繁转换交互回归：新增替换列表组件测试和 App 级添加/编辑/启停/删除/转换选择测试，覆盖设置恢复、旧字段默认值、持久化和实时重排；修复快捷键“立即排版”未携带当前替换/转换设置的问题。TUI/CLI 暂不接入这些共享设置行为。
+- 增加真实 GUI E2E 的替换/转换保存与重启恢复用例：当前 Linux/WSL embedded provider 已验证设置保存与替换输出 3/3、重启恢复 write/read 各 1/1，覆盖临时 `rules.yaml` 写入、替换列表、转换模式和最近输入恢复；默认构建下简繁转换仍是占位实现，实际字符转换需使用 `simplified-trad-conversion` feature 单独验证。W3C/Windows 对应留证仍按平台执行，TUI/CLI 暂不接入这些共享设置行为。
+- 新增 `build:app:simplified-trad` 与 feature 专用 GUI E2E spec，并在当前 Linux/WSL embedded provider 验证双向真实转换 2/2 通过（`s2t` / `t2s`）；默认 E2E 构建语义保持不变。
 - 新增文本清洗与规范排版工作流决策（`docs/decisions/text-cleaning-workflow.md`），并将产品描述调整为本地优先的中文文本清洗与规范排版工具；来源文本清洗、字符转换和预设仍属于后续路线图，不代表本版本已经实现。
 - 新增设置存储回退（ADR 方案 B，`docs/decisions/settings-storage-policy.md`）：程序目录不可写时自动改用平台应用数据目录（Windows `%APPDATA%\CopyPolish`、Linux/macOS `~/.config/CopyPolish`）保存 `rules.yaml`，主界面提示实际生效位置；便携用户行为不变。新增 6 项存储决策单测（同目录优先、双位置并存、只读回退等）。
 - 新增统一本地清理入口 `scripts/clean.py`（白名单删除构建缓存、`e2e/artifacts/` 和 `e2e/settings-*` 临时设置目录，支持 `--dry-run`/`--deep`），并约定测试结果记录后清理本地 artifact、远程仅记录测试结论。
