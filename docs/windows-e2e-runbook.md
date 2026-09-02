@@ -23,7 +23,7 @@ Linux、WSL/WSLg 和普通 Chrome 可以验证部分业务语义，但不能替�
 | 工作项 | 目标 | 当前状态 | 完成标志 |
 | --- | --- | --- | --- |
 | 默认 embedded GUI 完整回归 | 验证 Windows WebView2、真实 Rust IPC、设置保存/恢复和替换输出 | 已有基线；换 binary 或前端后应重新执行 | `npm run test --prefix e2e` 通过，artifact 完整 |
-| 简繁 feature embedded GUI | 验证 `s2t`/`t2s` 的真实字符转换，而非默认构建占位 | Linux/WSL 2/2、Windows 重试 2/2 通过 | feature 构建和 `simplified-trad-conversion.spec.ts` 2/2 通过 |
+| 简繁 feature embedded GUI | 验证 `s2t`/`t2s` 的真实字符转换，而非默认构建占位 | Linux/WSL 2/2 通过；Windows 需按当前修复 binary 重新留证 | feature 构建和 `simplified-trad-conversion.spec.ts` 2/2 通过 |
 | 标准 W3C provider | 验证 session、主窗口、一次格式化、一次设置保存和退出清理 | 已收敛为兼容性 smoke | `npm run test:webdriver --prefix e2e` 通过 |
 | GUI DPI artifact | 在 100%/125%/150% Windows 缩放下保存可审计截图、page source 和环境信息 | 自动验证跳过；三档人工 GUI 验证已完成 | 不纳入自动化门禁；按需保留人工结果 |
 | Terminal 多行显示修复 | 修复自动换行后新增字符绘制位置、光标不可见和 emoji 显示（WT-TUI-001/002/003） | 源码修复已完成，Windows MSVC 158/158 通过；真实 Terminal 复验已由用户确认通过 | Rust/UI 回归通过，Windows 原生复验通过 |
@@ -33,14 +33,14 @@ Linux、WSL/WSLg 和普通 Chrome 可以验证部分业务语义，但不能替�
 **状态更新**：用户已确认 WT-TUI-001/002/003 修复后完成 Windows 原生复验，Terminal 交互 artifact 标记为通过。GitLab Windows E2E stage 已决定跳过（不执行）。
 ### 1.3 2026-09-02 Windows 原生复验记录
 
-本轮在 Windows native environment checkout、Windows WebView2 151.0.4129.107、Node 24.19.0、Rust 1.98.0 `x86_64-pc-windows-msvc`、PowerShell 7.6.5 和 Visual Studio Build Tools 17.14.37614.0 上重新执行了可自动化项目。前端测试 69/69、E2E typecheck、embedded/WebDriver/`simplified-trad-conversion`/TUI release 构建均通过；标准 W3C smoke 2/2、设置重启 write/read 2/2、损坏设置三种 fixture 3/3、NTFS ACL 1/1、GUI 视觉 artifact 1/1、设置快捷键控制台 1/1、TUI transcript 4/4 均通过。受控失败 artifact probe 按预期生成失败结果并通过 bundle 自检。
+本轮在 Windows native environment checkout、Windows WebView2 151.0.4129.107、Node 24.19.0、Rust 1.98.0 `x86_64-pc-windows-msvc`、PowerShell 7.6.5 和 Visual Studio Build Tools 17.14.37614.0 上重新执行了可自动化项目。前端测试 69/69、E2E typecheck、embedded/WebDriver/`simplified-trad-conversion`/TUI release 构建均通过；标准 W3C smoke 2/2、设置重启 write/read 2/2、损坏设置三种 fixture 3/3、NTFS ACL 1/1、GUI 视觉 artifact 1/1、设置快捷键控制台 1/1、TUI transcript 4/4 均通过。受控失败 artifact probe 按预期生成失败结果并通过 bundle 自检。随后 Linux/WSL 已完成当前修复 binary 的替换链路 3/3 和 feature 双向转换 2/2；Windows 仍需用当前修复 binary 重新执行对应 GUI spec。
 
-当前有两项需要跟进的 Windows GUI 失败，原始 artifact 保留在 `e2e/artifacts/embedded/`：
+当前有一项需要跟进的 Windows GUI 复验，原始失败 artifact 保留在 `e2e/artifacts/embedded/`：
 
-- `selection-and-persistence.spec.ts`：前两个 case 通过；第三个“真实 GUI 保存替换项和简繁转换设置”在设置已写入后，输入 `TODO` 未得到 `待办`，超时失败（本轮 artifact `1788353402936`，完整回归停止于此；早先复现 artifact `1788351053668`）。
-- `simplified-trad-conversion.spec.ts`：首次运行 t2s 保存值未更新；重试后 s2t/t2s 均通过（2/2），此前失败视为瞬态问题，重试 artifact 已保留。
+- `selection-and-persistence.spec.ts`：旧 binary 的第三个“真实 GUI 保存替换项和简繁转换设置” case 在设置已写入后，输入 `TODO` 未得到 `待办`（本轮 artifact `1788353402936`，早先复现 artifact `1788351053668`）。当前代码已在 Linux/WSL 定向验证通过，Windows 必须重新构建并复跑确认。
+- `simplified-trad-conversion.spec.ts`：首次运行因实际使用了默认 binary 而未产生转换结果；先执行 `build:app:simplified-trad` 后，s2t/t2s 均通过（2/2）。
 
-这两项暂不能标记为 Windows 通过；其余专项结果不受影响。GUI DPI 自动矩阵和 GitLab Windows 可选 stage 仍按项目决定跳过，Windows Terminal 交互 artifact 仍按用户确认标记通过。 另外，`cargo test --manifest-path src-tauri/Cargo.toml --features tui` 在 Windows 编译测试目标时失败：`src-tauri/src/user_settings.rs:550-562` 直接引用 `std::os::unix::fs::PermissionsExt`/`Permissions::from_mode`（E0433/E0599）。因此本轮不能把 Rust/TUI 158/158 记为 Windows 新鲜证据；release binary 构建和 TUI transcript 仍通过。
+上述第一项仍不能标记为 Windows 当前修复版本通过；其余专项结果不受影响。GUI DPI 自动矩阵和 GitLab Windows 可选 stage 仍按项目决定跳过，Windows Terminal 交互 artifact 仍按用户确认标记通过。Unix-only 权限测试现已增加 `#[cfg(unix)]`，Windows 需重新执行 `cargo test --features tui` 确认测试目标编译及完整结果；在此之前不能将旧的 Rust/TUI 结果视为当前修复版本的新鲜证据。
 
 已确认问题清单（详见 [windows-terminal-tui-manual.md](windows-terminal-tui-manual.md)）：
 

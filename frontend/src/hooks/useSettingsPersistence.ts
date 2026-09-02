@@ -26,18 +26,22 @@ export function useSettingsPersistence({
   const [settingsStatus, setSettingsStatus] = useState<SettingsStatus>("idle");
   const [settingsError, setSettingsError] = useState<string | null>(null);
   const timerRef = useRef<number | null>(null);
+  const saveSequenceRef = useRef(0);
   const callbacksRef = useRef({ getSettings, isHydrated });
   callbacksRef.current = { getSettings, isHydrated };
 
   const persistSettings = useCallback((patch: Partial<UserSettings> = {}) => {
     if (!callbacksRef.current.isHydrated()) return;
+    const sequence = ++saveSequenceRef.current;
     setSettingsStatus("saving");
     saveUserSettings({ ...callbacksRef.current.getSettings(), ...patch })
       .then(() => {
+        if (saveSequenceRef.current !== sequence) return;
         setSettingsStatus("saved");
         setSettingsError(null);
       })
       .catch((cause) => {
+        if (saveSequenceRef.current !== sequence) return;
         setSettingsStatus("error");
         setSettingsError(String(cause));
       });

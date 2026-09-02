@@ -1,6 +1,8 @@
 import {
   assertAppDidNotPolluteRepository,
   formatText,
+  getE2EDiagnostics,
+  setTextInput,
   waitForApp,
 } from "../support/app.js";
 import { readSettings } from "../support/settings.js";
@@ -53,7 +55,10 @@ describe("CopyPolish 真实设置链路", () => {
     await addReplacement.click();
 
     await $("[data-testid=\"replacement-from-0\"]").setValue("TODO");
+    await browser.waitUntil(async () => await (await $("[data-testid=\"replacement-from-0\"]")).getValue() === "TODO", { timeout: 10_000, timeoutMsg: "替换来源未更新" });
     await $("[data-testid=\"replacement-to-0\"]").setValue("待办");
+    await browser.waitUntil(async () => await (await $("[data-testid=\"replacement-to-0\"]")).getValue() === "待办", { timeout: 10_000, timeoutMsg: "替换目标未更新" });
+    const saveBeforeConversion = Number((await getE2EDiagnostics()).settingsSaveSequence ?? 0);
     await browser.execute(() => {
       const select = document.querySelector<HTMLSelectElement>("[data-testid=\"conversion-select\"]");
       if (!select) throw new Error("简繁转换选择器不存在");
@@ -70,6 +75,10 @@ describe("CopyPolish 真实设置链路", () => {
       async () => (await (await $("[data-testid=\"settings-status\"]")).getText()) === "设置已保存",
       { timeout: 10_000, timeoutMsg: "替换和转换设置保存未完成" },
     );
+    await browser.waitUntil(
+      async () => Number((await getE2EDiagnostics()).settingsSaveSequence ?? 0) > saveBeforeConversion,
+      { timeout: 10_000, timeoutMsg: "本轮替换/转换设置保存序号未更新" },
+    );
 
     const settingsDir = process.env.COPYPOLISH_E2E_SETTINGS_DIR;
     expect(settingsDir).toBeTruthy();
@@ -80,12 +89,11 @@ describe("CopyPolish 真实设置链路", () => {
     expect(settings).toContain("conversion: s2t");
 
     await $("[data-testid=\"settings-done\"]").click();
-    const input = await $("[data-testid=\"input-textarea\"]");
     const output = await $("[data-testid=\"output-text\"]");
-    await input.setValue("TODO");
+    await setTextInput("TODO");
     await browser.waitUntil(
       async () => (await output.getText()).includes("待办"),
-      { timeout: 15_000, timeoutMsg: "替换设置未作用于真实 GUI 输出" },
+      { timeout: 15_000, timeoutMsg: `替换设置未作用于真实 GUI 输出：${JSON.stringify(await getE2EDiagnostics())}` },
     );
     expect(await output.getText()).toContain("待办");
   });

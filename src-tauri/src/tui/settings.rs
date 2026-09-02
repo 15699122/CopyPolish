@@ -11,7 +11,7 @@
 
 use std::collections::BTreeSet;
 
-use crate::engine::{RuleKind, RuleMeta, RuleRisk, RuleSelection};
+use crate::engine::{RuleMeta, RuleSelection};
 use crate::user_settings;
 
 /// 从共享设置加载出的、TUI 关心的配置子集。
@@ -115,6 +115,7 @@ pub fn persist(selection: &RuleSelection, last_input: &str) -> Result<(), String
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::engine::{RuleKind, RuleRisk};
 
     /// 构造包含 3 条规则的迷你注册表：其中两条默认启用。
     fn mini_registry() -> Vec<RuleMeta> {

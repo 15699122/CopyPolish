@@ -47,7 +47,7 @@ export async function assertAppDidNotPolluteRepository(): Promise<void> {
 export async function formatText(inputText: string): Promise<string> {
   const input = await $("[data-testid=\"input-textarea\"]");
   const output = await $("[data-testid=\"output-text\"]");
-  await input.setValue(inputText);
+  await setTextInput(inputText);
   let previousOutput = "";
   let stableReads = 0;
   await browser.waitUntil(
@@ -65,4 +65,31 @@ export async function formatText(inputText: string): Promise<string> {
     { timeout: 15_000, timeoutMsg: "真实格式化结果未稳定出现" },
   );
   return output.getText();
+}
+
+export async function setTextInput(value: string): Promise<void> {
+  await browser.execute((nextValue) => {
+    const input = document.querySelector<HTMLTextAreaElement>("[data-testid=\"input-textarea\"]");
+    if (!input) throw new Error("输入框不存在");
+    const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
+    setter?.call(input, nextValue);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }, value);
+  await browser.waitUntil(
+    async () => await (await $("[data-testid=\"input-textarea\"]")).getValue() === value,
+    { timeout: 10_000, timeoutMsg: "输入框未接收目标文本" },
+  );
+}
+
+export async function getE2EDiagnostics(): Promise<Record<string, unknown>> {
+  return await browser.execute(() => ({
+    ...((window as Window & { __COPYPOLISH_E2E__?: Record<string, unknown> }).__COPYPOLISH_E2E__ ?? {}),
+    inputValue: document.querySelector<HTMLTextAreaElement>("[data-testid=\"input-textarea\"]")?.value ?? null,
+    outputText: document.querySelector<HTMLElement>("[data-testid=\"output-text\"]")?.innerText ?? null,
+    settingsStatus: document.querySelector<HTMLElement>("[data-testid=\"settings-status\"]")?.innerText ?? null,
+    conversion: document.querySelector<HTMLSelectElement>("[data-testid=\"conversion-select\"]")?.value ?? null,
+    replacementFrom: document.querySelector<HTMLInputElement>("[data-testid=\"replacement-from-0\"]")?.value ?? null,
+    replacementTo: document.querySelector<HTMLInputElement>("[data-testid=\"replacement-to-0\"]")?.value ?? null,
+  }));
 }

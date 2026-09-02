@@ -73,4 +73,41 @@ describe("useSettingsPersistence", () => {
     await waitFor(() => expect(result.current.settingsStatus).toBe("error"));
     expect(result.current.settingsError).toContain("disk full");
   });
+
+  it("乱序完成时只允许最新保存更新状态", async () => {
+    let resolveFirst!: () => void;
+    let rejectSecond!: (cause: Error) => void;
+    const firstSave = new Promise<void>((resolve) => { resolveFirst = resolve; });
+    const secondSave = new Promise<void>((_, reject) => { rejectSecond = reject; });
+    mocks.saveUserSettings
+      .mockImplementationOnce(() => firstSave)
+      .mockImplementationOnce(() => secondSave);
+
+    const { result } = renderHook(() =>
+      useSettingsPersistence({
+        getSettings: () => settings,
+        isHydrated: () => true,
+        debounceMs: 20,
+      }),
+    );
+
+    act(() => {
+      result.current.persistSettings({ last_input: "first" });
+      result.current.persistSettings({ last_input: "second" });
+    });
+    expect(result.current.settingsStatus).toBe("saving");
+
+    await act(async () => {
+      rejectSecond(new Error("latest save failed"));
+    });
+    await waitFor(() => expect(result.current.settingsStatus).toBe("error"));
+    expect(result.current.settingsError).toContain("latest save failed");
+
+    await act(async () => {
+      resolveFirst();
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(result.current.settingsStatus).toBe("error");
+    expect(result.current.settingsError).toContain("latest save failed");
+  });
 });
