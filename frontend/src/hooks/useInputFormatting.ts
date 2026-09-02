@@ -1,10 +1,15 @@
 import { useCallback, useState } from "react";
 
-import type { UserSettings } from "@/lib/tauri";
+import type { CharacterConversion, ReplacementPair, UserSettings } from "@/lib/tauri";
 
 export interface UseInputFormattingOptions {
   enabled: string[];
-  scheduleFormat: (input: string, enabled: string[]) => void;
+  replacements?: ReplacementPair[];
+  conversion?: CharacterConversion;
+  scheduleFormat: (input: string, enabled: string[], delayOverride?: number, options?: {
+    replacements?: ReplacementPair[];
+    conversion?: CharacterConversion;
+  }) => void;
   schedulePersist: (patch?: Partial<UserSettings>) => void;
 }
 
@@ -17,6 +22,8 @@ export interface UseInputFormattingResult {
 /** 管理输入值，以及输入变化触发的格式化和设置防抖保存。 */
 export function useInputFormatting({
   enabled,
+  replacements,
+  conversion,
   scheduleFormat,
   schedulePersist,
 }: UseInputFormattingOptions): UseInputFormattingResult {
@@ -25,10 +32,10 @@ export function useInputFormatting({
   const onInputChange = useCallback(
     (nextInput: string) => {
       setInput(nextInput);
-      scheduleFormat(nextInput, enabled);
-      schedulePersist({ enabled, last_input: nextInput });
+      scheduleFormat(nextInput, enabled, undefined, { replacements: replacements ?? [], conversion: conversion ?? "none" });
+      schedulePersist({ enabled, last_input: nextInput, replacements: replacements ?? [], conversion: conversion ?? "none" });
     },
-    [enabled, scheduleFormat, schedulePersist],
+    [conversion, enabled, replacements, scheduleFormat, schedulePersist],
   );
 
   return { input, setInput, onInputChange };

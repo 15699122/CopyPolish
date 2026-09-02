@@ -35,6 +35,28 @@ describe("useFormatter", () => {
     expect(result.current.isFormatting).toBe(false);
   });
 
+  it("透传有序替换和简繁转换选项", async () => {
+    mocks.formatText.mockResolvedValue("formatted");
+    const { result } = renderHook(() => useFormatter({ getSelection }));
+
+    act(() => {
+      result.current.scheduleFormat(
+        "原文",
+        ["rule-a"],
+        0,
+        { replacements: [{ from: "A", to: "甲", active: true }], conversion: "s2t" },
+      );
+    });
+
+    await waitFor(() => expect(result.current.output).toBe("formatted"));
+    expect(mocks.formatText).toHaveBeenCalledWith({
+      text: "原文",
+      selection: { mode: "only", keys: ["rule-a"] },
+      replacements: [{ from: "A", to: "甲", active: true }],
+      conversion: "s2t",
+    });
+  });
+
   it("旧请求完成后不会覆盖较新的请求结果", async () => {
     let resolveFirst!: (value: string) => void;
     let resolveSecond!: (value: string) => void;

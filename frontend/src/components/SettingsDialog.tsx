@@ -14,10 +14,13 @@ import { ThemeSection } from "@/components/settings/ThemeSection";
 import { DisplaySection } from "@/components/settings/DisplaySection";
 import { ShortcutsSection } from "@/components/settings/ShortcutsSection";
 import { RulesSection } from "@/components/settings/RulesSection";
+import { ReplacementsSection } from "@/components/settings/ReplacementsSection";
 import { SettingsFooter, type SettingsStatus } from "@/components/settings/SettingsFooter";
 import type {
   EditorFontSize,
   FontFamily,
+  CharacterConversion,
+  ReplacementPair,
   Rule,
   SettingsLoadNotice,
   ShortcutAction,
@@ -37,6 +40,8 @@ interface SettingsDialogProps {
   font: FontFamily;
   editorFontSize: EditorFontSize;
   uiScale: UiScale;
+  replacements: ReplacementPair[];
+  conversion: CharacterConversion;
   settingsLoadNotices: SettingsLoadNotice[];
   appVersion: string;
   settingsStatus: SettingsStatus;
@@ -56,6 +61,8 @@ interface SettingsDialogProps {
   onShortcutsEnabledChange: (enabled: boolean) => void;
   onSaveShortcutBinding: (action: ShortcutAction, binding: string) => void;
   onResetShortcuts: () => void;
+  onReplacementsChange: (replacements: ReplacementPair[]) => void;
+  onConversionChange: (conversion: CharacterConversion) => void;
 }
 
 /** 设置弹窗编排容器；各分区与状态/持久化行为由 App 注入。 */
@@ -70,6 +77,8 @@ export function SettingsDialog({
   font,
   editorFontSize,
   uiScale,
+  replacements,
+  conversion,
   settingsLoadNotices,
   appVersion,
   settingsStatus,
@@ -89,6 +98,8 @@ export function SettingsDialog({
   onShortcutsEnabledChange,
   onSaveShortcutBinding,
   onResetShortcuts,
+  onReplacementsChange,
+  onConversionChange,
 }: SettingsDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -131,6 +142,12 @@ export function SettingsDialog({
               onShortcutsEnabledChange={onShortcutsEnabledChange}
               onSaveShortcutBinding={onSaveShortcutBinding}
               onResetShortcuts={onResetShortcuts}
+            />
+            <ReplacementsSection
+              replacements={replacements}
+              conversion={conversion}
+              onReplacementsChange={onReplacementsChange}
+              onConversionChange={onConversionChange}
             />
             <RulesSection rules={rules} enabledSet={enabledSet} onToggleRule={onToggleRule} />
           </div>

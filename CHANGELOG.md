@@ -9,7 +9,7 @@
 - 增加首批来源文本清洗规则：可选清理普通文本中的方括号/中文方括号引用角标、连续 ASCII 空格和连续空行；清洗规则默认关闭，并通过 span-aware TextEdit 保护 Markdown 链接、代码、URL 和其他结构。跨行空行清理使用独立的结构边界路径，不参与普通逐行规则循环。
 - 为规则注册表增加用户说明、类型和风险元数据，并在 GUI/TUI 规则面板展示；保留 stable key、默认状态、phase、依赖和既有格式化行为不变，README 表格与注册表一致性测试已同步扩展。
 - 完成简繁转换 Spike 并接入 `opencc-fmmseg`：以 `simplified-trad-conversion` 可选 feature 提供互斥的 T2S/S2T（MIT、OpenCC 风格词典 + FMM 分词，只改写可编辑区间、保护链接/代码/公式；实测 1 MB `s2t` ≈130 MB/s），默认构建不启用、保持占位；`scripts/generate_licenses.py` 新增 `--features` 参数以纳入可选依赖许可证。决策与语义边界见 `docs/decisions/simplified-trad-conversion-spike.md`。
-- 增加自定义字面量替换：扩展 `FormatRequest` 为统一请求模型（有序、仅 active、span 保护前执行），随 `Preset` 模板一并落地；GUI/TUI 控件仍在路线图。
+- 增加自定义字面量替换：扩展 `FormatRequest` 为统一请求模型（有序、仅 active、span 保护前执行），随 `Preset` 模板一并落地；GUI 已支持添加、编辑、启停和删除替换项，并将列表顺序持久化到设置；TUI 控件和预设选择界面仍在路线图。
 - 新增文本清洗与规范排版工作流决策（`docs/decisions/text-cleaning-workflow.md`），并将产品描述调整为本地优先的中文文本清洗与规范排版工具；来源文本清洗、字符转换和预设仍属于后续路线图，不代表本版本已经实现。
 - 新增设置存储回退（ADR 方案 B，`docs/decisions/settings-storage-policy.md`）：程序目录不可写时自动改用平台应用数据目录（Windows `%APPDATA%\CopyPolish`、Linux/macOS `~/.config/CopyPolish`）保存 `rules.yaml`，主界面提示实际生效位置；便携用户行为不变。新增 6 项存储决策单测（同目录优先、双位置并存、只读回退等）。
 - 新增统一本地清理入口 `scripts/clean.py`（白名单删除构建缓存、`e2e/artifacts/` 和 `e2e/settings-*` 临时设置目录，支持 `--dry-run`/`--deep`），并约定测试结果记录后清理本地 artifact、远程仅记录测试结论。

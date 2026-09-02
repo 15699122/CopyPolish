@@ -79,6 +79,10 @@ const mocks = vi.hoisted(() => {
         open_settings: "CtrlOrCmd+Comma",
       },
       setShortcutBindings: vi.fn(),
+      replacements: [],
+      setReplacements: vi.fn(),
+      conversion: "none" as const,
+      setConversion: vi.fn(),
       settingsLoadNotices: [],
       settingsPath: null,
       appVersion: "0.5.0-test",
@@ -196,14 +200,21 @@ describe("useAppController", () => {
     renderHook(() => useAppController());
 
     const loader = mocks.loaderOptions as {
-      onRestoreInput: (input: string, enabled: string[]) => void;
+      onRestoreInput: (
+        input: string,
+        enabled: string[],
+        replacements: { from: string; to: string; active: boolean }[],
+        conversion: "none" | "t2s" | "s2t",
+      ) => void;
     };
-    loader.onRestoreInput("恢复的内容", ["rule-a", "rule-b"]);
+    loader.onRestoreInput("恢复的内容", ["rule-a", "rule-b"], [], "none");
 
     expect(mocks.input.setInput).toHaveBeenCalledWith("恢复的内容");
     expect(mocks.formatter.scheduleFormat).toHaveBeenCalledWith(
       "恢复的内容",
       ["rule-a", "rule-b"],
+      undefined,
+      { replacements: [], conversion: "none" },
     );
   });
 

@@ -2,10 +2,12 @@ import { useCallback, useMemo, useRef, type RefObject } from "react";
 
 import {
   isTauri,
+  type CharacterConversion,
   type EditorFontSize,
   type FontFamily,
   type Rule,
   type RuleSelection,
+  type ReplacementPair,
   type SettingsLoadNotice,
   type ShortcutAction,
   type ShortcutBindings,
@@ -38,6 +40,8 @@ export interface SettingsDialogProps {
   font: FontFamily;
   editorFontSize: EditorFontSize;
   uiScale: UiScale;
+  replacements: ReplacementPair[];
+  conversion: CharacterConversion;
   settingsLoadNotices: SettingsLoadNotice[];
   appVersion: string;
   settingsStatus: "idle" | "saving" | "saved" | "error";
@@ -57,6 +61,8 @@ export interface SettingsDialogProps {
   onShortcutsEnabledChange: (enabled: boolean) => void;
   onSaveShortcutBinding: (action: ShortcutAction, binding: string) => void;
   onResetShortcuts: () => void;
+  onReplacementsChange: (replacements: ReplacementPair[]) => void;
+  onConversionChange: (conversion: CharacterConversion) => void;
 }
 
 export interface UseAppControllerResult {
@@ -110,9 +116,12 @@ export function useAppController(): UseAppControllerResult {
 
   // ---- 4. 设置加载 ----
   const settings = useSettingsLoader({
-    onRestoreInput: (restoredInput, restoredEnabled) => {
+    onRestoreInput: (restoredInput, restoredEnabled, restoredReplacements, restoredConversion) => {
       setInputRef.current(restoredInput);
-      formatter.scheduleFormat(restoredInput, restoredEnabled);
+      formatter.scheduleFormat(restoredInput, restoredEnabled, undefined, {
+        replacements: restoredReplacements,
+        conversion: restoredConversion,
+      });
     },
     onLoadError: formatter.reportError,
   });
@@ -129,6 +138,8 @@ export function useAppController(): UseAppControllerResult {
     font: "system",
     editor_font_size: "normal",
     ui_scale: "normal",
+    replacements: settings.replacements,
+    conversion: settings.conversion,
     shortcuts: { enabled: false, bindings: {} as ShortcutBindings },
   }));
   const persistence = useSettingsPersistence({
@@ -143,6 +154,8 @@ export function useAppController(): UseAppControllerResult {
   // ---- 7. 输入 ----
   const input = useInputFormatting({
     enabled: settings.enabled,
+    replacements: settings.replacements,
+    conversion: settings.conversion,
     scheduleFormat: formatter.scheduleFormat,
     schedulePersist: persistence.schedulePersist,
   });
@@ -159,6 +172,10 @@ export function useAppController(): UseAppControllerResult {
     setFont: settings.setFont,
     setEditorFontSize: settings.setEditorFontSize,
     setUiScale: settings.setUiScale,
+    replacements: settings.replacements,
+    setReplacements: settings.setReplacements,
+    conversion: settings.conversion,
+    setConversion: settings.setConversion,
     setShortcutsEnabled: settings.setShortcutsEnabled,
     setShortcutBindings: settings.setShortcutBindings,
     shortcutsEnabled: settings.shortcutsEnabled,
@@ -207,6 +224,8 @@ export function useAppController(): UseAppControllerResult {
       editor_font_size: settings.editorFontSize,
       ui_scale: settings.uiScale,
       shortcuts: { enabled: settings.shortcutsEnabled, bindings: settings.shortcutBindings },
+      replacements: settings.replacements,
+      conversion: settings.conversion,
       ...next,
     }),
     [
@@ -217,6 +236,8 @@ export function useAppController(): UseAppControllerResult {
       settings.uiScale,
       settings.shortcutsEnabled,
       settings.shortcutBindings,
+      settings.replacements,
+      settings.conversion,
       input.input,
     ],
   );
@@ -235,6 +256,8 @@ export function useAppController(): UseAppControllerResult {
       font: settings.font,
       editorFontSize: settings.editorFontSize,
       uiScale: settings.uiScale,
+      replacements: settings.replacements,
+      conversion: settings.conversion,
       settingsLoadNotices: settings.settingsLoadNotices,
       appVersion: settings.appVersion,
       settingsStatus: persistence.settingsStatus,
@@ -254,6 +277,8 @@ export function useAppController(): UseAppControllerResult {
       onShortcutsEnabledChange: actions.onShortcutsEnabledChange,
       onSaveShortcutBinding: actions.onSaveShortcutBinding,
       onResetShortcuts: actions.onResetShortcuts,
+      onReplacementsChange: actions.onReplacementsChange,
+      onConversionChange: actions.onConversionChange,
     }),
     [
       dialog.open,
@@ -270,6 +295,8 @@ export function useAppController(): UseAppControllerResult {
       settings.settingsPath,
       settings.shortcutsEnabled,
       settings.shortcutBindings,
+      settings.replacements,
+      settings.conversion,
       persistence.settingsStatus,
       persistence.settingsError,
       actions.onToggleRule,
@@ -284,6 +311,8 @@ export function useAppController(): UseAppControllerResult {
       actions.onShortcutsEnabledChange,
       actions.onSaveShortcutBinding,
       actions.onResetShortcuts,
+      actions.onReplacementsChange,
+      actions.onConversionChange,
     ],
   );
 

@@ -10,6 +10,8 @@ describe("useInputFormatting", () => {
     const { result } = renderHook(() =>
       useInputFormatting({
         enabled: ["rule-a", "rule-b"],
+        replacements: [{ from: "A", to: "甲", active: true }],
+        conversion: "s2t",
         scheduleFormat,
         schedulePersist,
       }),
@@ -18,10 +20,15 @@ describe("useInputFormatting", () => {
     act(() => result.current.onInputChange("新输入"));
 
     expect(result.current.input).toBe("新输入");
-    expect(scheduleFormat).toHaveBeenCalledWith("新输入", ["rule-a", "rule-b"]);
+    expect(scheduleFormat).toHaveBeenCalledWith("新输入", ["rule-a", "rule-b"], undefined, {
+      replacements: [{ from: "A", to: "甲", active: true }],
+      conversion: "s2t",
+    });
     expect(schedulePersist).toHaveBeenCalledWith({
       enabled: ["rule-a", "rule-b"],
       last_input: "新输入",
+      replacements: [{ from: "A", to: "甲", active: true }],
+      conversion: "s2t",
     });
   });
 
@@ -29,7 +36,13 @@ describe("useInputFormatting", () => {
     const scheduleFormat = vi.fn();
     const schedulePersist = vi.fn();
     const { result } = renderHook(() =>
-      useInputFormatting({ enabled: [], scheduleFormat, schedulePersist }),
+      useInputFormatting({
+        enabled: [],
+        replacements: [],
+        conversion: "none",
+        scheduleFormat,
+        schedulePersist,
+      }),
     );
 
     act(() => result.current.setInput("历史输入"));

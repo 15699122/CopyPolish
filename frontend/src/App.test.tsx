@@ -116,6 +116,8 @@ describe("App 主流程", () => {
     expect(mocks.formatText).toHaveBeenLastCalledWith({
       text: "hello",
       selection: { mode: "only", keys: ["rule-a", "rule-b"] },
+      replacements: [],
+      conversion: "none",
     });
   });
 
@@ -301,6 +303,8 @@ describe("App 主流程", () => {
             open_settings: "CtrlOrCmd+Comma",
           },
         },
+        replacements: [],
+        conversion: "none",
       }),
     );
 
@@ -326,6 +330,8 @@ describe("App 主流程", () => {
       expect(mocks.formatText).toHaveBeenCalledWith({
         text: "",
         selection: { mode: "none" },
+        replacements: [],
+        conversion: "none",
       }),
     );
   });
@@ -338,6 +344,8 @@ describe("App 主流程", () => {
       font: "pingfang",
       editor_font_size: "large",
       ui_scale: "small",
+      replacements: [],
+      conversion: "none",
       notices: [],
     });
     mockFormat((t) => `格式化(${t})`);

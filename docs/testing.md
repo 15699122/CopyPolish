@@ -22,6 +22,7 @@
 | Markdown/HTML/LaTeX | span、嵌套结构、未闭合结构、后续文本不吞并、保护 fixture | 继续扩展真实文档样本 |
 | Unicode | grapheme、emoji、组合符、CJK Ext-B | Unicode 数据/工具链升级回归 |
 | 单位和数学 | 有限词典、复合单位、数学边界 | 按真实语料扩展词典 |
+| 自定义替换与简繁转换设置 | Rust 请求/设置 fixture；前端设置加载、持久化、请求透传、实时重排和旧设置兼容；默认与 `simplified-trad-conversion` feature 构建覆盖 | TUI 控件、真实 GUI 重启恢复 E2E、预设选择界面 |
 | 设置 | Rust Windows 测试 16/16；Windows 真实 GUI 修复后已手动完成保存、重启恢复、损坏 fixture、ACL 保存失败及视觉/DPI/窄窗口回归；损坏设置、重启恢复和 NTFS ACL 已在两个 provider 自动化通过；统一 artifact、受控失败 probe 和 GUI 主题/窄窗口 artifact 已实现 | embedded/W3C Windows E2E 已复验真实 WebView2、IPC、全不选恒等、临时路径、规则保存、ACL 拒写恢复和失败留证；三档人工 DPI 已完成，GUI DPI 自动验证已跳过（不执行）；三档人工 GUI 验证已完成；GitLab Windows stage 已跳过 |
 | 前端状态 | 防抖、竞态、错误、主题、字体、快捷键 | 真实 IPC E2E |
 | TUI | CLI、编辑器、规则、OSC 52、共享设置；Linux 非交互 smoke/transcript；Windows release、stdin 及修复后 Windows Terminal 手动回归 | Rust TUI 158/158、Windows release/stdin 和非交互 transcript 已通过；本轮多行显示源码修复已由用户确认在 Windows Terminal 复验通过；TUI-EDIT-DELETE-001 已修复，真实 Terminal raw-mode/OSC 52 交互 artifact 已通过 |

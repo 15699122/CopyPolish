@@ -16,6 +16,8 @@ use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
+use crate::engine::{CharacterConversion, ReplacementPair};
+
 /// 用户设置文件名（exe 同目录，YAML 格式）。
 pub const SETTINGS_FILE_NAME: &str = "rules.yaml";
 /// 设置备份文件名；主文件损坏时作为最后一次有效保存的恢复来源。
@@ -147,6 +149,12 @@ pub struct UserSettings {
     pub ui_scale: UiScale,
     #[serde(default)]
     pub shortcuts: ShortcutSettings,
+    /// 有序自定义字面量替换（请求层阶段，span 保护前执行）。
+    #[serde(default)]
+    pub replacements: Vec<ReplacementPair>,
+    /// 简繁转换模式（互斥，默认 `None`）。
+    #[serde(default)]
+    pub conversion: CharacterConversion,
 }
 
 /// 设置加载提醒类型。
@@ -587,6 +595,12 @@ mod tests {
                 enabled: false,
                 bindings: default_shortcut_bindings(),
             },
+            replacements: vec![ReplacementPair {
+                from: "TODO".to_string(),
+                to: "待办".to_string(),
+                active: true,
+            }],
+            conversion: CharacterConversion::SimplifiedToTraditional,
         };
         save_to(&path, &settings).expect("save should succeed");
         assert_eq!(load_from(&path), Some(settings));
@@ -597,6 +611,8 @@ mod tests {
         assert!(raw.contains("theme"));
         assert!(raw.contains("editor_font_size"));
         assert!(raw.contains("ui_scale"));
+        assert!(raw.contains("replacements"));
+        assert!(raw.contains("conversion"));
         let _ = fs::remove_file(&path);
         let _ = fs::remove_file(backup_path_for(&path));
     }
@@ -685,6 +701,8 @@ mod tests {
             editor_font_size: EditorFontSize::Normal,
             ui_scale: UiScale::Normal,
             shortcuts: ShortcutSettings::default(),
+            replacements: Vec::new(),
+            conversion: CharacterConversion::None,
         };
         fs::write(
             dir.join(LEGACY_SETTINGS_FILE_NAME),
@@ -788,6 +806,8 @@ mod tests {
                 enabled: true,
                 bindings: default_shortcut_bindings(),
             },
+            replacements: Vec::new(),
+            conversion: CharacterConversion::None,
         };
         save_to(&path, &settings).expect("save should succeed");
         // 文件字节必须是合法 UTF-8 且包含原始字符。
