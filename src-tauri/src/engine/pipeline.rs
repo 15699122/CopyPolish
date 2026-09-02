@@ -2,15 +2,18 @@
 // =============================================================================
 // 格式化主流程（全部规则执行已收敛到 TextEdit 应用层）：
 //   1. 归一化换行符（处理后还原）；
-//   2. 在可编辑区间通过 TextEdit 应用标点/名词规范化规则；
-//   3. 保护层：不透明结构 span（含化学式）转为内部占位符；
-//   4. 在受保护文本上通过 TextEdit 应用结构边界/文本边界/清理规则；
-//   5. 行内占位符补边界空格 -> 还原全部占位符。
+//   2. 跨行来源清洗（当前为普通文本连续空行限制）；
+//   3. 在可编辑区间通过 TextEdit 应用清洗、标点/名词规范化规则；
+//   4. 保护层：不透明结构 span（含化学式）转为内部占位符；
+//   5. 在受保护文本上通过 TextEdit 应用结构边界/文本边界/最终清理规则；
+//   6. 行内占位符补边界空格 -> 还原全部占位符。
 //
 // 规则选择由 `RuleSelection` 显式表达；未知 key 安全忽略。
 // =============================================================================
 
-use super::edit_plan::{apply_editable_rules, apply_protected_text_rules};
+use super::edit_plan::{
+    apply_blank_line_cleanup, apply_editable_rules, apply_protected_text_rules,
+};
 use super::model::FormatRequest;
 use super::protection::{
     placeholder, restore, space_around_inline_placeholders, space_around_math_placeholders,
@@ -130,7 +133,8 @@ fn protect_spans(text: &str, spans: &[TextSpan]) -> ProtectedSpans {
 fn format_text_impl(req: &FormatRequest) -> Result<String, String> {
     let (text, newline) = normalize_newlines(&req.text);
 
-    // 标点/名词规范化：原文上的可编辑区间 TextEdit。
+    // 跨行清洗先处理；随后其他清洗和标点/名词规则在可编辑区间使用 TextEdit。
+    let text = apply_blank_line_cleanup(&text, &req.selection)?;
     let text = apply_editable_rules(&text, &req.selection)?;
 
     let spans = scan_all_spans(&text);
@@ -149,12 +153,13 @@ fn format_text_impl(req: &FormatRequest) -> Result<String, String> {
 ///
 /// 按 `format_text_impl` 的实际执行顺序返回各阶段耗时（纳秒）：
 /// 1. `normalize`：换行归一化；
-/// 2. `editable_rules`：标点/名词规范化（原文 TextEdit，内含一次全文 span 扫描）；
-/// 3. `scan_spans`：Markdown/URL/LaTeX/化学式等 span 扫描；
-/// 4. `protect`：不透明 span 转占位符；
-/// 5. `protected_rules`：结构边界/文本边界/清理规则（受保护文本 TextEdit）；
-/// 6. `placeholder_spacing`：占位符边缘补空格；
-/// 7. `restore`：还原占位符与换行符。
+/// 2. `blank_line_cleanup`：跨行连续空行清洗；
+/// 3. `editable_rules`：清洗、标点/名词规范化（原文 TextEdit，内含一次全文 span 扫描）；
+/// 4. `scan_spans`：Markdown/URL/LaTeX/化学式等 span 扫描；
+/// 5. `protect`：不透明 span 转占位符；
+/// 6. `protected_rules`：结构边界/文本边界/最终清理规则（受保护文本 TextEdit）；
+/// 7. `placeholder_spacing`：占位符边缘补空格；
+/// 8. `restore`：还原占位符与换行符。
 ///
 /// 输出与 `format_text` 完全一致；本函数不参与任何测试门禁与打包。
 #[cfg(feature = "profile-stages")]
@@ -163,11 +168,15 @@ pub fn format_text_stage_timings(
 ) -> Result<Vec<(&'static str, std::time::Duration)>, String> {
     use std::time::Instant;
 
-    let mut timings: Vec<(&'static str, std::time::Duration)> = Vec::with_capacity(8);
+    let mut timings: Vec<(&'static str, std::time::Duration)> = Vec::with_capacity(9);
 
     let t = Instant::now();
     let (text, newline) = normalize_newlines(&req.text);
     timings.push(("normalize", t.elapsed()));
+
+    let t = Instant::now();
+    let text = apply_blank_line_cleanup(&text, &req.selection)?;
+    timings.push(("blank_line_cleanup", t.elapsed()));
 
     let t = Instant::now();
     let text = apply_editable_rules(&text, &req.selection)?;

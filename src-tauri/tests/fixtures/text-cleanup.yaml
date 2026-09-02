@@ -1,0 +1,50 @@
+# 来源文本清洗规则回归：新规则默认关闭，显式选择后才生效。
+
+- name: 清理方括号和中文方括号引用角标
+  selection:
+    mode: only
+    keys:
+      - cleanup.reference-square
+  input: "根据实验结果[1]，已有研究【2, 3】和样本[4-7]均支持该结论。"
+  expected: "根据实验结果，已有研究和样本均支持该结论。"
+
+- name: 折叠普通文本重复空格但保护链接和代码
+  selection:
+    mode: only
+    keys:
+      - cleanup.collapse-horizontal-spaces
+  input: "普通  文本 [项目 主页](https://example.com/a  b) 与 `代码  片段`。"
+  expected: "普通 文本 [项目 主页](https://example.com/a  b) 与 `代码  片段`。"
+
+- name: 限制普通文本连续空行但保留代码块空行
+  selection:
+    mode: only
+    keys:
+      - cleanup.limit-blank-lines
+  input: |
+    第一段。
+
+
+
+    第二段。
+    ```text
+
+
+    code
+
+
+    ```
+    第三段。
+
+  expected: |
+    第一段。
+
+    第二段。
+    ```text
+
+
+    code
+
+
+    ```
+    第三段。

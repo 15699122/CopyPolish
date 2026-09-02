@@ -16,6 +16,7 @@ use super::tokenizer::{classify, CharKind};
 use super::unicode_boundaries::{units, BoundaryStrategy, ScriptClass};
 
 const EDITABLE_PHASES: &[RulePhase] = &[
+    RulePhase::Cleanup,
     RulePhase::PunctuationNormalization,
     RulePhase::NamingNormalization,
 ];
@@ -184,9 +185,10 @@ fn editable_line_ranges(text: &str, spans: &[TextSpan]) -> Vec<(usize, usize)> {
 
 /// 在可编辑文本区间内按规则生成并应用 TextEdit。
 ///
-/// 首批迁移只覆盖标点规范化和名词规范化阶段。这些规则不应改写结构/语义
+/// 清洗、标点规范化和名词规范化阶段均在这里处理。这些规则不应改写结构/语义
 /// span，因此每个编辑都限定在单行可编辑区间内；结构边界规则仍由 pipeline
-/// 的内部保护层负责，避免改变既有边界空格语义。
+/// 的内部保护层负责，避免改变既有边界空格语义。跨行的连续空行规则由
+/// `apply_blank_line_cleanup` 单独处理。
 /// 在可编辑文本区间内按规则生成并应用 TextEdit。
 ///
 /// 覆盖标点规范化和名词规范化阶段。这些规则不应改写结构/语义 span，因此
@@ -201,7 +203,9 @@ pub(crate) fn apply_editable_rules(
     let rules: Vec<&super::registry::RuleDef> = execution_rules()
         .into_iter()
         .filter(|rule| {
-            EDITABLE_PHASES.contains(&rule.phase) && selection_enabled(selection, rule.key())
+            EDITABLE_PHASES.contains(&rule.phase)
+                && rule.key() != super::registry::keys::CLEANUP_LIMIT_BLANK_LINES
+                && selection_enabled(selection, rule.key())
         })
         .collect();
     if rules.is_empty() {
@@ -223,6 +227,54 @@ pub(crate) fn apply_editable_rules(
             })
         })
         .collect();
+    apply_edits(text, &arbitrate_edits(edits))
+}
+
+/// 在结构 span 之外限制连续空行；每个普通文本空行 run 保留一个空行。
+///
+/// 该规则必须跨行处理，不能复用普通的逐行规则循环。与 Markdown、代码、
+/// LaTeX 或 HTML 结构重叠的行完全跳过，优先保证结构不被破坏。
+pub(crate) fn apply_blank_line_cleanup(
+    text: &str,
+    selection: &RuleSelection,
+) -> Result<String, String> {
+    let key = super::registry::keys::CLEANUP_LIMIT_BLANK_LINES;
+    if !selection_enabled(selection, key) {
+        return Ok(text.to_string());
+    }
+
+    let spans = scan_all_spans(text);
+    let opaque: Vec<(usize, usize)> = spans
+        .iter()
+        .filter(|span| {
+            span.priority == SpanPriority::OpaqueStructure || span.kind == SpanKind::ChemicalFormula
+        })
+        .map(|span| (span.start, span.end))
+        .collect();
+
+    let mut edits = Vec::new();
+    let mut line_start = 0usize;
+    let mut blank_run: Vec<(usize, usize)> = Vec::new();
+    for line in text.split_inclusive('\n') {
+        let line_end = line_start + line.len();
+        let content_end = line_end.saturating_sub(usize::from(line.ends_with('\n')));
+        let is_blank = text[line_start..content_end].trim().is_empty();
+        let protected = opaque
+            .iter()
+            .any(|&(start, end)| start < line_end && line_start < end);
+        if is_blank && !protected {
+            blank_run.push((line_start, line_end));
+        } else {
+            for &(start, end) in blank_run.iter().skip(1) {
+                edits.push(TextEdit::new(text, start, end, "", EditPriority::Editable)?);
+            }
+            blank_run.clear();
+        }
+        line_start = line_end;
+    }
+    for &(start, end) in blank_run.iter().skip(1) {
+        edits.push(TextEdit::new(text, start, end, "", EditPriority::Editable)?);
+    }
     apply_edits(text, &arbitrate_edits(edits))
 }
 
