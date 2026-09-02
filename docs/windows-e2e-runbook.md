@@ -1,6 +1,6 @@
 # Windows 原生 E2E 与交互留证 Runbook
 
-本文记录必须在 **Windows 原生桌面环境**执行的剩余 E2E 工作：Windows Terminal TUI 交互 artifact（GUI DPI 自动验证已跳过）。GitLab Windows 可选 E2E stage 已决定跳过（不执行），仅保留历史设计参考。
+本文记录必须在 **Windows 原生桌面环境**执行或重新留证的步骤。当前优先项是默认 embedded GUI 完整回归、`simplified-trad-conversion` feature 的 embedded GUI 双向真实转换、标准 W3C 兼容性 smoke、NTFS ACL 保存失败和按需 GUI 视觉 artifact；Windows Terminal TUI 交互与三档 DPI 人工检查已有结果，GUI DPI 自动矩阵和 GitLab Windows 可选 stage 按项目决定跳过，不得重复记为未完成。
 
 Linux、WSL/WSLg 和普通 Chrome 可以验证部分业务语义，但不能替代本文所需的 Windows WebView2、Windows 显示缩放、NTFS/Windows 进程、Windows Terminal raw-mode 或 OSC 52 行为。
 
@@ -18,11 +18,14 @@ Linux、WSL/WSLg 和普通 Chrome 可以验证部分业务语义，但不能替�
 
 > **2026-09-01 更新**：Windows Terminal 交互复验曾发现三个**多行/自动换行显示缺陷**（详见 [windows-terminal-tui-manual.md](windows-terminal-tui-manual.md)，问题证据截图仅本地留存、测试后已按约定清理，不入库）。这三个问题已在修复版本中完成，并由用户确认通过真实 Windows Terminal 复验；该段保留为历史发现记录。
 
-### 1.2 仍需完成的 Windows 专项
+### 1.2 当前 Windows 执行矩阵
 
 | 工作项 | 目标 | 当前状态 | 完成标志 |
 | --- | --- | --- | --- |
-| GUI DPI artifact | 在 100%/125%/150% Windows 缩放下保存可审计截图、page source 和环境信息 | 跳过（不执行自动验证）；三档人工 GUI 验证已完成 | 不纳入自动化门禁；保留人工结果 |
+| 默认 embedded GUI 完整回归 | 验证 Windows WebView2、真实 Rust IPC、设置保存/恢复和替换输出 | 已有基线；换 binary 或前端后应重新执行 | `npm run test --prefix e2e` 通过，artifact 完整 |
+| 简繁 feature embedded GUI | 验证 `s2t`/`t2s` 的真实字符转换，而非默认构建占位 | Linux/WSL 2/2 已通过；Windows 需单独留证 | feature 构建和 `simplified-trad-conversion.spec.ts` 2/2 通过 |
+| 标准 W3C provider | 验证 session、主窗口、一次格式化、一次设置保存和退出清理 | 已收敛为兼容性 smoke | `npm run test:webdriver --prefix e2e` 通过 |
+| GUI DPI artifact | 在 100%/125%/150% Windows 缩放下保存可审计截图、page source 和环境信息 | 自动验证跳过；三档人工 GUI 验证已完成 | 不纳入自动化门禁；按需保留人工结果 |
 | Terminal 多行显示修复 | 修复自动换行后新增字符绘制位置、光标不可见和 emoji 显示（WT-TUI-001/002/003） | 源码修复已完成，Windows MSVC 158/158 通过；真实 Terminal 复验已由用户确认通过 | Rust/UI 回归通过，Windows 原生复验通过 |
 | Terminal TUI artifact | 将真实 Windows Terminal 交互和退出清理固化为输入/输出/截图/日志留证 | 已通过（依据用户确认） | 关键场景、清理和结果均已确认 |
 | GitLab Windows stage | 在 Windows runner 上重复运行 E2E 并始终上传 artifact | 跳过（不执行） | 项目决定不配置、不运行；不得记为通过 |
@@ -83,6 +86,28 @@ cargo build --manifest-path src-tauri/Cargo.toml --features tui --release --bin 
 
 构建失败时不得开始 DPI 或 Terminal 结果判定；先保留构建日志并修复工具链、依赖或路径问题。
 
+### 2.4 简繁转换 feature 的 Windows GUI 验证
+
+该步骤必须使用独立的 feature binary，不能在默认 binary 上仅凭设置选择器或 `rules.yaml` 字段判定实际转换生效。它只验证 embedded provider；标准 W3C provider 仍只运行兼容性 smoke。
+
+```powershell
+npm run build:app:simplified-trad --prefix e2e
+npm run test --prefix e2e -- --spec specs/simplified-trad-conversion.spec.ts
+```
+
+#### 操作与通过条件
+
+1. 确认当前 checkout 的 commit SHA、binary 绝对路径和临时设置目录已记录。
+2. 构建 feature binary；构建输出必须包含 `Additional Cargo features: simplified-trad-conversion`。
+3. 运行 spec，确认设置窗口能选择 `s2t` 和 `t2s`，并且临时 `rules.yaml` 分别写入 `conversion: s2t`、`conversion: t2s`。
+4. 确认真实 GUI 输出分别为：
+   - `设计软件与打印` → `設計軟件與打印`；
+   - `後設資料與說明` → `后设资料与说明`。
+5. 结果必须是 2/2 passing；不能用浏览器 fallback、mock IPC 或仅前端单测替代。
+6. 保存 `manifest.json`、`result.json`、WDIO/应用日志和失败时的 `settings-fixture`；成功后按第 6 节清理。
+
+若 feature 构建失败，先记录 Cargo、MSVC、网络/缓存和 `opencc-fmmseg` 错误，不得将默认构建的占位输出记为 feature 验证结果。
+
 ## 3. GUI 三档 DPI artifact（自动验证跳过）
 
 ### 3.1 测试矩阵（历史参考，不执行）
@@ -116,8 +141,7 @@ cargo build --manifest-path src-tauri/Cargo.toml --features tui --release --bin 
 6. 执行 GUI 视觉 artifact 入口：
 
    ```powershell
-   npm run test:gui-visual-artifacts --prefix e2e
-   npm run test:gui-visual-artifacts:webdriver --prefix e2e
+    npm run test:gui-visual-artifacts --prefix e2e
    ```
 
 7. 对浅色、深色和窄窗口分别保存 screenshot、page source、metadata 和 provider 日志。
