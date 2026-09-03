@@ -105,3 +105,9 @@ pub fn get_enabled_defaults() -> Result<Vec<String>, String> {
     }
     Ok(defaults)
 }
+
+/// 返回内置工作流预设；预设只组合统一请求模型字段。
+#[tauri::command]
+pub fn get_presets() -> Result<Vec<engine::Preset>, String> {
+    Ok(engine::presets())
+}

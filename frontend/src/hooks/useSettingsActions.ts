@@ -7,6 +7,7 @@ import {
   type FontFamily,
   type CharacterConversion,
   type ReplacementPair,
+  type Preset,
   type Rule,
   type ShortcutAction,
   type ShortcutBindings,
@@ -55,6 +56,7 @@ export interface UseSettingsActionsResult {
   onResetShortcuts: () => void;
   onReplacementsChange: (replacements: ReplacementPair[]) => void;
   onConversionChange: (conversion: CharacterConversion) => void;
+  onApplyPreset: (preset: Preset) => void;
 }
 
 /** 设置窗口动作：同步更新本地状态、触发重排并提交对应设置 patch。 */
@@ -205,6 +207,33 @@ export function useSettingsActions({
     [activeReplacements, conversionAvailable, enabled, input, persistSettings, scheduleFormat, setConversion],
   );
 
+  const onApplyPreset = useCallback(
+    (preset: Preset) => {
+      const nextEnabled = preset.selection.mode === "all"
+        ? rules.map((rule) => rule.key)
+        : preset.selection.mode === "defaults"
+          ? rules.filter((rule) => rule.default).map((rule) => rule.key)
+          : preset.selection.mode === "only"
+            ? preset.selection.keys.filter((key) => rules.some((rule) => rule.key === key))
+            : [];
+      const nextConversion = conversionAvailable ? preset.conversion : "none";
+      setEnabled(nextEnabled);
+      setReplacements?.(preset.replacements);
+      setConversion?.(nextConversion);
+      scheduleFormat(input, nextEnabled, 0, {
+        replacements: preset.replacements,
+        conversion: nextConversion,
+      });
+      persistSettings({
+        enabled: nextEnabled,
+        last_input: input,
+        replacements: preset.replacements,
+        conversion: nextConversion,
+      });
+    },
+    [conversionAvailable, input, persistSettings, rules, scheduleFormat, setConversion, setEnabled, setReplacements],
+  );
+
   return {
     onToggleRule,
     onSetAll,
@@ -220,5 +249,6 @@ export function useSettingsActions({
     onResetShortcuts,
     onReplacementsChange,
     onConversionChange,
+    onApplyPreset,
   };
 }

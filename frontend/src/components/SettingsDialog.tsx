@@ -15,6 +15,7 @@ import { DisplaySection } from "@/components/settings/DisplaySection";
 import { ShortcutsSection } from "@/components/settings/ShortcutsSection";
 import { RulesSection } from "@/components/settings/RulesSection";
 import { ReplacementsSection } from "@/components/settings/ReplacementsSection";
+import { PresetsSection } from "@/components/settings/PresetsSection";
 import { SettingsFooter, type SettingsStatus } from "@/components/settings/SettingsFooter";
 import type {
   EditorFontSize,
@@ -22,6 +23,7 @@ import type {
   CharacterConversion,
   BuildCapabilities,
   ReplacementPair,
+  Preset,
   Rule,
   SettingsLoadNotice,
   ShortcutAction,
@@ -65,6 +67,8 @@ interface SettingsDialogProps {
   onResetShortcuts: () => void;
   onReplacementsChange: (replacements: ReplacementPair[]) => void;
   onConversionChange: (conversion: CharacterConversion) => void;
+  presets: Preset[];
+  onApplyPreset: (preset: Preset) => void;
 }
 
 /** 设置弹窗编排容器；各分区与状态/持久化行为由 App 注入。 */
@@ -103,6 +107,8 @@ export function SettingsDialog({
   onResetShortcuts,
   onReplacementsChange,
   onConversionChange,
+  presets,
+  onApplyPreset,
 }: SettingsDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -153,6 +159,7 @@ export function SettingsDialog({
               onReplacementsChange={onReplacementsChange}
               onConversionChange={onConversionChange}
             />
+            <PresetsSection presets={presets} onApplyPreset={onApplyPreset} />
             <RulesSection rules={rules} enabledSet={enabledSet} onToggleRule={onToggleRule} />
           </div>
         </div>

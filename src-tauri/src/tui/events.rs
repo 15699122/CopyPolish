@@ -46,6 +46,11 @@ fn handle_key(app: &mut App, key: KeyEvent) {
         return;
     }
 
+    if app.overlay == Some(Overlay::Presets) {
+        handle_presets_overlay_key(app, key);
+        return;
+    }
+
     if key.code == KeyCode::Esc {
         app.overlay = None;
         app.focused = FocusedPane::Input;
@@ -92,6 +97,9 @@ fn handle_input_key(app: &mut App, key: KeyEvent) {
         KeyCode::Char('e') if key.modifiers.contains(KeyModifiers::CONTROL) => {
             app.overlay = Some(Overlay::Request)
         }
+        KeyCode::Char('p') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            app.overlay = Some(Overlay::Presets)
+        }
         KeyCode::Char('q') if key.modifiers.contains(KeyModifiers::CONTROL) => {
             app.should_quit = true
         }
@@ -118,6 +126,7 @@ fn handle_navigation(app: &mut App, key: KeyEvent) {
         KeyCode::Char('c') if key.modifiers.is_empty() => app.copy_output(),
         KeyCode::Char('r') if key.modifiers.is_empty() => app.overlay = Some(Overlay::Rules),
         KeyCode::Char('e') if key.modifiers.is_empty() => app.overlay = Some(Overlay::Request),
+        KeyCode::Char('p') if key.modifiers.is_empty() => app.overlay = Some(Overlay::Presets),
         KeyCode::Char('?') if key.modifiers.is_empty() => app.overlay = Some(Overlay::Help),
         KeyCode::Char('q') if key.modifiers.is_empty() => app.should_quit = true,
         _ => {}
@@ -137,6 +146,7 @@ fn handle_rules_key(app: &mut App, key: KeyEvent) {
         KeyCode::Char('c') if key.modifiers.is_empty() => app.copy_output(),
         KeyCode::Char('r') if key.modifiers.is_empty() => app.overlay = Some(Overlay::Rules),
         KeyCode::Char('e') if key.modifiers.is_empty() => app.overlay = Some(Overlay::Request),
+        KeyCode::Char('p') if key.modifiers.is_empty() => app.overlay = Some(Overlay::Presets),
         KeyCode::Char('q') if key.modifiers.is_empty() => app.should_quit = true,
         _ => {}
     }
@@ -184,6 +194,21 @@ fn handle_request_overlay_key(app: &mut App, key: KeyEvent) {
         KeyCode::Backspace => app.backspace_request_text(),
         KeyCode::Char(c) if key.modifiers.is_empty() && !app.replacements.is_empty() => {
             app.insert_request_text(&c.to_string())
+        }
+        _ => {}
+    }
+}
+
+fn handle_presets_overlay_key(app: &mut App, key: KeyEvent) {
+    match key.code {
+        KeyCode::Esc | KeyCode::Char('q') => app.overlay = None,
+        KeyCode::Up => app.move_preset(-1),
+        KeyCode::Down => app.move_preset(1),
+        KeyCode::Home => app.selected_preset = 0,
+        KeyCode::End if !app.presets.is_empty() => app.selected_preset = app.presets.len() - 1,
+        KeyCode::Enter => {
+            app.apply_selected_preset();
+            app.overlay = None;
         }
         _ => {}
     }
@@ -362,5 +387,22 @@ mod tests {
         );
         assert_eq!(app.overlay, Some(Overlay::Request));
         assert!(matches!(app.status, crate::tui::app::Status::Info(_)));
+    }
+
+    #[test]
+    fn ctrl_p_opens_presets_and_enter_applies_one() {
+        let mut app = App::new();
+        handle_event(
+            &mut app,
+            Event::Key(KeyEvent::new(KeyCode::Char('p'), KeyModifiers::CONTROL)),
+        );
+        assert_eq!(app.overlay, Some(Overlay::Presets));
+        handle_event(&mut app, key(KeyCode::Down));
+        handle_event(&mut app, key(KeyCode::Enter));
+        assert_eq!(app.overlay, None);
+        assert!(matches!(
+            app.selection,
+            crate::engine::RuleSelection::Only { .. }
+        ));
     }
 }

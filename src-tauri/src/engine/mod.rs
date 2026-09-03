@@ -16,6 +16,7 @@
 
 pub mod model;
 pub mod pipeline;
+pub mod presets;
 pub mod protection;
 pub mod registry;
 mod rule_impls;
@@ -40,6 +41,7 @@ pub use pipeline::format_text;
 pub use pipeline::{
     format_text_stage_timings, per_rule_timings, scan_split_timings, scan_structure_timings,
 };
+pub use presets::presets;
 pub use registry::{
     default_rules, enabled_defaults, execution_rules, normalize_rule_keys, rules, RuleDef,
     RulePhase,

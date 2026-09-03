@@ -147,6 +147,7 @@ rules.yaml
 - 主界面缩放（80%、90%、100%、110% 或 125%）。
 - 有序自定义字面量替换（空来源项会被忽略）。
 - 简繁转换模式（`none` / `t2s` / `s2t`）。
+- 内置工作流预设不写入设置文件：中文文案、PDF 清洗、技术文档；应用预设会同步当前规则、替换和转换设置。PDF 清洗只处理从 PDF/CAJ 复制出的文本，不解析文件本体。
 - 快捷键：总开关与各动作绑定：
 
 ```yaml
@@ -184,7 +185,7 @@ copypolish-tui --input article.md --output formatted.md --rules all
 copypolish-tui --help
 ```
 
-非交互模式常用参数：`--rules <all|defaults|none>` 覆盖规则集；`--enable <key>` / `--disable <key>` 微调单条规则；`--no-config` 完全跳过共享设置。交互界面支持多行编辑、实时预览、规则开关、复制输出（OSC 52，依赖终端支持）以及替换/字符转换请求设置。按 `Ctrl+E`（非输入区也可用 `e`）打开请求设置面板：`n` 新增替换、`d` 删除、Space 启停、Tab 切换 `from`/`to` 字段、`v` 循环转换模式、Enter 应用；设置与最近输入由 `Ctrl+S` 或正常退出写回共享 `rules.yaml`。默认构建会将不可用的 T2S/S2T 归一化为“不转换”，启用 `simplified-trad-conversion` feature 的 TUI 才执行真实转换；预设编辑控件仍在路线图。终端模块和开发命令详见 [docs/architecture.md](docs/architecture.md) 与 [docs/development.md](docs/development.md)。
+非交互模式常用参数：`--rules <all|defaults|none>` 覆盖规则集；`--enable <key>` / `--disable <key>` 微调单条规则；`--no-config` 完全跳过共享设置。交互界面支持多行编辑、实时预览、规则开关、复制输出（OSC 52，依赖终端支持）、替换/字符转换请求设置和工作流预设。按 `Ctrl+E`（非输入区也可用 `e`）打开请求设置面板；按 `Ctrl+P`（非输入区也可用 `p`）打开预设面板，使用 `↑/↓` 选择、Enter 应用。默认构建会将不可用的 T2S/S2T 归一化为“不转换”，启用 `simplified-trad-conversion` feature 的 TUI 才执行真实转换。终端模块和开发命令详见 [docs/architecture.md](docs/architecture.md) 与 [docs/development.md](docs/development.md)。
 
 ## 开发文档
 

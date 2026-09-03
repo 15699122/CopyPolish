@@ -119,7 +119,7 @@ pub fn render(frame: &mut Frame, app: &App) {
     };
     let selected = app.selected_keys().len();
     let footer = format!(
-        " {status} · 规则 {selected}/{} · Tab 切换 · Ctrl+R 规则 · Ctrl+E 替换/转换 · c 复制 · Ctrl+S 保存 · Ctrl+? 帮助 · Ctrl+Q 退出",
+        " {status} · 规则 {selected}/{} · Tab 切换 · Ctrl+R 规则 · Ctrl+E 替换/转换 · Ctrl+P 预设 · c 复制 · Ctrl+S 保存 · Ctrl+? 帮助 · Ctrl+Q 退出",
         app.rules.len()
     );
     frame.render_widget(Paragraph::new(footer), root[2]);
@@ -128,9 +128,42 @@ pub fn render(frame: &mut Frame, app: &App) {
         render_rules(frame, app);
     } else if app.overlay == Some(Overlay::Request) {
         render_request(frame, app);
+    } else if app.overlay == Some(Overlay::Presets) {
+        render_presets(frame, app);
     } else if app.overlay == Some(Overlay::Help) {
         render_help(frame);
     }
+}
+
+fn render_presets(frame: &mut Frame, app: &App) {
+    let area = centered_rect(78, 62, frame.area());
+    frame.render_widget(Clear, area);
+    let items = app.presets.iter().enumerate().map(|(index, preset)| {
+        let selected = if index == app.selected_preset {
+            ">"
+        } else {
+            " "
+        };
+        ListItem::new(format!(
+            "{selected} {} · {}：{}",
+            index + 1,
+            preset.name,
+            preset.description
+        ))
+    });
+    let list = List::new(items)
+        .block(
+            Block::default()
+                .title(" 预设 · ↑↓ 选择 · Enter 应用 · Esc 关闭 ")
+                .borders(Borders::ALL),
+        )
+        .highlight_style(
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        );
+    let mut state = list_state(app.selected_preset);
+    frame.render_stateful_widget(list, area, &mut state);
 }
 
 fn render_request(frame: &mut Frame, app: &App) {
@@ -245,6 +278,7 @@ fn render_help(frame: &mut Frame) {
         "Ctrl+Enter       立即排版",
         "Ctrl+R           打开规则面板（非输入区也可用 r）",
         "Ctrl+E           打开替换与字符转换面板（非输入区也可用 e）",
+        "Ctrl+P           打开工作流预设面板（非输入区也可用 p）",
         "Space / Enter     切换当前规则",
         "a / d / n          全选 / 恢复默认 / 全不选",
         "c                复制输出（OSC 52）",

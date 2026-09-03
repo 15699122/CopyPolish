@@ -41,6 +41,15 @@ export interface FormatRequest {
   conversion?: CharacterConversion;
 }
 
+export interface Preset {
+  key: string;
+  name: string;
+  description: string;
+  selection: RuleSelection;
+  replacements: ReplacementPair[];
+  conversion: CharacterConversion;
+}
+
 export type RuleSelection =
   | { mode: "all" }
   | { mode: "defaults" }
@@ -127,6 +136,12 @@ export async function getRules(): Promise<Rule[]> {
 export async function getEnabledDefaults(): Promise<string[]> {
   if (!isTauri()) return [];
   return invoke<string[]>("get_enabled_defaults");
+}
+
+/** 返回 Rust 内置工作流预设；浏览器预览不伪造预设内容。 */
+export async function getPresets(): Promise<Preset[]> {
+  if (!isTauri()) return [];
+  return invoke<Preset[]>("get_presets");
 }
 
 /** 返回当前构建是否包含可选的简繁转换实现。浏览器预览不宣称该能力。 */
