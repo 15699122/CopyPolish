@@ -22,6 +22,7 @@ pub mod keys {
     pub const SPACING_CJK_LATIN: &str = "spacing.cjk-latin";
     pub const SPACING_CJK_NUMBER: &str = "spacing.cjk-number";
     pub const SPACING_NUMBER_UNIT: &str = "spacing.number-unit";
+    pub const SPACING_NUMERIC_PUNCTUATION: &str = "spacing.numeric-punctuation";
     pub const SPACING_TEMPERATURE_CJK: &str = "spacing.temperature-cjk";
     pub const SPACING_NO_SPACE_AROUND_FW_PUNCT: &str = "spacing.no-space-around-fw-punct";
     pub const PUNCT_NO_REPETITION: &str = "punctuation.no-repetition";
@@ -78,9 +79,11 @@ fn phase_for_key(key: &str) -> RulePhase {
         SPACING_AROUND_LINKS | PUNCT_CORNER_QUOTES | TEXT_UNICODE_EQUIVALENTS => {
             RulePhase::StructureBoundary
         }
-        SPACING_CJK_LATIN | SPACING_CJK_NUMBER | SPACING_NUMBER_UNIT | SPACING_TEMPERATURE_CJK => {
-            RulePhase::TextBoundary
-        }
+        SPACING_CJK_LATIN
+        | SPACING_CJK_NUMBER
+        | SPACING_NUMBER_UNIT
+        | SPACING_NUMERIC_PUNCTUATION
+        | SPACING_TEMPERATURE_CJK => RulePhase::TextBoundary,
         SPACING_NO_SPACE_AROUND_FW_PUNCT => RulePhase::FinalCleanup,
         _ => RulePhase::FinalCleanup,
     }
@@ -99,7 +102,8 @@ fn dependencies_for_key(key: &str) -> (&'static [&'static str], &'static [&'stat
         PUNCT_CORNER_QUOTES => (&[], &[SPACING_AROUND_LINKS][..]),
         SPACING_CJK_NUMBER => (&[], &[SPACING_CJK_LATIN][..]),
         SPACING_NUMBER_UNIT => (&[], &[SPACING_CJK_NUMBER][..]),
-        SPACING_TEMPERATURE_CJK => (&[], &[SPACING_NUMBER_UNIT][..]),
+        SPACING_NUMERIC_PUNCTUATION => (&[], &[SPACING_NUMBER_UNIT][..]),
+        SPACING_TEMPERATURE_CJK => (&[], &[SPACING_NUMERIC_PUNCTUATION][..]),
         SPACING_NO_SPACE_AROUND_FW_PUNCT => (&[], &[SPACING_TEMPERATURE_CJK][..]),
         TEXT_UNICODE_EQUIVALENTS => (&[], &[PUNCT_CORNER_QUOTES][..]),
         _ => (&[], &[]),
@@ -221,6 +225,11 @@ fn metadata_for_key(key: &str, _name: &str, disputed: bool) -> (&'static str, Ru
         SPACING_NUMBER_UNIT => (
             "在数字与已识别的单位之间增加空格。",
             RuleKind::Typography,
+            RuleRisk::Contextual,
+        ),
+        SPACING_NUMERIC_PUNCTUATION => (
+            "移除小数点、时间/比例冒号、数字分组逗号和数字斜线两侧的异常 ASCII 空格，并保留版本号/IP 等连续点号数字链。",
+            RuleKind::Cleanup,
             RuleRisk::Contextual,
         ),
         SPACING_TEMPERATURE_CJK => (
@@ -384,6 +393,15 @@ static RULES: std::sync::LazyLock<Vec<RuleDef>> = std::sync::LazyLock::new(|| {
             true,
             &["数字与单位之间需要增加空格"],
             rule_impls::digit_unit_space,
+        ),
+        def(
+            SPACING_NUMERIC_PUNCTUATION,
+            "空格",
+            "修复数值标点异常空格",
+            false,
+            false,
+            &["修复数值标点异常空格"],
+            rule_impls::numeric_punctuation_space,
         ),
         def(
             SPACING_TEMPERATURE_CJK,

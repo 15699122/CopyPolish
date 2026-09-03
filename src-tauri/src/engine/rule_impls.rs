@@ -280,6 +280,101 @@ pub fn digit_unit_space(text: &str) -> String {
         .to_string()
 }
 
+/// spacing.numeric-punctuation：修复数字与小数点、时间/比例标点、分组逗号和斜线
+/// 之间的异常 ASCII 空格。
+///
+/// 连续点号数字链（例如版本号/IP 的 `1 . 2 . 3`）保留原样，避免把版本/地址
+/// 误当作普通小数；URL、代码、公式等不透明结构由上游保护层排除。
+pub fn numeric_punctuation_space(text: &str) -> String {
+    static NUMERIC_PUNCTUATION: OnceLock<Regex> = OnceLock::new();
+    let numeric_punctuation = NUMERIC_PUNCTUATION.get_or_init(|| {
+        Regex::new(r"([0-9])[ \t]*([.,:/])[ \t]*([0-9])")
+            .expect("invalid numeric punctuation regex")
+    });
+
+    let mut protected = Vec::new();
+    let mut index = 0;
+    while index < text.len() {
+        let Some(ch) = text[index..].chars().next() else {
+            break;
+        };
+        if !ch.is_ascii_digit() {
+            index += ch.len_utf8();
+            continue;
+        }
+
+        let start = index;
+        let mut cursor = index + ch.len_utf8();
+        while text[cursor..]
+            .chars()
+            .next()
+            .is_some_and(|next| next.is_ascii_digit())
+        {
+            cursor += text[cursor..].chars().next().unwrap().len_utf8();
+        }
+        let mut dots = 0;
+        loop {
+            let before_separator = cursor;
+            while let Some(next) = text[cursor..].chars().next() {
+                if matches!(next, ' ' | '\t') {
+                    cursor += next.len_utf8();
+                } else {
+                    break;
+                }
+            }
+            if text[cursor..].starts_with('.') {
+                let dot_end = cursor + 1;
+                let mut after_dot = dot_end;
+                while let Some(next) = text[after_dot..].chars().next() {
+                    if matches!(next, ' ' | '\t') {
+                        after_dot += next.len_utf8();
+                    } else {
+                        break;
+                    }
+                }
+                if text[after_dot..]
+                    .chars()
+                    .next()
+                    .is_some_and(|next| next.is_ascii_digit())
+                {
+                    dots += 1;
+                    cursor = after_dot + text[after_dot..].chars().next().unwrap().len_utf8();
+                    while text[cursor..]
+                        .chars()
+                        .next()
+                        .is_some_and(|next| next.is_ascii_digit())
+                    {
+                        cursor += text[cursor..].chars().next().unwrap().len_utf8();
+                    }
+                    continue;
+                }
+            }
+            cursor = before_separator;
+            break;
+        }
+        if dots >= 2 {
+            protected.push((start, cursor));
+            index = cursor;
+        } else {
+            index = start + ch.len_utf8();
+        }
+    }
+    let normalize = |fragment: &str| {
+        numeric_punctuation
+            .replace_all(fragment, "$1$2$3")
+            .into_owned()
+    };
+    let mut out = String::with_capacity(text.len());
+    let mut cursor = 0;
+    for (start, end) in protected {
+        out.push_str(&normalize(&text[cursor..start]));
+        out.push_str(&text[start..end]);
+        cursor = end;
+    }
+    out.push_str(&normalize(&text[cursor..]));
+    out
+}
+
 /// spacing.temperature-cjk：摄氏度/华氏度符号与紧随的中文之间加空格。
 /// 不调整数字与温标符号之间的写法，例如保留 `4℃` 或 `-20 ℃`。
 pub fn temperature_cjk_space(text: &str) -> String {

@@ -28,6 +28,30 @@
   input: 宽带有10Gbps
   expected: 宽带有10 Gbps
 
+- name: 数值标点异常空格修复
+  selection:
+    mode: only
+    keys:
+      - spacing.numeric-punctuation
+  input: "小数1 . 5，时间10 : 30，比例16 / 9，分组1 , 000"
+  expected: "小数1.5，时间10:30，比例16/9，分组1,000"
+
+- name: 数值标点规则保留版本号和 IP 点号链
+  selection:
+    mode: only
+    keys:
+      - spacing.numeric-punctuation
+  input: "版本1 . 2 . 3，地址192 . 168 . 0 . 1"
+  expected: "版本1 . 2 . 3，地址192 . 168 . 0 . 1"
+
+- name: 未显式选择时不启用数值标点异常空格修复
+  selection:
+    mode: only
+    keys:
+      - spacing.cjk-number
+  input: "小数1 . 5，时间10 : 30"
+  expected: "小数 1 . 5，时间 10 : 30"
+
 - name: 全角标点与其他字符之间不加空格
   selection:
     mode: only
