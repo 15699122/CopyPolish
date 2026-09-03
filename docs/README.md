@@ -25,7 +25,8 @@
 19. [decisions/wdio-serialize-javascript.md](decisions/wdio-serialize-javascript.md)：E2E `serialize-javascript` 修复记录（采用 npm override，保留 WebdriverIO 9）。
 20. [decisions/wdio-transitive-dependencies.md](decisions/wdio-transitive-dependencies.md)：E2E 传递依赖修复记录（`deepmerge-ts` 已修复，浏览器工具暂缓）。
 21. [decisions/kangxi-radicals.md](decisions/kangxi-radicals.md)：康熙部首修复规则与 Unicode 官方映射来源。
-22. [archive/decisions/e2e-provider-selection.md](archive/decisions/e2e-provider-selection.md)：E2E provider 选型决策（已归档，仅保留选型依据）。
+22. [decisions/pdf-soft-wrap-spike.md](decisions/pdf-soft-wrap-spike.md)：PDF/CAJ 段内软换行与 CJK 内部空格 Spike 基线。
+23. [archive/decisions/e2e-provider-selection.md](archive/decisions/e2e-provider-selection.md)：E2E provider 选型决策（已归档，仅保留选型依据）。
 
 ## 文档职责
 
@@ -41,6 +42,7 @@
 | `secrets-management.md` | 加密凭据、接收者、轮换与灾难恢复 | 凭据结构或恢复流程变化时 |
 | `upgrade-runbook.md` | Node、Rust、Tauri、React/Vite 升级、验收和回滚 | 工具链、依赖或升级门禁变化时 |
 | `decisions/text-cleaning-workflow.md` | 文本清洗、字符转换、规范排版的产品边界和执行顺序 | 相关架构或产品边界变化时 |
+| `decisions/pdf-soft-wrap-spike.md` | PDF/CAJ 软换行与 CJK 内部空格的风险基线和实现前置条件 | 真实来源语料或实现决策变化时 |
 | `decisions/simplified-trad-capability.md` | 简繁转换 feature/default 构建的能力声明和 GUI 语义 | feature 发布策略或 GUI 能力提示变化时 |
 | `decisions/placeholder-migration.md` | Placeholder 重构方案比较、性能基线和重新评估条件 | 重构 Spike 重新测量或决策变化时 |
 | `decisions/wdio-serialize-javascript.md` | E2E `serialize-javascript` 修复方案、验证结果和后续升级约束 | E2E 依赖升级或审计结果变化时 |

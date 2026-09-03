@@ -12,6 +12,7 @@
 
 ### Maintenance
 
+- 记录 PDF/CAJ 段内软换行与 CJK 内部异常空格 Spike：当前仓库没有真实 PDF/CAJ 原文件或脱敏语料，因此只建立合成失败基线和实现前置条件，不引入自动清洗规则，也不将路线图项标记为完成。详情见 `docs/decisions/pdf-soft-wrap-spike.md`。
 - 2026-09-03 复核 E2E 依赖：WebdriverIO 9.31.5、`@wdio/tauri-service` 1.3.0 已是当前直接依赖版本；审计仍报告 13 项 high，根因是 `@puppeteer/browsers@2.13.2` 引入的 `extract-zip@2.0.1`，上游暂无修复版本。未接受跨 major override 或 `npm audit fix --force` 的 WebdriverIO 8 降级，详情见 `docs/decisions/wdio-transitive-dependencies.md`。
 - 增加 GUI“复制并清空”显式动作；复制结果仍保留输入/输出，复制并清空仅在剪贴板写入成功后清除内容，复制失败不会误清空，也不引入窗口失焦自动行为。
 - 增加 GUI 实时/手动输出模式、自动/左右/上下布局和输入输出 Unicode 字符统计；新增设置字段 `output_mode` 与 `layout_mode`，旧设置缺失时回退为实时输出和自动布局，手动模式保留“立即排版”快捷键。
