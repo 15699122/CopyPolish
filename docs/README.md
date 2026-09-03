@@ -24,7 +24,8 @@
 18. [decisions/placeholder-migration.md](decisions/placeholder-migration.md)：Placeholder 重构 Spike（结论：暂不重构，保持当前混合管线）。
 19. [decisions/wdio-serialize-javascript.md](decisions/wdio-serialize-javascript.md)：E2E `serialize-javascript` 修复记录（采用 npm override，保留 WebdriverIO 9）。
 20. [decisions/wdio-transitive-dependencies.md](decisions/wdio-transitive-dependencies.md)：E2E 传递依赖修复记录（`deepmerge-ts` 已修复，浏览器工具暂缓）。
-21. [archive/decisions/e2e-provider-selection.md](archive/decisions/e2e-provider-selection.md)：E2E provider 选型决策（已归档，仅保留选型依据）。
+21. [decisions/kangxi-radicals.md](decisions/kangxi-radicals.md)：康熙部首修复规则与 Unicode 官方映射来源。
+22. [archive/decisions/e2e-provider-selection.md](archive/decisions/e2e-provider-selection.md)：E2E provider 选型决策（已归档，仅保留选型依据）。
 
 ## 文档职责
 

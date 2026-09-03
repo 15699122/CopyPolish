@@ -19,6 +19,7 @@ pub mod keys {
     pub const CLEANUP_REFERENCE_SQUARE: &str = "cleanup.reference-square";
     pub const CLEANUP_COLLAPSE_HORIZONTAL_SPACES: &str = "cleanup.collapse-horizontal-spaces";
     pub const CLEANUP_LIMIT_BLANK_LINES: &str = "cleanup.limit-blank-lines";
+    pub const CLEANUP_KANGXI_RADICALS: &str = "cleanup.kangxi-radicals";
     pub const SPACING_CJK_LATIN: &str = "spacing.cjk-latin";
     pub const SPACING_CJK_NUMBER: &str = "spacing.cjk-number";
     pub const SPACING_NUMBER_UNIT: &str = "spacing.number-unit";
@@ -70,7 +71,8 @@ fn phase_for_key(key: &str) -> RulePhase {
     match key {
         CLEANUP_REFERENCE_SQUARE
         | CLEANUP_COLLAPSE_HORIZONTAL_SPACES
-        | CLEANUP_LIMIT_BLANK_LINES => RulePhase::Cleanup,
+        | CLEANUP_LIMIT_BLANK_LINES
+        | CLEANUP_KANGXI_RADICALS => RulePhase::Cleanup,
         PUNCT_NO_REPETITION
         | PUNCT_FULLWIDTH_CJK
         | TEXT_HALFWIDTH_DIGITS
@@ -94,7 +96,8 @@ fn dependencies_for_key(key: &str) -> (&'static [&'static str], &'static [&'stat
     match key {
         CLEANUP_REFERENCE_SQUARE
         | CLEANUP_COLLAPSE_HORIZONTAL_SPACES
-        | CLEANUP_LIMIT_BLANK_LINES => (&[], &[]),
+        | CLEANUP_LIMIT_BLANK_LINES
+        | CLEANUP_KANGXI_RADICALS => (&[], &[]),
         PUNCT_FULLWIDTH_CJK => (&[], &[PUNCT_NO_REPETITION][..]),
         TEXT_HALFWIDTH_DIGITS => (&[], &[PUNCT_FULLWIDTH_CJK][..]),
         TEXT_ASCII_PUNCT_IN_LATIN => (&[], &[TEXT_HALFWIDTH_DIGITS][..]),
@@ -164,6 +167,11 @@ fn metadata_for_key(key: &str, _name: &str, disputed: bool) -> (&'static str, Ru
         ),
         CLEANUP_LIMIT_BLANK_LINES => (
             "将普通文本中的连续空行限制为一个空行，跳过受保护的 Markdown、代码、公式和 HTML 结构。",
+            RuleKind::Cleanup,
+            RuleRisk::Contextual,
+        ),
+        CLEANUP_KANGXI_RADICALS => (
+            "依据 Unicode 官方兼容分解表，将 U+2F00–U+2FD5 康熙部首映射为对应汉字；默认关闭，不执行全文 Unicode 规范化。",
             RuleKind::Cleanup,
             RuleRisk::Contextual,
         ),
@@ -285,6 +293,15 @@ static RULES: std::sync::LazyLock<Vec<RuleDef>> = std::sync::LazyLock::new(|| {
             false,
             &["限制连续空行"],
             rule_impls::limit_blank_lines,
+        ),
+        def(
+            CLEANUP_KANGXI_RADICALS,
+            "文本清洗",
+            "修复康熙部首",
+            false,
+            false,
+            &["修复康熙部首"],
+            rule_impls::kangxi_radicals,
         ),
         def(
             PUNCT_NO_REPETITION,
