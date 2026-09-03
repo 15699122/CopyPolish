@@ -26,6 +26,7 @@ function createOptions() {
     setEditorFontSize: vi.fn(),
     setUiScale: vi.fn(),
     replacements: [{ from: "A", to: "甲", active: true }],
+    buildCapabilities: { simplifiedTradConversion: true },
     setReplacements: vi.fn(),
     conversion: "s2t" as const,
     setConversion: vi.fn(),
@@ -141,6 +142,24 @@ describe("useSettingsActions", () => {
     });
     expect(options.persistSettings).toHaveBeenLastCalledWith({
       shortcuts: { enabled: true, bindings: defaultBindings },
+    });
+  });
+
+  it("默认构建不会保存或格式化不可用的简繁转换", () => {
+    const options = { ...createOptions(), buildCapabilities: { simplifiedTradConversion: false } };
+    const { result } = renderHook(() => useSettingsActions(options));
+
+    act(() => result.current.onConversionChange("t2s"));
+
+    expect(options.setConversion).toHaveBeenCalledWith("none");
+    expect(options.scheduleFormat).toHaveBeenCalledWith("原文", ["rule-a"], 0, {
+      replacements: [{ from: "A", to: "甲", active: true }],
+      conversion: "none",
+    });
+    expect(options.persistSettings).toHaveBeenCalledWith({
+      conversion: "none",
+      replacements: [{ from: "A", to: "甲", active: true }],
+      last_input: "原文",
     });
   });
 });

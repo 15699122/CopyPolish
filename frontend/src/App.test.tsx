@@ -40,6 +40,7 @@ const mocks = vi.hoisted(() => {
     getUserSettings: vi.fn(),
     saveUserSettings: vi.fn(),
     getAppVersion: vi.fn(),
+    getBuildCapabilities: vi.fn(),
   };
 });
 
@@ -54,6 +55,7 @@ vi.mock("@/lib/tauri", () => ({
   getUserSettings: mocks.getUserSettings,
   saveUserSettings: mocks.saveUserSettings,
   getAppVersion: mocks.getAppVersion,
+  getBuildCapabilities: mocks.getBuildCapabilities,
   DEFAULT_SHORTCUT_SETTINGS: {
     enabled: true,
     bindings: {
@@ -80,6 +82,7 @@ async function setup() {
     expect(mocks.getEnabledDefaults).toHaveBeenCalled();
     expect(mocks.getUserSettings).toHaveBeenCalled();
     expect(mocks.getAppVersion).toHaveBeenCalled();
+    expect(mocks.getBuildCapabilities).toHaveBeenCalled();
   });
   await act(async () => {
     await Promise.resolve();
@@ -101,6 +104,7 @@ beforeEach(() => {
   mocks.getUserSettings.mockResolvedValue(null);
   mocks.saveUserSettings.mockResolvedValue(undefined);
   mocks.getAppVersion.mockResolvedValue("0.5.0-test");
+  mocks.getBuildCapabilities.mockResolvedValue({ simplifiedTradConversion: true });
 });
 
 describe("App 主流程", () => {
@@ -539,7 +543,10 @@ describe("App 主流程", () => {
     await waitFor(() => expect(screen.getByTestId("output-text")).toHaveTextContent("格式化(TODO)"));
 
     await user.click(screen.getByTestId("open-settings"));
+    await waitFor(() => expect(screen.getByText("当前构建已包含简繁转换能力。")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId("replacement-add")).toBeEnabled());
     await user.click(screen.getByTestId("replacement-add"));
+    await waitFor(() => expect(screen.getByTestId("replacement-from-0")).toBeInTheDocument());
     await user.type(screen.getByTestId("replacement-from-0"), "TODO");
     await user.type(screen.getByTestId("replacement-to-0"), "待办");
     await user.selectOptions(screen.getByTestId("conversion-select"), "s2t");

@@ -61,6 +61,7 @@ const mocks = vi.hoisted(() => {
       onOpenChange: vi.fn(),
     },
     settings: {
+      buildCapabilities: { simplifiedTradConversion: true },
       enabled: ["rule-a"],
       setEnabled: vi.fn(),
       theme: "system" as const,

@@ -2,11 +2,12 @@ import { X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import type { CharacterConversion, ReplacementPair } from "@/lib/tauri";
+import type { BuildCapabilities, CharacterConversion, ReplacementPair } from "@/lib/tauri";
 
 interface ReplacementsSectionProps {
   replacements: ReplacementPair[];
   conversion: CharacterConversion;
+  buildCapabilities: BuildCapabilities;
   onReplacementsChange: (replacements: ReplacementPair[]) => void;
   onConversionChange: (conversion: CharacterConversion) => void;
 }
@@ -15,6 +16,7 @@ interface ReplacementsSectionProps {
 export function ReplacementsSection({
   replacements,
   conversion,
+  buildCapabilities,
   onReplacementsChange,
   onConversionChange,
 }: ReplacementsSectionProps) {
@@ -96,11 +98,13 @@ export function ReplacementsSection({
           className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring sm:max-w-60"
         >
           <option value="none">不转换</option>
-          <option value="t2s">繁体转简体</option>
-          <option value="s2t">简体转繁体</option>
+          <option value="t2s" disabled={!buildCapabilities.simplifiedTradConversion}>繁体转简体</option>
+          <option value="s2t" disabled={!buildCapabilities.simplifiedTradConversion}>简体转繁体</option>
         </select>
         <p className="text-xs text-muted-foreground">
-          转换功能依赖可选的 simplified-trad-conversion 构建 feature；未启用时选择不会改变输出。
+          {buildCapabilities.simplifiedTradConversion
+            ? "当前构建已包含简繁转换能力。"
+            : "当前构建未包含简繁转换能力；请使用 simplified-trad-conversion 构建。"}
         </p>
       </div>
     </section>

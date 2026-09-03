@@ -2,6 +2,7 @@ import { useCallback } from "react";
 
 import {
   DEFAULT_SHORTCUT_SETTINGS,
+  type BuildCapabilities,
   type EditorFontSize,
   type FontFamily,
   type CharacterConversion,
@@ -24,6 +25,7 @@ export interface UseSettingsActionsOptions {
   setEditorFontSize: (size: EditorFontSize) => void;
   setUiScale: (scale: UiScale) => void;
   replacements?: ReplacementPair[];
+  buildCapabilities?: BuildCapabilities;
   setReplacements?: (replacements: ReplacementPair[]) => void;
   conversion?: CharacterConversion;
   setConversion?: (conversion: CharacterConversion) => void;
@@ -71,6 +73,7 @@ export function useSettingsActions({
   shortcutsEnabled,
   shortcutBindings,
   replacements,
+  buildCapabilities,
   conversion,
   setReplacements,
   setConversion,
@@ -79,34 +82,36 @@ export function useSettingsActions({
 }: UseSettingsActionsOptions): UseSettingsActionsResult {
   const activeReplacements = replacements ?? [];
   const activeConversion = conversion ?? "none";
+  const conversionAvailable = buildCapabilities?.simplifiedTradConversion ?? false;
+  const effectiveConversion = conversionAvailable ? activeConversion : "none";
   const onToggleRule = useCallback(
     (key: string) => {
       const next = enabledSet.has(key)
         ? enabled.filter((current) => current !== key)
         : [...enabled, key];
       setEnabled(next);
-      scheduleFormat(input, next, 0, { replacements: activeReplacements, conversion: activeConversion });
-      persistSettings({ enabled: next, last_input: input, replacements: activeReplacements, conversion: activeConversion });
+      scheduleFormat(input, next, 0, { replacements: activeReplacements, conversion: effectiveConversion });
+      persistSettings({ enabled: next, last_input: input, replacements: activeReplacements, conversion: effectiveConversion });
     },
-    [activeConversion, activeReplacements, enabled, enabledSet, input, persistSettings, scheduleFormat, setEnabled],
+    [effectiveConversion, activeReplacements, enabled, enabledSet, input, persistSettings, scheduleFormat, setEnabled],
   );
 
   const onSetAll = useCallback(
     (on: boolean) => {
       const next = on ? rules.map((rule) => rule.key) : [];
       setEnabled(next);
-      scheduleFormat(input, next, 0, { replacements: activeReplacements, conversion: activeConversion });
-      persistSettings({ enabled: next, last_input: input, replacements: activeReplacements, conversion: activeConversion });
+      scheduleFormat(input, next, 0, { replacements: activeReplacements, conversion: effectiveConversion });
+      persistSettings({ enabled: next, last_input: input, replacements: activeReplacements, conversion: effectiveConversion });
     },
-    [activeConversion, activeReplacements, input, persistSettings, rules, scheduleFormat, setEnabled],
+    [effectiveConversion, activeReplacements, input, persistSettings, rules, scheduleFormat, setEnabled],
   );
 
   const onResetDefaults = useCallback(() => {
     const next = rules.filter((rule) => rule.default).map((rule) => rule.key);
     setEnabled(next);
-    scheduleFormat(input, next, 0, { replacements: activeReplacements, conversion: activeConversion });
-    persistSettings({ enabled: next, last_input: input, replacements: activeReplacements, conversion: activeConversion });
-  }, [activeConversion, activeReplacements, input, persistSettings, rules, scheduleFormat, setEnabled]);
+    scheduleFormat(input, next, 0, { replacements: activeReplacements, conversion: effectiveConversion });
+    persistSettings({ enabled: next, last_input: input, replacements: activeReplacements, conversion: effectiveConversion });
+  }, [effectiveConversion, activeReplacements, input, persistSettings, rules, scheduleFormat, setEnabled]);
 
   const onThemeChange = useCallback(
     (nextTheme: ThemeMode) => {
@@ -184,19 +189,20 @@ export function useSettingsActions({
   const onReplacementsChange = useCallback(
     (nextReplacements: ReplacementPair[]) => {
       setReplacements?.(nextReplacements);
-      scheduleFormat(input, enabled, 0, { replacements: nextReplacements, conversion: activeConversion });
-      persistSettings({ replacements: nextReplacements, conversion: activeConversion, last_input: input });
+      scheduleFormat(input, enabled, 0, { replacements: nextReplacements, conversion: effectiveConversion });
+      persistSettings({ replacements: nextReplacements, conversion: effectiveConversion, last_input: input });
     },
-    [activeConversion, enabled, input, persistSettings, scheduleFormat, setReplacements],
+    [effectiveConversion, enabled, input, persistSettings, scheduleFormat, setReplacements],
   );
 
   const onConversionChange = useCallback(
     (nextConversion: CharacterConversion) => {
-      setConversion?.(nextConversion);
-      scheduleFormat(input, enabled, 0, { replacements: activeReplacements, conversion: nextConversion });
-      persistSettings({ conversion: nextConversion, replacements: activeReplacements, last_input: input });
+      const effectiveNextConversion = conversionAvailable ? nextConversion : "none";
+      setConversion?.(effectiveNextConversion);
+      scheduleFormat(input, enabled, 0, { replacements: activeReplacements, conversion: effectiveNextConversion });
+      persistSettings({ conversion: effectiveNextConversion, replacements: activeReplacements, last_input: input });
     },
-    [activeReplacements, enabled, input, persistSettings, scheduleFormat, setConversion],
+    [activeReplacements, conversionAvailable, enabled, input, persistSettings, scheduleFormat, setConversion],
   );
 
   return {

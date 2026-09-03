@@ -58,8 +58,9 @@ span-aware 混合管线、规则注册表、阶段依赖、结构/语义 span �
 - [x] 增加自定义字面量替换（有序、仅 active、span 保护前执行、首版不支持正则）：作为请求层阶段随统一请求模型落地；
 - [x] 在桌面 GUI 中接入替换列表和简繁转换选择器，完成请求透传、实时重排与 `rules.yaml` 持久化；
 - [x] 补齐 GUI 替换/转换交互回归：覆盖组件操作、设置恢复、旧字段默认值、持久化、实时请求以及快捷键立即排版设置透传；
-- [x] 增加并验证 GUI E2E 的替换/转换保存与重启恢复 spec：Linux/WSL embedded provider 的设置保存与替换输出 3/3、重启恢复 write/read 各 1/1 通过；当前 Windows 提交如需重新留证，按 [windows-e2e-runbook.md](windows-e2e-runbook.md) 执行 embedded 完整回归和 W3C 兼容性 smoke；
-- [x] 增加并验证简繁转换 feature 专用 GUI E2E 构建与 spec：Linux/WSL embedded provider 双向真实转换 2/2 通过；当前 Windows 提交需使用独立 feature binary 重新留证，标准 W3C provider 不运行该 feature spec；
+- [x] 增加并验证 GUI E2E 的替换/转换保存与重启恢复 spec：Linux/WSL embedded provider 的设置保存与替换输出 3/3、Windows 当前 binary 3/3、重启恢复 write/read 各 1/1 通过；
+- [x] 增加并验证简繁转换 feature 专用 GUI E2E 构建与 spec：Linux/WSL 与 Windows 独立 feature binary 均双向真实转换 2/2 通过；标准 W3C provider 不运行该 feature spec；
+- [x] 确认简繁转换构建能力与 GUI 语义决策：默认构建不静默承诺 t2s/s2t，feature 构建通过 capability 明确启用；实现与正式发布 feature 是否默认开启分别按后续验收推进，记录见 [decisions/simplified-trad-capability.md](decisions/simplified-trad-capability.md)；
 - [ ] 在 TUI 中接入替换列表和简繁转换控件；
 - [ ] 增加中文文案、PDF 清洗和技术文档预设；预设只展开为统一请求模型，不复制规则实现；
 - [ ] 增加实时/手动输出模式、自动/左右/上下布局和输入输出统计；
@@ -114,7 +115,7 @@ span-aware 混合管线、规则注册表、阶段依赖、结构/语义 span �
 当前仍需在 Windows 原生环境完成并记录的新鲜证据：
 
 - [x] 使用当前修复 binary 串行运行 embedded `selection-and-persistence.spec.ts`，3/3 通过，replacement case 输出 `待办`；
-- [ ] 先执行 `npm run build:app:simplified-trad --prefix e2e` 后运行 `simplified-trad-conversion.spec.ts`：当前 1/2，s2t 通过，t2s 设置仍读回 `conversion: s2t`；
+- [x] 先执行 `npm run build:app:simplified-trad --prefix e2e` 后运行 `simplified-trad-conversion.spec.ts`：2/2 通过（s2t、t2s）；
 - [x] 在 Windows MSVC toolchain 执行 `cargo test --manifest-path src-tauri/Cargo.toml --features tui`：166 passed/0 failed；
 - [x] 每项结果已记录环境、退出状态、实际完成数和日志/artifact；`finished=0` 的 runner 未计为通过；
 - [x] 已按 Runbook 完成串行测试后的进程、端口、ACL、临时设置目录和生成物清理。
@@ -123,4 +124,4 @@ span-aware 混合管线、规则注册表、阶段依赖、结构/语义 span �
 
 ## 2026-09-03 Windows 复验结论
 
-默认 embedded GUI、设置恢复/损坏、NTFS ACL、GUI 视觉、快捷键控制台、TUI transcript 和 Windows MSVC Rust/TUI 回归均已取得当前证据。简繁 feature 的 t2s 设置持久化仍失败（1/2），标准 W3C smoke 因 EdgeDriver 连接失败未完成；两项保留为后续修复/环境复验。GUI DPI 自动矩阵与 GitLab Windows 可选 stage 维持跳过，人工 DPI 与 Windows Terminal 交互 artifact 维持已完成。
+默认 embedded GUI、设置恢复/损坏、NTFS ACL、GUI 视觉、快捷键控制台、TUI transcript、简繁 feature 2/2、标准 W3C smoke 2/2 和 Windows MSVC Rust/TUI 回归均已取得当前证据。GUI DPI 自动矩阵与 GitLab Windows 可选 stage 维持跳过，人工 DPI 与 Windows Terminal 交互 artifact 维持已完成。

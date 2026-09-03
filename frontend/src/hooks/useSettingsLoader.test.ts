@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   getUserSettings: vi.fn(),
   getSettingsPath: vi.fn(),
   getAppVersion: vi.fn(),
+  getBuildCapabilities: vi.fn(),
 }));
 
 vi.mock("@/lib/tauri", () => ({
@@ -19,6 +20,7 @@ vi.mock("@/lib/tauri", () => ({
   getUserSettings: mocks.getUserSettings,
   getSettingsPath: mocks.getSettingsPath,
   getAppVersion: mocks.getAppVersion,
+  getBuildCapabilities: mocks.getBuildCapabilities,
 }));
 
 import { useSettingsLoader } from "./useSettingsLoader";
@@ -34,6 +36,7 @@ describe("useSettingsLoader", () => {
     mocks.getUserSettings.mockResolvedValue(null);
     mocks.getSettingsPath.mockResolvedValue("/tmp/rules.yaml");
     mocks.getAppVersion.mockResolvedValue("0.5.0-test");
+    mocks.getBuildCapabilities.mockResolvedValue({ simplifiedTradConversion: true });
   });
 
   it("恢复设置、过滤未知规则并通知输入恢复", async () => {
@@ -115,6 +118,33 @@ describe("useSettingsLoader", () => {
     await waitFor(() => expect(mocks.getSettingsPath).toHaveBeenCalledOnce());
     expect(onRestoreInput).not.toHaveBeenCalled();
     expect(onLoadError).not.toHaveBeenCalled();
+  });
+
+  it("恢复旧设置时按构建能力归一化简繁转换", async () => {
+    mocks.getBuildCapabilities.mockResolvedValue({ simplifiedTradConversion: false });
+    mocks.getUserSettings.mockResolvedValue({
+      enabled: ["rule-a"],
+      last_input: "旧输入",
+      theme: "system",
+      font: "system",
+      editor_font_size: "normal",
+      ui_scale: "normal",
+      shortcuts: undefined,
+      replacements: [],
+      conversion: "t2s",
+      notices: [],
+    });
+    const onRestoreInput = vi.fn();
+    const onLoadError = vi.fn();
+    const { result } = renderHook(() => useSettingsLoader({ onRestoreInput, onLoadError }));
+
+    await act(async () => {
+      await result.current.loadSettings(rules, ["rule-a"]);
+    });
+
+    expect(result.current.buildCapabilities).toEqual({ simplifiedTradConversion: false });
+    expect(result.current.conversion).toBe("none");
+    expect(onRestoreInput).toHaveBeenCalledWith("旧输入", ["rule-a"], [], "none");
   });
 
   it("旧设置缺少替换和转换字段时使用 GUI 默认值", async () => {

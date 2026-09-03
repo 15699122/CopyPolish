@@ -8,6 +8,9 @@ interface CopyPolishE2EDiagnostics {
   lastFormatError?: string;
   lastSettingsSave?: unknown;
   settingsSaveSequence?: number;
+  buildCapabilities?: {
+    simplifiedTradConversion: boolean;
+  };
 }
 
 interface Window {

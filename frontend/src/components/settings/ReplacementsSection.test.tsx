@@ -12,11 +12,13 @@ describe("ReplacementsSection", () => {
     initialConversion = "none",
     onReplacementsChange,
     onConversionChange,
+    buildCapabilities = { simplifiedTradConversion: true },
   }: {
     initialReplacements: { from: string; to: string; active: boolean }[];
     initialConversion?: "none" | "t2s" | "s2t";
     onReplacementsChange?: (next: { from: string; to: string; active: boolean }[]) => void;
     onConversionChange?: (next: "none" | "t2s" | "s2t") => void;
+    buildCapabilities?: { simplifiedTradConversion: boolean };
   }) {
     const [replacements, setReplacements] = useState(initialReplacements);
     const [conversion, setConversion] = useState(initialConversion);
@@ -25,6 +27,7 @@ describe("ReplacementsSection", () => {
       <ReplacementsSection
         replacements={replacements}
         conversion={conversion}
+        buildCapabilities={buildCapabilities}
         onReplacementsChange={(next) => {
           setReplacements(next);
           onReplacementsChange?.(next);
@@ -93,5 +96,19 @@ describe("ReplacementsSection", () => {
     await user.selectOptions(screen.getByTestId("conversion-select"), "s2t");
     expect(onConversionChange).toHaveBeenCalledWith("s2t");
     expect(screen.getByTestId("conversion-select")).toHaveValue("s2t");
+  });
+
+  it("默认构建禁用简繁转换并显示能力提示", () => {
+    render(
+      <ControlledSection
+        initialReplacements={[]}
+        buildCapabilities={{ simplifiedTradConversion: false }}
+      />,
+    );
+
+    expect(screen.getByTestId("conversion-select")).toHaveValue("none");
+    expect(screen.getByRole("option", { name: "繁体转简体" })).toBeDisabled();
+    expect(screen.getByRole("option", { name: "简体转繁体" })).toBeDisabled();
+    expect(screen.getByText(/当前构建未包含简繁转换能力/)).toBeInTheDocument();
   });
 });
