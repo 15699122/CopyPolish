@@ -191,6 +191,28 @@ describe("App 主流程", () => {
     );
   });
 
+  it("首次使用显示提示，查看说明后打开帮助并记住已查看状态", async () => {
+    const { user } = await setup();
+
+    expect(screen.getByTestId("first-run-notice")).toBeInTheDocument();
+    await user.click(screen.getByTestId("first-run-help"));
+
+    expect(screen.queryByTestId("first-run-notice")).not.toBeInTheDocument();
+    expect(screen.getByTestId("help-dialog")).toBeInTheDocument();
+    expect(window.localStorage.getItem("copypolish.first-run-notice-seen")).toBe("1");
+  });
+
+  it("帮助入口展示静态说明，首次提示可单独关闭", async () => {
+    const { user } = await setup();
+
+    await user.click(screen.getByTestId("first-run-dismiss"));
+    expect(screen.queryByTestId("first-run-notice")).not.toBeInTheDocument();
+
+    await user.click(screen.getByTestId("open-help"));
+    expect(screen.getByTestId("help-dialog")).toHaveTextContent("高风险");
+    expect(screen.getByTestId("help-dialog")).toHaveTextContent("浏览器演示模式");
+  });
+
   it("输入内容后隐藏输出框空状态提示", async () => {
     mockFormat((t) => `格式化(${t})`);
     const { user } = await setup();
