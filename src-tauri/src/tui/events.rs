@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 
-use super::app::{App, FocusedPane, Overlay};
+use super::app::{App, FocusedPane, Overlay, RequestField};
 use crate::engine::RuleSelection;
 
 pub fn handle_event(app: &mut App, event: Event) {
@@ -24,6 +24,11 @@ pub fn poll_event(timeout: Duration) -> std::io::Result<Option<Event>> {
 }
 
 fn handle_key(app: &mut App, key: KeyEvent) {
+    if key.code == KeyCode::Char('s') && key.modifiers.contains(KeyModifiers::CONTROL) {
+        app.save_settings_now();
+        return;
+    }
+
     if app.overlay == Some(Overlay::Help) {
         if key.code == KeyCode::Esc || key.code == KeyCode::Char('?') {
             app.overlay = None;
@@ -36,10 +41,11 @@ fn handle_key(app: &mut App, key: KeyEvent) {
         return;
     }
 
-    if key.code == KeyCode::Char('s') && key.modifiers.contains(KeyModifiers::CONTROL) {
-        app.save_settings_now();
+    if app.overlay == Some(Overlay::Request) {
+        handle_request_overlay_key(app, key);
         return;
     }
+
     if key.code == KeyCode::Esc {
         app.overlay = None;
         app.focused = FocusedPane::Input;
@@ -83,6 +89,9 @@ fn handle_input_key(app: &mut App, key: KeyEvent) {
         KeyCode::Char('r') if key.modifiers.contains(KeyModifiers::CONTROL) => {
             app.overlay = Some(Overlay::Rules)
         }
+        KeyCode::Char('e') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            app.overlay = Some(Overlay::Request)
+        }
         KeyCode::Char('q') if key.modifiers.contains(KeyModifiers::CONTROL) => {
             app.should_quit = true
         }
@@ -108,6 +117,7 @@ fn handle_navigation(app: &mut App, key: KeyEvent) {
         KeyCode::End => app.scroll_output_to_end(),
         KeyCode::Char('c') if key.modifiers.is_empty() => app.copy_output(),
         KeyCode::Char('r') if key.modifiers.is_empty() => app.overlay = Some(Overlay::Rules),
+        KeyCode::Char('e') if key.modifiers.is_empty() => app.overlay = Some(Overlay::Request),
         KeyCode::Char('?') if key.modifiers.is_empty() => app.overlay = Some(Overlay::Help),
         KeyCode::Char('q') if key.modifiers.is_empty() => app.should_quit = true,
         _ => {}
@@ -126,6 +136,7 @@ fn handle_rules_key(app: &mut App, key: KeyEvent) {
         KeyCode::Char('n') => app.set_selection(RuleSelection::None),
         KeyCode::Char('c') if key.modifiers.is_empty() => app.copy_output(),
         KeyCode::Char('r') if key.modifiers.is_empty() => app.overlay = Some(Overlay::Rules),
+        KeyCode::Char('e') if key.modifiers.is_empty() => app.overlay = Some(Overlay::Request),
         KeyCode::Char('q') if key.modifiers.is_empty() => app.should_quit = true,
         _ => {}
     }
@@ -146,6 +157,34 @@ fn handle_rules_overlay_key(app: &mut App, key: KeyEvent) {
         KeyCode::Char('n') => app.set_selection(RuleSelection::None),
         KeyCode::Char('c') if key.modifiers.is_empty() => app.copy_output(),
         KeyCode::Char('?') => app.overlay = Some(Overlay::Help),
+        _ => {}
+    }
+}
+
+fn handle_request_overlay_key(app: &mut App, key: KeyEvent) {
+    match key.code {
+        KeyCode::Esc | KeyCode::Char('q') => app.overlay = None,
+        KeyCode::Up => app.move_replacement(-1),
+        KeyCode::Down => app.move_replacement(1),
+        KeyCode::Home => app.selected_replacement = 0,
+        KeyCode::End if !app.replacements.is_empty() => {
+            app.selected_replacement = app.replacements.len() - 1
+        }
+        KeyCode::Char('n') => app.add_replacement(),
+        KeyCode::Char('d') => app.remove_selected_replacement(),
+        KeyCode::Char(' ') => app.toggle_selected_replacement(),
+        KeyCode::Char('v') => app.cycle_conversion(),
+        KeyCode::Tab => {
+            app.request_field = match app.request_field {
+                RequestField::From => RequestField::To,
+                RequestField::To => RequestField::From,
+            }
+        }
+        KeyCode::Enter => app.format(),
+        KeyCode::Backspace => app.backspace_request_text(),
+        KeyCode::Char(c) if key.modifiers.is_empty() && !app.replacements.is_empty() => {
+            app.insert_request_text(&c.to_string())
+        }
         _ => {}
     }
 }
@@ -268,5 +307,60 @@ mod tests {
         assert_eq!(app.overlay, Some(Overlay::Help));
         handle_event(&mut app, key(KeyCode::Esc));
         assert_eq!(app.overlay, None);
+    }
+
+    #[test]
+    fn request_overlay_edits_replacements_and_applies_conversion() {
+        let mut app = App::new();
+        handle_event(
+            &mut app,
+            Event::Key(KeyEvent::new(KeyCode::Char('e'), KeyModifiers::CONTROL)),
+        );
+        assert_eq!(app.overlay, Some(Overlay::Request));
+        handle_event(&mut app, key(KeyCode::Char('n')));
+        for character in "TODO".chars() {
+            handle_event(&mut app, key(KeyCode::Char(character)));
+        }
+        handle_event(&mut app, key(KeyCode::Tab));
+        for character in "待办".chars() {
+            handle_event(&mut app, key(KeyCode::Char(character)));
+        }
+        handle_event(&mut app, key(KeyCode::Enter));
+        assert_eq!(app.replacements[0].from, "TODO");
+        assert_eq!(app.replacements[0].to, "待办");
+        app.insert_text("TODO");
+        assert_eq!(app.output, "待办");
+        handle_event(&mut app, key(KeyCode::Char(' ')));
+        assert!(!app.replacements[0].active);
+    }
+
+    #[test]
+    fn request_overlay_cycles_conversion_and_closes_without_quitting() {
+        let mut app = App::new();
+        app.overlay = Some(Overlay::Request);
+        handle_event(&mut app, key(KeyCode::Char('v')));
+        if cfg!(feature = "simplified-trad-conversion") {
+            assert_eq!(
+                app.conversion,
+                crate::engine::CharacterConversion::TraditionalToSimplified
+            );
+        } else {
+            assert_eq!(app.conversion, crate::engine::CharacterConversion::None);
+        }
+        handle_event(&mut app, key(KeyCode::Esc));
+        assert_eq!(app.overlay, None);
+        assert!(!app.should_quit);
+    }
+
+    #[test]
+    fn ctrl_s_saves_from_request_overlay_without_closing_it() {
+        let mut app = App::new();
+        app.overlay = Some(Overlay::Request);
+        handle_event(
+            &mut app,
+            Event::Key(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL)),
+        );
+        assert_eq!(app.overlay, Some(Overlay::Request));
+        assert!(matches!(app.status, crate::tui::app::Status::Info(_)));
     }
 }

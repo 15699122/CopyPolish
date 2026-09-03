@@ -1,4 +1,4 @@
-use super::app::{App, FocusedPane, Overlay, Status};
+use super::app::{App, FocusedPane, Overlay, RequestField, Status};
 use super::wrap;
 use crate::engine::{RuleKind, RuleRisk};
 use ratatui::{
@@ -119,16 +119,79 @@ pub fn render(frame: &mut Frame, app: &App) {
     };
     let selected = app.selected_keys().len();
     let footer = format!(
-        " {status} · 规则 {selected}/{} · Tab 切换 · Ctrl+R 规则 · c 复制 · Ctrl+S 保存 · Ctrl+? 帮助 · Ctrl+Q 退出",
+        " {status} · 规则 {selected}/{} · Tab 切换 · Ctrl+R 规则 · Ctrl+E 替换/转换 · c 复制 · Ctrl+S 保存 · Ctrl+? 帮助 · Ctrl+Q 退出",
         app.rules.len()
     );
     frame.render_widget(Paragraph::new(footer), root[2]);
 
     if app.overlay == Some(Overlay::Rules) {
         render_rules(frame, app);
+    } else if app.overlay == Some(Overlay::Request) {
+        render_request(frame, app);
     } else if app.overlay == Some(Overlay::Help) {
         render_help(frame);
     }
+}
+
+fn render_request(frame: &mut Frame, app: &App) {
+    let area = centered_rect(86, 78, frame.area());
+    frame.render_widget(Clear, area);
+    let conversion = match app.conversion {
+        crate::engine::CharacterConversion::None => "不转换",
+        crate::engine::CharacterConversion::TraditionalToSimplified => "繁体转简体（t2s）",
+        crate::engine::CharacterConversion::SimplifiedToTraditional => "简体转繁体（s2t）",
+    };
+    let capability = if cfg!(feature = "simplified-trad-conversion") {
+        "feature 已启用"
+    } else {
+        "默认构建不可用，v 不改变模式"
+    };
+    let mut lines = vec![
+        Line::from("替换与字符转换"),
+        Line::from(format!("转换：{conversion} · {capability}")),
+        Line::from(""),
+    ];
+    if app.replacements.is_empty() {
+        lines.push(Line::from("（暂无替换项，按 n 新增）"));
+    } else {
+        for (index, replacement) in app.replacements.iter().enumerate() {
+            let marker = if replacement.active { "[x]" } else { "[ ]" };
+            let selected = if index == app.selected_replacement {
+                ">"
+            } else {
+                " "
+            };
+            lines.push(Line::from(format!(
+                "{selected} {marker} {}: {} → {}",
+                index + 1,
+                if replacement.from.is_empty() {
+                    "（空）"
+                } else {
+                    &replacement.from
+                },
+                if replacement.to.is_empty() {
+                    "（空）"
+                } else {
+                    &replacement.to
+                },
+            )));
+        }
+    }
+    lines.push(Line::from(""));
+    let field = match app.request_field {
+        RequestField::From => "来源 from",
+        RequestField::To => "目标 to",
+    };
+    lines.push(Line::from(format!("当前编辑字段：{field}")));
+    lines.push(Line::from(
+        "↑↓ 选择 · n 新增 · d 删除 · Space 启停 · Tab 切换字段 · v 转换 · Enter 应用 · Esc 关闭",
+    ));
+    frame.render_widget(
+        Paragraph::new(Text::from(lines))
+            .block(Block::default().title(" 请求设置 ").borders(Borders::ALL))
+            .wrap(Wrap { trim: false }),
+        area,
+    );
 }
 
 fn render_rules(frame: &mut Frame, app: &App) {
@@ -181,6 +244,7 @@ fn render_help(frame: &mut Frame) {
         "Tab / Shift+Tab  切换输入、输出和规则区域",
         "Ctrl+Enter       立即排版",
         "Ctrl+R           打开规则面板（非输入区也可用 r）",
+        "Ctrl+E           打开替换与字符转换面板（非输入区也可用 e）",
         "Space / Enter     切换当前规则",
         "a / d / n          全选 / 恢复默认 / 全不选",
         "c                复制输出（OSC 52）",
