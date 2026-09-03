@@ -34,6 +34,7 @@ export default function App() {
     onInputChange,
     copied,
     copyOutput,
+    copyAndClear,
     cleared,
     onClear,
     settingsDialogProps,
@@ -192,6 +193,17 @@ export default function App() {
               <Copy className="h-4 w-4" />
             )}
             复制结果
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            data-testid="copy-and-clear"
+            onClick={copyAndClear}
+            disabled={!output}
+            aria-label="复制并清空"
+          >
+            <Copy className="h-4 w-4" />
+            复制并清空
           </Button>
           <span className="sr-only" aria-live="polite" data-testid="copy-status">
             {copied ? "已复制" : ""}

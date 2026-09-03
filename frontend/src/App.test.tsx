@@ -142,6 +142,39 @@ describe("App 主流程", () => {
     expect(screen.getByTestId("output-empty-state")).toBeInTheDocument();
   });
 
+  it("复制结果保留内容，复制并清空在复制成功后清空输入和输出", async () => {
+    mockFormat((t) => `格式化(${t})`);
+    const { user } = await setup();
+    const writeText = vi.spyOn(navigator.clipboard, "writeText");
+    const input = screen.getByTestId("input-textarea");
+    await user.type(input, "待处理");
+    await waitFor(() => expect(screen.getByTestId("output-text")).toHaveTextContent("格式化(待处理)"));
+
+    await user.click(screen.getByTestId("copy-output"));
+    expect(input).toHaveValue("待处理");
+    expect(screen.getByTestId("output-text")).toHaveTextContent("格式化(待处理)");
+
+    await user.click(screen.getByTestId("copy-and-clear"));
+    expect(writeText).toHaveBeenCalledWith("格式化(待处理)");
+    expect(input).toHaveValue("");
+    await waitFor(() => expect(screen.getByTestId("output-text")).toBeEmptyDOMElement());
+  });
+
+  it("复制并清空复制失败时保留输入和输出", async () => {
+    mockFormat((t) => `格式化(${t})`);
+    const { user } = await setup();
+    vi.spyOn(navigator.clipboard, "writeText").mockRejectedValueOnce(new Error("clipboard denied"));
+    const input = screen.getByTestId("input-textarea");
+    await user.type(input, "复制失败");
+    await waitFor(() => expect(screen.getByTestId("output-text")).toHaveTextContent("格式化(复制失败)"));
+
+    await user.click(screen.getByTestId("copy-and-clear"));
+
+    expect(input).toHaveValue("复制失败");
+    expect(screen.getByTestId("output-text")).toHaveTextContent("格式化(复制失败)");
+    expect(screen.getByTestId("copy-and-clear")).toBeEnabled();
+  });
+
   it("输入框显示示例型占位符，输出框空状态显示引导提示", async () => {
     await setup();
     expect(screen.getByTestId("demo-mode-banner")).toHaveTextContent(

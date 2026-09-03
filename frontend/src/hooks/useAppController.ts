@@ -88,6 +88,7 @@ export interface UseAppControllerResult {
   onInputChange: (input: string) => void;
   copied: boolean;
   copyOutput: () => void;
+  copyAndClear: () => Promise<void>;
   cleared: boolean;
   onClear: () => void;
   settingsDialogProps: SettingsDialogProps;
@@ -213,6 +214,11 @@ export function useAppController(): UseAppControllerResult {
     persistEmptyInput: () => persistence.schedulePersist({ enabled: settings.enabled, last_input: "" }),
     durationMs: 250,
   });
+
+  const copyAndClear = useCallback(async () => {
+    const copiedSuccessfully = await clipboard.copy();
+    if (copiedSuccessfully) clear.clear();
+  }, [clear.clear, clipboard.copy]);
 
   // ---- 10. 主题/字体应用到 DOM ----
   useThemeAndFont({
@@ -370,6 +376,7 @@ export function useAppController(): UseAppControllerResult {
     onInputChange: input.onInputChange,
     copied: clipboard.copied,
     copyOutput: clipboard.copy,
+    copyAndClear,
     cleared: clear.cleared,
     onClear: clear.clear,
     settingsDialogProps,
