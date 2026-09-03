@@ -24,6 +24,7 @@ pub fn run() {
 
     builder
         .invoke_handler(tauri::generate_handler![
+            commands::get_build_capabilities,
             commands::format_text,
             commands::get_rules,
             commands::get_enabled_defaults,

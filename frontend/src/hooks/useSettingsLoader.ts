@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   DEFAULT_SHORTCUT_SETTINGS,
+  getBuildCapabilities,
   getAppVersion,
   getSettingsPath,
   getUserSettings,
@@ -9,6 +10,7 @@ import {
   type FontFamily,
   type LoadedUserSettings,
   type CharacterConversion,
+  type BuildCapabilities,
   type ReplacementPair,
   type Rule,
   type SettingsLoadNotice,
@@ -28,6 +30,7 @@ export interface UseSettingsLoaderOptions {
 }
 
 export interface UseSettingsLoaderResult {
+  buildCapabilities: BuildCapabilities;
   enabled: string[];
   setEnabled: (enabled: string[]) => void;
   theme: ThemeMode;
@@ -72,6 +75,9 @@ export function useSettingsLoader({
   const [settingsLoadNotices, setSettingsLoadNotices] = useState<SettingsLoadNotice[]>([]);
   const [settingsPath, setSettingsPath] = useState<string | null>(null);
   const [appVersion, setAppVersion] = useState(__APP_VERSION__);
+  const [buildCapabilities, setBuildCapabilities] = useState<BuildCapabilities>({
+    simplifiedTradConversion: false,
+  });
 
   const hydratedRef = useRef(false);
   const loadingRef = useRef(false);
@@ -91,6 +97,25 @@ export function useSettingsLoader({
 
     try {
       let saved: LoadedUserSettings | null = null;
+      let capabilities: BuildCapabilities = { simplifiedTradConversion: false };
+      try {
+        capabilities = await getBuildCapabilities();
+        if (mountedRef.current) setBuildCapabilities(capabilities);
+        if (import.meta.env.VITE_COPYPOLISH_E2E === "true") {
+          window.__COPYPOLISH_E2E__ = {
+            ...window.__COPYPOLISH_E2E__,
+            buildCapabilities: capabilities,
+          };
+        }
+      } catch {
+        // 能力查询失败时按默认构建处理，避免静默承诺可选能力。
+        if (import.meta.env.VITE_COPYPOLISH_E2E === "true") {
+          window.__COPYPOLISH_E2E__ = {
+            ...window.__COPYPOLISH_E2E__,
+            buildCapabilities: { simplifiedTradConversion: false },
+          };
+        }
+      }
       try {
         saved = await getUserSettings();
       } catch {
@@ -113,6 +138,9 @@ export function useSettingsLoader({
       if (!mountedRef.current) return;
 
       if (saved && Array.isArray(saved.enabled)) {
+        const restoredConversion = capabilities.simplifiedTradConversion
+          ? saved.conversion ?? "none"
+          : "none";
         const restoredEnabled = saved.enabled.filter((key) =>
           rules.some((rule) => rule.key === key),
         );
@@ -126,14 +154,14 @@ export function useSettingsLoader({
           setShortcutBindings(saved.shortcuts.bindings);
         }
         setReplacements(saved.replacements ?? []);
-        setConversion(saved.conversion ?? "none");
+        setConversion(restoredConversion);
         setSettingsLoadNotices(saved.notices ?? []);
         if (saved.last_input) {
           callbacksRef.current.onRestoreInput(
             saved.last_input,
             restoredEnabled,
             saved.replacements ?? [],
-            saved.conversion ?? "none",
+            restoredConversion,
           );
         }
       } else {
@@ -149,6 +177,7 @@ export function useSettingsLoader({
   }, []);
 
   return {
+    buildCapabilities,
     enabled,
     setEnabled,
     theme,

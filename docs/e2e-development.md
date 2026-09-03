@@ -958,4 +958,4 @@ Windows 必须刷新、不能由 Linux/WSL 替代的证据是：当前修复 bin
 
 ## 2026-09-03 Windows 原生验证收尾
 
-Windows native environment checkout 的当前证据：前端 70/70、E2E typecheck、embedded selection 3/3、设置重启 2/2、损坏设置 3/3、NTFS ACL 1/1、GUI 视觉 1/1、设置快捷键 1/1、TUI transcript 4/4，以及 Windows MSVC cargo test --features tui 166/166 均通过。简繁 feature 在独立 feature binary 上仅 1/2：s2t 通过，t2s 保存后仍读回 conversion: s2t；标准 W3C smoke 因 EdgeDriver 未连接随机端口而未完成。当前修复已在 Linux/WSL 通过相同 feature spec 2/2，Windows 仍需使用包含该修复的 binary 重新留证。GUI DPI 自动验证和 GitLab Windows stage 仍为跳过；125%/150% 人工 GUI 与 Windows Terminal 交互 artifact 仍为已完成。后续只需完成 Windows feature t2s 持久化复验及 WebDriver 启动环境复验。
+Windows native environment checkout 的当前证据：前端 70/70、E2E typecheck、embedded selection 3/3、设置重启 2/2、损坏设置 3/3、NTFS ACL 1/1、GUI 视觉 1/1、设置快捷键 1/1、TUI transcript 4/4，以及 Windows MSVC cargo test --features tui 166/166 均通过。简繁 feature 在独立 feature binary 上 2/2 通过（s2t、t2s）；标准 W3C smoke 2/2 通过。GUI DPI 自动验证和 GitLab Windows stage 仍为跳过；125%/150% 人工 GUI 与 Windows Terminal 交互 artifact 仍为已完成。Windows 端当前自动化收尾项目已全部完成。

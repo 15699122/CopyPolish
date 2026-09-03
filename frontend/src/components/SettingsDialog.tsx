@@ -20,6 +20,7 @@ import type {
   EditorFontSize,
   FontFamily,
   CharacterConversion,
+  BuildCapabilities,
   ReplacementPair,
   Rule,
   SettingsLoadNotice,
@@ -42,6 +43,7 @@ interface SettingsDialogProps {
   uiScale: UiScale;
   replacements: ReplacementPair[];
   conversion: CharacterConversion;
+  buildCapabilities: BuildCapabilities;
   settingsLoadNotices: SettingsLoadNotice[];
   appVersion: string;
   settingsStatus: SettingsStatus;
@@ -79,6 +81,7 @@ export function SettingsDialog({
   uiScale,
   replacements,
   conversion,
+  buildCapabilities,
   settingsLoadNotices,
   appVersion,
   settingsStatus,
@@ -146,6 +149,7 @@ export function SettingsDialog({
             <ReplacementsSection
               replacements={replacements}
               conversion={conversion}
+              buildCapabilities={buildCapabilities}
               onReplacementsChange={onReplacementsChange}
               onConversionChange={onConversionChange}
             />

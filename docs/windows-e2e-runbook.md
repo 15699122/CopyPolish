@@ -23,7 +23,7 @@ Linux、WSL/WSLg 和普通 Chrome 可以验证部分业务语义，但不能替�
 | 工作项 | 目标 | 当前状态 | 完成标志 |
 | --- | --- | --- | --- |
 | 默认 embedded GUI 完整回归 | 验证 Windows WebView2、真实 Rust IPC、设置保存/恢复和替换输出 | 已有基线；换 binary 或前端后应重新执行 | `npm run test --prefix e2e` 通过，artifact 完整 |
-| 简繁 feature embedded GUI | 验证 `s2t`/`t2s` 的真实字符转换，而非默认构建占位 | Windows 当前复验 1/2；s2t 通过，t2s 设置持久化失败，需修复后重跑 | feature 构建和 `simplified-trad-conversion.spec.ts` 2/2 通过 |
+| 简繁 feature embedded GUI | 验证 `s2t`/`t2s` 的真实字符转换，而非默认构建占位 | Windows 当前复验 2/2 通过（s2t、t2s） | feature 构建和 `simplified-trad-conversion.spec.ts` 2/2 通过 |
 | 标准 W3C provider | 验证 session、主窗口、一次格式化、一次设置保存和退出清理 | 已收敛为兼容性 smoke | `npm run test:webdriver --prefix e2e` 通过 |
 | GUI DPI artifact | 在 100%/125%/150% Windows 缩放下保存可审计截图、page source 和环境信息 | 自动验证跳过；三档人工 GUI 验证已完成 | 不纳入自动化门禁；按需保留人工结果 |
 | Terminal 多行显示修复 | 修复自动换行后新增字符绘制位置、光标不可见和 emoji 显示（WT-TUI-001/002/003） | 源码修复已完成，Windows MSVC 166/166 通过；真实 Terminal 复验已由用户确认通过 | Rust/UI 回归通过，Windows 原生复验通过 |
@@ -618,9 +618,9 @@ GUI DPI 和 GitLab Windows stage 已跳过；Windows Terminal TUI 交互 artifac
 - `test:settings-shortcut-console`：1/1 通过；
 - `test:tui-transcript`：4/4 通过，artifact 位于 `e2e/artifacts/tui-transcript/1788400328493`；
 - Windows MSVC `cargo test --manifest-path src-tauri/Cargo.toml --features tui`：166 passed，0 failed；
-- `simplified-trad-conversion.spec.ts`：1/2。s2t case 通过；t2s case 读取到 `conversion: s2t` 而非 `conversion: t2s`，日志 `C:\Users\\AppData\Local\Temp\copypolish-feature-serial-20260903.log`，该项不能标记完成；
-- `test:webdriver`：未完成。EdgeDriver/WebDriver 在本机随机端口未建立连接，不能计为通过；保留本轮命令输出及 `e2e/artifacts/webdriver/` 诊断资料。
+- `simplified-trad-conversion.spec.ts`：2/2 通过（s2t、t2s）；本轮日志 `C:\Users\\AppData\Local\Temp\copypolish-feature-r2-20260903.log`；
+- `test:webdriver`：2/2 通过；本轮标准 provider 在端口 63433 建立 session、完成格式化和设置保存。
 
-GUI DPI 自动矩阵仍按项目决定跳过；125%/150% 人工 GUI 验证保持已完成；GitLab Windows 可选 E2E stage 跳过（不执行）；Windows Terminal 交互 artifact 保持用户确认通过。所有 runner 均按串行方式执行，未将 `exitCode=0` 且 `finished=0` 的 artifact 计入结果。
+GUI DPI 自动矩阵仍按项目决定跳过；125%/150% 人工 GUI 验证保持已完成；GitLab Windows 可选 E2E stage 跳过（不执行）；Windows Terminal 交互 artifact 保持用户确认通过。所有 runner 均按串行方式执行，未将 `exitCode=0` 且 `finished=0` 的 artifact 计入结果。当前文档列出的 Windows 收尾自动化项目已全部取得通过证据。
 
-当前修复在 Linux/WSL 已通过保存时序回归：默认 embedded `selection-and-persistence.spec.ts` 3/3、简繁 feature `simplified-trad-conversion.spec.ts` 2/2。该结果只能证明修复后的跨平台逻辑在 Linux/WSL 生效，不能覆盖上述 Windows WebView2 的 feature t2s 持久化和 W3C/EdgeDriver 环境问题；Windows 仍需使用当前修复 binary 按第 2.5 节重新留证。
+历史记录：修复曾先在 Linux/WSL 定向回归；本轮 Windows 已使用当前 binary 完成 embedded selection 3/3、简繁 feature 2/2 和 W3C smoke 2/2，详见本节结果。

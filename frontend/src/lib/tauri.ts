@@ -30,6 +30,10 @@ export interface ReplacementPair {
 
 export type CharacterConversion = "none" | "t2s" | "s2t";
 
+export interface BuildCapabilities {
+  simplifiedTradConversion: boolean;
+}
+
 export interface FormatRequest {
   text: string;
   selection: RuleSelection;
@@ -123,6 +127,12 @@ export async function getRules(): Promise<Rule[]> {
 export async function getEnabledDefaults(): Promise<string[]> {
   if (!isTauri()) return [];
   return invoke<string[]>("get_enabled_defaults");
+}
+
+/** 返回当前构建是否包含可选的简繁转换实现。浏览器预览不宣称该能力。 */
+export async function getBuildCapabilities(): Promise<BuildCapabilities> {
+  if (!isTauri()) return { simplifiedTradConversion: false };
+  return invoke<BuildCapabilities>("get_build_capabilities");
 }
 
 

@@ -3,6 +3,7 @@ import { useCallback, useMemo, useRef, type RefObject } from "react";
 import {
   isTauri,
   type CharacterConversion,
+  type BuildCapabilities,
   type EditorFontSize,
   type FontFamily,
   type Rule,
@@ -42,6 +43,7 @@ export interface SettingsDialogProps {
   uiScale: UiScale;
   replacements: ReplacementPair[];
   conversion: CharacterConversion;
+  buildCapabilities: BuildCapabilities;
   settingsLoadNotices: SettingsLoadNotice[];
   appVersion: string;
   settingsStatus: "idle" | "saving" | "saved" | "error";
@@ -125,6 +127,9 @@ export function useAppController(): UseAppControllerResult {
     },
     onLoadError: formatter.reportError,
   });
+  const effectiveConversion = settings.buildCapabilities.simplifiedTradConversion
+    ? settings.conversion
+    : "none";
 
   // ---- 5. 规则目录 ----
   const rules = useRuleCatalog({ loadSettings: settings.loadSettings, onError: formatter.reportError });
@@ -139,7 +144,7 @@ export function useAppController(): UseAppControllerResult {
     editor_font_size: "normal",
     ui_scale: "normal",
     replacements: settings.replacements,
-    conversion: settings.conversion,
+    conversion: effectiveConversion,
     shortcuts: { enabled: false, bindings: {} as ShortcutBindings },
   }));
   const persistence = useSettingsPersistence({
@@ -155,7 +160,7 @@ export function useAppController(): UseAppControllerResult {
   const input = useInputFormatting({
     enabled: settings.enabled,
     replacements: settings.replacements,
-    conversion: settings.conversion,
+    conversion: effectiveConversion,
     scheduleFormat: formatter.scheduleFormat,
     schedulePersist: persistence.schedulePersist,
   });
@@ -173,8 +178,9 @@ export function useAppController(): UseAppControllerResult {
     setEditorFontSize: settings.setEditorFontSize,
     setUiScale: settings.setUiScale,
     replacements: settings.replacements,
+    buildCapabilities: settings.buildCapabilities,
     setReplacements: settings.setReplacements,
-    conversion: settings.conversion,
+    conversion: effectiveConversion,
     setConversion: settings.setConversion,
     setShortcutsEnabled: settings.setShortcutsEnabled,
     setShortcutBindings: settings.setShortcutBindings,
@@ -212,7 +218,7 @@ export function useAppController(): UseAppControllerResult {
     onFormatNow: () =>
       formatter.scheduleFormat(input.input, settings.enabled, 0, {
         replacements: settings.replacements,
-        conversion: settings.conversion,
+        conversion: effectiveConversion,
       }),
     onCopyOutput: clipboard.copy,
     onOpenSettings: () => dialog.onOpenChange(true),
@@ -229,7 +235,7 @@ export function useAppController(): UseAppControllerResult {
       ui_scale: settings.uiScale,
       shortcuts: { enabled: settings.shortcutsEnabled, bindings: settings.shortcutBindings },
       replacements: settings.replacements,
-      conversion: settings.conversion,
+      conversion: effectiveConversion,
       ...next,
     }),
     [
@@ -241,7 +247,7 @@ export function useAppController(): UseAppControllerResult {
       settings.shortcutsEnabled,
       settings.shortcutBindings,
       settings.replacements,
-      settings.conversion,
+      effectiveConversion,
       input.input,
     ],
   );
@@ -261,7 +267,8 @@ export function useAppController(): UseAppControllerResult {
       editorFontSize: settings.editorFontSize,
       uiScale: settings.uiScale,
       replacements: settings.replacements,
-      conversion: settings.conversion,
+      conversion: effectiveConversion,
+      buildCapabilities: settings.buildCapabilities,
       settingsLoadNotices: settings.settingsLoadNotices,
       appVersion: settings.appVersion,
       settingsStatus: persistence.settingsStatus,
@@ -301,6 +308,7 @@ export function useAppController(): UseAppControllerResult {
       settings.shortcutBindings,
       settings.replacements,
       settings.conversion,
+      settings.buildCapabilities,
       persistence.settingsStatus,
       persistence.settingsError,
       actions.onToggleRule,

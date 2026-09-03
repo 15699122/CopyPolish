@@ -11,11 +11,12 @@
 - 完成简繁转换 Spike 并接入 `opencc-fmmseg`：以 `simplified-trad-conversion` 可选 feature 提供互斥的 T2S/S2T（MIT、OpenCC 风格词典 + FMM 分词，只改写可编辑区间、保护链接/代码/公式；实测 1 MB `s2t` ≈130 MB/s），默认构建不启用、保持占位；`scripts/generate_licenses.py` 新增 `--features` 参数以纳入可选依赖许可证。决策与语义边界见 `docs/decisions/simplified-trad-conversion-spike.md`。
 - 增加自定义字面量替换：扩展 `FormatRequest` 为统一请求模型（有序、仅 active、span 保护前执行），随 `Preset` 模板一并落地；GUI 已支持添加、编辑、启停和删除替换项，并将列表顺序持久化到设置；TUI 控件和预设选择界面仍在路线图。
 - 补齐 GUI 替换与简繁转换交互回归：新增替换列表组件测试和 App 级添加/编辑/启停/删除/转换选择测试，覆盖设置恢复、旧字段默认值、持久化和实时重排；修复快捷键“立即排版”未携带当前替换/转换设置的问题。TUI/CLI 暂不接入这些共享设置行为。
-- 增加真实 GUI E2E 的替换/转换保存与重启恢复用例：当前 Linux/WSL embedded provider 已验证设置保存与替换输出 3/3、重启恢复 write/read 各 1/1，覆盖临时 `rules.yaml` 写入、替换列表、转换模式和最近输入恢复；默认构建下简繁转换仍是占位实现，实际字符转换需使用 `simplified-trad-conversion` feature 单独验证。W3C/Windows 对应留证仍按平台执行，TUI/CLI 暂不接入这些共享设置行为。
+- 增加真实 GUI E2E 的替换/转换保存与重启恢复用例：默认构建验证 capability=false、设置保存/恢复、替换行为及不可用简繁选择归一化；`simplified-trad-conversion` feature 单独验证 capability=true 与真实双向转换。Windows 默认 embedded、feature embedded 和 W3C smoke 均已取得当前收尾证据；TUI/CLI 暂不接入这些共享设置行为。
 - 新增 `build:app:simplified-trad` 与 feature 专用 GUI E2E spec，并在当前 Linux/WSL embedded provider 验证双向真实转换 2/2 通过（`s2t` / `t2s`）；默认 E2E 构建语义保持不变。
 - 收敛 Windows 原生验证文档：明确默认 embedded 完整回归、简繁 feature embedded 双向验证、W3C 兼容性 smoke、NTFS ACL 和按需 GUI artifact 的执行顺序；移除已不存在的专项 `:webdriver` 命令引用，并标明 DPI 自动矩阵、GitLab stage 和已完成的 Terminal/TUI 项目状态。
 - 修复设置保存状态的旧 Promise 覆盖问题，并增强 E2E 的真实输入事件、格式化请求/结果和失败诊断；Linux/WSL 默认 embedded 设置链路恢复为 3/3，简繁 feature GUI 双向转换为 2/2。Windows 需使用当前修复 binary 重新留证，Unix-only 权限测试已增加平台条件。
 - 修复立即设置保存未取消旧输入防抖保存的问题，避免旧的简繁转换快照在 `t2s` 设置之后再次写入；新增保存时序回归和 feature E2E 的实际保存序号/转换值校验。Linux/WSL 默认 embedded 3/3、简繁 feature 2/2 通过；Windows 仍需使用当前 binary 重新留证。
+- 增加构建 capability 查询：默认构建明确声明不包含简繁转换能力，GUI 禁用 T2S/S2T 并将不可用选择归一化为 `none`；`simplified-trad-conversion` feature 构建继续启用真实 OpenCC 转换。默认与 feature GUI 回归均覆盖 capability 边界。
 - 新增文本清洗与规范排版工作流决策（`docs/decisions/text-cleaning-workflow.md`），并将产品描述调整为本地优先的中文文本清洗与规范排版工具；来源文本清洗、字符转换和预设仍属于后续路线图，不代表本版本已经实现。
 - 新增设置存储回退（ADR 方案 B，`docs/decisions/settings-storage-policy.md`）：程序目录不可写时自动改用平台应用数据目录（Windows `%APPDATA%\CopyPolish`、Linux/macOS `~/.config/CopyPolish`）保存 `rules.yaml`，主界面提示实际生效位置；便携用户行为不变。新增 6 项存储决策单测（同目录优先、双位置并存、只读回退等）。
 - 新增统一本地清理入口 `scripts/clean.py`（白名单删除构建缓存、`e2e/artifacts/` 和 `e2e/settings-*` 临时设置目录，支持 `--dry-run`/`--deep`），并约定测试结果记录后清理本地 artifact、远程仅记录测试结论。

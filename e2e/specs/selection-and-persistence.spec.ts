@@ -43,10 +43,13 @@ describe("CopyPolish 真实设置链路", () => {
     expect(settings).toContain("enabled: []");
   });
 
-  it("真实 GUI 保存替换项和简繁转换设置", async () => {
+  it("默认构建真实 GUI 保存替换项并拒绝不可用简繁转换", async () => {
     await $("[data-testid=\"open-settings\"]").click();
     const addReplacement = await $("[data-testid=\"replacement-add\"]");
     await addReplacement.waitForDisplayed({ timeout: 10_000 });
+    await expect($("[data-testid=\"conversion-select\"]")).toHaveValue("none");
+    await expect($("[data-testid=\"conversion-select\"] option[value=\"t2s\"]")).toBeDisabled();
+    await expect($("[data-testid=\"conversion-select\"] option[value=\"s2t\"]")).toBeDisabled();
     await $("[data-testid=\"select-all\"]").click();
     await browser.waitUntil(
       async () => (await (await $("[data-testid=\"settings-status\"]")).getText()) === "设置已保存",
@@ -66,10 +69,7 @@ describe("CopyPolish 真实设置链路", () => {
       setter?.call(select, "s2t");
       select.dispatchEvent(new Event("change", { bubbles: true }));
     });
-    await browser.waitUntil(
-      async () => await (await $("[data-testid=\"conversion-select\"]")).getValue() === "s2t",
-      { timeout: 10_000, timeoutMsg: "简繁转换选择未更新" },
-    );
+    await expect($("[data-testid=\"conversion-select\"]")).toHaveValue("none");
 
     await browser.waitUntil(
       async () => (await (await $("[data-testid=\"settings-status\"]")).getText()) === "设置已保存",
@@ -86,7 +86,7 @@ describe("CopyPolish 真实设置链路", () => {
     expect(settings).toContain("replacements:");
     expect(settings).toContain("from: TODO");
     expect(settings).toContain("to: 待办");
-    expect(settings).toContain("conversion: s2t");
+    expect(settings).toContain("conversion: none");
 
     await $("[data-testid=\"settings-done\"]").click();
     const output = await $("[data-testid=\"output-text\"]");

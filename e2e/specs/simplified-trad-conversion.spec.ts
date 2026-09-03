@@ -78,6 +78,10 @@ async function expectConvertedOutput(inputValue: string, expectedValue: string):
 describe("CopyPolish simplified-trad-conversion feature GUI", () => {
   before(async () => {
     await waitForApp();
+    const diagnostics = await browser.execute(() =>
+      (window as Window & { __COPYPOLISH_E2E__?: Record<string, unknown> }).__COPYPOLISH_E2E__ ?? {},
+    );
+    expect(diagnostics.buildCapabilities).toEqual({ simplifiedTradConversion: true });
   });
 
   after(async () => {

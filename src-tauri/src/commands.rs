@@ -9,6 +9,33 @@
 
 use crate::engine::{self, CharacterConversion, ReplacementPair, RuleMeta};
 
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BuildCapabilities {
+    pub simplified_trad_conversion: bool,
+}
+
+/// 返回当前 binary 编译时包含的可选能力。
+#[tauri::command]
+pub fn get_build_capabilities() -> BuildCapabilities {
+    BuildCapabilities {
+        simplified_trad_conversion: cfg!(feature = "simplified-trad-conversion"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::get_build_capabilities;
+
+    #[test]
+    fn build_capabilities_match_the_compiled_feature() {
+        assert_eq!(
+            get_build_capabilities().simplified_trad_conversion,
+            cfg!(feature = "simplified-trad-conversion"),
+        );
+    }
+}
+
 /// format_text(text, selection, replacements, conversion) -> String
 ///
 /// `replacements` 与 `conversion` 为可选的请求层阶段；默认空 / None 时

@@ -72,12 +72,12 @@ GUI 的输入变化、规则设置变化、替换/转换设置变化以及快捷
 
 ### Rust 格式化管线
 
-当前生产管线已经包含首批来源文本清洗规则：方括号引用角标、普通文本连续 ASCII 空格和普通文本连续空行。`FormatRequest` 已承载有序字面量替换与互斥字符转换模式；启用 `simplified-trad-conversion` feature 时，简繁转换通过 `opencc-fmmseg`（MIT）实现并只作用于可编辑区间，默认构建不启用（保持占位）。目标工作流遵循以下顺序：
+当前生产管线已经包含首批来源文本清洗规则：方括号引用角标、普通文本连续 ASCII 空格和普通文本连续空行。`FormatRequest` 已承载有序字面量替换与互斥字符转换模式；启用 `simplified-trad-conversion` feature 时，简繁转换通过 `opencc-fmmseg`（MIT）实现并只作用于可编辑区间。默认构建不包含该能力，GUI 通过 `get_build_capabilities` 显式声明不可用并禁止静默保存 T2S/S2T。目标工作流遵循以下顺序：
 
 1. 统一换行符并记录原始换行风格；
 2. 临时扫描结构 span，仅在可编辑区间执行有序用户自定义字面量替换；
 3. 在可编辑区间执行来源文本清洗；
-4. 执行可选的字符转换；简转繁和繁转简由 `CharacterConversion` 互斥表达，启用 `simplified-trad-conversion` 时由 `opencc-fmmseg` 实现并只改写可编辑区间，否则非 `None` 模式保持原文；
+4. 执行可选的字符转换；简转繁和繁转简由 `CharacterConversion` 互斥表达，启用 `simplified-trad-conversion` 时由 `opencc-fmmseg` 实现并只改写可编辑区间；默认构建通过 capability 将不可用模式归一化为 `None`；
 5. 扫描结构/语义 span；
 6. 将不可编辑结构转换为内部保护占位符；
 7. 在受保护文本上执行结构边界、文本边界和规范排版规则；
@@ -100,7 +100,7 @@ GUI 的输入变化、规则设置变化、替换/转换设置变化以及快捷
 
 桌面端设置默认保存在程序同目录的 `rules.yaml`，损坏时尝试 `.bak`，首次发现旧版 `ccw-formatter-settings.json` 时进行迁移。读取和保存会把旧规则 key 归一化为稳定 key，并丢弃未知 key。程序目录不可写时（ADR 已采纳方案 B，见 `docs/decisions/settings-storage-policy.md`），启动时一次性决策回退到平台应用数据目录并通过 `UsingAppDataFallback` 提醒前端；实际路径经 `get_settings_path` 展示。程序目录与应用数据目录同时存在时，优先使用程序目录设置。
 
-GUI 通过设置 hook 管理规则选择、替换列表、转换模式和最近输入，并复用同一 `rules.yaml` 持久化模型；输入变化、设置操作和快捷键立即排版都会使用当前替换/转换设置。TUI 通过自己的设置门面复用同一文件，但当前只修改规则选择和最近输入；尚未提供替换、转换或预设编辑控件。前端浏览器预览使用 localStorage fallback，不代表桌面持久化实现。
+GUI 通过设置 hook 管理规则选择、替换列表、转换模式和最近输入，并复用同一 `rules.yaml` 持久化模型；输入变化、设置操作和快捷键立即排版都会使用当前替换/转换设置。简繁能力由构建 capability 决定：feature 构建启用 T2S/S2T，默认构建禁用并归一化为 `none`。TUI 通过自己的设置门面复用同一文件，但当前只修改规则选择和最近输入；尚未提供替换、转换或预设编辑控件。前端浏览器预览使用 localStorage fallback，不代表桌面持久化实现。
 
 ## 6. 常见修改入口
 

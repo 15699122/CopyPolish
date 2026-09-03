@@ -19,11 +19,12 @@
 13. [windows-e2e-runbook.md](windows-e2e-runbook.md)：Windows 原生 DPI、Windows Terminal 交互 artifact 和 GitLab Windows E2E stage。
 14. [decisions/text-cleaning-workflow.md](decisions/text-cleaning-workflow.md)：文本清洗与规范排版工作流决策（Accepted，新增能力仍按 roadmap 实施）。
 15. [decisions/settings-storage-policy.md](decisions/settings-storage-policy.md)：设置存储策略决策（Accepted，方案 B 已落地）。
-16. [decisions/serde-yaml-migration.md](decisions/serde-yaml-migration.md)：serde_yaml 迁移 Spike（结论：暂不迁移）。
-17. [decisions/placeholder-migration.md](decisions/placeholder-migration.md)：Placeholder 重构 Spike（结论：暂不重构，保持当前混合管线）。
-18. [decisions/wdio-serialize-javascript.md](decisions/wdio-serialize-javascript.md)：E2E `serialize-javascript` 修复记录（采用 npm override，保留 WebdriverIO 9）。
-19. [decisions/wdio-transitive-dependencies.md](decisions/wdio-transitive-dependencies.md)：E2E 传递依赖修复记录（`deepmerge-ts` 已修复，浏览器工具暂缓）。
-20. [archive/decisions/e2e-provider-selection.md](archive/decisions/e2e-provider-selection.md)：E2E provider 选型决策（已归档，仅保留选型依据）。
+16. [decisions/simplified-trad-capability.md](decisions/simplified-trad-capability.md)：简繁转换构建能力与 GUI 语义决策（Accepted，默认构建不静默承诺转换）。
+17. [decisions/serde-yaml-migration.md](decisions/serde-yaml-migration.md)：serde_yaml 迁移 Spike（结论：暂不迁移）。
+18. [decisions/placeholder-migration.md](decisions/placeholder-migration.md)：Placeholder 重构 Spike（结论：暂不重构，保持当前混合管线）。
+19. [decisions/wdio-serialize-javascript.md](decisions/wdio-serialize-javascript.md)：E2E `serialize-javascript` 修复记录（采用 npm override，保留 WebdriverIO 9）。
+20. [decisions/wdio-transitive-dependencies.md](decisions/wdio-transitive-dependencies.md)：E2E 传递依赖修复记录（`deepmerge-ts` 已修复，浏览器工具暂缓）。
+21. [archive/decisions/e2e-provider-selection.md](archive/decisions/e2e-provider-selection.md)：E2E provider 选型决策（已归档，仅保留选型依据）。
 
 ## 文档职责
 
@@ -39,6 +40,7 @@
 | `secrets-management.md` | 加密凭据、接收者、轮换与灾难恢复 | 凭据结构或恢复流程变化时 |
 | `upgrade-runbook.md` | Node、Rust、Tauri、React/Vite 升级、验收和回滚 | 工具链、依赖或升级门禁变化时 |
 | `decisions/text-cleaning-workflow.md` | 文本清洗、字符转换、规范排版的产品边界和执行顺序 | 相关架构或产品边界变化时 |
+| `decisions/simplified-trad-capability.md` | 简繁转换 feature/default 构建的能力声明和 GUI 语义 | feature 发布策略或 GUI 能力提示变化时 |
 | `decisions/placeholder-migration.md` | Placeholder 重构方案比较、性能基线和重新评估条件 | 重构 Spike 重新测量或决策变化时 |
 | `decisions/wdio-serialize-javascript.md` | E2E `serialize-javascript` 修复方案、验证结果和后续升级约束 | E2E 依赖升级或审计结果变化时 |
 | `decisions/wdio-transitive-dependencies.md` | E2E 传递依赖的局部修复、兼容性评估和剩余告警 | E2E 依赖升级或审计结果变化时 |
