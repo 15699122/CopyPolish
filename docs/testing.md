@@ -27,6 +27,7 @@
 | 前端状态 | 防抖、竞态、错误、主题、字体、快捷键以及替换/转换设置透传 | 真实 IPC E2E |
 | 输出模式、布局与统计 | 实时/手动模式切换、手动模式显式排版、自动/左右/上下布局、Unicode code point 输入输出统计、设置加载与持久化 | 真实窗口尺寸矩阵 |
 | 复制动作 | 复制结果保留内容、复制并清空成功后清空、复制失败不清空、无失焦自动动作 | 真实系统剪贴板失败场景 |
+| 帮助与首次提示 | 静态帮助入口和关键边界文案、首次提示显示/关闭/查看说明、localStorage 已查看状态 | 桌面端首次启动人工确认 |
 | TUI | CLI、编辑器、规则、替换/字符转换请求面板、预设面板、OSC 52、共享设置；Linux 非交互 smoke/transcript；Windows release、stdin 及修复后 Windows Terminal 手动回归 | Rust TUI 库测试 177/177，properties 5/5，README registry 3/3；GUI 预设组件与动作测试、Windows release/stdin 和非交互 transcript 已通过；请求面板覆盖替换增删/启停、字段编辑、转换循环、默认 feature 归一化和真实请求输出；预设面板覆盖三种内置工作流应用；本轮多行显示源码修复已由用户确认在 Windows Terminal 复验通过；TUI-EDIT-DELETE-001 已修复，真实 Terminal raw-mode/OSC 52 交互 artifact 已通过 |
 | 发布脚本 | 主要由脚本和人工 Runbook 覆盖 | 参数和失败路径自动化测试 |
 

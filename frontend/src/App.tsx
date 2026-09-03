@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Check, Copy, Eraser } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -11,7 +12,9 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { AppTitleBar } from "@/components/AppTitleBar";
 import { SettingsDialog } from "@/components/SettingsDialog";
+import { HelpDialog } from "@/components/HelpDialog";
 import { useAppController } from "@/hooks/useAppController";
+import { useFirstRunNotice } from "@/hooks/useFirstRunNotice";
 import { isSettingsLoadNoticeAlert, settingsLoadNoticeText } from "@/lib/settingsLoadNotices";
 
 export const APP_NAME = "文案净排";
@@ -24,6 +27,8 @@ const SLOW_FORMAT_THRESHOLD_MS = 100;
  * 排版由 Tauri 侧 Rust 引擎完成；浏览器预览时走内置演示回退实现。
  */
 export default function App() {
+  const [helpOpen, setHelpOpen] = useState(false);
+  const firstRunNotice = useFirstRunNotice();
   const {
     isDemoMode,
     output,
@@ -75,6 +80,39 @@ export default function App() {
           data-testid="demo-mode-banner"
         >
           演示模式：当前运行在浏览器预览中，排版结果使用最小化回退实现，不代表桌面版 Rust 引擎的完整行为。
+        </div>
+      )}
+
+      {firstRunNotice.visible && (
+        <div
+          className="flex items-start gap-3 border-b border-amber-200 bg-amber-50 px-6 py-3 text-sm text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100"
+          role="status"
+          aria-live="polite"
+          data-testid="first-run-notice"
+        >
+          <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-current text-[10px] font-semibold" aria-hidden="true">
+            ?
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="font-medium">第一次使用？先了解规则风险和演示模式边界。</p>
+            <p className="mt-0.5 text-xs text-amber-900/75 dark:text-amber-100/75">
+              输出适合复核，不替代人工检查；高风险清洗规则请谨慎启用。
+            </p>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            data-testid="first-run-help"
+            onClick={() => {
+              firstRunNotice.dismiss();
+              setHelpOpen(true);
+            }}
+          >
+            查看说明
+          </Button>
+          <Button variant="ghost" size="sm" data-testid="first-run-dismiss" onClick={firstRunNotice.dismiss}>
+            知道了
+          </Button>
         </div>
       )}
 
@@ -172,6 +210,7 @@ export default function App() {
       {/* 操作栏 */}
       <footer className="flex items-center gap-2 border-t px-6 py-4">
         <SettingsDialog {...settingsDialogProps} />
+        <HelpDialog open={helpOpen} onOpenChange={setHelpOpen} />
 
         <Button variant="outline" size="sm" data-testid="clear-input" onClick={onClear}>
           {cleared ? (
