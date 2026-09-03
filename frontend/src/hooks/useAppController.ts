@@ -9,6 +9,7 @@ import {
   type Rule,
   type RuleSelection,
   type ReplacementPair,
+  type Preset,
   type SettingsLoadNotice,
   type ShortcutAction,
   type ShortcutBindings,
@@ -65,6 +66,8 @@ export interface SettingsDialogProps {
   onResetShortcuts: () => void;
   onReplacementsChange: (replacements: ReplacementPair[]) => void;
   onConversionChange: (conversion: CharacterConversion) => void;
+  presets: Preset[];
+  onApplyPreset: (preset: Preset) => void;
 }
 
 export interface UseAppControllerResult {
@@ -290,6 +293,8 @@ export function useAppController(): UseAppControllerResult {
       onResetShortcuts: actions.onResetShortcuts,
       onReplacementsChange: actions.onReplacementsChange,
       onConversionChange: actions.onConversionChange,
+      presets: rules.presets,
+      onApplyPreset: actions.onApplyPreset,
     }),
     [
       dialog.open,
@@ -325,6 +330,8 @@ export function useAppController(): UseAppControllerResult {
       actions.onResetShortcuts,
       actions.onReplacementsChange,
       actions.onConversionChange,
+      rules.presets,
+      actions.onApplyPreset,
     ],
   );
 

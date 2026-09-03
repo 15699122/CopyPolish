@@ -162,4 +162,33 @@ describe("useSettingsActions", () => {
       last_input: "原文",
     });
   });
+
+  it("应用预设会同步规则、请求字段和持久化", () => {
+    const options = createOptions();
+    const { result } = renderHook(() => useSettingsActions(options));
+    const preset = {
+      key: "pdf-cleaning",
+      name: "PDF 清洗",
+      description: "清洗",
+      selection: { mode: "only" as const, keys: ["rule-a", "unknown"] },
+      replacements: [{ from: "[1]", to: "", active: true }],
+      conversion: "s2t" as const,
+    };
+
+    act(() => result.current.onApplyPreset(preset));
+
+    expect(options.setEnabled).toHaveBeenCalledWith(["rule-a"]);
+    expect(options.setReplacements).toHaveBeenCalledWith(preset.replacements);
+    expect(options.setConversion).toHaveBeenCalledWith("s2t");
+    expect(options.scheduleFormat).toHaveBeenCalledWith("原文", ["rule-a"], 0, {
+      replacements: preset.replacements,
+      conversion: "s2t",
+    });
+    expect(options.persistSettings).toHaveBeenCalledWith({
+      enabled: ["rule-a"],
+      last_input: "原文",
+      replacements: preset.replacements,
+      conversion: "s2t",
+    });
+  });
 });

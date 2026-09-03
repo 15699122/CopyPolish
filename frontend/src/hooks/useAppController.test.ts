@@ -46,6 +46,9 @@ const mocks = vi.hoisted(() => {
     onShortcutsEnabledChange: vi.fn(),
     onSaveShortcutBinding: vi.fn(),
     onResetShortcuts: vi.fn(),
+    onReplacementsChange: vi.fn(),
+    onConversionChange: vi.fn(),
+    onApplyPreset: vi.fn(),
   };
 
   return {
@@ -89,6 +92,7 @@ const mocks = vi.hoisted(() => {
       appVersion: "0.5.0-test",
       isHydrated: vi.fn(() => true),
       loadSettings: vi.fn(),
+      presets: [],
     },
     catalogOptions: undefined as unknown,
     loaderOptions: undefined as unknown,
@@ -128,7 +132,7 @@ vi.mock("./useInputFormatting", () => ({
 vi.mock("./useRuleCatalog", () => ({
   useRuleCatalog: (options: unknown) => {
     mocks.catalogOptions = options;
-    return { rules: mocks.rules };
+    return { rules: mocks.rules, presets: [] };
   },
 }));
 

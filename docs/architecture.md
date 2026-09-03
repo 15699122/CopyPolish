@@ -96,13 +96,15 @@ TUI 的交互界面通过 `Ctrl+E` 请求设置面板维护相同的 `replacemen
 
 前端通过 `get_rules` 动态取得元数据，因此新增规则通常不需要修改前端。新增规则必须同步测试、README 规则表、设置迁移兼容性和 CHANGELOG。
 
+内置工作流预设由 `engine/presets.rs` 维护，并通过 `commands::get_presets` 提供给 GUI；预设与 TUI 共用相同的 `Preset`/`FormatRequest` 字段，不复制规则实现。当前预设包括中文文案、PDF 清洗和技术文档；PDF 清洗只处理从 PDF/CAJ 复制出的文本，不解析文件本体。
+
 需要运行时参数的自定义替换、预设和简繁转换不应伪装成静态 `RuleDef`：它们应通过 `FormatRequest` 或独立配置模型传入，再由同一个 Rust pipeline 执行。核心规则顺序仍由 phase 和依赖图决定，用户不能任意拖拽改变保护与排版阶段。
 
 ## 5. 设置和兼容性
 
 桌面端设置默认保存在程序同目录的 `rules.yaml`，损坏时尝试 `.bak`，首次发现旧版 `ccw-formatter-settings.json` 时进行迁移。读取和保存会把旧规则 key 归一化为稳定 key，并丢弃未知 key。程序目录不可写时（ADR 已采纳方案 B，见 `docs/decisions/settings-storage-policy.md`），启动时一次性决策回退到平台应用数据目录并通过 `UsingAppDataFallback` 提醒前端；实际路径经 `get_settings_path` 展示。程序目录与应用数据目录同时存在时，优先使用程序目录设置。
 
-GUI 通过设置 hook 管理规则选择、替换列表、转换模式和最近输入，并复用同一 `rules.yaml` 持久化模型；输入变化、设置操作和快捷键立即排版都会使用当前替换/转换设置。简繁能力由构建 capability 决定：feature 构建启用 T2S/S2T，默认构建禁用并归一化为 `none`。TUI 通过自己的设置门面复用同一文件，并在 `Ctrl+E` 请求设置面板中维护替换列表和转换模式；预设编辑控件仍未实现。前端浏览器预览使用 localStorage fallback，不代表桌面持久化实现。
+GUI 通过设置 hook 管理规则选择、替换列表、转换模式和最近输入，并复用同一 `rules.yaml` 持久化模型；输入变化、设置操作和快捷键立即排版都会使用当前替换/转换设置。简繁能力由构建 capability 决定：feature 构建启用 T2S/S2T，默认构建禁用并归一化为 `none`。GUI 设置中的工作流预设通过 `get_presets` 获取，应用时同步更新规则选择、替换和转换设置。TUI 通过自己的设置门面复用同一文件，并在 `Ctrl+E` 请求设置面板和 `Ctrl+P` 预设面板中维护请求字段；前端浏览器预览不伪造 Rust 预设内容。
 
 ## 6. 常见修改入口
 

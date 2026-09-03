@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 use std::time::{Duration, Instant};
 
 use crate::engine::{
-    self, CharacterConversion, FormatRequest, ReplacementPair, RuleMeta, RuleSelection,
+    self, CharacterConversion, FormatRequest, Preset, ReplacementPair, RuleMeta, RuleSelection,
 };
 
 use super::clipboard;
@@ -21,6 +21,7 @@ pub enum Overlay {
     Help,
     Rules,
     Request,
+    Presets,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -55,6 +56,8 @@ pub struct App {
     pub conversion: CharacterConversion,
     pub selected_replacement: usize,
     pub request_field: RequestField,
+    pub presets: Vec<Preset>,
+    pub selected_preset: usize,
     /// `--no-config`：跳过共享 rules.yaml 的读取与写入。
     pub no_config: bool,
 }
@@ -102,6 +105,8 @@ impl App {
             conversion,
             selected_replacement: 0,
             request_field: super::app::RequestField::From,
+            presets: engine::presets(),
+            selected_preset: 0,
             no_config,
         };
         app.format();
@@ -249,6 +254,29 @@ impl App {
             }
         };
         self.format();
+    }
+
+    pub fn move_preset(&mut self, delta: isize) {
+        if self.presets.is_empty() {
+            return;
+        }
+        self.selected_preset = self
+            .selected_preset
+            .saturating_add_signed(delta)
+            .min(self.presets.len() - 1);
+    }
+
+    pub fn apply_selected_preset(&mut self) {
+        let Some(preset) = self.presets.get(self.selected_preset).cloned() else {
+            return;
+        };
+        self.selection = preset.selection;
+        self.replacements = preset.replacements;
+        self.conversion = settings::normalize_conversion(preset.conversion);
+        self.selected_replacement = 0;
+        self.request_field = RequestField::From;
+        self.format();
+        self.status = Status::Info(format!("已应用预设：{}", preset.name));
     }
 
     pub fn scroll_output(&mut self, delta: i16) {
@@ -445,6 +473,11 @@ mod tests {
     fn overlay_variants_cover_help_and_rules() {
         let app = App::new();
         assert_eq!(app.overlay, None);
-        let _ = (Overlay::Help, Overlay::Rules, Overlay::Request);
+        let _ = (
+            Overlay::Help,
+            Overlay::Rules,
+            Overlay::Request,
+            Overlay::Presets,
+        );
     }
 }

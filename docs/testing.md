@@ -22,10 +22,10 @@
 | Markdown/HTML/LaTeX | span、嵌套结构、未闭合结构、后续文本不吞并、保护 fixture | 继续扩展真实文档样本 |
 | Unicode | grapheme、emoji、组合符、CJK Ext-B | Unicode 数据/工具链升级回归 |
 | 单位和数学 | 有限词典、复合单位、数学边界 | 按真实语料扩展词典 |
-| 自定义替换与简繁转换设置 | Rust 请求/设置 fixture；GUI 与 TUI 组件/事件交互、添加/编辑/启停/删除/转换选择、设置加载、持久化、请求透传、实时重排、快捷键立即排版和旧设置兼容；默认与 `simplified-trad-conversion` feature 构建覆盖；embedded GUI E2E 已覆盖保存、替换输出、重启恢复及 feature 下双向真实转换 | CLI 参数和预设选择界面 |
+| 自定义替换、简繁转换与工作流预设 | Rust 请求/设置/预设 fixture；GUI 与 TUI 组件/事件交互、添加/编辑/启停/删除/转换选择、预设加载与应用、设置加载、持久化、请求透传、实时重排、快捷键立即排版和旧设置兼容；默认与 `simplified-trad-conversion` feature 构建覆盖；embedded GUI E2E 已覆盖保存、替换输出、重启恢复及 feature 下双向真实转换 | CLI 参数 |
 | 设置 | Rust Windows 测试 16/16；Windows 真实 GUI 修复后已手动完成保存、重启恢复、损坏 fixture、ACL 保存失败及视觉/DPI/窄窗口回归；损坏设置、重启恢复和 NTFS ACL 已在两个 provider 自动化通过；统一 artifact、受控失败 probe 和 GUI 主题/窄窗口 artifact 已实现 | embedded/W3C Windows E2E 已复验真实 WebView2、IPC、全不选恒等、临时路径、规则保存、ACL 拒写恢复和失败留证；三档人工 DPI 已完成，GUI DPI 自动验证已跳过（不执行）；三档人工 GUI 验证已完成；GitLab Windows stage 已跳过 |
 | 前端状态 | 防抖、竞态、错误、主题、字体、快捷键以及替换/转换设置透传 | 真实 IPC E2E |
-| TUI | CLI、编辑器、规则、替换/字符转换请求面板、OSC 52、共享设置；Linux 非交互 smoke/transcript；Windows release、stdin 及修复后 Windows Terminal 手动回归 | Rust TUI 库测试 174/174，properties 5/5，README registry 3/3；Windows release/stdin 和非交互 transcript 已通过；请求面板覆盖替换增删/启停、字段编辑、转换循环、默认 feature 归一化和真实请求输出；本轮多行显示源码修复已由用户确认在 Windows Terminal 复验通过；TUI-EDIT-DELETE-001 已修复，真实 Terminal raw-mode/OSC 52 交互 artifact 已通过 |
+| TUI | CLI、编辑器、规则、替换/字符转换请求面板、预设面板、OSC 52、共享设置；Linux 非交互 smoke/transcript；Windows release、stdin 及修复后 Windows Terminal 手动回归 | Rust TUI 库测试 177/177，properties 5/5，README registry 3/3；GUI 预设组件与动作测试、Windows release/stdin 和非交互 transcript 已通过；请求面板覆盖替换增删/启停、字段编辑、转换循环、默认 feature 归一化和真实请求输出；预设面板覆盖三种内置工作流应用；本轮多行显示源码修复已由用户确认在 Windows Terminal 复验通过；TUI-EDIT-DELETE-001 已修复，真实 Terminal raw-mode/OSC 52 交互 artifact 已通过 |
 | 发布脚本 | 主要由脚本和人工 Runbook 覆盖 | 参数和失败路径自动化测试 |
 
 ### 2.1 Windows 原生验证快照
@@ -355,6 +355,7 @@ cargo build --manifest-path src-tauri/Cargo.toml --features tui --release --bin 
 7. 用 `Ctrl+S` 保存规则和最近输入，退出后重新启动同一目录，确认规则选择和最近输入恢复。
 8. 使用 `Ctrl+E` 打开请求设置面板：新增替换、编辑 `from`/`to`、Space 启停、d 删除、Enter 应用；确认输出使用当前替换列表。
 9. 使用 `v` 循环转换模式；默认构建只能保持 `none`，feature 构建应能选择 `t2s`/`s2t` 并由 Rust 引擎产生真实输出；保存后重启确认替换和转换设置恢复。
+10. 使用 `Ctrl+P` 打开预设面板，依次确认中文文案、PDF 清洗和技术文档预设可见；按 Enter 应用后，规则选择和请求字段应更新，PDF 预设不应尝试读取 PDF 文件本体。
 8. 退出后检查没有残留进程、控制序列或损坏终端；保存终端截图、版本和操作记录。
 
 TUI-EDIT-DELETE-001（2026-08-31）已修复：`TextEditor` 现在将最后一个 grapheme 的下一个边界正确处理为 `text.len()`，因此 Right 可以移动到文本末尾，Delete 可以删除最后一个 grapheme。Rust 编辑器和 TUI 事件级回归已覆盖 ASCII、中文、emoji、组合字符和多行边界。
