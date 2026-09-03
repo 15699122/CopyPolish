@@ -10,7 +10,7 @@
 - Rust 排版引擎：`src-tauri/src/engine/`；
 - TUI：启用 Cargo feature `tui` 的 `copypolish-tui`；
 - 当前行为事实来源：Rust engine；浏览器 fallback 仅用于 UI 预览；
-- 当前产品边界：已交付规范排版、首批来源文本清洗、自定义字面量替换和 GUI 设置接线；简繁转换随 `simplified-trad-conversion` 可选 feature 提供，默认构建保持占位；TUI 控件和更复杂的清洗/转换能力仍按 [roadmap.md](roadmap.md) 规划，未实现能力不得写成当前行为；
+- 当前产品边界：已交付规范排版、首批来源文本清洗、自定义字面量替换、GUI 设置接线以及 TUI 替换/字符转换请求面板；简繁转换随 `simplified-trad-conversion` 可选 feature 提供，默认构建保持占位；预设、全角 ASCII 转半角和更复杂的清洗/转换能力仍按 [roadmap.md](roadmap.md) 规划，未实现能力不得写成当前行为；
 - 当前后续任务：见 [roadmap.md](roadmap.md)。
 
 ## 工具链和初始化
@@ -65,6 +65,8 @@ cargo run --manifest-path src-tauri/Cargo.toml --features tui --bin copypolish-t
 ```
 
 TUI 只负责交互状态和展示，格式化行为必须复用 `engine::format_text`。
+
+交互 TUI 的 `Ctrl+E` 请求设置面板直接维护 `FormatRequest` 的 `replacements` 与 `conversion` 字段，并通过同一个 `rules.yaml` 与 GUI 共享设置；TUI 不复制规则实现。默认构建会在请求和持久化前将不可用简繁模式归一化为 `none`。
 
 ## 验证入口
 

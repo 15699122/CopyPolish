@@ -61,7 +61,7 @@ span-aware 混合管线、规则注册表、阶段依赖、结构/语义 span �
 - [x] 增加并验证 GUI E2E 的替换/转换保存与重启恢复 spec：Linux/WSL embedded provider 的设置保存与替换输出 3/3、Windows 当前 binary 3/3、重启恢复 write/read 各 1/1 通过；
 - [x] 增加并验证简繁转换 feature 专用 GUI E2E 构建与 spec：Linux/WSL 与 Windows 独立 feature binary 均双向真实转换 2/2 通过；标准 W3C provider 不运行该 feature spec；
 - [x] 确认简繁转换构建能力与 GUI 语义决策：默认构建不静默承诺 t2s/s2t，feature 构建通过 capability 明确启用；实现与正式发布 feature 是否默认开启分别按后续验收推进，记录见 [decisions/simplified-trad-capability.md](decisions/simplified-trad-capability.md)；
-- [ ] 在 TUI 中接入替换列表和简繁转换控件；
+- [x] 在 TUI 中接入替换列表和简繁转换控件：通过 `Ctrl+E` 请求设置面板复用 `FormatRequest` 与共享 `rules.yaml`，支持替换增删/编辑/启停、转换模式循环、默认构建 capability 归一化和 feature 构建真实转换；
 - [ ] 增加中文文案、PDF 清洗和技术文档预设；预设只展开为统一请求模型，不复制规则实现；
 - [ ] 增加实时/手动输出模式、自动/左右/上下布局和输入输出统计；
 - [ ] 增加复制后的显式动作（保留/复制并清空），不使用窗口失焦自动复制或自动清空；
@@ -128,4 +128,4 @@ span-aware 混合管线、规则注册表、阶段依赖、结构/语义 span �
 
 ## 2026-09-03 提交 6687c13 capability 刷新结论
 
-已在隔离 Windows 原生 checkout `<isolated-windows-checkout>` 刷新当前 capability 实现的证据：默认 embedded 3/3、简繁 feature embedded 2/2、Windows MSVC `cargo test --features tui` 167/167、标准 W3C smoke 2/2（随机端口 51737）均通过；所有 runner 均有明确 `finished > 0` 和失败数为 0。原有旧 checkout 未修改，隔离目录和 artifact 已清理。简繁转换 capability 决策及 Windows 收尾验证不再阻塞后续 P1；下一项未完成任务仍为 TUI 替换/简繁控件接入。
+已在隔离 Windows 原生 checkout `<isolated-windows-checkout>` 刷新当前 capability 实现的证据：默认 embedded 3/3、简繁 feature embedded 2/2、Windows MSVC `cargo test --features tui` 167/167、标准 W3C smoke 2/2（随机端口 51737）均通过；所有 runner 均有明确 `finished > 0` 和失败数为 0。原有旧 checkout 未修改，隔离目录和 artifact 已清理。简繁转换 capability 决策及 Windows 收尾验证不再阻塞后续 P1；TUI 替换/简繁控件已完成，下一项未完成任务为中文文案、PDF 清洗和技术文档预设。

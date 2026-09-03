@@ -50,7 +50,7 @@ src-tauri/src/
 
 ## 3. 请求和格式化数据流
 
-### GUI
+### GUI 与 TUI
 
 ```text
 用户输入
@@ -67,6 +67,8 @@ src-tauri/src/
 ```
 
 GUI 的输入变化、规则设置变化、替换/转换设置变化以及快捷键“立即排版”均通过同一套格式化调度入口传递当前 `replacements` 与 `conversion`，避免不同交互入口产生不一致的请求语义。
+
+TUI 的交互界面通过 `Ctrl+E` 请求设置面板维护相同的 `replacements` 与 `conversion` 字段；`Ctrl+S` 和正常退出通过 `tui::settings` 读改写共享 `UserSettings`，因此 GUI 与 TUI 共用设置格式和 Rust `FormatRequest`，不复制规则实现。默认构建按 `simplified-trad-conversion` feature 将 T2S/S2T 归一化为 `CharacterConversion::None`。
 
 浏览器预览模式只提供最小 JS fallback，用于脱离 Tauri 开发 UI；它不代表完整 Rust 引擎行为。
 
@@ -100,7 +102,7 @@ GUI 的输入变化、规则设置变化、替换/转换设置变化以及快捷
 
 桌面端设置默认保存在程序同目录的 `rules.yaml`，损坏时尝试 `.bak`，首次发现旧版 `ccw-formatter-settings.json` 时进行迁移。读取和保存会把旧规则 key 归一化为稳定 key，并丢弃未知 key。程序目录不可写时（ADR 已采纳方案 B，见 `docs/decisions/settings-storage-policy.md`），启动时一次性决策回退到平台应用数据目录并通过 `UsingAppDataFallback` 提醒前端；实际路径经 `get_settings_path` 展示。程序目录与应用数据目录同时存在时，优先使用程序目录设置。
 
-GUI 通过设置 hook 管理规则选择、替换列表、转换模式和最近输入，并复用同一 `rules.yaml` 持久化模型；输入变化、设置操作和快捷键立即排版都会使用当前替换/转换设置。简繁能力由构建 capability 决定：feature 构建启用 T2S/S2T，默认构建禁用并归一化为 `none`。TUI 通过自己的设置门面复用同一文件，但当前只修改规则选择和最近输入；尚未提供替换、转换或预设编辑控件。前端浏览器预览使用 localStorage fallback，不代表桌面持久化实现。
+GUI 通过设置 hook 管理规则选择、替换列表、转换模式和最近输入，并复用同一 `rules.yaml` 持久化模型；输入变化、设置操作和快捷键立即排版都会使用当前替换/转换设置。简繁能力由构建 capability 决定：feature 构建启用 T2S/S2T，默认构建禁用并归一化为 `none`。TUI 通过自己的设置门面复用同一文件，并在 `Ctrl+E` 请求设置面板中维护替换列表和转换模式；预设编辑控件仍未实现。前端浏览器预览使用 localStorage fallback，不代表桌面持久化实现。
 
 ## 6. 常见修改入口
 

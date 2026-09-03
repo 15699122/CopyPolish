@@ -1,7 +1,9 @@
 use std::collections::BTreeSet;
 use std::time::{Duration, Instant};
 
-use crate::engine::{self, FormatRequest, RuleMeta, RuleSelection};
+use crate::engine::{
+    self, CharacterConversion, FormatRequest, ReplacementPair, RuleMeta, RuleSelection,
+};
 
 use super::clipboard;
 use super::editor::TextEditor;
@@ -18,6 +20,13 @@ pub enum FocusedPane {
 pub enum Overlay {
     Help,
     Rules,
+    Request,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RequestField {
+    From,
+    To,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -42,6 +51,10 @@ pub struct App {
     pub should_quit: bool,
     pub selected_rule: usize,
     pub output_scroll: u16,
+    pub replacements: Vec<ReplacementPair>,
+    pub conversion: CharacterConversion,
+    pub selected_replacement: usize,
+    pub request_field: RequestField,
     /// `--no-config`：跳过共享 rules.yaml 的读取与写入。
     pub no_config: bool,
 }
@@ -66,6 +79,14 @@ impl App {
             .filter(|config| !config.last_input.is_empty())
             .map(|config| config.last_input.clone())
             .unwrap_or_default();
+        let replacements = shared
+            .as_ref()
+            .map(|config| config.replacements.clone())
+            .unwrap_or_default();
+        let conversion = shared
+            .as_ref()
+            .map(|config| settings::normalize_conversion(config.conversion))
+            .unwrap_or_default();
         let mut app = Self {
             input: TextEditor::new(last_input),
             output: String::new(),
@@ -77,6 +98,10 @@ impl App {
             should_quit: false,
             selected_rule: 0,
             output_scroll: 0,
+            replacements,
+            conversion,
+            selected_replacement: 0,
+            request_field: super::app::RequestField::From,
             no_config,
         };
         app.format();
@@ -88,6 +113,8 @@ impl App {
         let request = FormatRequest {
             text: self.input.text().to_string(),
             selection: self.selection.clone(),
+            replacements: self.replacements.clone(),
+            conversion: settings::normalize_conversion(self.conversion),
             ..Default::default()
         };
         match engine::format_text(&request) {
@@ -153,6 +180,77 @@ impl App {
         self.format();
     }
 
+    pub fn add_replacement(&mut self) {
+        self.replacements.push(ReplacementPair::default());
+        self.selected_replacement = self.replacements.len().saturating_sub(1);
+        self.request_field = RequestField::From;
+    }
+
+    pub fn remove_selected_replacement(&mut self) {
+        if self.selected_replacement < self.replacements.len() {
+            self.replacements.remove(self.selected_replacement);
+            self.selected_replacement = self
+                .selected_replacement
+                .min(self.replacements.len().saturating_sub(1));
+            self.format();
+        }
+    }
+
+    pub fn move_replacement(&mut self, delta: isize) {
+        if self.replacements.is_empty() {
+            return;
+        }
+        self.selected_replacement = self
+            .selected_replacement
+            .saturating_add_signed(delta)
+            .min(self.replacements.len() - 1);
+    }
+
+    pub fn toggle_selected_replacement(&mut self) {
+        if let Some(replacement) = self.replacements.get_mut(self.selected_replacement) {
+            replacement.active = !replacement.active;
+            self.format();
+        }
+    }
+
+    pub fn insert_request_text(&mut self, text: &str) {
+        let Some(replacement) = self.replacements.get_mut(self.selected_replacement) else {
+            return;
+        };
+        match self.request_field {
+            RequestField::From => replacement.from.push_str(text),
+            RequestField::To => replacement.to.push_str(text),
+        }
+    }
+
+    pub fn backspace_request_text(&mut self) {
+        let Some(replacement) = self.replacements.get_mut(self.selected_replacement) else {
+            return;
+        };
+        let value = match self.request_field {
+            RequestField::From => &mut replacement.from,
+            RequestField::To => &mut replacement.to,
+        };
+        if let Some((index, _)) = value.char_indices().next_back() {
+            value.truncate(index);
+        }
+    }
+
+    pub fn cycle_conversion(&mut self) {
+        self.conversion = if !cfg!(feature = "simplified-trad-conversion") {
+            CharacterConversion::None
+        } else {
+            match self.conversion {
+                CharacterConversion::None => CharacterConversion::TraditionalToSimplified,
+                CharacterConversion::TraditionalToSimplified => {
+                    CharacterConversion::SimplifiedToTraditional
+                }
+                CharacterConversion::SimplifiedToTraditional => CharacterConversion::None,
+            }
+        };
+        self.format();
+    }
+
     pub fn scroll_output(&mut self, delta: i16) {
         if delta.is_negative() {
             self.output_scroll = self.output_scroll.saturating_sub(delta.unsigned_abs());
@@ -185,8 +283,13 @@ impl App {
             self.status = Status::Info("--no-config 模式不保存设置".to_string());
             return;
         }
-        match settings::persist(&self.selection, self.input.text()) {
-            Ok(()) => self.status = Status::Info("已保存规则与最近输入".to_string()),
+        match settings::persist(
+            &self.selection,
+            self.input.text(),
+            &self.replacements,
+            self.conversion,
+        ) {
+            Ok(()) => self.status = Status::Info("已保存规则、替换与转换设置".to_string()),
             Err(error) => self.status = Status::Error(format!("保存设置失败：{error}")),
         }
     }
@@ -201,7 +304,7 @@ impl Default for App {
 #[cfg(test)]
 mod tests {
     use super::{App, FocusedPane, Overlay, Status};
-    use crate::engine::RuleSelection;
+    use crate::engine::{CharacterConversion, ReplacementPair, RuleSelection};
 
     #[test]
     fn default_app_uses_default_rules() {
@@ -259,6 +362,8 @@ mod tests {
         let config = super::SharedConfig {
             selection: RuleSelection::None,
             last_input: "在LeanCloud上".to_string(),
+            replacements: vec![],
+            conversion: CharacterConversion::None,
         };
         let app = App::with_config(Some(config), false);
         assert_eq!(app.input.text(), "在LeanCloud上");
@@ -270,11 +375,31 @@ mod tests {
         let config = super::SharedConfig {
             selection: RuleSelection::Defaults,
             last_input: String::new(),
+            replacements: vec![],
+            conversion: CharacterConversion::None,
         };
         let app = App::with_config(Some(config), true);
         assert_eq!(app.input.text(), "");
         // 尽管恢复了共享选择，仍不回写设置。
         assert!(app.no_config);
+    }
+
+    #[test]
+    fn shared_config_restores_request_settings_and_formats_with_replacement() {
+        let config = super::SharedConfig {
+            selection: RuleSelection::None,
+            last_input: "TODO".to_string(),
+            replacements: vec![ReplacementPair {
+                from: "TODO".to_string(),
+                to: "待办".to_string(),
+                active: true,
+            }],
+            conversion: CharacterConversion::None,
+        };
+        let app = App::with_config(Some(config), true);
+        assert_eq!(app.replacements[0].from, "TODO");
+        assert_eq!(app.replacements[0].to, "待办");
+        assert_eq!(app.output, "待办");
     }
 
     #[test]
@@ -320,6 +445,6 @@ mod tests {
     fn overlay_variants_cover_help_and_rules() {
         let app = App::new();
         assert_eq!(app.overlay, None);
-        let _ = (Overlay::Help, Overlay::Rules);
+        let _ = (Overlay::Help, Overlay::Rules, Overlay::Request);
     }
 }
