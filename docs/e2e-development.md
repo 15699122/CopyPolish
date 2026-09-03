@@ -948,3 +948,14 @@ ACL 失败 artifact 保留流程已修复并重新验证；GUI DPI 自动验证�
 ## 2026-09-02 Windows 复验补充
 
 Node 24.19.0、Rust 1.98.0 MSVC、WebView2 151.0.4129.107 下，前端 69/69、W3C smoke 2/2、设置重启 2/2、损坏设置 3/3、NTFS ACL 1/1、GUI 视觉 artifact 1/1、设置快捷键 1/1、TUI transcript 4/4 均通过。旧 binary 的 embedded `selection-and-persistence.spec.ts` 第三个 case 未将替换设置作用到真实 GUI 输出；当前已增加原生输入事件、保存序列保护和 E2E 诊断，Linux/WSL 定向回归已恢复为 3/3，Windows 需使用当前修复 binary 重新留证。`simplified-trad-conversion.spec.ts` 在正确先构建 feature binary 后为 2/2 通过（s2t、t2s）。
+
+## 2026-09-03 当前 Windows 执行入口
+
+当前修复提交的 Windows 复验必须以 `docs/windows-e2e-runbook.md` 第 2.5 节为唯一串行执行入口：先记录原生环境并安装依赖，再构建/运行默认 embedded `selection-and-persistence.spec.ts`，随后构建带 `simplified-trad-conversion` feature 的 binary 并运行双向转换 spec，最后执行 W3C smoke 和 Windows MSVC 下的 `cargo test --features tui`。本次保存竞态修复已在 Linux/WSL 默认 embedded 3/3、简繁 feature 2/2 通过；完整 embedded runner 的结果只有在实际执行统计 `finished > 0` 且每个 spec 有明确通过数时才可计入结论；`exitCode=0` 与 `finished=0` 的 artifact 必须记录为 runner 未完成。
+
+Windows 必须刷新、不能由 Linux/WSL 替代的证据是：当前修复 binary 的真实 WebView2 replacement 保存/输出链路、当前 feature binary 的真实 s2t/t2s 输出，以及 `cargo test --features tui` 的 Windows 编译/测试结果。重启恢复、损坏设置、NTFS ACL、GUI 视觉 artifact、设置快捷键控制台和 TUI transcript 已有专项入口，按需复跑；DPI 自动矩阵和 GitLab Windows stage 按项目决定跳过。
+
+
+## 2026-09-03 Windows 原生验证收尾
+
+E 盘 checkout 的当前证据：前端 70/70、E2E typecheck、embedded selection 3/3、设置重启 2/2、损坏设置 3/3、NTFS ACL 1/1、GUI 视觉 1/1、设置快捷键 1/1、TUI transcript 4/4，以及 Windows MSVC cargo test --features tui 166/166 均通过。简繁 feature 在独立 feature binary 上仅 1/2：s2t 通过，t2s 保存后仍读回 conversion: s2t；标准 W3C smoke 因 EdgeDriver 未连接随机端口而未完成。当前修复已在 Linux/WSL 通过相同 feature spec 2/2，Windows 仍需使用包含该修复的 binary 重新留证。GUI DPI 自动验证和 GitLab Windows stage 仍为跳过；125%/150% 人工 GUI 与 Windows Terminal 交互 artifact 仍为已完成。后续只需完成 Windows feature t2s 持久化复验及 WebDriver 启动环境复验。

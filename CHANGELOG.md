@@ -15,6 +15,7 @@
 - 新增 `build:app:simplified-trad` 与 feature 专用 GUI E2E spec，并在当前 Linux/WSL embedded provider 验证双向真实转换 2/2 通过（`s2t` / `t2s`）；默认 E2E 构建语义保持不变。
 - 收敛 Windows 原生验证文档：明确默认 embedded 完整回归、简繁 feature embedded 双向验证、W3C 兼容性 smoke、NTFS ACL 和按需 GUI artifact 的执行顺序；移除已不存在的专项 `:webdriver` 命令引用，并标明 DPI 自动矩阵、GitLab stage 和已完成的 Terminal/TUI 项目状态。
 - 修复设置保存状态的旧 Promise 覆盖问题，并增强 E2E 的真实输入事件、格式化请求/结果和失败诊断；Linux/WSL 默认 embedded 设置链路恢复为 3/3，简繁 feature GUI 双向转换为 2/2。Windows 需使用当前修复 binary 重新留证，Unix-only 权限测试已增加平台条件。
+- 修复立即设置保存未取消旧输入防抖保存的问题，避免旧的简繁转换快照在 `t2s` 设置之后再次写入；新增保存时序回归和 feature E2E 的实际保存序号/转换值校验。Linux/WSL 默认 embedded 3/3、简繁 feature 2/2 通过；Windows 仍需使用当前 binary 重新留证。
 - 新增文本清洗与规范排版工作流决策（`docs/decisions/text-cleaning-workflow.md`），并将产品描述调整为本地优先的中文文本清洗与规范排版工具；来源文本清洗、字符转换和预设仍属于后续路线图，不代表本版本已经实现。
 - 新增设置存储回退（ADR 方案 B，`docs/decisions/settings-storage-policy.md`）：程序目录不可写时自动改用平台应用数据目录（Windows `%APPDATA%\CopyPolish`、Linux/macOS `~/.config/CopyPolish`）保存 `rules.yaml`，主界面提示实际生效位置；便携用户行为不变。新增 6 项存储决策单测（同目录优先、双位置并存、只读回退等）。
 - 新增统一本地清理入口 `scripts/clean.py`（白名单删除构建缓存、`e2e/artifacts/` 和 `e2e/settings-*` 临时设置目录，支持 `--dry-run`/`--deep`），并约定测试结果记录后清理本地 artifact、远程仅记录测试结论。

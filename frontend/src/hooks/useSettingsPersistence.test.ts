@@ -74,6 +74,41 @@ describe("useSettingsPersistence", () => {
     expect(result.current.settingsError).toContain("disk full");
   });
 
+  it("立即保存会取消旧的防抖保存，避免旧快照覆盖最新设置", async () => {
+    vi.useFakeTimers();
+    try {
+      const { result } = renderHook(() =>
+        useSettingsPersistence({
+          getSettings: () => settings,
+          isHydrated: () => true,
+          debounceMs: 800,
+        }),
+      );
+
+      act(() => {
+        result.current.schedulePersist({ conversion: "s2t", last_input: "旧输入" });
+        result.current.persistSettings({ conversion: "t2s", last_input: "新设置" });
+      });
+
+      expect(mocks.saveUserSettings).toHaveBeenCalledOnce();
+      expect(mocks.saveUserSettings).toHaveBeenCalledWith({
+        ...settings,
+        conversion: "t2s",
+        last_input: "新设置",
+      });
+
+      act(() => {
+        vi.advanceTimersByTime(800);
+      });
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(mocks.saveUserSettings).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("乱序完成时只允许最新保存更新状态", async () => {
     let resolveFirst!: () => void;
     let rejectSecond!: (cause: Error) => void;
