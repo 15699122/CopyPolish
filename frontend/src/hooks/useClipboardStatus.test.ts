@@ -22,9 +22,11 @@ describe("useClipboardStatus", () => {
       useClipboardStatus({ getText: () => "结果", onError, resetMs: 100 }),
     );
 
+    let copied: boolean | undefined;
     await act(async () => {
-      await result.current.copy();
+      copied = await result.current.copy();
     });
+    expect(copied).toBe(true);
     expect(writeText).toHaveBeenCalledWith("结果");
     expect(result.current.copied).toBe(true);
 
@@ -39,9 +41,11 @@ describe("useClipboardStatus", () => {
     const empty = renderHook(() =>
       useClipboardStatus({ getText: () => "", onError, resetMs: 100 }),
     );
+    let emptyCopied: boolean | undefined;
     await act(async () => {
-      await empty.result.current.copy();
+      emptyCopied = await empty.result.current.copy();
     });
+    expect(emptyCopied).toBe(false);
     expect(writeText).not.toHaveBeenCalled();
 
     empty.unmount();
@@ -49,9 +53,11 @@ describe("useClipboardStatus", () => {
     const failed = renderHook(() =>
       useClipboardStatus({ getText: () => "结果", onError, resetMs: 100 }),
     );
+    let failedCopied: boolean | undefined;
     await act(async () => {
-      await failed.result.current.copy();
+      failedCopied = await failed.result.current.copy();
     });
+    expect(failedCopied).toBe(false);
     await waitFor(() => expect(onError).toHaveBeenCalledWith(expect.any(Error)));
     expect(failed.result.current.copied).toBe(false);
   });

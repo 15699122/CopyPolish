@@ -8,7 +8,7 @@ export interface UseClipboardStatusOptions {
 
 export interface UseClipboardStatusResult {
   copied: boolean;
-  copy: () => Promise<void>;
+  copy: () => Promise<boolean>;
 }
 
 /** 剪贴板复制生命周期：写入文本、成功反馈、错误回调和自动复位。 */
@@ -24,13 +24,13 @@ export function useClipboardStatus({
 
   const copy = useCallback(async () => {
     const text = callbacksRef.current.getText();
-    if (!text) return;
+    if (!text) return false;
 
     try {
       await navigator.clipboard.writeText(text);
     } catch (cause) {
       callbacksRef.current.onError(cause);
-      return;
+      return false;
     }
 
     if (resetTimerRef.current !== null) window.clearTimeout(resetTimerRef.current);
@@ -39,6 +39,7 @@ export function useClipboardStatus({
       resetTimerRef.current = null;
       setCopied(false);
     }, resetMs);
+    return true;
   }, [resetMs]);
 
   useEffect(() => {

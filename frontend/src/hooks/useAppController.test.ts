@@ -33,6 +33,10 @@ const mocks = vi.hoisted(() => {
     cleared: false,
     clear: vi.fn(),
   };
+  const clipboard = {
+    copied: false,
+    copy: vi.fn(async () => true),
+  };
   const actions = {
     onToggleRule: vi.fn(),
     onSetAll: vi.fn(),
@@ -57,6 +61,7 @@ const mocks = vi.hoisted(() => {
     persistence,
     input,
     clear,
+    clipboard,
     actions,
     dialog: {
       open: false,
@@ -119,7 +124,7 @@ vi.mock("./useClearFeedback", () => ({
 }));
 
 vi.mock("./useClipboardStatus", () => ({
-  useClipboardStatus: () => ({ copied: false, copy: vi.fn() }),
+  useClipboardStatus: () => mocks.clipboard,
 }));
 
 vi.mock("./useFormatter", () => ({
@@ -281,5 +286,18 @@ describe("useAppController", () => {
 
     expect(result.current.isDemoMode).toBe(true);
     expect(mocks.isTauri).toHaveBeenCalled();
+  });
+
+  it("复制并清空仅在复制成功后触发清空", async () => {
+    const { result } = renderHook(() => useAppController());
+
+    await result.current.copyAndClear();
+    expect(mocks.clipboard.copy).toHaveBeenCalledOnce();
+    expect(mocks.clear.clear).toHaveBeenCalledOnce();
+
+    mocks.clipboard.copy.mockResolvedValueOnce(false);
+    mocks.clear.clear.mockClear();
+    await result.current.copyAndClear();
+    expect(mocks.clear.clear).not.toHaveBeenCalled();
   });
 });
