@@ -75,7 +75,7 @@ TUI 的交互界面通过 `Ctrl+E` 请求设置面板维护相同的 `replacemen
 
 ### Rust 格式化管线
 
-当前生产管线已经包含首批来源文本清洗规则：方括号引用角标、普通文本连续 ASCII 空格和普通文本连续空行。`FormatRequest` 已承载有序字面量替换与互斥字符转换模式；启用 `simplified-trad-conversion` feature 时，简繁转换通过 `opencc-fmmseg`（MIT）实现并只作用于可编辑区间。默认构建不包含该能力，GUI 通过 `get_build_capabilities` 显式声明不可用并禁止静默保存 T2S/S2T。目标工作流遵循以下顺序：
+当前生产管线已经包含首批来源文本清洗规则：方括号引用角标、普通文本连续 ASCII 空格、普通文本连续空行和基于 Unicode 官方兼容分解表的康熙部首修复。`FormatRequest` 已承载有序字面量替换与互斥字符转换模式；启用 `simplified-trad-conversion` feature 时，简繁转换通过 `opencc-fmmseg`（MIT）实现并只作用于可编辑区间。
 
 1. 统一换行符并记录原始换行风格；
 2. 临时扫描结构 span，仅在可编辑区间执行有序用户自定义字面量替换；

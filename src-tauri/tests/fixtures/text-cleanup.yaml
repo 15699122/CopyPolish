@@ -48,3 +48,19 @@
 
     ```
     第三段。
+
+- name: 显式修复康熙部首
+  selection:
+    mode: only
+    keys:
+      - cleanup.kangxi-radicals
+  input: "部首⼀⼁⼂⼃⿕"
+  expected: "部首一丨丶丿龠"
+
+- name: 康熙部首规则保持普通字符和结构内容
+  selection:
+    mode: only
+    keys:
+      - cleanup.kangxi-radicals
+  input: "普通字一，代码`⼀`，链接https://example.com/⼀"
+  expected: "普通字一，代码 `⼀`，链接 https://example.com/⼀"

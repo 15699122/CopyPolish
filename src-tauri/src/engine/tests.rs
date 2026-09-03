@@ -191,7 +191,7 @@ fn passing_golden_fixtures_are_idempotent() {
 fn registry_contains_migrated_rules_with_defaults() {
     let all = rules();
     // 历史规则、温标空格规则和默认关闭的 Unicode 输出规范化规则均已注册。
-    assert_eq!(all.len(), 18);
+    assert_eq!(all.len(), 19);
     assert_eq!(enabled_defaults().len(), 9);
     let disabled: Vec<_> = all
         .iter()
@@ -204,6 +204,7 @@ fn registry_contains_migrated_rules_with_defaults() {
             keys::CLEANUP_REFERENCE_SQUARE,
             keys::CLEANUP_COLLAPSE_HORIZONTAL_SPACES,
             keys::CLEANUP_LIMIT_BLANK_LINES,
+            keys::CLEANUP_KANGXI_RADICALS,
             keys::TEXT_UNICODE_EQUIVALENTS,
             keys::NAMING_PROPER_NOUNS,
             keys::NAMING_EXPAND_ABBREVIATIONS,
@@ -270,6 +271,7 @@ fn registry_execution_order_is_phase_explicit_and_stable() {
             keys::CLEANUP_REFERENCE_SQUARE,
             keys::CLEANUP_COLLAPSE_HORIZONTAL_SPACES,
             keys::CLEANUP_LIMIT_BLANK_LINES,
+            keys::CLEANUP_KANGXI_RADICALS,
             keys::PUNCT_NO_REPETITION,
             keys::PUNCT_FULLWIDTH_CJK,
             keys::TEXT_HALFWIDTH_DIGITS,
@@ -1060,6 +1062,20 @@ fn formats_superscript_unit_and_acronym_boundaries() {
         format_text(&req(src)).unwrap(),
         "AC 磁场，且 30 mg\u{b7}mL\u{207b}\u{b9} 比 10 mg\u{b7}mL\u{207b}\u{b9} 作用更强，旋转 DC 磁场下。"
     );
+}
+
+#[test]
+fn kangxi_radicals_use_the_full_unicode_compatibility_mapping() {
+    use super::rule_impls::kangxi_radicals;
+
+    let radicals: String = (0x2F00..=0x2FD5).filter_map(char::from_u32).collect();
+    let converted = kangxi_radicals(&radicals);
+    assert_eq!(converted.chars().count(), 214);
+    assert_eq!(converted.chars().next(), Some('一'));
+    assert_eq!(converted.chars().nth(1), Some('丨'));
+    assert_eq!(converted.chars().nth(0xD4), Some('龜'));
+    assert_eq!(converted.chars().last(), Some('龠'));
+    assert_eq!(kangxi_radicals("A一⼀"), "A一一");
 }
 
 #[test]

@@ -7,6 +7,7 @@
 ### Added
 
 - 增加默认关闭的 `spacing.numeric-punctuation` 规则：可选修复小数点、时间/比例冒号、数字分组逗号和数字斜线两侧的异常 ASCII 空格；保留版本号/IP 等连续点号数字链，并通过结构保护跳过 URL、代码和公式。
+- 增加默认关闭的 `cleanup.kangxi-radicals` 规则：依据 Unicode 17.0.0 官方 `UnicodeData.txt` 的 214 项兼容分解映射修复康熙部首；不执行全文 NFKC，并通过结构保护跳过 URL、代码和公式。
 - 增加 GUI 静态帮助入口和首次使用提示；帮助说明高风险清洗规则、结构保护、输出/复制动作及浏览器演示模式边界，首次提示可关闭或直接打开帮助，查看状态仅保存在前端 `localStorage`。
 
 ### Maintenance
