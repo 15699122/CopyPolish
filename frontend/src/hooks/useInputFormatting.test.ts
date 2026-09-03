@@ -51,4 +51,28 @@ describe("useInputFormatting", () => {
     expect(scheduleFormat).not.toHaveBeenCalled();
     expect(schedulePersist).not.toHaveBeenCalled();
   });
+
+  it("手动模式输入变化只保存输入，不自动调度排版", () => {
+    const scheduleFormat = vi.fn();
+    const schedulePersist = vi.fn();
+    const { result } = renderHook(() =>
+      useInputFormatting({
+        enabled: ["rule-a"],
+        outputMode: "manual",
+        scheduleFormat,
+        schedulePersist,
+      }),
+    );
+
+    act(() => result.current.onInputChange("等待手动排版"));
+
+    expect(result.current.input).toBe("等待手动排版");
+    expect(scheduleFormat).not.toHaveBeenCalled();
+    expect(schedulePersist).toHaveBeenCalledWith({
+      enabled: ["rule-a"],
+      last_input: "等待手动排版",
+      replacements: [],
+      conversion: "none",
+    });
+  });
 });

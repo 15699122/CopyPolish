@@ -160,6 +160,8 @@ export type ThemeMode = "system" | "light" | "dark";
 export type FontFamily = "system" | "microsoft-yahei" | "pingfang" | "noto-sans-cjk" | "simsun" | "simhei";
 export type EditorFontSize = "small" | "normal" | "large" | "x-large";
 export type UiScale = "compact" | "small" | "normal" | "large" | "x-large";
+export type OutputMode = "realtime" | "manual";
+export type LayoutMode = "auto" | "horizontal" | "vertical";
 export type ShortcutAction = "format_now" | "copy_output" | "open_settings";
 export type ShortcutBindings = Record<ShortcutAction, string>;
 
@@ -192,6 +194,8 @@ export interface UserSettings {
   font: FontFamily;
   editor_font_size: EditorFontSize;
   ui_scale: UiScale;
+  output_mode?: OutputMode;
+  layout_mode?: LayoutMode;
   shortcuts: ShortcutSettings;
   replacements: ReplacementPair[];
   conversion: CharacterConversion;
@@ -222,6 +226,8 @@ export async function getUserSettings(): Promise<LoadedUserSettings | null> {
         font: ensureFontFamily(parsed.font),
         editor_font_size: ensureEditorFontSize(parsed.editor_font_size),
         ui_scale: ensureUiScale(parsed.ui_scale),
+        output_mode: ensureOutputMode(parsed.output_mode),
+        layout_mode: ensureLayoutMode(parsed.layout_mode),
         shortcuts: ensureShortcutSettings(parsed.shortcuts),
         replacements: ensureReplacements(parsed.replacements),
         conversion: ensureCharacterConversion(parsed.conversion),
@@ -244,6 +250,8 @@ export async function getUserSettings(): Promise<LoadedUserSettings | null> {
     font: ensureFontFamily(settings.font),
     editor_font_size: ensureEditorFontSize(settings.editor_font_size),
     ui_scale: ensureUiScale(settings.ui_scale),
+    output_mode: ensureOutputMode(settings.output_mode),
+    layout_mode: ensureLayoutMode(settings.layout_mode),
     shortcuts: ensureShortcutSettings(settings.shortcuts),
     replacements: ensureReplacements(settings.replacements),
     conversion: ensureCharacterConversion(settings.conversion),
@@ -311,6 +319,15 @@ function ensureUiScale(value: unknown): UiScale {
     return value;
   }
   return "normal";
+}
+
+function ensureOutputMode(value: unknown): OutputMode {
+  return value === "manual" ? "manual" : "realtime";
+}
+
+function ensureLayoutMode(value: unknown): LayoutMode {
+  if (value === "horizontal" || value === "vertical") return value;
+  return "auto";
 }
 
 function ensureCharacterConversion(value: unknown): CharacterConversion {

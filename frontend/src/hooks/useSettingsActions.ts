@@ -3,11 +3,13 @@ import { useCallback } from "react";
 import {
   DEFAULT_SHORTCUT_SETTINGS,
   type BuildCapabilities,
+  type CharacterConversion,
   type EditorFontSize,
   type FontFamily,
-  type CharacterConversion,
-  type ReplacementPair,
+  type LayoutMode,
+  type OutputMode,
   type Preset,
+  type ReplacementPair,
   type Rule,
   type ShortcutAction,
   type ShortcutBindings,
@@ -15,6 +17,7 @@ import {
   type UiScale,
   type UserSettings,
 } from "@/lib/tauri";
+
 export interface UseSettingsActionsOptions {
   rules: Rule[];
   enabled: string[];
@@ -25,6 +28,9 @@ export interface UseSettingsActionsOptions {
   setFont: (font: FontFamily) => void;
   setEditorFontSize: (size: EditorFontSize) => void;
   setUiScale: (scale: UiScale) => void;
+  outputMode?: OutputMode;
+  setOutputMode?: (mode: OutputMode) => void;
+  setLayoutMode?: (mode: LayoutMode) => void;
   replacements?: ReplacementPair[];
   buildCapabilities?: BuildCapabilities;
   setReplacements?: (replacements: ReplacementPair[]) => void;
@@ -34,10 +40,12 @@ export interface UseSettingsActionsOptions {
   setShortcutBindings: (bindings: ShortcutBindings) => void;
   shortcutsEnabled: boolean;
   shortcutBindings: ShortcutBindings;
-  scheduleFormat: (input: string, enabled: string[], delayOverride?: number, options?: {
-    replacements?: ReplacementPair[];
-    conversion?: CharacterConversion;
-  }) => void;
+  scheduleFormat: (
+    input: string,
+    enabled: string[],
+    delayOverride?: number,
+    options?: { replacements?: ReplacementPair[]; conversion?: CharacterConversion },
+  ) => void;
   persistSettings: (patch?: Partial<UserSettings>) => void;
 }
 
@@ -51,6 +59,8 @@ export interface UseSettingsActionsResult {
   onResetFont: () => void;
   onEditorFontSizeChange: (size: EditorFontSize) => void;
   onUiScaleChange: (scale: UiScale) => void;
+  onOutputModeChange: (mode: OutputMode) => void;
+  onLayoutModeChange: (mode: LayoutMode) => void;
   onShortcutsEnabledChange: (enabled: boolean) => void;
   onSaveShortcutBinding: (action: ShortcutAction, binding: string) => void;
   onResetShortcuts: () => void;
@@ -70,15 +80,18 @@ export function useSettingsActions({
   setFont,
   setEditorFontSize,
   setUiScale,
+  outputMode = "realtime",
+  setOutputMode,
+  setLayoutMode,
+  replacements,
+  buildCapabilities,
+  setReplacements,
+  conversion,
+  setConversion,
   setShortcutsEnabled,
   setShortcutBindings,
   shortcutsEnabled,
   shortcutBindings,
-  replacements,
-  buildCapabilities,
-  conversion,
-  setReplacements,
-  setConversion,
   scheduleFormat,
   persistSettings,
 }: UseSettingsActionsOptions): UseSettingsActionsResult {
@@ -86,34 +99,95 @@ export function useSettingsActions({
   const activeConversion = conversion ?? "none";
   const conversionAvailable = buildCapabilities?.simplifiedTradConversion ?? false;
   const effectiveConversion = conversionAvailable ? activeConversion : "none";
+
+  const scheduleIfRealtime = useCallback(
+    (
+      nextInput: string,
+      nextEnabled: string[],
+      options: { replacements?: ReplacementPair[]; conversion?: CharacterConversion },
+    ) => {
+      if (outputMode === "realtime") scheduleFormat(nextInput, nextEnabled, 0, options);
+    },
+    [outputMode, scheduleFormat],
+  );
+
   const onToggleRule = useCallback(
     (key: string) => {
       const next = enabledSet.has(key)
         ? enabled.filter((current) => current !== key)
         : [...enabled, key];
       setEnabled(next);
-      scheduleFormat(input, next, 0, { replacements: activeReplacements, conversion: effectiveConversion });
-      persistSettings({ enabled: next, last_input: input, replacements: activeReplacements, conversion: effectiveConversion });
+      scheduleIfRealtime(input, next, {
+        replacements: activeReplacements,
+        conversion: effectiveConversion,
+      });
+      persistSettings({
+        enabled: next,
+        last_input: input,
+        replacements: activeReplacements,
+        conversion: effectiveConversion,
+      });
     },
-    [effectiveConversion, activeReplacements, enabled, enabledSet, input, persistSettings, scheduleFormat, setEnabled],
+    [
+      activeReplacements,
+      effectiveConversion,
+      enabled,
+      enabledSet,
+      input,
+      persistSettings,
+      scheduleIfRealtime,
+      setEnabled,
+    ],
   );
 
   const onSetAll = useCallback(
     (on: boolean) => {
       const next = on ? rules.map((rule) => rule.key) : [];
       setEnabled(next);
-      scheduleFormat(input, next, 0, { replacements: activeReplacements, conversion: effectiveConversion });
-      persistSettings({ enabled: next, last_input: input, replacements: activeReplacements, conversion: effectiveConversion });
+      scheduleIfRealtime(input, next, {
+        replacements: activeReplacements,
+        conversion: effectiveConversion,
+      });
+      persistSettings({
+        enabled: next,
+        last_input: input,
+        replacements: activeReplacements,
+        conversion: effectiveConversion,
+      });
     },
-    [effectiveConversion, activeReplacements, input, persistSettings, rules, scheduleFormat, setEnabled],
+    [
+      activeReplacements,
+      effectiveConversion,
+      input,
+      persistSettings,
+      rules,
+      scheduleIfRealtime,
+      setEnabled,
+    ],
   );
 
   const onResetDefaults = useCallback(() => {
     const next = rules.filter((rule) => rule.default).map((rule) => rule.key);
     setEnabled(next);
-    scheduleFormat(input, next, 0, { replacements: activeReplacements, conversion: effectiveConversion });
-    persistSettings({ enabled: next, last_input: input, replacements: activeReplacements, conversion: effectiveConversion });
-  }, [effectiveConversion, activeReplacements, input, persistSettings, rules, scheduleFormat, setEnabled]);
+    scheduleIfRealtime(input, next, {
+      replacements: activeReplacements,
+      conversion: effectiveConversion,
+    });
+    persistSettings({
+      enabled: next,
+      last_input: input,
+      replacements: activeReplacements,
+      conversion: effectiveConversion,
+    });
+  }, [
+    activeReplacements,
+    effectiveConversion,
+    input,
+    persistSettings,
+    rules,
+    scheduleIfRealtime,
+    setEnabled,
+  ]);
 
   const onThemeChange = useCallback(
     (nextTheme: ThemeMode) => {
@@ -161,6 +235,36 @@ export function useSettingsActions({
     [persistSettings, setUiScale],
   );
 
+  const onOutputModeChange = useCallback(
+    (nextMode: OutputMode) => {
+      setOutputMode?.(nextMode);
+      persistSettings({ output_mode: nextMode });
+      if (nextMode === "realtime") {
+        scheduleFormat(input, enabled, 0, {
+          replacements: activeReplacements,
+          conversion: effectiveConversion,
+        });
+      }
+    },
+    [
+      activeReplacements,
+      effectiveConversion,
+      enabled,
+      input,
+      persistSettings,
+      scheduleFormat,
+      setOutputMode,
+    ],
+  );
+
+  const onLayoutModeChange = useCallback(
+    (nextMode: LayoutMode) => {
+      setLayoutMode?.(nextMode);
+      persistSettings({ layout_mode: nextMode });
+    },
+    [persistSettings, setLayoutMode],
+  );
+
   const onShortcutsEnabledChange = useCallback(
     (nextEnabled: boolean) => {
       setShortcutsEnabled(nextEnabled);
@@ -191,20 +295,42 @@ export function useSettingsActions({
   const onReplacementsChange = useCallback(
     (nextReplacements: ReplacementPair[]) => {
       setReplacements?.(nextReplacements);
-      scheduleFormat(input, enabled, 0, { replacements: nextReplacements, conversion: effectiveConversion });
-      persistSettings({ replacements: nextReplacements, conversion: effectiveConversion, last_input: input });
+      scheduleIfRealtime(input, enabled, {
+        replacements: nextReplacements,
+        conversion: effectiveConversion,
+      });
+      persistSettings({
+        replacements: nextReplacements,
+        conversion: effectiveConversion,
+        last_input: input,
+      });
     },
-    [effectiveConversion, enabled, input, persistSettings, scheduleFormat, setReplacements],
+    [effectiveConversion, enabled, input, persistSettings, scheduleIfRealtime, setReplacements],
   );
 
   const onConversionChange = useCallback(
     (nextConversion: CharacterConversion) => {
       const effectiveNextConversion = conversionAvailable ? nextConversion : "none";
       setConversion?.(effectiveNextConversion);
-      scheduleFormat(input, enabled, 0, { replacements: activeReplacements, conversion: effectiveNextConversion });
-      persistSettings({ conversion: effectiveNextConversion, replacements: activeReplacements, last_input: input });
+      scheduleIfRealtime(input, enabled, {
+        replacements: activeReplacements,
+        conversion: effectiveNextConversion,
+      });
+      persistSettings({
+        conversion: effectiveNextConversion,
+        replacements: activeReplacements,
+        last_input: input,
+      });
     },
-    [activeReplacements, conversionAvailable, enabled, input, persistSettings, scheduleFormat, setConversion],
+    [
+      activeReplacements,
+      conversionAvailable,
+      enabled,
+      input,
+      persistSettings,
+      scheduleIfRealtime,
+      setConversion,
+    ],
   );
 
   const onApplyPreset = useCallback(
@@ -220,7 +346,7 @@ export function useSettingsActions({
       setEnabled(nextEnabled);
       setReplacements?.(preset.replacements);
       setConversion?.(nextConversion);
-      scheduleFormat(input, nextEnabled, 0, {
+      scheduleIfRealtime(input, nextEnabled, {
         replacements: preset.replacements,
         conversion: nextConversion,
       });
@@ -231,7 +357,16 @@ export function useSettingsActions({
         conversion: nextConversion,
       });
     },
-    [conversionAvailable, input, persistSettings, rules, scheduleFormat, setConversion, setEnabled, setReplacements],
+    [
+      conversionAvailable,
+      input,
+      persistSettings,
+      rules,
+      scheduleIfRealtime,
+      setConversion,
+      setEnabled,
+      setReplacements,
+    ],
   );
 
   return {
@@ -244,6 +379,8 @@ export function useSettingsActions({
     onResetFont,
     onEditorFontSizeChange,
     onUiScaleChange,
+    onOutputModeChange,
+    onLayoutModeChange,
     onShortcutsEnabledChange,
     onSaveShortcutBinding,
     onResetShortcuts,

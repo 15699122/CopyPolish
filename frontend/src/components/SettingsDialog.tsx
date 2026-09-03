@@ -16,6 +16,7 @@ import { ShortcutsSection } from "@/components/settings/ShortcutsSection";
 import { RulesSection } from "@/components/settings/RulesSection";
 import { ReplacementsSection } from "@/components/settings/ReplacementsSection";
 import { PresetsSection } from "@/components/settings/PresetsSection";
+import { OutputSection } from "@/components/settings/OutputSection";
 import { SettingsFooter, type SettingsStatus } from "@/components/settings/SettingsFooter";
 import type {
   EditorFontSize,
@@ -30,6 +31,8 @@ import type {
   ShortcutBindings,
   ThemeMode,
   UiScale,
+  OutputMode,
+  LayoutMode,
 } from "@/lib/tauri";
 
 interface SettingsDialogProps {
@@ -69,6 +72,10 @@ interface SettingsDialogProps {
   onConversionChange: (conversion: CharacterConversion) => void;
   presets: Preset[];
   onApplyPreset: (preset: Preset) => void;
+  outputMode: OutputMode;
+  layoutMode: LayoutMode;
+  onOutputModeChange: (mode: OutputMode) => void;
+  onLayoutModeChange: (mode: LayoutMode) => void;
 }
 
 /** 设置弹窗编排容器；各分区与状态/持久化行为由 App 注入。 */
@@ -109,6 +116,10 @@ export function SettingsDialog({
   onConversionChange,
   presets,
   onApplyPreset,
+  outputMode,
+  layoutMode,
+  onOutputModeChange,
+  onLayoutModeChange,
 }: SettingsDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -160,6 +171,12 @@ export function SettingsDialog({
               onConversionChange={onConversionChange}
             />
             <PresetsSection presets={presets} onApplyPreset={onApplyPreset} />
+            <OutputSection
+              outputMode={outputMode}
+              layoutMode={layoutMode}
+              onOutputModeChange={onOutputModeChange}
+              onLayoutModeChange={onLayoutModeChange}
+            />
             <RulesSection rules={rules} enabledSet={enabledSet} onToggleRule={onToggleRule} />
           </div>
         </div>

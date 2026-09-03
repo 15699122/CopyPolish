@@ -25,6 +25,7 @@
 | 自定义替换、简繁转换与工作流预设 | Rust 请求/设置/预设 fixture；GUI 与 TUI 组件/事件交互、添加/编辑/启停/删除/转换选择、预设加载与应用、设置加载、持久化、请求透传、实时重排、快捷键立即排版和旧设置兼容；默认与 `simplified-trad-conversion` feature 构建覆盖；embedded GUI E2E 已覆盖保存、替换输出、重启恢复及 feature 下双向真实转换 | CLI 参数 |
 | 设置 | Rust Windows 测试 16/16；Windows 真实 GUI 修复后已手动完成保存、重启恢复、损坏 fixture、ACL 保存失败及视觉/DPI/窄窗口回归；损坏设置、重启恢复和 NTFS ACL 已在两个 provider 自动化通过；统一 artifact、受控失败 probe 和 GUI 主题/窄窗口 artifact 已实现 | embedded/W3C Windows E2E 已复验真实 WebView2、IPC、全不选恒等、临时路径、规则保存、ACL 拒写恢复和失败留证；三档人工 DPI 已完成，GUI DPI 自动验证已跳过（不执行）；三档人工 GUI 验证已完成；GitLab Windows stage 已跳过 |
 | 前端状态 | 防抖、竞态、错误、主题、字体、快捷键以及替换/转换设置透传 | 真实 IPC E2E |
+| 输出模式、布局与统计 | 实时/手动模式切换、手动模式显式排版、自动/左右/上下布局、Unicode code point 输入输出统计、设置加载与持久化 | 真实窗口尺寸矩阵 |
 | TUI | CLI、编辑器、规则、替换/字符转换请求面板、预设面板、OSC 52、共享设置；Linux 非交互 smoke/transcript；Windows release、stdin 及修复后 Windows Terminal 手动回归 | Rust TUI 库测试 177/177，properties 5/5，README registry 3/3；GUI 预设组件与动作测试、Windows release/stdin 和非交互 transcript 已通过；请求面板覆盖替换增删/启停、字段编辑、转换循环、默认 feature 归一化和真实请求输出；预设面板覆盖三种内置工作流应用；本轮多行显示源码修复已由用户确认在 Windows Terminal 复验通过；TUI-EDIT-DELETE-001 已修复，真实 Terminal raw-mode/OSC 52 交互 artifact 已通过 |
 | 发布脚本 | 主要由脚本和人工 Runbook 覆盖 | 参数和失败路径自动化测试 |
 

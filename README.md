@@ -147,6 +147,8 @@ rules.yaml
 - 主界面缩放（80%、90%、100%、110% 或 125%）。
 - 有序自定义字面量替换（空来源项会被忽略）。
 - 简繁转换模式（`none` / `t2s` / `s2t`）。
+- 输出模式（`realtime` / `manual`）：手动模式下使用“立即排版”快捷键刷新输出。
+- 输入/输出布局（`auto` / `horizontal` / `vertical`）：自动模式在宽屏左右排列、小屏上下排列。
 - 内置工作流预设不写入设置文件：中文文案、PDF 清洗、技术文档；应用预设会同步当前规则、替换和转换设置。PDF 清洗只处理从 PDF/CAJ 复制出的文本，不解析文件本体。
 - 快捷键：总开关与各动作绑定：
 
@@ -162,6 +164,8 @@ shortcuts:
 旧版设置文件缺少 `shortcuts` 字段时，自动回退为启用并使用默认组合键。
 
 旧版设置文件缺少 `replacements` 或 `conversion` 字段时，分别回退为 `[]` 和 `none`。替换按列表顺序执行，仅支持字面量，不支持用户正则。
+
+旧版设置文件缺少 `output_mode` 或 `layout_mode` 字段时，分别回退为实时输出和自动布局。输入/输出统计按 Unicode code point 计数，emoji 等多 code point 字符不会按 UTF-16 code unit 重复计数。
 
 文件缺失或损坏时，应用会使用内置默认规则集。若程序放在只读目录（如 `Program Files`），应用会自动改用平台应用数据目录（Windows `%APPDATA%\CopyPolish`，Linux/macOS `~/.config/CopyPolish` 或 `$XDG_CONFIG_HOME`）保存设置，并在主界面提示；实际生效路径始终显示在设置窗口底部。程序目录与应用数据目录同时存在时，优先使用程序目录设置。
 

@@ -17,6 +17,8 @@ import {
   type ShortcutBindings,
   type ThemeMode,
   type UiScale,
+  type OutputMode,
+  type LayoutMode,
 } from "@/lib/tauri";
 
 export interface UseSettingsLoaderOptions {
@@ -41,6 +43,10 @@ export interface UseSettingsLoaderResult {
   setEditorFontSize: (size: EditorFontSize) => void;
   uiScale: UiScale;
   setUiScale: (scale: UiScale) => void;
+  outputMode: OutputMode;
+  setOutputMode: (mode: OutputMode) => void;
+  layoutMode: LayoutMode;
+  setLayoutMode: (mode: LayoutMode) => void;
   shortcutsEnabled: boolean;
   setShortcutsEnabled: (enabled: boolean) => void;
   shortcutBindings: ShortcutBindings;
@@ -66,6 +72,8 @@ export function useSettingsLoader({
   const [font, setFont] = useState<FontFamily>("system");
   const [editorFontSize, setEditorFontSize] = useState<EditorFontSize>("normal");
   const [uiScale, setUiScale] = useState<UiScale>("normal");
+  const [outputMode, setOutputMode] = useState<OutputMode>("realtime");
+  const [layoutMode, setLayoutMode] = useState<LayoutMode>("auto");
   const [shortcutsEnabled, setShortcutsEnabled] = useState(DEFAULT_SHORTCUT_SETTINGS.enabled);
   const [shortcutBindings, setShortcutBindings] = useState<ShortcutBindings>(
     DEFAULT_SHORTCUT_SETTINGS.bindings,
@@ -149,6 +157,8 @@ export function useSettingsLoader({
         setFont(saved.font);
         setEditorFontSize(saved.editor_font_size ?? "normal");
         setUiScale(saved.ui_scale ?? "normal");
+        setOutputMode(saved.output_mode ?? "realtime");
+        setLayoutMode(saved.layout_mode ?? "auto");
         if (saved.shortcuts) {
           setShortcutsEnabled(saved.shortcuts.enabled);
           setShortcutBindings(saved.shortcuts.bindings);
@@ -188,6 +198,10 @@ export function useSettingsLoader({
     setEditorFontSize,
     uiScale,
     setUiScale,
+    outputMode,
+    setOutputMode,
+    layoutMode,
+    setLayoutMode,
     shortcutsEnabled,
     setShortcutsEnabled,
     shortcutBindings,

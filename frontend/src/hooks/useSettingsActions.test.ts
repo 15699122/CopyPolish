@@ -191,4 +191,47 @@ describe("useSettingsActions", () => {
       conversion: "s2t",
     });
   });
+
+  it("输出模式和布局变化会持久化，切回实时模式会立即排版", () => {
+    const options = {
+      ...createOptions(),
+      setOutputMode: vi.fn(),
+      setLayoutMode: vi.fn(),
+    };
+    const { result } = renderHook(() => useSettingsActions(options));
+
+    act(() => {
+      result.current.onOutputModeChange("manual");
+      result.current.onLayoutModeChange("vertical");
+    });
+
+    expect(options.setOutputMode).toHaveBeenCalledWith("manual");
+    expect(options.setLayoutMode).toHaveBeenCalledWith("vertical");
+    expect(options.persistSettings).toHaveBeenCalledWith({ output_mode: "manual" });
+    expect(options.persistSettings).toHaveBeenCalledWith({ layout_mode: "vertical" });
+    expect(options.scheduleFormat).not.toHaveBeenCalled();
+
+    act(() => result.current.onOutputModeChange("realtime"));
+    expect(options.setOutputMode).toHaveBeenLastCalledWith("realtime");
+    expect(options.scheduleFormat).toHaveBeenLastCalledWith("原文", ["rule-a"], 0, {
+      replacements: [{ from: "A", to: "甲", active: true }],
+      conversion: "s2t",
+    });
+  });
+
+  it("手动模式下规则和替换设置不会自动排版", () => {
+    const options = {
+      ...createOptions(),
+      outputMode: "manual" as const,
+      setOutputMode: vi.fn(),
+    };
+    const { result } = renderHook(() => useSettingsActions(options));
+
+    act(() => {
+      result.current.onToggleRule("rule-b");
+      result.current.onReplacementsChange([{ from: "A", to: "乙", active: true }]);
+    });
+
+    expect(options.scheduleFormat).not.toHaveBeenCalled();
+  });
 });

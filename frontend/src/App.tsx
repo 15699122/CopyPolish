@@ -83,7 +83,17 @@ export default function App() {
         style={{ zoom: "var(--app-ui-scale, 1)" }}
         data-testid="scaled-app-content"
       >
-        <div className="grid h-full min-h-0 grid-rows-2 gap-4 p-4 lg:grid-cols-2 lg:grid-rows-1">
+        <div
+          className={[
+            "grid h-full min-h-0 gap-4 p-4",
+            settingsDialogProps.layoutMode === "vertical"
+              ? "grid-rows-2"
+              : settingsDialogProps.layoutMode === "horizontal"
+                ? "grid-cols-2"
+                : "grid-rows-2 lg:grid-cols-2 lg:grid-rows-1",
+          ].join(" ")}
+          data-testid="editor-layout"
+        >
         <Card className="flex h-full min-h-0 min-w-0 flex-col">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">原始文案</CardTitle>
@@ -101,6 +111,9 @@ export default function App() {
               onChange={(e) => onInputChange(e.target.value)}
             />
           </CardContent>
+          <div className="px-6 pb-3 text-xs text-muted-foreground" data-testid="input-stats">
+            输入：{Array.from(input).length} 字符
+          </div>
         </Card>
 
         <Card className="flex h-full min-h-0 min-w-0 flex-col">
@@ -148,6 +161,9 @@ export default function App() {
               </pre>
             </div>
           </CardContent>
+          <div className="px-6 pb-3 text-xs text-muted-foreground" data-testid="output-stats">
+            输出：{Array.from(output).length} 字符
+          </div>
         </Card>
         </div>
       </main>

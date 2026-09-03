@@ -75,6 +75,10 @@ const mocks = vi.hoisted(() => {
       setEditorFontSize: vi.fn(),
       uiScale: "normal" as const,
       setUiScale: vi.fn(),
+      outputMode: "realtime" as const,
+      setOutputMode: vi.fn(),
+      layoutMode: "auto" as const,
+      setLayoutMode: vi.fn(),
       shortcutsEnabled: true,
       setShortcutsEnabled: vi.fn(),
       shortcutBindings: {

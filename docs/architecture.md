@@ -62,11 +62,12 @@ src-tauri/src/
   → 来源文本清洗（当前已实现方括号引用角标、连续空格和连续空行；其他清洗规则逐步加入）
   → 可选字符转换（互斥简繁转换，随 `simplified-trad-conversion` feature 启用）
   → registry + span scanner + TextEdit + protection
+  → 输出调度（实时/手动）
   → 固定阶段的规范排版
   → 输出结果
 ```
 
-GUI 的输入变化、规则设置变化、替换/转换设置变化以及快捷键“立即排版”均通过同一套格式化调度入口传递当前 `replacements` 与 `conversion`，避免不同交互入口产生不一致的请求语义。
+GUI 的输入变化、规则设置变化、替换/转换设置变化以及快捷键“立即排版”均通过同一套格式化调度入口传递当前 `replacements` 与 `conversion`，避免不同交互入口产生不一致的请求语义。`output_mode` 只控制是否由输入/设置变化触发调度；手动模式仍保留快捷键的显式立即排版入口。
 
 TUI 的交互界面通过 `Ctrl+E` 请求设置面板维护相同的 `replacements` 与 `conversion` 字段；`Ctrl+S` 和正常退出通过 `tui::settings` 读改写共享 `UserSettings`，因此 GUI 与 TUI 共用设置格式和 Rust `FormatRequest`，不复制规则实现。默认构建按 `simplified-trad-conversion` feature 将 T2S/S2T 归一化为 `CharacterConversion::None`。
 
@@ -104,7 +105,7 @@ TUI 的交互界面通过 `Ctrl+E` 请求设置面板维护相同的 `replacemen
 
 桌面端设置默认保存在程序同目录的 `rules.yaml`，损坏时尝试 `.bak`，首次发现旧版 `ccw-formatter-settings.json` 时进行迁移。读取和保存会把旧规则 key 归一化为稳定 key，并丢弃未知 key。程序目录不可写时（ADR 已采纳方案 B，见 `docs/decisions/settings-storage-policy.md`），启动时一次性决策回退到平台应用数据目录并通过 `UsingAppDataFallback` 提醒前端；实际路径经 `get_settings_path` 展示。程序目录与应用数据目录同时存在时，优先使用程序目录设置。
 
-GUI 通过设置 hook 管理规则选择、替换列表、转换模式和最近输入，并复用同一 `rules.yaml` 持久化模型；输入变化、设置操作和快捷键立即排版都会使用当前替换/转换设置。简繁能力由构建 capability 决定：feature 构建启用 T2S/S2T，默认构建禁用并归一化为 `none`。GUI 设置中的工作流预设通过 `get_presets` 获取，应用时同步更新规则选择、替换和转换设置。TUI 通过自己的设置门面复用同一文件，并在 `Ctrl+E` 请求设置面板和 `Ctrl+P` 预设面板中维护请求字段；前端浏览器预览不伪造 Rust 预设内容。
+GUI 通过设置 hook 管理规则选择、替换列表、转换模式、输出模式、布局和最近输入，并复用同一 `rules.yaml` 持久化模型；输入变化、设置操作和快捷键立即排版都会使用当前替换/转换设置，手动输出模式仅由显式动作刷新。`layout_mode` 只影响 GUI 主界面布局：`auto` 为宽屏左右/小屏上下，另外两种模式固定方向。输入/输出统计由前端按 Unicode code point 计算，不参与 Rust 请求。简繁能力由构建 capability 决定：feature 构建启用 T2S/S2T，默认构建禁用并归一化为 `none`。GUI 设置中的工作流预设通过 `get_presets` 获取，应用时同步更新规则选择、替换和转换设置。TUI 通过自己的设置门面复用同一文件，并在 `Ctrl+E` 请求设置面板和 `Ctrl+P` 预设面板中维护请求字段；前端浏览器预览不伪造 Rust 预设内容。
 
 ## 6. 常见修改入口
 
