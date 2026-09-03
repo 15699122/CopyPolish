@@ -117,6 +117,7 @@ GUI 静态帮助由 `HelpDialog` 提供，首次使用提示由 `useFirstRunNoti
 | --- | --- |
 | 修改规则行为 | `engine/rule_impls.rs`、`engine/registry.rs`、Rust fixture/测试 |
 | 增加来源文本清洗 | `engine/rule_impls.rs`、`engine/protection.rs`、清洗 fixture；高风险规则先补 ADR |
+| 增加数值标点空格修复 | `engine/rule_impls.rs`、`engine/registry.rs`、`spacing.yaml`；默认关闭并补充数值/版本/IP/结构保护反例 |
 | 增加运行时替换/预设 | `engine/model.rs`、`engine/pipeline.rs`、`commands.rs`、`frontend/src/lib/tauri.ts` |
 | 增加简繁转换 | 已以 `opencc-fmmseg` 接入（`engine/pipeline.rs` + `simplified-trad-conversion` feature）；扩展语义或地区词需补 `docs/decisions/` 记录 |
 | 修改保护边界 | `engine/spans.rs`、`engine/protection.rs`、保护 fixture |

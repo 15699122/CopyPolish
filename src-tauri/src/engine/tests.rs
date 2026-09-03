@@ -191,7 +191,7 @@ fn passing_golden_fixtures_are_idempotent() {
 fn registry_contains_migrated_rules_with_defaults() {
     let all = rules();
     // 历史规则、温标空格规则和默认关闭的 Unicode 输出规范化规则均已注册。
-    assert_eq!(all.len(), 17);
+    assert_eq!(all.len(), 18);
     assert_eq!(enabled_defaults().len(), 9);
     let disabled: Vec<_> = all
         .iter()
@@ -209,6 +209,7 @@ fn registry_contains_migrated_rules_with_defaults() {
             keys::NAMING_EXPAND_ABBREVIATIONS,
             keys::SPACING_AROUND_LINKS,
             keys::PUNCT_CORNER_QUOTES,
+            keys::SPACING_NUMERIC_PUNCTUATION,
         ]
     );
     for rule in all {
@@ -281,6 +282,7 @@ fn registry_execution_order_is_phase_explicit_and_stable() {
             keys::SPACING_CJK_LATIN,
             keys::SPACING_CJK_NUMBER,
             keys::SPACING_NUMBER_UNIT,
+            keys::SPACING_NUMERIC_PUNCTUATION,
             keys::SPACING_TEMPERATURE_CJK,
             keys::SPACING_NO_SPACE_AROUND_FW_PUNCT,
         ]
@@ -1059,6 +1061,40 @@ fn formats_superscript_unit_and_acronym_boundaries() {
         "AC 磁场，且 30 mg\u{b7}mL\u{207b}\u{b9} 比 10 mg\u{b7}mL\u{207b}\u{b9} 作用更强，旋转 DC 磁场下。"
     );
 }
+
+#[test]
+fn numeric_punctuation_spacing_is_conservative_and_explicit() {
+    use super::rule_impls::numeric_punctuation_space;
+
+    assert_eq!(
+        numeric_punctuation_space("1 . 5 10 : 30 16 / 9 1 , 000"),
+        "1.5 10:30 16/9 1,000"
+    );
+    assert_eq!(
+        numeric_punctuation_space("版本1 . 2 . 3，地址192 . 168 . 0 . 1"),
+        "版本1 . 2 . 3，地址192 . 168 . 0 . 1"
+    );
+    assert_eq!(
+        numeric_punctuation_space("价格1 . 5.0、比例1 / 2"),
+        "价格1 . 5.0、比例1/2"
+    );
+}
+
+#[test]
+fn numeric_punctuation_rule_respects_structural_protection() {
+    let request = FormatRequest {
+        text: "正文1 . 5，链接https://example.com/1 . 5，代码`1 . 5`，公式$1 . 5$".to_string(),
+        selection: RuleSelection::Only {
+            keys: vec![keys::SPACING_NUMERIC_PUNCTUATION.to_string()],
+        },
+        ..Default::default()
+    };
+    assert_eq!(
+        format_text(&request).unwrap(),
+        "正文1.5，链接 https://example.com/1 . 5，代码 `1 . 5`，公式 $1 . 5$"
+    );
+}
+
 /// roadmap §5：新旧边界策略在既有黄金样例输入上输出必须一致；
 /// grapheme 策略的新行为只体现在 unicode-boundaries.yaml 中。
 #[test]
