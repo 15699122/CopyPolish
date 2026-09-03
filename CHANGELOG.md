@@ -7,6 +7,10 @@
 ### Added
 
 - 增加 GUI 静态帮助入口和首次使用提示；帮助说明高风险清洗规则、结构保护、输出/复制动作及浏览器演示模式边界，首次提示可关闭或直接打开帮助，查看状态仅保存在前端 `localStorage`。
+
+### Maintenance
+
+- 2026-09-03 复核 E2E 依赖：WebdriverIO 9.31.5、`@wdio/tauri-service` 1.3.0 已是当前直接依赖版本；审计仍报告 13 项 high，根因是 `@puppeteer/browsers@2.13.2` 引入的 `extract-zip@2.0.1`，上游暂无修复版本。未接受跨 major override 或 `npm audit fix --force` 的 WebdriverIO 8 降级，详情见 `docs/decisions/wdio-transitive-dependencies.md`。
 - 增加 GUI“复制并清空”显式动作；复制结果仍保留输入/输出，复制并清空仅在剪贴板写入成功后清除内容，复制失败不会误清空，也不引入窗口失焦自动行为。
 - 增加 GUI 实时/手动输出模式、自动/左右/上下布局和输入输出 Unicode 字符统计；新增设置字段 `output_mode` 与 `layout_mode`，旧设置缺失时回退为实时输出和自动布局，手动模式保留“立即排版”快捷键。
 - 增加首批来源文本清洗规则：可选清理普通文本中的方括号/中文方括号引用角标、连续 ASCII 空格和连续空行；清洗规则默认关闭，并通过 span-aware TextEdit 保护 Markdown 链接、代码、URL 和其他结构。跨行空行清理使用独立的结构边界路径，不参与普通逐行规则循环。

@@ -125,6 +125,30 @@ npm run tauri -- build --no-bundle --ci
 
 ## 8. 提交与维护
 
+### 8.1 E2E 传递依赖专项
+
+E2E workspace 的 WebdriverIO 依赖必须与 Tauri provider 一起升级，不能仅通过
+跨 major `overrides` 消除审计告警。每次复核至少记录：
+
+```bash
+npm outdated --prefix e2e
+npm explain --prefix e2e @puppeteer/browsers
+npm explain --prefix e2e extract-zip
+npm audit --prefix e2e --json
+npm audit fix --package-lock-only --dry-run --ignore-scripts --prefix e2e
+```
+
+当前（2026-09-03）直接依赖已是 WebdriverIO 9.31.5 和 Tauri service 1.3.0；
+剩余 high 告警来自 `@puppeteer/browsers@2.13.2` 引入的 `extract-zip@2.0.1`。
+`@puppeteer/browsers@3.x` 暂不应 override 到 WebdriverIO 9 工具链，因为当前
+`@wdio/utils` 仍声明 2.x 约束；npm audit 的 `--force` 建议会降级到 WebdriverIO 8，
+在完整 provider 回归前不得接受。
+
+专项升级完成标准：lockfile 只包含预期变化；`npm ci`、E2E 类型检查、动态导入、
+embedded provider、W3C smoke、Windows 原生回归、`npm audit` 和许可证清单均通过。
+若上游没有修复版本，应更新 `docs/decisions/wdio-transitive-dependencies.md`
+的日期、版本和阻塞条件，但保留路线图待办。
+
 推荐提交拆分：
 
 1. 工具链版本固定文件；
