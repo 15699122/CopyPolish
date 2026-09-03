@@ -108,3 +108,19 @@ span-aware 混合管线、规则注册表、阶段依赖、结构/语义 span �
 ## 2026-09-02 Windows 复验补充
 
 本轮 Windows native environment原生验证完成环境、构建、W3C smoke、设置恢复/损坏/ACL、GUI 视觉 artifact 和 TUI transcript；旧 binary 的 embedded `selection-and-persistence.spec.ts` 替换输出 case 失败，当前修复已在 Linux/WSL 定向回归 3/3 通过，Windows 需重新留证；简繁 feature spec 在正确 feature binary 下 2/2 通过（s2t、t2s）；Unix-only 权限测试已隔离，Windows `cargo test --features tui` 需重新执行，详见 `docs/windows-e2e-runbook.md`。
+
+## 2026-09-03 Windows 收尾执行计划
+
+当前仍需在 Windows 原生环境完成并记录的新鲜证据：
+
+- [x] 使用当前修复 binary 串行运行 embedded `selection-and-persistence.spec.ts`，3/3 通过，replacement case 输出 `待办`；
+- [ ] 先执行 `npm run build:app:simplified-trad --prefix e2e` 后运行 `simplified-trad-conversion.spec.ts`：当前 1/2，s2t 通过，t2s 设置仍读回 `conversion: s2t`；
+- [x] 在 Windows MSVC toolchain 执行 `cargo test --manifest-path src-tauri/Cargo.toml --features tui`：166 passed/0 failed；
+- [x] 每项结果已记录环境、退出状态、实际完成数和日志/artifact；`finished=0` 的 runner 未计为通过；
+- [x] 已按 Runbook 完成串行测试后的进程、端口、ACL、临时设置目录和生成物清理。
+本轮保存竞态修复已在 Linux/WSL 默认 embedded 3/3、简繁 feature 2/2 通过；W3C smoke、重启/损坏设置、NTFS ACL、GUI 视觉 artifact、设置快捷键控制台和 TUI transcript 已有独立通过记录，只有代码或诊断范围变化时按需复跑；GUI DPI 自动矩阵和 GitLab Windows stage 继续按项目决定跳过。完整步骤见 [`docs/windows-e2e-runbook.md` 第 2.5 节](windows-e2e-runbook.md#25-2026-09-03-当前必须执行的-windows-收尾流程)。
+
+
+## 2026-09-03 Windows 复验结论
+
+默认 embedded GUI、设置恢复/损坏、NTFS ACL、GUI 视觉、快捷键控制台、TUI transcript 和 Windows MSVC Rust/TUI 回归均已取得当前证据。简繁 feature 的 t2s 设置持久化仍失败（1/2），标准 W3C smoke 因 EdgeDriver 连接失败未完成；两项保留为后续修复/环境复验。GUI DPI 自动矩阵与 GitLab Windows 可选 stage 维持跳过，人工 DPI 与 Windows Terminal 交互 artifact 维持已完成。

@@ -23,10 +23,10 @@ Linux、WSL/WSLg 和普通 Chrome 可以验证部分业务语义，但不能替�
 | 工作项 | 目标 | 当前状态 | 完成标志 |
 | --- | --- | --- | --- |
 | 默认 embedded GUI 完整回归 | 验证 Windows WebView2、真实 Rust IPC、设置保存/恢复和替换输出 | 已有基线；换 binary 或前端后应重新执行 | `npm run test --prefix e2e` 通过，artifact 完整 |
-| 简繁 feature embedded GUI | 验证 `s2t`/`t2s` 的真实字符转换，而非默认构建占位 | Linux/WSL 2/2 通过；Windows 需按当前修复 binary 重新留证 | feature 构建和 `simplified-trad-conversion.spec.ts` 2/2 通过 |
+| 简繁 feature embedded GUI | 验证 `s2t`/`t2s` 的真实字符转换，而非默认构建占位 | Windows 当前复验 1/2；s2t 通过，t2s 设置持久化失败，需修复后重跑 | feature 构建和 `simplified-trad-conversion.spec.ts` 2/2 通过 |
 | 标准 W3C provider | 验证 session、主窗口、一次格式化、一次设置保存和退出清理 | 已收敛为兼容性 smoke | `npm run test:webdriver --prefix e2e` 通过 |
 | GUI DPI artifact | 在 100%/125%/150% Windows 缩放下保存可审计截图、page source 和环境信息 | 自动验证跳过；三档人工 GUI 验证已完成 | 不纳入自动化门禁；按需保留人工结果 |
-| Terminal 多行显示修复 | 修复自动换行后新增字符绘制位置、光标不可见和 emoji 显示（WT-TUI-001/002/003） | 源码修复已完成，Windows MSVC 158/158 通过；真实 Terminal 复验已由用户确认通过 | Rust/UI 回归通过，Windows 原生复验通过 |
+| Terminal 多行显示修复 | 修复自动换行后新增字符绘制位置、光标不可见和 emoji 显示（WT-TUI-001/002/003） | 源码修复已完成，Windows MSVC 166/166 通过；真实 Terminal 复验已由用户确认通过 | Rust/UI 回归通过，Windows 原生复验通过 |
 | Terminal TUI artifact | 将真实 Windows Terminal 交互和退出清理固化为输入/输出/截图/日志留证 | 已通过（依据用户确认） | 关键场景、清理和结果均已确认 |
 | GitLab Windows stage | 在 Windows runner 上重复运行 E2E 并始终上传 artifact | 跳过（不执行） | 项目决定不配置、不运行；不得记为通过 |
 
@@ -117,6 +117,196 @@ npm run test --prefix e2e -- --spec specs/simplified-trad-conversion.spec.ts
 6. 保存 `manifest.json`、`result.json`、WDIO/应用日志和失败时的 `settings-fixture`；成功后按第 6 节清理。
 
 若 feature 构建失败，先记录 Cargo、MSVC、网络/缓存和 `opencc-fmmseg` 错误，不得将默认构建的占位输出记为 feature 验证结果。
+
+## 2.5 2026-09-03 当前必须执行的 Windows 收尾流程
+
+以下流程用于验证当前修复提交，而不是复用旧 binary 或旧 artifact 的结论。当前工作区的 Linux/WSL 定向结果不能替代 Windows WebView2、NTFS ACL、Windows 进程清理和 Windows Terminal 验证。必须在**同一次 Windows 原生 checkout**中按顺序执行，并在结果中记录 commit SHA、binary 绝对路径和每一步的退出状态。
+
+### 2.5.1 初始化本轮运行目录
+
+在 PowerShell 7 中打开项目根目录。建议使用短路径 checkout，例如 `E:\CopyPolish`；不要在 WSL、Git Bash 或无桌面服务会话中执行 GUI/TUI 项目。
+
+```powershell
+$ErrorActionPreference = 'Stop'
+$root = (Get-Location).Path
+$runId = Get-Date -Format 'yyyyMMdd-HHmmss'
+$artifactRoot = Join-Path $env:TEMP ("copypolish-e2e-" + $runId)
+$settingsRoot = Join-Path $env:TEMP ("copypolish-settings-" + $runId)
+New-Item -ItemType Directory -Path $artifactRoot, $settingsRoot | Out-Null
+
+Set-Location $root
+git status --short
+git rev-parse HEAD
+node --version
+npm --version
+rustc --version
+cargo --version
+$PSVersionTable.PSVersion
+wt --version
+
+$env:COPYPOLISH_E2E_ARTIFACT_DIR = $artifactRoot
+$env:COPYPOLISH_E2E_SETTINGS_DIR = $settingsRoot
+```
+
+同时记录 Windows build、WebView2 Runtime、Windows Terminal profile、字体、字号、显示器分辨率/缩放、窗口尺寸和当前 provider。若某个版本命令不可用，记录 `unknown` 及原因，不得用其他平台版本代替。
+
+### 2.5.2 关闭旧进程并安装依赖
+
+开始构建前关闭旧的 CopyPolish、WDIO、Node 和 TUI 进程。不要强制结束不属于本轮测试的用户进程；如无法区分，先记录进程列表并停止测试。
+
+```powershell
+Get-Process | Where-Object {
+  $_.ProcessName -match 'chinese-copywriting-formatter|copypolish|wdio|node|copypolish-tui'
+} | Select-Object Id, ProcessName, Path
+
+npm ci --prefix frontend
+npm ci --prefix e2e
+npm run typecheck --prefix e2e
+```
+
+`npm ci`、typecheck 或后续构建失败时，应先保留 PowerShell 输出，不得继续用不完整的 binary 执行 GUI 结论。
+
+### 2.5.3 构建并运行默认 embedded GUI 完整回归
+
+默认 embedded 是当前 GUI 完整回归主路线。必须先构建当前 checkout 的 binary，再串行执行 spec；不要直接运行 `target` 中上一次构建留下的 binary。
+
+```powershell
+npm run build:app --prefix e2e
+npm run test --prefix e2e -- --spec specs/selection-and-persistence.spec.ts
+```
+
+通过条件：
+
+1. `selection-and-persistence.spec.ts` 全部 **3/3 passing**；
+2. 第三个真实 GUI case 中，自定义替换设置保存后，输入 `TODO` 输出 `待办`；
+3. 同一 case 的简繁转换设置真实透传并产生预期输出；
+4. 设置状态、格式化请求和结果没有错误；
+5. 若失败，artifact 中必须能看到 `lastFormatRequest`、`lastFormatResult`、`lastSettingsSave`、`inputValue`、`outputText` 和 replacement/conversion 字段。
+
+若最后一次请求中的 `replacements` 为空，优先判断为 GUI 输入事件、设置保存时序或 binary/bundle 不匹配问题；不得直接把失败归因于 Rust replacement 管线。若 artifact 的 `finished` 为 `0`，即使 `exitCode` 为 `0`，也只能记录为 runner 未实际完成，不能记为通过。
+
+### 2.5.4 构建并运行简繁转换 feature GUI
+
+该步骤必须在默认 embedded 完整回归之后执行。构建顺序不可调换：先生成带 feature 的 binary，再运行 spec。
+
+```powershell
+npm run build:app:simplified-trad --prefix e2e
+npm run test --prefix e2e -- --spec specs/simplified-trad-conversion.spec.ts
+```
+
+通过条件为 **2/2 passing**，且真实 GUI 输出满足：
+
+```text
+设计软件与打印  ->  設計軟件與打印   # s2t
+後設資料與說明  ->  后设资料与说明   # t2s
+```
+
+必须在构建日志中确认 `Additional Cargo features: simplified-trad-conversion`。如果没有该标记，或运行的是默认 binary，不得记录为 feature 验证结果。
+
+### 2.5.5 运行标准 W3C provider 兼容性 smoke
+
+标准 W3C provider 只运行兼容性 smoke，不运行 replacement/简繁 feature 的完整回归。
+
+```powershell
+npm run build:app:webdriver --prefix e2e
+npm run test:webdriver --prefix e2e
+```
+
+通过条件：`specs/w3c/smoke.spec.ts` 完成 session 创建、主窗口发现、一次真实格式化、一次设置保存、正常退出和清理。应记录 WebDriver 端口；端口默认可能为 `4445`，以本轮 `wdio.webdriver.conf.ts` 和 artifact 为准。
+
+### 2.5.6 重新确认 Windows 专属 Rust/TUI 编译与测试
+
+这一步必须在 Windows 原生 MSVC toolchain 上执行，用于确认新增 `#[cfg(unix)]` 后 Windows 测试目标可以编译。Linux/WSL 的 Rust 结果不能替代它。
+
+```powershell
+cargo test --manifest-path src-tauri/Cargo.toml --features tui
+```
+
+通过条件：命令退出码为 `0`，没有编译错误、平台条件错误或未使用导入 warning。记录完整测试计数、Rust toolchain、MSVC host 和 commit SHA；旧的 `158/158` 结果只能作为历史记录，不能直接充当当前修复提交的新鲜 Windows 证据。
+
+如需重新确认 release binary 可启动，再执行：
+
+```powershell
+cargo build --manifest-path src-tauri/Cargo.toml --features tui --release --bin copypolish-tui
+```
+
+真实 Windows Terminal raw-mode、粘贴、OSC 52、保存/重启和 WT-TUI-001/002/003 已有用户确认结果，不属于本轮默认必重跑项；只有代码、Terminal、字体或 profile 发生变化时才按第 4 节重新留证。
+
+### 2.5.7 可选专项诊断
+
+以下入口不是替换链路通过的前置条件，但在 Windows 复验失败、变更涉及对应模块或需要刷新证据时执行：
+
+```powershell
+# 设置重启恢复
+npm run test:restart-settings --prefix e2e
+
+# 三种损坏设置 fixture
+npm run test:corrupt-settings --prefix e2e
+
+# NTFS ACL 拒写（必须在 Windows 原生 NTFS 上执行）
+npm run test:acl-settings --prefix e2e
+
+# 失败 artifact 完整性 probe
+npm run test:artifact-probe --prefix e2e
+
+# GUI 主题/窄窗口 artifact；不是 DPI 自动矩阵
+npm run test:gui-visual-artifacts --prefix e2e
+
+# 设置控制台与 React act warning
+npm run test:settings-shortcut-console --prefix e2e
+
+# 非交互 TUI transcript
+npm run test:tui-transcript --prefix e2e
+```
+
+ACL 步骤只能使用 `icacls.exe` 的 NTFS deny ACE。禁止使用 Linux `chmod`、WSL 权限映射或文件只读属性模拟。无论测试成功或失败，都必须确认 deny ACE 已移除、继承已恢复并且临时目录可以删除。
+
+### 2.5.8 结果确认与清理
+
+每个必需项目完成后，先复制或压缩失败 artifact 到 Windows 本地审计位置，再执行清理。成功结果只记录摘要；原始 artifact 不提交仓库。
+
+```powershell
+# 检查进程、端口、artifact 和仓库污染
+Get-Process | Where-Object {
+  $_.ProcessName -match 'chinese-copywriting-formatter|copypolish|wdio|node|copypolish-tui'
+} | Select-Object Id, ProcessName, Path
+Get-NetTCPConnection -State Listen | Where-Object {
+  $_.LocalPort -eq 4445 -or $_.LocalPort -ge 44000
+} | Select-Object LocalAddress, LocalPort, OwningProcess
+Get-ChildItem $artifactRoot -Recurse -ErrorAction SilentlyContinue
+Get-ChildItem $settingsRoot -Recurse -ErrorAction SilentlyContinue
+Get-ChildItem . -Force -Filter 'rules.yaml*'
+git status --short
+
+# 完成本轮结果记录后清理本地生成物；--deep 会同时删除 node_modules
+python scripts/clean.py --deep
+```
+
+成功清理的判定：没有 CopyPolish/WDIO/测试 Node 残留进程，没有测试端口残留，ACL deny 已移除，临时设置目录和仓库根目录下的 `rules.yaml*` 已清除，`git status --short` 不显示由测试生成的文件。失败时保留至少一个完整 artifact 副本后再清理其他生成目录。
+
+### 2.5.9 本轮结果记录模板
+
+```text
+日期：2026-09-03
+Commit：
+Windows / build：
+Node / npm：
+Rust / MSVC：
+WebView2：
+Windows Terminal / PowerShell：
+默认 embedded build：通过 / 失败
+selection-and-persistence：3/3 / 失败 / 未执行
+simplified-trad build：通过 / 失败
+simplified-trad-conversion：2/2 / 失败 / 未执行
+W3C smoke：通过 / 失败 / 未执行
+Windows cargo test --features tui：通过 / 失败 / 未执行
+可选专项：
+Artifact 根目录：
+失败 diagnostics JSON：
+首个 IPC / 总耗时：
+进程、端口、ACL 和临时目录清理：通过 / 失败
+维护者结论：
+```
 
 ## 3. GUI 三档 DPI artifact（自动验证跳过）
 
@@ -414,3 +604,23 @@ GUI DPI 和 GitLab Windows stage 已跳过；Windows Terminal TUI 交互 artifac
 ## 10. Windows Terminal TUI artifact 通过记录（2026-09-01）
 
 依据用户确认，完整 Windows Terminal TUI artifact 流程已完成并通过：raw-mode、裸字符与 Ctrl 快捷键、规则面板、跨行编辑、Unicode/emoji grapheme、bracketed paste、复制/OSC 52、保存与重启恢复、正常退出及终端清理均已核验。WT-TUI-001/002/003 已按修复版本复验通过。该结论为用户确认状态；如需审计，请将实际 artifact 目录和截图链接补入本节。
+
+## 11. 2026-09-03 当前 Windows 复验结果
+
+本轮在 Windows native environment Windows 原生 checkout 串行执行，WebView2 为 152.0.4191.53。结果如下：
+
+- `npm run typecheck --prefix e2e`：通过；前端单测 70/70 通过；
+- 默认 embedded `selection-and-persistence.spec.ts`：3/3 通过；日志 `C:\Users\\AppData\Local\Temp\copypolish-selection-current-20260903.log`；
+- `test:restart-settings`：write/read 2/2 通过；
+- `test:corrupt-settings`：三个 fixture 3/3 通过（串行重跑）；
+- `test:acl-settings`：1/1 通过（串行重跑）；
+- `test:gui-visual-artifacts`：1/1 通过，生成 DPI 200% 诊断 artifact；
+- `test:settings-shortcut-console`：1/1 通过；
+- `test:tui-transcript`：4/4 通过，artifact 位于 `e2e/artifacts/tui-transcript/1788400328493`；
+- Windows MSVC `cargo test --manifest-path src-tauri/Cargo.toml --features tui`：166 passed，0 failed；
+- `simplified-trad-conversion.spec.ts`：1/2。s2t case 通过；t2s case 读取到 `conversion: s2t` 而非 `conversion: t2s`，日志 `C:\Users\\AppData\Local\Temp\copypolish-feature-serial-20260903.log`，该项不能标记完成；
+- `test:webdriver`：未完成。EdgeDriver/WebDriver 在本机随机端口未建立连接，不能计为通过；保留本轮命令输出及 `e2e/artifacts/webdriver/` 诊断资料。
+
+GUI DPI 自动矩阵仍按项目决定跳过；125%/150% 人工 GUI 验证保持已完成；GitLab Windows 可选 E2E stage 跳过（不执行）；Windows Terminal 交互 artifact 保持用户确认通过。所有 runner 均按串行方式执行，未将 `exitCode=0` 且 `finished=0` 的 artifact 计入结果。
+
+当前修复在 Linux/WSL 已通过保存时序回归：默认 embedded `selection-and-persistence.spec.ts` 3/3、简繁 feature `simplified-trad-conversion.spec.ts` 2/2。该结果只能证明修复后的跨平台逻辑在 Linux/WSL 生效，不能覆盖上述 Windows WebView2 的 feature t2s 持久化和 W3C/EdgeDriver 环境问题；Windows 仍需使用当前修复 binary 按第 2.5 节重新留证。

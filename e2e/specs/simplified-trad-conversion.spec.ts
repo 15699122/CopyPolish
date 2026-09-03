@@ -15,20 +15,52 @@ async function selectConversion(value: "t2s" | "s2t"): Promise<void> {
   );
 }
 
+async function waitForSavedConversion(value: "t2s" | "s2t", previousSequence: number): Promise<void> {
+  await browser.waitUntil(
+    async () => {
+      const diagnostics = await browser.execute((): Record<string, unknown> => ({
+        ...((window as Window & { __COPYPOLISH_E2E__?: Record<string, unknown> }).__COPYPOLISH_E2E__ ?? {}),
+        settingsStatus: document.querySelector<HTMLElement>("[data-testid=\"settings-status\"]")?.innerText ?? null,
+      }));
+      const saved = diagnostics.lastSettingsSave;
+      return diagnostics.settingsStatus === "设置已保存"
+        && Number(diagnostics.settingsSaveSequence ?? 0) > previousSequence
+        && typeof saved === "object"
+        && saved !== null
+        && (saved as { conversion?: unknown }).conversion === value;
+    },
+    { timeout: 10_000, timeoutMsg: `简繁转换设置未保存为 ${value}` },
+  );
+}
+
+async function waitForSavedSequence(previousSequence: number): Promise<void> {
+  await browser.waitUntil(
+    async () => {
+      const diagnostics = await browser.execute((): Record<string, unknown> => ({
+        ...((window as Window & { __COPYPOLISH_E2E__?: Record<string, unknown> }).__COPYPOLISH_E2E__ ?? {}),
+        settingsStatus: document.querySelector<HTMLElement>("[data-testid=\"settings-status\"]")?.innerText ?? null,
+      }));
+      return diagnostics.settingsStatus === "设置已保存"
+        && Number(diagnostics.settingsSaveSequence ?? 0) > previousSequence;
+    },
+    { timeout: 10_000, timeoutMsg: "设置保存序号未更新" },
+  );
+}
+
 async function prepareConversion(value: "t2s" | "s2t"): Promise<void> {
   await $("[data-testid=\"open-settings\"]").click();
   const selectNone = await $("[data-testid=\"select-none\"]");
   await selectNone.waitForDisplayed({ timeout: 10_000 });
+  const beforeRuleSave = Number((await browser.execute(() =>
+    (window as Window & { __COPYPOLISH_E2E__?: Record<string, unknown> }).__COPYPOLISH_E2E__?.settingsSaveSequence ?? 0,
+  ))) || 0;
   await selectNone.click();
-  await browser.waitUntil(
-    async () => (await (await $("[data-testid=\"settings-status\"]")).getText()) === "设置已保存",
-    { timeout: 10_000, timeoutMsg: "规则选择保存未完成" },
-  );
+  await waitForSavedSequence(beforeRuleSave);
+  const beforeConversionSave = Number((await browser.execute(() =>
+    (window as Window & { __COPYPOLISH_E2E__?: Record<string, unknown> }).__COPYPOLISH_E2E__?.settingsSaveSequence ?? 0,
+  ))) || 0;
   await selectConversion(value);
-  await browser.waitUntil(
-    async () => (await (await $("[data-testid=\"settings-status\"]")).getText()) === "设置已保存",
-    { timeout: 10_000, timeoutMsg: "简繁转换设置保存未完成" },
-  );
+  await waitForSavedConversion(value, beforeConversionSave);
   await $("[data-testid=\"settings-done\"]").click();
 }
 

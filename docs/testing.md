@@ -33,6 +33,8 @@
 前端测试 57/57、Rust 设置测试 16/16、Rust/TUI 测试 158/158 均通过；embedded 与标准 W3C provider 的普通 WebView2/Rust IPC 用例各 3/3、设置重启 write/read 各 1/1、三种损坏设置 fixture 各 3/3、NTFS ACL 各 1/1 通过。统一 artifact、受控失败 probe、GUI 主题/窄窗口 artifact 和 TUI 非交互 transcript 已验证；Windows TUI release 构建和 `--stdin --no-config` smoke 通过，TUI-EDIT-DELETE-001 已关闭。
 **2026-09-02 新一轮 Windows 复验补充**：前端单测 69/69、E2E typecheck、embedded/WebDriver/简繁 feature/TUI release 构建通过；W3C smoke 2/2、重启恢复 2/2、损坏设置 3/3、NTFS ACL 1/1、GUI 视觉 artifact 1/1、设置快捷键控制台 1/1、TUI transcript 4/4 通过。旧 binary 的 embedded 完整回归曾在 `selection-and-persistence.spec.ts` 第三个 case 失败（替换设置未作用于真实 GUI 输出）；修复输入事件、保存序列保护和 E2E 诊断后，Linux/WSL embedded 定向回归已恢复为 3/3，Windows 需用当前修复 binary 重新留证。独立简繁 feature spec 在正确先构建 `simplified-trad-conversion` binary 后为 2/2 通过（s2t、t2s）；此前失败是运行默认 binary 的构建顺序错误。Windows 下 `cargo test --features tui` 的 Unix-only 权限测试已增加 `#[cfg(unix)]`，需在 Windows 重新运行确认测试目标编译和完整结果。
 
+**2026-09-03 当前 Windows 待执行项**：请严格按 [Windows 原生 E2E 与交互留证 Runbook 第 2.5 节](windows-e2e-runbook.md#25-2026-09-03-当前必须执行的-windows-收尾流程) 串行执行。保存竞态修复已在 Linux/WSL 通过默认 embedded 3/3 和简繁 feature 2/2 验证，但不能替代 Windows 原生证据。当前 Windows 仍需刷新的是：当前修复 binary 的 embedded `selection-and-persistence.spec.ts` 3/3、当前 feature binary 的 `simplified-trad-conversion.spec.ts` 2/2，以及 Windows 原生 `cargo test --manifest-path src-tauri/Cargo.toml --features tui`。W3C smoke、重启/损坏/ACL、GUI artifact、设置控制台和 TUI transcript 按需复跑；GUI DPI 自动矩阵、GitLab Windows stage 和已确认通过的 Windows Terminal 交互不属于本轮阻塞项。若 artifact 出现 `exitCode=0` 但 `finished=0`，必须记为未完成而不是通过。
+
 > **2026-09-01**：Windows Terminal 交互复验发现三个多行显示缺陷（WT-TUI-001 额外行绘制到状态栏、WT-TUI-002 光标不可见、WT-TUI-003 emoji 显示），证据见 [windows-terminal-tui-manual.md](windows-terminal-tui-manual.md)。已按与 ratatui 渲染等价的视觉换行重算光标与滚动（`src-tauri/src/tui/wrap.rs`），并新增 10 项 Rust/UI 回归；本轮 Windows MSVC 上 158/158 通过，真实 Windows Terminal 复验已由用户确认通过。
 
 平台专用自动化与留证已按项目决策达到当前范围：GUI DPI 自动矩阵决定不执行、GitLab Windows stage 决定跳过（不执行）；Windows Terminal 交互 artifact 已由用户确认通过。详细执行步骤见 [Windows 原生 E2E 与交互留证 Runbook](windows-e2e-runbook.md)：
@@ -450,3 +452,7 @@ Windows 100%/125%/150% DPI 人工 GUI 验证已完成；GUI DPI 自动验证已�
 - ACL fixture 保留路径已修复：先解除 deny ACE，再复制 `settings-fixture`，最后删除临时目录；embedded/WebDriver 测试均通过，保留目录包含 `rules.yaml`，权限恢复和清理完成。
 - GUI DPI 自动验证已决定跳过，不再切换 Windows 显示设置或重新执行目标矩阵。
 - 早期普通命令会话运行完整 Windows Terminal TUI artifact 时因缺 `WT_SESSION` 按设计退出；`--prepare-only` 可生成手动清单。用户随后在真实 Windows Terminal 完成 WT-TUI-001/002/003 真实终端复验和完整交互 artifact，并确认通过。
+
+### 7.16 2026-09-03 Windows 原生复验结果
+
+本轮 Windows native environment checkout 使用 WebView2 152.0.4191.53 串行执行。`selection-and-persistence.spec.ts` 3/3、设置重启 2/2、损坏设置 3/3、NTFS ACL 1/1、GUI 视觉 artifact 1/1、设置快捷键 1/1、TUI transcript 4/4 通过；Windows MSVC `cargo test --features tui` 为 166 passed/0 failed；前端单测为 70/70，E2E typecheck 通过。简繁 feature 在正确构建后为 1/2：s2t 通过，t2s 保存后仍读取 `conversion: s2t`，详见 `copypolish-feature-serial-20260903.log`，因此 feature 项保持未完成。标准 W3C smoke 因 EdgeDriver 未能连接随机端口而未完成，不计为通过。GUI DPI 自动矩阵和 GitLab Windows stage 继续跳过；125%/150% GUI 人工验证及 Windows Terminal 交互 artifact 保持已完成。

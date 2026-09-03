@@ -30,8 +30,16 @@ export function useSettingsPersistence({
   const callbacksRef = useRef({ getSettings, isHydrated });
   callbacksRef.current = { getSettings, isHydrated };
 
+  const cancelScheduledPersist = useCallback(() => {
+    if (timerRef.current === null) return;
+    window.clearTimeout(timerRef.current);
+    timerRef.current = null;
+  }, []);
+
   const persistSettings = useCallback((patch: Partial<UserSettings> = {}) => {
     if (!callbacksRef.current.isHydrated()) return;
+    // 立即保存必须取消旧的输入防抖保存，否则旧快照可能在本次设置后落盘。
+    cancelScheduledPersist();
     const sequence = ++saveSequenceRef.current;
     setSettingsStatus("saving");
     saveUserSettings({ ...callbacksRef.current.getSettings(), ...patch })
@@ -45,21 +53,24 @@ export function useSettingsPersistence({
         setSettingsStatus("error");
         setSettingsError(String(cause));
       });
-  }, []);
+  }, [cancelScheduledPersist]);
 
   const schedulePersist = useCallback(
     (patch: Partial<UserSettings> = {}) => {
-      if (timerRef.current !== null) window.clearTimeout(timerRef.current);
-      timerRef.current = window.setTimeout(() => persistSettings(patch), debounceMs);
+      cancelScheduledPersist();
+      timerRef.current = window.setTimeout(() => {
+        timerRef.current = null;
+        persistSettings(patch);
+      }, debounceMs);
     },
-    [debounceMs, persistSettings],
+    [cancelScheduledPersist, debounceMs, persistSettings],
   );
 
   useEffect(() => {
     return () => {
-      if (timerRef.current !== null) window.clearTimeout(timerRef.current);
+      cancelScheduledPersist();
     };
-  }, []);
+  }, [cancelScheduledPersist]);
 
   return { settingsStatus, settingsError, persistSettings, schedulePersist };
 }
