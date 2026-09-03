@@ -89,7 +89,7 @@ TUI 的交互界面通过 `Ctrl+E` 请求设置面板维护相同的 `replacemen
 
 所有生产规则阶段都经过 `edit_plan.rs` 的 TextEdit 应用层。保护层仍可使用内部 placeholder，但不存在第二套生产 pipeline。
 
-清洗规则不能以无结构全文替换取代 span 保护。自定义替换虽然位于正式保护占位符之前，但会先使用现有 span 扫描器排除不可编辑结构。默认应遵循“宁漏清洗，不破坏 Markdown、LaTeX、URL、邮箱、代码和化学式”的边界。
+清洗规则不能以无结构全文替换取代 span 保护。自定义替换虽然位于正式保护占位符之前，但会先使用现有 span 扫描器排除不可编辑结构。默认应遵循“宁漏清洗，不破坏 Markdown、LaTeX、URL、邮箱、代码和化学式”的边界。全角 ASCII 转换使用有限 U+FF01–U+FF5E 映射，不使用全文 NFKC；`text.halfwidth-digits` 继续独立负责全角数字，`text.halfwidth-ascii` 默认关闭。
 
 PDF/CAJ 段内软换行与 CJK 内部异常空格目前只有 Spike 基线，尚未进入生产管线。仓库没有真实 PDF/CAJ 原文件或脱敏语料，因此不使用合成样例宣称规则正确；实现前必须补充来源类型、版面结构、人工期望和失败原因标注，详见 `docs/decisions/pdf-soft-wrap-spike.md`。
 

@@ -79,6 +79,24 @@ pub fn unicode_equivalents(text: &str) -> String {
     text.replace('µ', "μ").replace('Å', "Å")
 }
 
+/// text.halfwidth-ascii：将全角 ASCII 字母和标点转换为对应的半角字符。
+///
+/// 全角数字由 `text.halfwidth-digits` 独立负责，因此这里跳过 U+FF10–U+FF19，
+/// 避免两个规则职责重叠。该规则只在可编辑片段执行；URL、代码、公式和化学式
+/// 等结构由上游 span 保护层排除。不执行全文 NFKC，也不处理全角空格 U+3000。
+pub fn fullwidth_ascii(text: &str) -> String {
+    text.chars()
+        .map(|ch| {
+            let codepoint = ch as u32;
+            if (0xFF01..=0xFF5E).contains(&codepoint) && !(0xFF10..=0xFF19).contains(&codepoint) {
+                char::from_u32(codepoint - 0xFEE0).expect("fullwidth ASCII mapping is valid")
+            } else {
+                ch
+            }
+        })
+        .collect()
+}
+
 fn is_ascii_alnum(ch: Option<char>) -> bool {
     ch.map(|c| c.is_ascii_alphanumeric()).unwrap_or(false)
 }

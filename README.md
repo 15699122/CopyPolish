@@ -85,7 +85,7 @@ Windows 版依赖系统的 WebView2 Evergreen Runtime。Windows 10/11 通常已�
 
 ## 当前支持的规则
 
-规则由后端注册表统一管理，当前内置 19 条（文本清洗规则和「专有名词使用正确的大小写」「不要使用不地道的缩写」「链接之间增加空格」「简体中文使用直角引号」「统一等价 Unicode 单位字符」「修复数值标点异常空格」「修复康熙部首」默认关闭）。
+规则由后端注册表统一管理，当前内置 20 条（文本清洗规则和「专有名词使用正确的大小写」「不要使用不地道的缩写」「链接之间增加空格」「简体中文使用直角引号」「统一等价 Unicode 单位字符」「ASCII 字符使用半角形式」「修复数值标点异常空格」「修复康熙部首」默认关闭）。
 
 | 分类 | 类型 | 风险 | 规则 | 稳定 key |
 | --- | --- | --- | --- | --- |
@@ -96,6 +96,7 @@ Windows 版依赖系统的 WebView2 Evergreen Runtime。Windows 10/11 通常已�
 | 标点符号 | 排版 | 需复核 | 不重复使用标点符号 | `punctuation.no-repetition` |
 | 全角和半角 | 排版 | 需复核 | 使用全角中文标点 | `punctuation.fullwidth-cjk` |
 | 全角和半角 | 转换 | 低风险 | 数字使用半角字符 | `text.halfwidth-digits` |
+| 全角和半角 | 转换 | 需复核 | ASCII 字符使用半角形式，默认关闭 | `text.halfwidth-ascii` |
 | 全角和半角 | 排版 | 需复核 | 遇到完整的英文整句、特殊名词，其内容使用半角标点 | `text.ascii-punct-in-latin` |
 | 全角和半角 | 转换 | 需复核 | 统一等价 Unicode 单位字符，默认关闭 | `text.unicode-equivalents` |
 | 名词 | 排版 | 需复核 | 专有名词使用正确的大小写，默认关闭 | `naming.proper-nouns` |

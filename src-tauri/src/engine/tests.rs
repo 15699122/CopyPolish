@@ -190,8 +190,8 @@ fn passing_golden_fixtures_are_idempotent() {
 #[test]
 fn registry_contains_migrated_rules_with_defaults() {
     let all = rules();
-    // 历史规则、温标空格规则和默认关闭的 Unicode 输出规范化规则均已注册。
-    assert_eq!(all.len(), 19);
+    // 历史规则、温标空格规则和默认关闭的 Unicode/全角 ASCII 转换规则均已注册。
+    assert_eq!(all.len(), 20);
     assert_eq!(enabled_defaults().len(), 9);
     let disabled: Vec<_> = all
         .iter()
@@ -205,6 +205,7 @@ fn registry_contains_migrated_rules_with_defaults() {
             keys::CLEANUP_COLLAPSE_HORIZONTAL_SPACES,
             keys::CLEANUP_LIMIT_BLANK_LINES,
             keys::CLEANUP_KANGXI_RADICALS,
+            keys::TEXT_HALFWIDTH_ASCII,
             keys::TEXT_UNICODE_EQUIVALENTS,
             keys::NAMING_PROPER_NOUNS,
             keys::NAMING_EXPAND_ABBREVIATIONS,
@@ -275,6 +276,7 @@ fn registry_execution_order_is_phase_explicit_and_stable() {
             keys::PUNCT_NO_REPETITION,
             keys::PUNCT_FULLWIDTH_CJK,
             keys::TEXT_HALFWIDTH_DIGITS,
+            keys::TEXT_HALFWIDTH_ASCII,
             keys::TEXT_ASCII_PUNCT_IN_LATIN,
             keys::NAMING_PROPER_NOUNS,
             keys::NAMING_EXPAND_ABBREVIATIONS,
@@ -532,10 +534,7 @@ fn explicit_rule_selection_modes_are_unambiguous() {
 
         ..Default::default()
     };
-    assert_eq!(
-        format_text(&all).unwrap(),
-        "在 LeanCloud 上，花了 5000 元！"
-    );
+    assert_eq!(format_text(&all).unwrap(), "在 LeanCloud 上,花了 5000 元!");
 
     let defaults = FormatRequest {
         text: text.to_string(),
@@ -707,7 +706,7 @@ fn unicode_equivalents_are_explicit_and_do_not_change_defaults() {
     };
     assert_eq!(
         format_text(&all).unwrap(),
-        "单位 10 μm 与 3 Å，公式 $µ+Å$ 保持原样"
+        "单位 10 μm 与 3 Å,公式 $µ+Å$ 保持原样"
     );
 }
 

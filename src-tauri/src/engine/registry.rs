@@ -29,6 +29,7 @@ pub mod keys {
     pub const PUNCT_NO_REPETITION: &str = "punctuation.no-repetition";
     pub const PUNCT_FULLWIDTH_CJK: &str = "punctuation.fullwidth-cjk";
     pub const TEXT_HALFWIDTH_DIGITS: &str = "text.halfwidth-digits";
+    pub const TEXT_HALFWIDTH_ASCII: &str = "text.halfwidth-ascii";
     pub const TEXT_ASCII_PUNCT_IN_LATIN: &str = "text.ascii-punct-in-latin";
     pub const TEXT_UNICODE_EQUIVALENTS: &str = "text.unicode-equivalents";
     pub const NAMING_PROPER_NOUNS: &str = "naming.proper-nouns";
@@ -76,6 +77,7 @@ fn phase_for_key(key: &str) -> RulePhase {
         PUNCT_NO_REPETITION
         | PUNCT_FULLWIDTH_CJK
         | TEXT_HALFWIDTH_DIGITS
+        | TEXT_HALFWIDTH_ASCII
         | TEXT_ASCII_PUNCT_IN_LATIN => RulePhase::PunctuationNormalization,
         NAMING_PROPER_NOUNS | NAMING_EXPAND_ABBREVIATIONS => RulePhase::NamingNormalization,
         SPACING_AROUND_LINKS | PUNCT_CORNER_QUOTES | TEXT_UNICODE_EQUIVALENTS => {
@@ -100,7 +102,8 @@ fn dependencies_for_key(key: &str) -> (&'static [&'static str], &'static [&'stat
         | CLEANUP_KANGXI_RADICALS => (&[], &[]),
         PUNCT_FULLWIDTH_CJK => (&[], &[PUNCT_NO_REPETITION][..]),
         TEXT_HALFWIDTH_DIGITS => (&[], &[PUNCT_FULLWIDTH_CJK][..]),
-        TEXT_ASCII_PUNCT_IN_LATIN => (&[], &[TEXT_HALFWIDTH_DIGITS][..]),
+        TEXT_HALFWIDTH_ASCII => (&[], &[TEXT_HALFWIDTH_DIGITS][..]),
+        TEXT_ASCII_PUNCT_IN_LATIN => (&[], &[TEXT_HALFWIDTH_ASCII][..]),
         NAMING_EXPAND_ABBREVIATIONS => (&[], &[NAMING_PROPER_NOUNS][..]),
         PUNCT_CORNER_QUOTES => (&[], &[SPACING_AROUND_LINKS][..]),
         SPACING_CJK_NUMBER => (&[], &[SPACING_CJK_LATIN][..]),
@@ -189,6 +192,11 @@ fn metadata_for_key(key: &str, _name: &str, disputed: bool) -> (&'static str, Ru
             "仅将全角数字 ０–９ 转换为 ASCII 半角数字。",
             RuleKind::Conversion,
             RuleRisk::Safe,
+        ),
+        TEXT_HALFWIDTH_ASCII => (
+            "将全角 ASCII 字母和标点转换为半角字符；全角数字由独立的半角数字规则负责，不执行全文 NFKC。",
+            RuleKind::Conversion,
+            RuleRisk::Contextual,
         ),
         TEXT_ASCII_PUNCT_IN_LATIN => (
             "在可识别的英文片段中恢复半角标点，不对全文执行无上下文标点互转。",
@@ -329,6 +337,15 @@ static RULES: std::sync::LazyLock<Vec<RuleDef>> = std::sync::LazyLock::new(|| {
             true,
             &["数字使用半角字符"],
             rule_impls::fullwidth_digits,
+        ),
+        def(
+            TEXT_HALFWIDTH_ASCII,
+            "全角和半角",
+            "ASCII 字符使用半角形式",
+            false,
+            false,
+            &[],
+            rule_impls::fullwidth_ascii,
         ),
         def(
             TEXT_ASCII_PUNCT_IN_LATIN,
