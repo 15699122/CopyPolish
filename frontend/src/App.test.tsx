@@ -310,6 +310,8 @@ describe("App 主流程", () => {
         font: "system",
         editor_font_size: "normal",
         ui_scale: "normal",
+        output_mode: "realtime",
+        layout_mode: "auto",
         shortcuts: {
           enabled: true,
           bindings: {
@@ -516,6 +518,30 @@ describe("App 主流程", () => {
     await waitFor(() =>
       expect(mocks.saveUserSettings).toHaveBeenCalledWith(
         expect.objectContaining({ ui_scale: "small" }),
+      ),
+    );
+  });
+
+  it("输出模式、布局和输入输出统计可用且手动模式不自动刷新", async () => {
+    mockFormat((t) => `格式化(${t})`);
+    const { user } = await setup();
+    await user.click(screen.getByTestId("open-settings"));
+    await user.selectOptions(screen.getByTestId("output-mode-select"), "manual");
+    await user.selectOptions(screen.getByTestId("layout-mode-select"), "vertical");
+    await user.click(screen.getByTestId("settings-done"));
+
+    const input = screen.getByTestId("input-textarea");
+    await user.type(input, "中文👍");
+    expect(screen.getByTestId("input-stats")).toHaveTextContent("输入：3 字符");
+    expect(screen.getByTestId("output-text")).toHaveTextContent("");
+    expect(screen.getByTestId("editor-layout")).toHaveClass("grid-rows-2");
+
+    await user.keyboard("{Control>}{Enter}{/Control}");
+    await waitFor(() => expect(screen.getByTestId("output-text")).toHaveTextContent("格式化(中文👍)"));
+    expect(screen.getByTestId("output-stats")).toHaveTextContent("输出：8 字符");
+    await waitFor(() =>
+      expect(mocks.saveUserSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ output_mode: "manual", layout_mode: "vertical" }),
       ),
     );
   });

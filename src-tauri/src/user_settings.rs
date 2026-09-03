@@ -86,6 +86,25 @@ pub enum UiScale {
     XLarge,
 }
 
+/// 输出更新模式：输入变化后实时排版，或由用户显式触发排版。
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum OutputMode {
+    #[default]
+    Realtime,
+    Manual,
+}
+
+/// 主界面输入/输出布局。
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum LayoutMode {
+    #[default]
+    Auto,
+    Horizontal,
+    Vertical,
+}
+
 impl std::fmt::Display for ThemeMode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -147,6 +166,10 @@ pub struct UserSettings {
     pub editor_font_size: EditorFontSize,
     #[serde(default)]
     pub ui_scale: UiScale,
+    #[serde(default)]
+    pub output_mode: OutputMode,
+    #[serde(default)]
+    pub layout_mode: LayoutMode,
     #[serde(default)]
     pub shortcuts: ShortcutSettings,
     /// 有序自定义字面量替换（请求层阶段，span 保护前执行）。
@@ -592,6 +615,8 @@ mod tests {
             font: FontFamily::Pingfang,
             editor_font_size: EditorFontSize::Large,
             ui_scale: UiScale::Small,
+            output_mode: OutputMode::Manual,
+            layout_mode: LayoutMode::Vertical,
             shortcuts: ShortcutSettings {
                 enabled: false,
                 bindings: default_shortcut_bindings(),
@@ -612,6 +637,8 @@ mod tests {
         assert!(raw.contains("theme"));
         assert!(raw.contains("editor_font_size"));
         assert!(raw.contains("ui_scale"));
+        assert!(raw.contains("output_mode"));
+        assert!(raw.contains("layout_mode"));
         assert!(raw.contains("replacements"));
         assert!(raw.contains("conversion"));
         let _ = fs::remove_file(&path);
@@ -701,6 +728,8 @@ mod tests {
             font: FontFamily::System,
             editor_font_size: EditorFontSize::Normal,
             ui_scale: UiScale::Normal,
+            output_mode: OutputMode::Realtime,
+            layout_mode: LayoutMode::Auto,
             shortcuts: ShortcutSettings::default(),
             replacements: Vec::new(),
             conversion: CharacterConversion::None,
@@ -803,6 +832,8 @@ mod tests {
             font: FontFamily::NotoSansCjk,
             editor_font_size: EditorFontSize::Normal,
             ui_scale: UiScale::Normal,
+            output_mode: OutputMode::Realtime,
+            layout_mode: LayoutMode::Auto,
             shortcuts: ShortcutSettings {
                 enabled: true,
                 bindings: default_shortcut_bindings(),

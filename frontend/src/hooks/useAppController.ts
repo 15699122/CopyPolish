@@ -15,6 +15,8 @@ import {
   type ShortcutBindings,
   type ThemeMode,
   type UiScale,
+  type OutputMode,
+  type LayoutMode,
   type UserSettings,
 } from "@/lib/tauri";
 
@@ -68,6 +70,10 @@ export interface SettingsDialogProps {
   onConversionChange: (conversion: CharacterConversion) => void;
   presets: Preset[];
   onApplyPreset: (preset: Preset) => void;
+  outputMode: OutputMode;
+  layoutMode: LayoutMode;
+  onOutputModeChange: (mode: OutputMode) => void;
+  onLayoutModeChange: (mode: LayoutMode) => void;
 }
 
 export interface UseAppControllerResult {
@@ -146,6 +152,8 @@ export function useAppController(): UseAppControllerResult {
     font: "system",
     editor_font_size: "normal",
     ui_scale: "normal",
+    output_mode: "realtime",
+    layout_mode: "auto",
     replacements: settings.replacements,
     conversion: effectiveConversion,
     shortcuts: { enabled: false, bindings: {} as ShortcutBindings },
@@ -164,6 +172,7 @@ export function useAppController(): UseAppControllerResult {
     enabled: settings.enabled,
     replacements: settings.replacements,
     conversion: effectiveConversion,
+    outputMode: settings.outputMode,
     scheduleFormat: formatter.scheduleFormat,
     schedulePersist: persistence.schedulePersist,
   });
@@ -180,6 +189,8 @@ export function useAppController(): UseAppControllerResult {
     setFont: settings.setFont,
     setEditorFontSize: settings.setEditorFontSize,
     setUiScale: settings.setUiScale,
+    setOutputMode: settings.setOutputMode,
+    setLayoutMode: settings.setLayoutMode,
     replacements: settings.replacements,
     buildCapabilities: settings.buildCapabilities,
     setReplacements: settings.setReplacements,
@@ -236,6 +247,8 @@ export function useAppController(): UseAppControllerResult {
       font: settings.font,
       editor_font_size: settings.editorFontSize,
       ui_scale: settings.uiScale,
+      output_mode: settings.outputMode,
+      layout_mode: settings.layoutMode,
       shortcuts: { enabled: settings.shortcutsEnabled, bindings: settings.shortcutBindings },
       replacements: settings.replacements,
       conversion: effectiveConversion,
@@ -247,6 +260,8 @@ export function useAppController(): UseAppControllerResult {
       settings.font,
       settings.editorFontSize,
       settings.uiScale,
+      settings.outputMode,
+      settings.layoutMode,
       settings.shortcutsEnabled,
       settings.shortcutBindings,
       settings.replacements,
@@ -295,6 +310,10 @@ export function useAppController(): UseAppControllerResult {
       onConversionChange: actions.onConversionChange,
       presets: rules.presets,
       onApplyPreset: actions.onApplyPreset,
+      outputMode: settings.outputMode,
+      layoutMode: settings.layoutMode,
+      onOutputModeChange: actions.onOutputModeChange,
+      onLayoutModeChange: actions.onLayoutModeChange,
     }),
     [
       dialog.open,
@@ -332,6 +351,10 @@ export function useAppController(): UseAppControllerResult {
       actions.onConversionChange,
       rules.presets,
       actions.onApplyPreset,
+      settings.outputMode,
+      settings.layoutMode,
+      actions.onOutputModeChange,
+      actions.onLayoutModeChange,
     ],
   );
 

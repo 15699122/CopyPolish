@@ -6,6 +6,7 @@
 
 ### Added
 
+- 增加 GUI 实时/手动输出模式、自动/左右/上下布局和输入输出 Unicode 字符统计；新增设置字段 `output_mode` 与 `layout_mode`，旧设置缺失时回退为实时输出和自动布局，手动模式保留“立即排版”快捷键。
 - 增加首批来源文本清洗规则：可选清理普通文本中的方括号/中文方括号引用角标、连续 ASCII 空格和连续空行；清洗规则默认关闭，并通过 span-aware TextEdit 保护 Markdown 链接、代码、URL 和其他结构。跨行空行清理使用独立的结构边界路径，不参与普通逐行规则循环。
 - 为规则注册表增加用户说明、类型和风险元数据，并在 GUI/TUI 规则面板展示；保留 stable key、默认状态、phase、依赖和既有格式化行为不变，README 表格与注册表一致性测试已同步扩展。
 - 完成简繁转换 Spike 并接入 `opencc-fmmseg`：以 `simplified-trad-conversion` 可选 feature 提供互斥的 T2S/S2T（MIT、OpenCC 风格词典 + FMM 分词，只改写可编辑区间、保护链接/代码/公式；实测 1 MB `s2t` ≈130 MB/s），默认构建不启用、保持占位；`scripts/generate_licenses.py` 新增 `--features` 参数以纳入可选依赖许可证。决策与语义边界见 `docs/decisions/simplified-trad-conversion-spike.md`。

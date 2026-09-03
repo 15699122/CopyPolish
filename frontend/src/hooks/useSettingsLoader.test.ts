@@ -47,6 +47,8 @@ describe("useSettingsLoader", () => {
       font: "pingfang",
       editor_font_size: "large",
       ui_scale: "small",
+      output_mode: "manual",
+      layout_mode: "vertical",
       shortcuts: {
         enabled: false,
         bindings: {
@@ -76,6 +78,8 @@ describe("useSettingsLoader", () => {
     expect(result.current.font).toBe("pingfang");
     expect(result.current.editorFontSize).toBe("large");
     expect(result.current.uiScale).toBe("small");
+    expect(result.current.outputMode).toBe("manual");
+    expect(result.current.layoutMode).toBe("vertical");
     expect(result.current.shortcutsEnabled).toBe(false);
     expect(result.current.shortcutBindings.format_now).toBe("CtrlOrCmd+KeyF");
     expect(result.current.replacements).toEqual([
@@ -113,6 +117,8 @@ describe("useSettingsLoader", () => {
 
     expect(result.current.enabled).toEqual(["rule-a"]);
     expect(result.current.theme).toBe("system");
+    expect(result.current.outputMode).toBe("realtime");
+    expect(result.current.layoutMode).toBe("auto");
     expect(result.current.shortcutsEnabled).toBe(true);
     expect(result.current.isHydrated()).toBe(true);
     await waitFor(() => expect(mocks.getSettingsPath).toHaveBeenCalledOnce());

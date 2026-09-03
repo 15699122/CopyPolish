@@ -1,11 +1,12 @@
 import { useCallback, useState } from "react";
 
-import type { CharacterConversion, ReplacementPair, UserSettings } from "@/lib/tauri";
+import type { CharacterConversion, OutputMode, ReplacementPair, UserSettings } from "@/lib/tauri";
 
 export interface UseInputFormattingOptions {
   enabled: string[];
   replacements?: ReplacementPair[];
   conversion?: CharacterConversion;
+  outputMode?: OutputMode;
   scheduleFormat: (input: string, enabled: string[], delayOverride?: number, options?: {
     replacements?: ReplacementPair[];
     conversion?: CharacterConversion;
@@ -24,6 +25,7 @@ export function useInputFormatting({
   enabled,
   replacements,
   conversion,
+  outputMode = "realtime",
   scheduleFormat,
   schedulePersist,
 }: UseInputFormattingOptions): UseInputFormattingResult {
@@ -32,10 +34,12 @@ export function useInputFormatting({
   const onInputChange = useCallback(
     (nextInput: string) => {
       setInput(nextInput);
-      scheduleFormat(nextInput, enabled, undefined, { replacements: replacements ?? [], conversion: conversion ?? "none" });
+      if (outputMode === "realtime") {
+        scheduleFormat(nextInput, enabled, undefined, { replacements: replacements ?? [], conversion: conversion ?? "none" });
+      }
       schedulePersist({ enabled, last_input: nextInput, replacements: replacements ?? [], conversion: conversion ?? "none" });
     },
-    [conversion, enabled, replacements, scheduleFormat, schedulePersist],
+    [conversion, enabled, outputMode, replacements, scheduleFormat, schedulePersist],
   );
 
   return { input, setInput, onInputChange };
