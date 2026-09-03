@@ -387,7 +387,7 @@ npm run test:restart-settings --prefix e2e
 
 ### 7.9 GUI 替换与简繁转换保存入口
 
-`selection-and-persistence.spec.ts` 已增加真实 embedded GUI 用例，覆盖打开设置、添加替换、编辑来源/目标、选择 `s2t`、等待保存、读取临时 `rules.yaml` 以及关闭设置后的真实格式化输出。该用例通过 `test` runner 执行，使用独立的 `COPYPOLISH_E2E_SETTINGS_DIR`，不会写入仓库根目录。
+`selection-and-persistence.spec.ts` 已增加真实 embedded GUI 用例，覆盖打开设置、添加替换、编辑来源/目标、等待保存、读取临时 `rules.yaml` 以及关闭设置后的真实格式化输出；默认构建同时确认 capability=false 时不能选择有效的 `s2t`。真实 `s2t`/`t2s` 选择和输出由独立的 feature spec 覆盖。该用例通过 `test` runner 执行，使用独立的 `COPYPOLISH_E2E_SETTINGS_DIR`，不会写入仓库根目录。
 
 默认 E2E 构建验证设置保存、恢复、替换行为，以及 capability=false 时 t2s/s2t 被禁用并归一化为 `none`。使用 `npm run build:app:simplified-trad --prefix e2e` 构建后，再运行 `npm run test --prefix e2e -- --spec specs/simplified-trad-conversion.spec.ts`，可验证 capability=true 与 `s2t`/`t2s` 双向真实 GUI/Rust IPC 输出；当前 Linux/WSL embedded provider 为 2/2 通过。完整结构保护回归仍由 Rust feature fixture 覆盖。
 
@@ -456,3 +456,7 @@ Windows 100%/125%/150% DPI 人工 GUI 验证已完成；GUI DPI 自动验证已�
 ### 7.16 2026-09-03 Windows 原生复验结果
 
 本轮 Windows native environment checkout 使用 WebView2 152.0.4191.53 串行执行。`selection-and-persistence.spec.ts` 3/3、设置重启 2/2、损坏设置 3/3、NTFS ACL 1/1、GUI 视觉 artifact 1/1、设置快捷键 1/1、TUI transcript 4/4 通过；Windows MSVC `cargo test --features tui` 为 166 passed/0 failed；前端单测为 70/70，E2E typecheck 通过。简繁 feature 在当前修复 binary 上为 2/2（s2t、t2s），标准 W3C smoke 为 2/2；本节早先的 1/2 和未完成记录属于同日较早的旧 binary/runner 结果，仅保留在历史日志中，不覆盖最终结果。GUI DPI 自动矩阵和 GitLab Windows stage 继续跳过；125%/150% GUI 人工验证及 Windows Terminal 交互 artifact 保持已完成。
+
+### 7.17 2026-09-03 提交 6687c13 Windows capability 刷新
+
+在隔离 Windows 原生 checkout `<isolated-windows-checkout>` 上重新执行当前提交 `6687c1390c633385cfd02135cf3072f4d18f94a9`：Node 24.19.0、Rust 1.98.0 `x86_64-pc-windows-msvc`；frontend/e2e `npm ci` 和 E2E typecheck 均退出码 0。默认 embedded `selection-and-persistence.spec.ts` 为 3/3，确认 capability=false、T2S/S2T 禁用并归一化为 `none`；feature embedded `simplified-trad-conversion.spec.ts` 为 2/2，确认 capability=true、s2t/t2s 真实输出；Windows MSVC `cargo test --features tui` 为 167 passed/0 failed；W3C smoke 为 2/2，随机端口 51737，artifact `exitCode=0`、`finished=1`、`passed=1`、`failed=0`。本轮没有把 npm 警告或 WDIO 清理 mock store warning 计为失败；隔离 checkout 与生成物已清理。

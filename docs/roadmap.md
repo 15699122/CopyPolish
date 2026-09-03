@@ -125,3 +125,7 @@ span-aware 混合管线、规则注册表、阶段依赖、结构/语义 span �
 ## 2026-09-03 Windows 复验结论
 
 默认 embedded GUI、设置恢复/损坏、NTFS ACL、GUI 视觉、快捷键控制台、TUI transcript、简繁 feature 2/2、标准 W3C smoke 2/2 和 Windows MSVC Rust/TUI 回归均已取得当前证据。GUI DPI 自动矩阵与 GitLab Windows 可选 stage 维持跳过，人工 DPI 与 Windows Terminal 交互 artifact 维持已完成。
+
+## 2026-09-03 提交 6687c13 capability 刷新结论
+
+已在隔离 Windows 原生 checkout `<isolated-windows-checkout>` 刷新当前 capability 实现的证据：默认 embedded 3/3、简繁 feature embedded 2/2、Windows MSVC `cargo test --features tui` 167/167、标准 W3C smoke 2/2（随机端口 51737）均通过；所有 runner 均有明确 `finished > 0` 和失败数为 0。原有旧 checkout 未修改，隔离目录和 artifact 已清理。简繁转换 capability 决策及 Windows 收尾验证不再阻塞后续 P1；下一项未完成任务仍为 TUI 替换/简繁控件接入。

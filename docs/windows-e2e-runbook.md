@@ -179,7 +179,7 @@ npm run test --prefix e2e -- --spec specs/selection-and-persistence.spec.ts
 
 1. `selection-and-persistence.spec.ts` 全部 **3/3 passing**；
 2. 第三个真实 GUI case 中，自定义替换设置保存后，输入 `TODO` 输出 `待办`；
-3. 同一 case 的简繁转换设置真实透传并产生预期输出；
+3. 默认构建同一 case 确认 capability=false、T2S/S2T 禁用并归一化为 `conversion: none`；真实简繁输出只在第 2.5.4 节的 feature binary 中验收；
 4. 设置状态、格式化请求和结果没有错误；
 5. 若失败，artifact 中必须能看到 `lastFormatRequest`、`lastFormatResult`、`lastSettingsSave`、`inputValue`、`outputText` 和 replacement/conversion 字段。
 
@@ -624,3 +624,17 @@ GUI DPI 和 GitLab Windows stage 已跳过；Windows Terminal TUI 交互 artifac
 GUI DPI 自动矩阵仍按项目决定跳过；125%/150% 人工 GUI 验证保持已完成；GitLab Windows 可选 E2E stage 跳过（不执行）；Windows Terminal 交互 artifact 保持用户确认通过。所有 runner 均按串行方式执行，未将 `exitCode=0` 且 `finished=0` 的 artifact 计入结果。当前文档列出的 Windows 收尾自动化项目已全部取得通过证据。
 
 历史记录：修复曾先在 Linux/WSL 定向回归；本轮 Windows 已使用当前 binary 完成 embedded selection 3/3、简繁 feature 2/2 和 W3C smoke 2/2，详见本节结果。
+
+## 12. 2026-09-03 提交 6687c13 capability 刷新结果
+
+本轮使用隔离的 Windows 原生 checkout `<isolated-windows-checkout>`，对应提交 `6687c1390c633385cfd02135cf3072f4d18f94a9`；原有 `E:\\\chinese_copywriting_formatter` 的旧 `dev` checkout 未修改。Node 为 24.19.0，Rust 为 1.98.0，host 为 `x86_64-pc-windows-msvc`。
+
+- `npm ci --prefix frontend`：退出码 0；
+- `npm ci --prefix e2e`：退出码 0；
+- `npm run typecheck --prefix e2e`：退出码 0；
+- 默认 embedded：`selection-and-persistence.spec.ts` **3/3 passing**，验证默认构建 `buildCapabilities.simplifiedTradConversion=false`、T2S/S2T 禁用、保存归一化为 `conversion: none`；binary 为 `<isolated-windows-checkout>`；artifact `result.json` 为 `exitCode=0`、`finished=1`、`passed=1`、`failed=0`；
+- 简繁 feature embedded：先执行 `npm run build:app:simplified-trad --prefix e2e`，日志确认 `Additional Cargo features: simplified-trad-conversion`，随后 `simplified-trad-conversion.spec.ts` **2/2 passing**；capability=true、s2t/t2s 保存与真实 Rust IPC 输出均通过；
+- Windows MSVC `cargo test --manifest-path src-tauri/Cargo.toml --features tui`：**167 passed，0 failed**，退出码 0；
+- W3C smoke：先执行 `npm run build:app:webdriver --prefix e2e`，随后 `npm run test:webdriver --prefix e2e`；随机端口 **51737**，标准 provider **2/2 passing**，`result.json` 为 `exitCode=0`、`finished=1`、`passed=1`、`failed=0`；artifact 位于隔离 checkout 的 `e2e/artifacts/webdriver/1788419572347-smoke/`。WDIO session 报告 Edge 152.0.0.0；PowerShell 查询到的 Edge 安装版本为 153.0.4234.13，版本差异保留在本轮环境事实中，不影响 smoke 结果。
+
+本轮未将 npm deprecated/allow-scripts 警告计为失败；所有 runner 均有明确完成数，未出现 `exitCode=0` 且 `finished=0`。隔离 checkout、artifact、临时设置目录和构建生成物已在验证后清理。当前提交的 Windows 默认 embedded、简繁 feature、MSVC TUI 和 W3C smoke 收尾证据均已刷新。

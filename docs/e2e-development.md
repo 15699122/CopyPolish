@@ -959,3 +959,7 @@ Windows 必须刷新、不能由 Linux/WSL 替代的证据是：当前修复 bin
 ## 2026-09-03 Windows 原生验证收尾
 
 Windows native environment checkout 的当前证据：前端 70/70、E2E typecheck、embedded selection 3/3、设置重启 2/2、损坏设置 3/3、NTFS ACL 1/1、GUI 视觉 1/1、设置快捷键 1/1、TUI transcript 4/4，以及 Windows MSVC cargo test --features tui 166/166 均通过。简繁 feature 在独立 feature binary 上 2/2 通过（s2t、t2s）；标准 W3C smoke 2/2 通过。GUI DPI 自动验证和 GitLab Windows stage 仍为跳过；125%/150% 人工 GUI 与 Windows Terminal 交互 artifact 仍为已完成。Windows 端当前自动化收尾项目已全部完成。
+
+## 2026-09-03 提交 6687c13 Windows capability 刷新
+
+当前提交 `6687c1390c633385cfd02135cf3072f4d18f94a9` 已在隔离 Windows 原生 checkout `<isolated-windows-checkout>` 完成刷新验证：Node 24.19.0、Rust 1.98.0 MSVC；E2E 依赖安装和 typecheck 通过；默认 embedded 3/3（capability=false、T2S/S2T 禁用并归一化为 `none`）；feature embedded 2/2（capability=true、s2t/t2s 真实输出）；Windows MSVC TUI 167/167；W3C smoke 2/2，随机端口 51737，artifact `exitCode=0`、`finished=1`、`passed=1`、`failed=0`。原有旧 `dev` checkout 未修改，隔离验证目录及生成物已清理。此前“Windows 需重新留证”的描述仅属于更早提交的历史记录，不再代表当前提交状态。
