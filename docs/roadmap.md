@@ -53,7 +53,7 @@ span-aware 混合管线、规则注册表、阶段依赖、结构/语义 span �
 
 ## P1：字符转换与用户工作流
 
-- [ ] 完成全角 ASCII 转半角 Spike/实现：不使用全文 NFKC，和现有半角数字规则保持边界清晰；
+- [x] 完成全角 ASCII 转半角 Spike/实现：不使用全文 NFKC；新增默认关闭的 `text.halfwidth-ascii`，仅转换全角 ASCII 字母/标点，全角数字继续由 `text.halfwidth-digits` 负责，并通过现有结构保护跳过链接、代码、公式和化学式；
 - [x] 完成简繁转换 Spike 并用 `opencc-fmmseg`（MIT、OpenCC 风格词典 + FMM 分词）接入：确认许可证/纯 Rust/性能/体积（1 MB `s2t` ≈130 MB/s、字节增量约 2.1 MB），结构感知只转可编辑区间；以 `simplified-trad-conversion` 可选 feature 落地（默认构建不启用，保持占位）。决策与语义边界见 `docs/decisions/simplified-trad-conversion-spike.md`；
 - [x] 增加自定义字面量替换（有序、仅 active、span 保护前执行、首版不支持正则）：作为请求层阶段随统一请求模型落地；
 - [x] 在桌面 GUI 中接入替换列表和简繁转换选择器，完成请求透传、实时重排与 `rules.yaml` 持久化；

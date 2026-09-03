@@ -8,6 +8,7 @@
 
 - 增加默认关闭的 `spacing.numeric-punctuation` 规则：可选修复小数点、时间/比例冒号、数字分组逗号和数字斜线两侧的异常 ASCII 空格；保留版本号/IP 等连续点号数字链，并通过结构保护跳过 URL、代码和公式。
 - 增加默认关闭的 `cleanup.kangxi-radicals` 规则：依据 Unicode 17.0.0 官方 `UnicodeData.txt` 的 214 项兼容分解映射修复康熙部首；不执行全文 NFKC，并通过结构保护跳过 URL、代码和公式。
+- 增加默认关闭的 `text.halfwidth-ascii` 规则：仅将可编辑文本中的全角 ASCII 字母和标点映射为半角字符，全角数字继续由 `text.halfwidth-digits` 负责；不处理全角空格、不执行全文 NFKC，并通过结构保护跳过链接、代码、公式和化学式。
 - 增加 GUI 静态帮助入口和首次使用提示；帮助说明高风险清洗规则、结构保护、输出/复制动作及浏览器演示模式边界，首次提示可关闭或直接打开帮助，查看状态仅保存在前端 `localStorage`。
 
 ### Maintenance
@@ -30,7 +31,7 @@
 - 使用提交 `6687c13` 在隔离 Windows 原生 checkout 刷新 capability 证据：默认 embedded 3/3、简繁 feature embedded 2/2、Windows MSVC TUI 167/167、W3C smoke 2/2（随机端口 51737）均通过；所有 runner 均有明确完成数，隔离 checkout 和生成物已清理。
 - TUI 新增替换与字符转换请求设置面板（`Ctrl+E`）：支持有序替换项新增/编辑/启停/删除、`from`/`to` 字段切换和 `none`/`t2s`/`s2t` 模式循环；与 GUI 共用 `FormatRequest` 和 `rules.yaml`，默认构建将不可用简繁模式归一化为 `none`，feature 构建保留真实转换。
 - 新增三个内置工作流预设：中文文案、PDF 清洗、技术文档。预设通过 `get_presets` 同时提供给 GUI 和 TUI，只展开为统一 `FormatRequest` 的规则选择、替换与转换字段；PDF 预设不解析 PDF 文件本体。
-- 新增文本清洗与规范排版工作流决策（`docs/decisions/text-cleaning-workflow.md`），并将产品描述调整为本地优先的中文文本清洗与规范排版工具；更复杂的来源文本清洗、全角 ASCII 转半角和其他转换能力仍属于后续路线图，不代表本版本已经实现。
+- 新增文本清洗与规范排版工作流决策（`docs/decisions/text-cleaning-workflow.md`），并将产品描述调整为本地优先的中文文本清洗与规范排版工具；更复杂的来源文本清洗和其他转换能力仍属于后续路线图，不代表本版本已经实现。
 - 新增设置存储回退（ADR 方案 B，`docs/decisions/settings-storage-policy.md`）：程序目录不可写时自动改用平台应用数据目录（Windows `%APPDATA%\CopyPolish`、Linux/macOS `~/.config/CopyPolish`）保存 `rules.yaml`，主界面提示实际生效位置；便携用户行为不变。新增 6 项存储决策单测（同目录优先、双位置并存、只读回退等）。
 - 新增统一本地清理入口 `scripts/clean.py`（白名单删除构建缓存、`e2e/artifacts/` 和 `e2e/settings-*` 临时设置目录，支持 `--dry-run`/`--deep`），并约定测试结果记录后清理本地 artifact、远程仅记录测试结论。
 - 新增注册表与 README 规则表一致性自动检查（`src-tauri/tests/readme_registry.rs`），防止 stable key、展示名、分类和默认状态在两份数据间漂移。

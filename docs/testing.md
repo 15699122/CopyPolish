@@ -24,6 +24,7 @@
 | 数值标点空格 | 显式规则下的小数、时间/比例、分组逗号和数字斜线；默认关闭及版本号/IP 连续点号反例 | 更复杂的本地化数字格式、货币和日期语料 |
 | Markdown/HTML/LaTeX | span、嵌套结构、未闭合结构、后续文本不吞并、保护 fixture | 继续扩展真实文档样本 |
 | Unicode | grapheme、emoji、组合符、CJK Ext-B | Unicode 数据/工具链升级回归 |
+| 全角/半角转换 | `text.halfwidth-digits` 与 `text.halfwidth-ascii` 的职责边界、全角空格/NFKC 反例和结构保护 | 补充真实来源语料后评估更多字符类别 |
 | 单位和数学 | 有限词典、复合单位、数学边界 | 按真实语料扩展词典 |
 | 自定义替换、简繁转换与工作流预设 | Rust 请求/设置/预设 fixture；GUI 与 TUI 组件/事件交互、添加/编辑/启停/删除/转换选择、预设加载与应用、设置加载、持久化、请求透传、实时重排、快捷键立即排版和旧设置兼容；默认与 `simplified-trad-conversion` feature 构建覆盖；embedded GUI E2E 已覆盖保存、替换输出、重启恢复及 feature 下双向真实转换 | CLI 参数 |
 | 设置 | Rust Windows 测试 16/16；Windows 真实 GUI 修复后已手动完成保存、重启恢复、损坏 fixture、ACL 保存失败及视觉/DPI/窄窗口回归；损坏设置、重启恢复和 NTFS ACL 已在两个 provider 自动化通过；统一 artifact、受控失败 probe 和 GUI 主题/窄窗口 artifact 已实现 | embedded/W3C Windows E2E 已复验真实 WebView2、IPC、全不选恒等、临时路径、规则保存、ACL 拒写恢复和失败留证；三档人工 DPI 已完成，GUI DPI 自动验证已跳过（不执行）；三档人工 GUI 验证已完成；GitLab Windows stage 已跳过 |

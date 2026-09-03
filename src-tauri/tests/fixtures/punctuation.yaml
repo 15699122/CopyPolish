@@ -22,6 +22,22 @@
   input: 只卖１０００元
   expected: 只卖1000元
 
+- name: 显式将全角 ASCII 字母和标点转换为半角
+  selection:
+    mode: only
+    keys:
+      - text.halfwidth-ascii
+  input: ＡＢＣ（测试）！＠＃，１２３
+  expected: ABC(测试)!@#,１２３
+
+- name: 全角 ASCII 转换不执行全文 NFKC
+  selection:
+    mode: only
+    keys:
+      - text.halfwidth-ascii
+  input: Ａ　Å㎏
+  expected: A　Å㎏
+
 - name: 英文整句使用半角标点
   selection:
     mode: only

@@ -120,7 +120,6 @@ impl App {
             selection: self.selection.clone(),
             replacements: self.replacements.clone(),
             conversion: settings::normalize_conversion(self.conversion),
-            ..Default::default()
         };
         match engine::format_text(&request) {
             Ok(output) => {

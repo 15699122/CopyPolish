@@ -2,7 +2,7 @@
   selection:
     mode: all
   input: 使用 github！！
-  expected: 使用 GitHub！
+  expected: 使用 GitHub!
 
 - name: 全不选模式保持输入不变
   selection:
