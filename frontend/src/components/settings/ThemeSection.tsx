@@ -24,8 +24,8 @@ export function ThemeSection({
   return (
     <div className="space-y-2">
       <h3 className="text-sm font-semibold">主题</h3>
-      <div className="grid w-full grid-cols-[1.35fr_1fr_1fr] gap-1.5" data-testid="theme-options">
-        <div className="flex w-full min-w-0 items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-accent">
+      <div className="grid w-full grid-cols-3 gap-2" data-testid="theme-options">
+        <div className="flex w-full min-w-0 items-center gap-1.5 rounded-md px-2 py-1.5 transition-colors hover:bg-accent">
           <Checkbox
             id="theme-system"
             checked={followingSystem}

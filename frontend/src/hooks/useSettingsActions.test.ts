@@ -4,8 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useSettingsActions } from "./useSettingsActions";
 
 const rules = [
-  { key: "rule-a", section: "空格", name: "规则 A", disputed: false, default: true },
-  { key: "rule-b", section: "空格", name: "规则 B", disputed: false, default: false },
+  { key: "rule-a", section: "空格", name: "规则 A", example: { before: "a", after: "b" }, disputed: false, default: true },
+  { key: "rule-b", section: "空格", name: "规则 B", example: { before: "a", after: "b" }, disputed: false, default: false },
 ];
 
 const defaultBindings = {
