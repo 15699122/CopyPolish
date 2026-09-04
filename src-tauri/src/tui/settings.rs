@@ -148,6 +148,10 @@ mod tests {
                 section: "测试".to_string(),
                 name: format!("规则 {key}"),
                 description: format!("测试规则 {key}"),
+                example: crate::engine::RuleExample {
+                    before: format!("前{key}"),
+                    after: format!("后{key}"),
+                },
                 kind: RuleKind::Typography,
                 risk: RuleRisk::Safe,
                 disputed: false,
