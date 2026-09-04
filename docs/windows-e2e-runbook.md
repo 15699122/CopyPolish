@@ -30,15 +30,31 @@ Linux、WSL/WSLg 和普通 Chrome 可以验证部分业务语义，但不能替�
 | Terminal TUI artifact | 将真实 Windows Terminal 交互和退出清理固化为输入/输出/截图/日志留证 | 已通过（依据用户确认） | 关键场景、清理和结果均已确认 |
 | GitLab Windows stage | 在 Windows runner 上重复运行 E2E 并始终上传 artifact | 跳过（不执行） | 项目决定不配置、不运行；不得记为通过 |
 
+### 1.2.1 PR #24 当前 Windows 待办（2026-09-04）
+
+PR #24（`fix/settings-dialog-polish`，被测代码提交 `fa2fc1c`）修改了设置窗口的布局、路径交互和规则展示。2026-09-03 以前的 Windows 证据来自旧 binary，不能覆盖这些新增 UI 行为；以下项目必须在包含 PR #24 的 Windows binary 上重新执行：
+
+| 待办 | 必须确认的内容 | 完成证据 |
+| --- | --- | --- |
+| 主题布局 | “跟随系统 / 浅色 / 深色”三个选项等宽，选项间距统一；浅色、深色主题下文字、禁用态和焦点环可读 | 浅色/深色截图、page source 和环境 metadata |
+| 窄窗口 Footer | 正常窗口及至少一个窄窗口下，设置文件区域不挤压操作按钮，底部不溢出 | `settings-narrow` artifact，人工检查通过 |
+| 设置路径交互 | 页面仅显示 `rules.yaml`；悬停/聚焦可获取完整路径；鼠标点击、键盘 Enter/Space 可复制完整路径；成功/失败反馈正常 | page source + Windows 剪贴板人工确认 |
+| 简繁转换布局 | “简繁转换”标签与选择框有明确垂直间距，默认构建的 T2S/S2T 禁用状态保持正确 | 设置截图和 page source |
+| 规则示例提示 | 悬停规则卡片显示 `before → after` 示例；键盘聚焦 Checkbox 时可通过辅助描述获取同一示例 | page source + 鼠标/键盘交互记录 |
+| 当前 binary 设置回归 | 规则、主题、字体、缩放、替换和转换设置保存/恢复，真实 Rust IPC 输出正常 | `selection-and-persistence.spec.ts` 3/3；必要时补跑 feature spec |
+
+本章节的待办不能由 WSL、普通浏览器或 Linux GUI 替代。它们可以用于前端测试、Rust 测试和业务语义 smoke，但不能作为 Windows WebView2、Windows DPI、系统剪贴板或原生窗口布局的通过证据。
+
 **状态更新**：用户已确认 WT-TUI-001/002/003 修复后完成 Windows 原生复验，Terminal 交互 artifact 标记为通过。GitLab Windows E2E stage 已决定跳过（不执行）。
 ### 1.3 2026-09-02 Windows 原生复验记录
 
 本轮在 E 盘 checkout、Windows WebView2 151.0.4129.107、Node 24.19.0、Rust 1.98.0 `x86_64-pc-windows-msvc`、PowerShell 7.6.5 和 Visual Studio Build Tools 17.14.37614.0 上重新执行了可自动化项目。前端测试 69/69、E2E typecheck、embedded/WebDriver/`simplified-trad-conversion`/TUI release 构建均通过；标准 W3C smoke 2/2、设置重启 write/read 2/2、损坏设置三种 fixture 3/3、NTFS ACL 1/1、GUI 视觉 artifact 1/1、设置快捷键控制台 1/1、TUI transcript 4/4 均通过。受控失败 artifact probe 按预期生成失败结果并通过 bundle 自检。随后 Linux/WSL 已完成当前修复 binary 的替换链路 3/3 和 feature 双向转换 2/2；Windows 仍需用当前修复 binary 重新执行对应 GUI spec。
 
-当前有一项需要跟进的 Windows GUI 复验，原始失败 artifact 保留在 `e2e/artifacts/embedded/`：
+当前有一项历史失败回归和一组 PR #24 新增 UI 待办，原始失败 artifact 保留在 `e2e/artifacts/embedded/`：
 
-- `selection-and-persistence.spec.ts`：旧 binary 的第三个“真实 GUI 保存替换项和简繁转换设置” case 在设置已写入后，输入 `TODO` 未得到 `待办`（本轮 artifact `1788353402936`，早先复现 artifact `1788351053668`）。当前代码已在 Linux/WSL 定向验证通过，Windows 必须重新构建并复跑确认。
+- `selection-and-persistence.spec.ts`：旧 binary 的第三个“真实 GUI 保存替换项和简繁转换设置” case 在设置已写入后，输入 `TODO` 未得到 `待办`（本轮 artifact `1788353402936`，早先复现 artifact `1788351053668`）。当前代码已在 Linux/WSL 定向验证通过，Windows 必须重新构建并复跑确认；该历史问题不等同于当前 restart spec 的 capability 修复已通过。
 - `simplified-trad-conversion.spec.ts`：首次运行因实际使用了默认 binary 而未产生转换结果；先执行 `build:app:simplified-trad` 后，s2t/t2s 均通过（2/2）。
+- PR #24 设置页待办：主题三项等宽间距、`rules.yaml` 路径仅显示文件名并支持完整路径复制、简繁转换间距、规则 hover 示例和键盘辅助描述，均未被旧 GUI artifact 覆盖，必须使用 `fa2fc1c` 或其后包含 PR #24 的 Windows binary 重新留证。
 
 上述第一项仍不能标记为 Windows 当前修复版本通过；其余专项结果不受影响。GUI DPI 自动矩阵和 GitLab Windows 可选 stage 仍按项目决定跳过，Windows Terminal 交互 artifact 仍按用户确认标记通过。Unix-only 权限测试现已增加 `#[cfg(unix)]`，Windows 需重新执行 `cargo test --features tui` 确认测试目标编译及完整结果；在此之前不能将旧的 Rust/TUI 结果视为当前修复版本的新鲜证据。
 
@@ -351,9 +367,9 @@ Artifact 根目录：
 
 如果入口还不能把 DPI、窗口矩形或主题写入 metadata，应补充 runner/脚本并重新执行该档，不得用人工笔记替代缺失的原始证据。
 
-### 3.3 每档检查与预期成果（人工结果已完成，自动验证不执行）
+### 3.3 每档检查与预期成果（历史人工结果；PR #24 需重新确认）
 
-检查主窗口无白屏/黑屏；输入输出框、设置标题、说明、checkbox、按钮和底部操作区无重叠；窄窗口可访问全部设置；长 Windows 路径中间省略但保留 `rules.yaml`；`title`/`aria-label` 保留完整路径；主题、字体、字号、缩放、规则状态保存后保持一致；至少完成一次真实格式化；关闭后无残留进程或监听端口。
+历史人工结果检查主窗口无白屏/黑屏；输入输出框、设置标题、说明、checkbox、按钮和底部操作区无重叠；窄窗口可访问全部设置；设置文件默认显示 `rules.yaml`，`title`/`aria-label` 保留完整路径；主题、字体、字号、缩放、规则状态保存后保持一致；至少完成一次真实格式化；关闭后无残留进程或监听端口。PR #24 的主题三项间距、路径悬停/复制、简繁转换间距、规则示例提示和键盘交互必须按 §1.2.1 使用当前 binary 重新确认。
 
 每个 `<scale>-<theme>-<window>-<provider>` 目录至少包含：
 
@@ -611,7 +627,7 @@ GUI DPI 和 GitLab Windows stage 已跳过；Windows Terminal TUI 交互 artifac
 
 - `npm run typecheck --prefix e2e`：通过；前端单测 70/70 通过；
 - 默认 embedded `selection-and-persistence.spec.ts`：3/3 通过；日志 `C:\Users\Shiraishi\AppData\Local\Temp\copypolish-selection-current-20260903.log`；
-- `test:restart-settings`：write/read 2/2 通过；
+- 历史 `test:restart-settings` 曾记录 write/read 2/2，但该结果不覆盖 2026-09-04 的 capability 复验；当前 spec 已修正，新的 write/read 结果待重新执行；
 - `test:corrupt-settings`：三个 fixture 3/3 通过（串行重跑）；
 - `test:acl-settings`：1/1 通过（串行重跑）；
 - `test:gui-visual-artifacts`：1/1 通过，生成 DPI 200% 诊断 artifact；
@@ -621,7 +637,7 @@ GUI DPI 和 GitLab Windows stage 已跳过；Windows Terminal TUI 交互 artifac
 - `simplified-trad-conversion.spec.ts`：2/2 通过（s2t、t2s）；本轮日志 `C:\Users\Shiraishi\AppData\Local\Temp\copypolish-feature-r2-20260903.log`；
 - `test:webdriver`：2/2 通过；本轮标准 provider 在端口 63433 建立 session、完成格式化和设置保存。
 
-GUI DPI 自动矩阵仍按项目决定跳过；125%/150% 人工 GUI 验证保持已完成；GitLab Windows 可选 E2E stage 跳过（不执行）；Windows Terminal 交互 artifact 保持用户确认通过。所有 runner 均按串行方式执行，未将 `exitCode=0` 且 `finished=0` 的 artifact 计入结果。当前文档列出的 Windows 收尾自动化项目已全部取得通过证据。
+GUI DPI 自动矩阵仍按项目决定跳过；125%/150% 人工 GUI 验证保持已完成；GitLab Windows 可选 E2E stage 跳过（不执行）；Windows Terminal 交互 artifact 保持用户确认通过。所有 runner 均按串行方式执行，未将 `exitCode=0` 且 `finished=0` 的 artifact 计入结果。除默认构建的 `test:restart-settings` 新 spec 复验外，本节列出的 Windows 收尾自动化项目均已有通过证据；restart 的历史 2/2 结果不作为当前 capability 修复的通过依据。
 
 历史记录：修复曾先在 Linux/WSL 定向回归；本轮 Windows 已使用当前 binary 完成 embedded selection 3/3、简繁 feature 2/2 和 W3C smoke 2/2，详见本节结果。
 
@@ -638,3 +654,21 @@ GUI DPI 自动矩阵仍按项目决定跳过；125%/150% 人工 GUI 验证保持
 - W3C smoke：先执行 `npm run build:app:webdriver --prefix e2e`，随后 `npm run test:webdriver --prefix e2e`；随机端口 **51737**，标准 provider **2/2 passing**，`result.json` 为 `exitCode=0`、`finished=1`、`passed=1`、`failed=0`；artifact 位于隔离 checkout 的 `e2e/artifacts/webdriver/1788419572347-smoke/`。WDIO session 报告 Edge 152.0.0.0；PowerShell 查询到的 Edge 安装版本为 153.0.4234.13，版本差异保留在本轮环境事实中，不影响 smoke 结果。
 
 本轮未将 npm deprecated/allow-scripts 警告计为失败；所有 runner 均有明确完成数，未出现 `exitCode=0` 且 `finished=0`。隔离 checkout、artifact、临时设置目录和构建生成物已在验证后清理。当前提交的 Windows 默认 embedded、简繁 feature、MSVC TUI 和 W3C smoke 收尾证据均已刷新。
+## 13. 2026-09-04 当前 checkout 复验结果
+
+本轮先将 WSL checkout 的源文件与文档同步到 `E:\Shiraishi\VSCode Workspace\chinese_copywriting_formatter`，再在该 Windows 原生 checkout 以 PowerShell 7 串行复验。所有 runner 均检查实际完成数，不把空 artifact 计为通过。
+
+- `npm run typecheck --prefix e2e`：通过（退出码 0）；
+- `npm test --prefix frontend`：101/101 通过；
+- 默认 embedded 构建与 `selection-and-persistence.spec.ts`：3/3 通过；
+- `npm run build:app:simplified-trad --prefix e2e` 与 `simplified-trad-conversion.spec.ts`：2/2 通过（s2t、t2s）；
+- `npm run build:app:webdriver --prefix e2e` 与 `test:webdriver`：2/2 通过；
+- Windows MSVC `cargo test --manifest-path src-tauri/Cargo.toml --features tui`：182 passed、0 failed；
+- `test:corrupt-settings`：三个 fixture 3/3 通过（`primary-corrupt-backup-valid`、`primary-corrupt-no-backup`、`primary-and-backup-corrupt`）；
+- `test:acl-settings`：1/1 通过；`test:gui-visual-artifacts`：1/1 通过；`test:settings-shortcut-console`：1/1 通过；
+- 构建 `copypolish-tui.exe` 后运行 `test:tui-transcript`：4/4 通过，artifact `e2e/artifacts/tui-transcript/1788520976024`；
+- GUI DPI 自动矩阵继续按项目决定跳过；125%/150% 人工 GUI 验证和 Windows Terminal 交互 artifact 保持已完成；GitLab Windows 可选 E2E stage 跳过（不执行）。
+
+本轮 `test:restart-settings` 未通过：默认构建的 `buildCapabilities.simplifiedTradConversion=false` 会禁用 T2S/S2T 并将设置归一化为 `conversion: none`，旧版 `e2e/specs/restart-settings.spec.ts` 却强制注入并等待 `t2s`，在 `restart-settings.spec.ts:53` 报“第一次启动的简繁转换选择未更新”。spec 已按 capability 分支修正，默认构建将验证禁用/归一化，feature binary 将验证 `t2s` 恢复；需重新执行后才能更新通过结论。
+
+本轮日志保存在 `C:\Users\Shiraishi\AppData\Local\Temp\copypolish-*-20260904.log`；WSL 与 E 盘的非生成文件已再次核对为 241/241、无独有文件、无 hash 差异。
