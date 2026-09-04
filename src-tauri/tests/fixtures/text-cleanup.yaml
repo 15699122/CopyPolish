@@ -64,3 +64,27 @@
       - cleanup.kangxi-radicals
   input: "普通字一，代码`⼀`，链接https://example.com/⼀"
   expected: "普通字一，代码 `⼀`，链接 https://example.com/⼀"
+
+- name: 清理中文之间单个异常空格
+  selection:
+    mode: only
+    keys:
+      - cleanup.cjk-internal-space
+  input: "这是从PDF复 制的中 文文本。"
+  expected: "这是从PDF复制的中文文本。"
+
+- name: 中文异常空格规则保留连续空格和汉字与拉丁/数字边界
+  selection:
+    mode: only
+    keys:
+      - cleanup.cjk-internal-space
+  input: "中  文 ＡＢＣ数 字 5 以及标点，空格。"
+  expected: "中  文 ＡＢＣ数字 5 以及标点，空格。"
+
+- name: 中文异常空格规则保护代码和链接内容
+  selection:
+    mode: only
+    keys:
+      - cleanup.cjk-internal-space
+  input: "文本`中 文`与[链接 中 文](https://example.com/中 文)"
+  expected: "文本 `中 文` 与 [链接 中 文](https://example.com/中 文)"

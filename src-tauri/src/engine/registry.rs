@@ -20,6 +20,7 @@ pub mod keys {
     pub const CLEANUP_COLLAPSE_HORIZONTAL_SPACES: &str = "cleanup.collapse-horizontal-spaces";
     pub const CLEANUP_LIMIT_BLANK_LINES: &str = "cleanup.limit-blank-lines";
     pub const CLEANUP_KANGXI_RADICALS: &str = "cleanup.kangxi-radicals";
+    pub const CLEANUP_CJK_INTERNAL_SPACE: &str = "cleanup.cjk-internal-space";
     pub const SPACING_CJK_LATIN: &str = "spacing.cjk-latin";
     pub const SPACING_CJK_NUMBER: &str = "spacing.cjk-number";
     pub const SPACING_NUMBER_UNIT: &str = "spacing.number-unit";
@@ -73,7 +74,8 @@ fn phase_for_key(key: &str) -> RulePhase {
         CLEANUP_REFERENCE_SQUARE
         | CLEANUP_COLLAPSE_HORIZONTAL_SPACES
         | CLEANUP_LIMIT_BLANK_LINES
-        | CLEANUP_KANGXI_RADICALS => RulePhase::Cleanup,
+        | CLEANUP_KANGXI_RADICALS
+        | CLEANUP_CJK_INTERNAL_SPACE => RulePhase::Cleanup,
         PUNCT_NO_REPETITION
         | PUNCT_FULLWIDTH_CJK
         | TEXT_HALFWIDTH_DIGITS
@@ -99,7 +101,8 @@ fn dependencies_for_key(key: &str) -> (&'static [&'static str], &'static [&'stat
         CLEANUP_REFERENCE_SQUARE
         | CLEANUP_COLLAPSE_HORIZONTAL_SPACES
         | CLEANUP_LIMIT_BLANK_LINES
-        | CLEANUP_KANGXI_RADICALS => (&[], &[]),
+        | CLEANUP_KANGXI_RADICALS
+        | CLEANUP_CJK_INTERNAL_SPACE => (&[], &[]),
         PUNCT_FULLWIDTH_CJK => (&[], &[PUNCT_NO_REPETITION][..]),
         TEXT_HALFWIDTH_DIGITS => (&[], &[PUNCT_FULLWIDTH_CJK][..]),
         TEXT_HALFWIDTH_ASCII => (&[], &[TEXT_HALFWIDTH_DIGITS][..]),
@@ -175,6 +178,11 @@ fn metadata_for_key(key: &str, _name: &str, disputed: bool) -> (&'static str, Ru
         ),
         CLEANUP_KANGXI_RADICALS => (
             "依据 Unicode 官方兼容分解表，将 U+2F00–U+2FD5 康熙部首映射为对应汉字；默认关闭，不执行全文 Unicode 规范化。",
+            RuleKind::Cleanup,
+            RuleRisk::Contextual,
+        ),
+        CLEANUP_CJK_INTERNAL_SPACE => (
+            "删除普通正文中相邻两个汉字之间单个 ASCII 空格，用于修复从 PDF/CAJ 复制时混入的内部异常空格；跳过连续空格、制表符、跨换行、CJK 与拉丁/数字/单位/标点边界，并受结构保护。默认关闭：按合成失败基线试实现，未经真实来源语料验收。",
             RuleKind::Cleanup,
             RuleRisk::Contextual,
         ),
@@ -310,6 +318,15 @@ static RULES: std::sync::LazyLock<Vec<RuleDef>> = std::sync::LazyLock::new(|| {
             false,
             &["修复康熙部首"],
             rule_impls::kangxi_radicals,
+        ),
+        def(
+            CLEANUP_CJK_INTERNAL_SPACE,
+            "文本清洗",
+            "清理中文之间异常空格",
+            false,
+            false,
+            &[],
+            rule_impls::cjk_internal_space,
         ),
         def(
             PUNCT_NO_REPETITION,
