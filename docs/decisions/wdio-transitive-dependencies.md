@@ -75,3 +75,23 @@ provider 回归和 `npm audit`。
 `@puppeteer/browsers` 3.x 约束；`extract-zip` 发布修复版本；或项目决定迁移到
 不再引入该依赖的完整 provider/toolchain，并在 embedded/W3C、Windows 和许可证
 检查全部通过后单独提交。
+
+## 6. 2026-09-04 维护复核
+
+本次复核使用当前锁文件和工具链重新检查：
+
+- `npm outdated --prefix e2e` 仅报告 `expect` 的 `30.5.1` patch 更新和
+  `@types/node` 的 26.x 跨主版本更新；当前离线缓存没有 `expect@30.5.1`，因此未修改
+  `e2e/package.json` 或 `e2e/package-lock.json`；
+- `npm explain --prefix e2e @puppeteer/browsers extract-zip` 确认当前链路仍为
+  `@wdio/utils@9.31.5` → `@puppeteer/browsers@2.13.2` → `extract-zip@2.0.1`，
+  另有 `@wdio/tauri-service@1.3.0` 使用 `webdriverio@9.30.0`；
+- `npm audit --prefix e2e` 因 2026-09-04 连接 npm registry 时发生 TLS/socket 断开而未取得 advisory 结果，
+  不将本次网络失败记为审计通过，也未执行 `npm audit fix --force`；
+- `cargo audit --file src-tauri/Cargo.lock --json` 返回 0 个漏洞、21 个允许的 warning；
+- `python3 scripts/generate_licenses.py --features simplified-trad-conversion` 已重新生成
+  `docs/licenses.md`：Rust 443 条、npm 294 条、许可证字段缺失 0 条。
+
+同时修正 `scripts/verify.py --profile audit`，使 Cargo 审计显式读取
+`src-tauri/Cargo.lock`，避免从仓库根目录执行时误报缺少锁文件。由于 E2E advisory
+服务不可用且剩余依赖链没有兼容的安全升级，本次仍不将路线图中的持续维护项标记为完成。

@@ -10,7 +10,7 @@
 - Rust 排版引擎：`src-tauri/src/engine/`；
 - TUI：启用 Cargo feature `tui` 的 `copypolish-tui`；
 - 当前行为事实来源：Rust engine；浏览器 fallback 仅用于 UI 预览；
-- 当前产品边界：已交付规范排版、首批来源文本清洗、自定义字面量替换、中文文案/PDF 清洗/技术文档内置预设、GUI 设置接线、实时/手动输出、GUI 布局选择、输入输出统计以及 TUI 替换/字符转换/预设面板；简繁转换随 `simplified-trad-conversion` 可选 feature 提供，默认构建保持占位；全角 ASCII 转半角和更复杂的清洗/转换能力仍按 [roadmap.md](roadmap.md) 规划，未实现能力不得写成当前行为；
+- 当前产品边界：已交付规范排版、首批来源文本清洗、自定义字面量替换、中文文案/PDF 清洗/技术文档内置预设、GUI 设置接线、实时/手动输出、GUI 布局选择、输入输出统计以及 TUI 替换/字符转换/预设面板；简繁转换随 `simplified-trad-conversion` 可选 feature 提供，默认构建保持占位；全角 ASCII 转半角已作为默认关闭规则提供，更复杂的清洗/转换能力仍按 [roadmap.md](roadmap.md) 规划，未实现能力不得写成当前行为；
 - 当前后续任务：见 [roadmap.md](roadmap.md)。
 
 ## 工具链和初始化
