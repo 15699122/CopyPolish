@@ -24,6 +24,7 @@ describe("CopyPolish Windows NTFS ACL 设置保存失败", () => {
     await $("[data-testid=\"open-settings\"]").click();
     const settingsPath = await $("[data-testid=\"settings-path\"]");
     expect(await settingsPath.getAttribute("title")).toBe(fixturePath);
+    expect(await settingsPath.getText()).toBe("rules.yaml");
 
     const selectNone = await $("[data-testid=\"select-none\"]");
     await selectNone.waitForDisplayed({ timeout: 10_000 });

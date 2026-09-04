@@ -13,6 +13,10 @@
 - 当前产品边界：已交付规范排版、首批来源文本清洗、自定义字面量替换、中文文案/PDF 清洗/技术文档内置预设、GUI 设置接线、实时/手动输出、GUI 布局选择、输入输出统计以及 TUI 替换/字符转换/预设面板；简繁转换随 `simplified-trad-conversion` 可选 feature 提供，默认构建保持占位；全角 ASCII 转半角已作为默认关闭规则提供，更复杂的清洗/转换能力仍按 [roadmap.md](roadmap.md) 规划，未实现能力不得写成当前行为；
 - 当前后续任务：见 [roadmap.md](roadmap.md)。
 
+### Windows 原生验证状态
+
+Linux/WSL 环境可以完成 Linux/WSL 的前端、Rust、E2E typecheck 和业务语义验证，但不能替代 Windows 原生桌面验收。PR #24 的 Windows 原生验收已于 2026-09-04 闭环：主题三项间距、窄窗口 Footer、`rules.yaml` 完整路径悬停/复制、简繁转换标签间距、规则 hover 示例、键盘焦点/Space/Enter 行为以及设置保存/恢复均已取得通过证据。详细矩阵、命令、artifact 和清理要求见 [windows-e2e-runbook.md](windows-e2e-runbook.md) §14 和 [testing.md](testing.md) §7.19；后续仅在相关代码、工具链或诊断范围变化时按需复跑。
+
 ## 工具链和初始化
 
 Node 版本由 `.nvmrc` 固定，Rust 版本由 `rust-toolchain.toml` 固定：

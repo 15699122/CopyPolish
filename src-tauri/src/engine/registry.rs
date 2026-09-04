@@ -10,7 +10,7 @@
 //   前端均无需改动。
 // =============================================================================
 
-use super::model::{RuleKind, RuleMeta, RuleRisk};
+use super::model::{RuleExample, RuleKind, RuleMeta, RuleRisk};
 use super::rule_impls;
 use std::collections::{HashMap, HashSet};
 
@@ -135,12 +135,17 @@ fn def(
     apply: fn(&str) -> String,
 ) -> RuleDef {
     let (description, kind, risk) = metadata_for_key(key, name, disputed);
+    let (before, after) = example_for_key(key);
     RuleDef {
         meta: RuleMeta {
             key: key.to_string(),
             section: section.to_string(),
             name: name.to_string(),
             description: description.to_string(),
+            example: RuleExample {
+                before: before.to_string(),
+                after: after.to_string(),
+            },
             kind,
             risk,
             disputed,
@@ -275,6 +280,37 @@ fn metadata_for_key(key: &str, _name: &str, disputed: bool) -> (&'static str, Ru
                 RuleRisk::Safe
             },
         ),
+    }
+}
+
+/// 每条规则的短示例（仅启用该规则时 `before` 会被处理为 `after`）。
+/// 示例必须与真实注册表行为一致，由 `engine::tests::rule_examples_match_engine_output` 校验，
+/// 防止展示文案与实现漂移。
+fn example_for_key(key: &str) -> (&'static str, &'static str) {
+    use keys::*;
+    match key {
+        CLEANUP_REFERENCE_SQUARE => ("根据结果[1]得出", "根据结果得出"),
+        CLEANUP_COLLAPSE_HORIZONTAL_SPACES => ("普通  文本", "普通 文本"),
+        CLEANUP_LIMIT_BLANK_LINES => ("第一段。\n\n\n第二段。", "第一段。\n\n第二段。"),
+        CLEANUP_KANGXI_RADICALS => ("部首⼀⼁", "部首一丨"),
+        CLEANUP_CJK_INTERNAL_SPACE => ("复 制的中 文", "复制的中文"),
+        PUNCT_NO_REPETITION => ("德国队！！", "德国队！"),
+        PUNCT_FULLWIDTH_CJK => ("你好,世界!", "你好，世界！"),
+        TEXT_HALFWIDTH_DIGITS => ("只卖１０００元", "只卖1000元"),
+        TEXT_HALFWIDTH_ASCII => ("ＡＢＣ！", "ABC!"),
+        TEXT_ASCII_PUNCT_IN_LATIN => ("Hello，world！", "Hello, world！"),
+        TEXT_UNICODE_EQUIVALENTS => ("直径3Å", "直径3Å"),
+        NAMING_PROPER_NOUNS => ("使用 github 登录", "使用 GitHub 登录"),
+        NAMING_EXPAND_ABBREVIATIONS => ("使用 ts 开发", "使用 TypeScript 开发"),
+        SPACING_AROUND_LINKS => ("查看[官网](https://example.com)然后", "查看 [官网](https://example.com) 然后"),
+        PUNCT_CORNER_QUOTES => ("他说“你好”", "他说「你好」"),
+        SPACING_CJK_LATIN => ("在LeanCloud上", "在 LeanCloud 上"),
+        SPACING_CJK_NUMBER => ("花了5000元", "花了 5000 元"),
+        SPACING_NUMBER_UNIT => ("宽带有10Gbps", "宽带有10 Gbps"),
+        SPACING_NUMERIC_PUNCTUATION => ("取小数1 . 5", "取小数1.5"),
+        SPACING_TEMPERATURE_CJK => ("-20 ℃保存", "-20 ℃ 保存"),
+        SPACING_NO_SPACE_AROUND_FW_PUNCT => ("你好 ， 世界 ！", "你好，世界！"),
+        _ => ("原文", "原文"),
     }
 }
 
