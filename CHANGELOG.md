@@ -21,7 +21,7 @@
 
 ### Maintenance
 
-- 2026-09-04：整理 PR #24 合并前的 Windows 原生待办；旧 Windows GUI/DPI 证据不覆盖本次设置页交互改动，需在当前修复 binary 上重新确认主题间距、路径悬停/复制、简繁转换布局、规则示例提示、键盘焦点和窄窗口表现。详细清单见 `docs/windows-e2e-runbook.md`。
+- 2026-09-04：PR #24 的 Windows 原生验收已闭环；当前 binary 的主题间距、路径悬停/复制、简繁转换布局、规则示例提示、键盘焦点、窄窗口 Footer、默认/feature 重启恢复及 W3C smoke 均已取得通过证据。GUI DPI 自动矩阵和 GitLab Windows stage 按项目决定跳过。详细记录见 `docs/windows-e2e-runbook.md`。
 
 - 记录 PDF/CAJ 段内软换行与 CJK 内部异常空格 Spike：当前仓库没有真实 PDF/CAJ 原文件或脱敏语料；现仅试实现默认关闭的保守 CJK-Han 单空格子集，未将其标记为真实来源验收通过，段内软换行和多栏顺序仍不处理。详情见 `docs/decisions/pdf-soft-wrap-spike.md`。
 - 2026-09-03 复核 E2E 依赖：WebdriverIO 9.31.5、`@wdio/tauri-service` 1.3.0 已是当前直接依赖版本；审计仍报告 13 项 high，根因是 `@puppeteer/browsers@2.13.2` 引入的 `extract-zip@2.0.1`，上游暂无修复版本。未接受跨 major override 或 `npm audit fix --force` 的 WebdriverIO 8 降级，详情见 `docs/decisions/wdio-transitive-dependencies.md`。

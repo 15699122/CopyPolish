@@ -12,7 +12,7 @@
 
 ## 当前基线
 
-span-aware 混合管线、规则注册表、阶段依赖、结构/语义 span 和 UTF-8 安全 TextEdit 已落地；桌面 GUI 与 TUI 共用 Rust 引擎和 `rules.yaml`。Windows 原生验证（E2E、设置损坏/ACL、GUI DPI 人工三档、Windows Terminal TUI 交互）均已完成或按项目决策跳过；默认构建重启 spec 仍需按 capability=false 语义修正，记录见 [windows-e2e-runbook.md](windows-e2e-runbook.md) 与归档。标准 W3C provider 已于 2026-09-01 收敛为兼容性 smoke（`specs/w3c/smoke.spec.ts`），不再与 embedded provider 并行跑完整回归。
+span-aware 混合管线、规则注册表、阶段依赖、结构/语义 span 和 UTF-8 安全 TextEdit 已落地；桌面 GUI 与 TUI 共用 Rust 引擎和 `rules.yaml`。Windows 原生验证（E2E、设置损坏/ACL、GUI DPI 人工三档、Windows Terminal TUI 交互）均已完成或按项目决策跳过；默认构建重启 spec 已按 capability=false 语义修正并完成验证，记录见 [windows-e2e-runbook.md](windows-e2e-runbook.md) 与归档。标准 W3C provider 已于 2026-09-01 收敛为兼容性 smoke（`specs/w3c/smoke.spec.ts`），不再与 embedded provider 并行跑完整回归。
 
 ## P0：仓库卫生与事实来源收敛
 
@@ -134,4 +134,7 @@ span-aware 混合管线、规则注册表、阶段依赖、结构/语义 span �
 
 WSL 更改已同步至 `E:\\\chinese_copywriting_formatter`，并在该 checkout 完成复验：前端 101/101、E2E typecheck、默认 embedded selection 3/3、简繁 feature 2/2、W3C/WebDriver 2/2、Rust/TUI MSVC 182/182、损坏设置 3/3、NTFS ACL 1/1、GUI artifact 1/1、设置快捷键 1/1、TUI transcript 4/4 均通过；125%/150% 人工 GUI 与 Windows Terminal 交互 artifact 保持已完成，GUI DPI 自动矩阵和 GitLab Windows stage 按项目决定跳过。
 
-默认 binary 的 `test:restart-settings` 曾因旧 spec 在 `restart-settings.spec.ts:53` 强制等待 `t2s` 而失败；当前 spec 已按 `simplifiedTradConversion` capability 分支断言，默认构建验证禁用/归一化为 `conversion: none`，feature 构建验证 `t2s` 恢复。下一步仍需在 Windows/当前 runner 重新执行并记录新的 write/read 结果；重跑前不将默认构建重启恢复列为本轮通过，其余 Windows 验证结果不受影响。
+默认 binary 的 `test:restart-settings` 曾因旧 spec 在 `restart-settings.spec.ts:53` 强制等待 `t2s` 而失败；当前 spec 已按 `simplifiedTradConversion` capability 分支断言，默认构建验证禁用/归一化为 `conversion: none`，feature 构建验证 `t2s` 恢复。2026-09-04 Windows 原生复验中默认与 feature 的 write/read 均为 2/2，历史失败已闭环。
+## 2026-09-04 Windows 验证闭环
+
+重启恢复 spec 的 selector 已修正并同步至 Windows native environment；默认 capability=false 与简繁 feature 的 write/read 均 2/2 通过。W3C smoke 单独重跑 2/2，损坏设置 3/3、ACL 1/1、GUI artifact 1/1、快捷键 1/1、feature 转换 2/2、Rust/TUI 182+5+3、TUI transcript 4/4 全部通过。GUI DPI 自动矩阵和 GitLab Windows stage 维持跳过，人工 DPI 与 Windows Terminal 交互 artifact 维持完成；Windows 自动验证当前无待闭环失败。
