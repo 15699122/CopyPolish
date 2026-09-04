@@ -242,6 +242,21 @@ fn dir_has_any_settings(dir: &Path) -> bool {
 
 /// 通过创建临时探针文件判断目录可写性；探针随后立即删除。
 pub(crate) fn dir_is_writable(dir: &Path) -> bool {
+    // GitLab Linux Runner 可能以 root 运行；root 可以绕过 Unix 的目录
+    // 写保护并成功创建文件。先检查权限位，保持“明确标记为只读的目录”
+    // 的语义，再用探针覆盖 ACL、挂载和其它实际文件系统限制。
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+
+        let Ok(metadata) = fs::metadata(dir) else {
+            return false;
+        };
+        if metadata.permissions().mode() & 0o222 == 0 {
+            return false;
+        }
+    }
+
     let probe = dir.join(format!(".copypolish-write-probe-{}", std::process::id()));
     match fs::File::create(&probe) {
         Ok(_) => {

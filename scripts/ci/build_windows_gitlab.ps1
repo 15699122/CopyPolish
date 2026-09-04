@@ -133,7 +133,7 @@ Invoke-Native "Verify version $Tag" { & $python "$RepoRoot\scripts\check_version
 Push-Location (Join-Path $RepoRoot "frontend")
 try {
     Invoke-Native "Install frontend dependencies" { npm ci }
-    Invoke-Native "Build Tauri Windows exe" { npm run tauri build --no-bundle }
+    Invoke-Native "Build Tauri Windows exe" { npm run tauri -- build --no-bundle }
 }
 finally {
     Pop-Location
