@@ -4,7 +4,7 @@
 `src-tauri/Cargo.lock` 对应的 `cargo metadata --locked`；npm 依赖来自
 `frontend/package-lock.json` 的 `packages` 条目。
 
-> 生成日期：2026-09-02；依赖升级后必须重新生成并审阅差异。
+> 生成日期：2026-09-04；依赖升级后必须重新生成并审阅差异。
 
 ## 汇总
 
