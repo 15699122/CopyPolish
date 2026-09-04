@@ -583,26 +583,27 @@ mod tests {
         let _ = fs::remove_dir_all(&app);
     }
 
-    #[cfg(unix)]
     #[test]
     fn unwritable_everywhere_keeps_exe_dir_and_reports_save_error() {
-        use std::os::unix::fs::PermissionsExt;
         let exe = unique_dir("exe-both-readonly");
         let app = unique_dir("app-both-readonly");
-        fs::set_permissions(&exe, fs::Permissions::from_mode(0o555)).unwrap();
-        fs::set_permissions(&app, fs::Permissions::from_mode(0o555)).unwrap();
+
+        // 不依赖 chmod 语义：把两个候选路径替换为普通文件，确保即使
+        // 测试进程以 root 运行，也无法在其下创建设置文件。
+        fs::remove_dir(&exe).unwrap();
+        fs::remove_dir(&app).unwrap();
+        fs::write(&exe, "exe path placeholder").unwrap();
+        fs::write(&app, "app path placeholder").unwrap();
 
         let (dir, fallback) = resolve_storage_dir(Some(&exe), Some(&app));
-        // 仍在只读状态下验证：保存按原语义返回带路径的诊断错误，而不是静默丢弃。
+        // 两个候选位置都不可用时，仍维持 exe 目录决策，并返回带路径的诊断错误。
         let error = save_to(&dir.join(SETTINGS_FILE_NAME), &UserSettings::default())
-            .expect_err("save should fail in readonly dir");
-        assert!(error.contains("failed"));
-        fs::set_permissions(&exe, fs::Permissions::from_mode(0o755)).unwrap();
-        fs::set_permissions(&app, fs::Permissions::from_mode(0o755)).unwrap();
+            .expect_err("save should fail when storage path is a file");
+        assert!(error.contains("settings parent path is not a directory"));
         assert_eq!(dir, exe);
         assert!(!fallback);
-        let _ = fs::remove_dir_all(&exe);
-        let _ = fs::remove_dir_all(&app);
+        let _ = fs::remove_file(&exe);
+        let _ = fs::remove_file(&app);
     }
 
     #[test]
