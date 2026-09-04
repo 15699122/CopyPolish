@@ -28,9 +28,9 @@ beforeEach(() => {
 
 const mocks = vi.hoisted(() => {
   const rules = [
-    { key: "rule-a", section: "空格", name: "中英文之间增加空格", description: "在中文与拉丁字母之间增加空格。", kind: "typography", risk: "safe", disputed: false, default: true },
-    { key: "rule-b", section: "空格", name: "中文与数字之间增加空格", description: "在中文与数字之间增加空格。", kind: "typography", risk: "safe", disputed: false, default: true },
-    { key: "rule-c", section: "争议", name: "争议规则", description: "这是一条需要复核的规则。", kind: "typography", risk: "contextual", disputed: true, default: false },
+    { key: "rule-a", section: "空格", name: "中英文之间增加空格", description: "在中文与拉丁字母之间增加空格。", example: { before: "在LeanCloud上", after: "在 LeanCloud 上" }, kind: "typography", risk: "safe", disputed: false, default: true },
+    { key: "rule-b", section: "空格", name: "中文与数字之间增加空格", description: "在中文与数字之间增加空格。", example: { before: "花了5000元", after: "花了 5000 元" }, kind: "typography", risk: "safe", disputed: false, default: true },
+    { key: "rule-c", section: "争议", name: "争议规则", description: "这是一条需要复核的规则。", example: { before: "旧", after: "新" }, kind: "typography", risk: "contextual", disputed: true, default: false },
   ];
   return {
     rules,
@@ -298,19 +298,20 @@ describe("App 主流程", () => {
     );
     expect(settingsPathEl).toHaveAttribute(
       "aria-label",
-      "设置文件完整路径：C:\\Users\\Tester\\Desktop\\CopyPolish\\rules.yaml",
+      "点击复制设置文件完整路径：C:\\Users\\Tester\\Desktop\\CopyPolish\\rules.yaml",
     );
+    expect(settingsPathEl).toHaveAttribute("type", "button");
     expect(settingsPathEl).toHaveClass("underline", "decoration-dotted", "underline-offset-4");
     // 下划线只作用于路径本身，“设置文件：”标签不带下划线。
     expect(screen.getByTestId("settings-path-label")).not.toHaveClass("underline");
-    expect(settingsPathEl).toHaveTextContent("C:\\Users\\Tester\\Desktop\\CopyPolish\\rules.yaml");
+    expect(settingsPathEl).toHaveTextContent("rules.yaml");
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
     expect(screen.getByTestId("settings-version")).toHaveTextContent("版本 0.5.0-test");
     expect(screen.getByTestId("settings-footer")).toHaveClass("px-4", "py-4", "sm:px-6");
     expect(screen.getByTestId("settings-actions")).toBeInTheDocument();
     // 主题：跟随系统为勾选框，浅色/深色为单选项（默认勾选跟随时禁用）。
     expect(screen.getByTestId("theme-options")).toBeInTheDocument();
-    expect(screen.getByTestId("theme-options")).toHaveClass("grid-cols-[1.35fr_1fr_1fr]");
+    expect(screen.getByTestId("theme-options")).toHaveClass("grid-cols-3");
     expect(screen.getByTestId("theme-options").children).toHaveLength(3);
     expect(screen.getByTestId("theme-system")).toBeInTheDocument();
     expect(screen.getByTestId("theme-system")).toHaveAttribute("role", "checkbox");

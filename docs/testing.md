@@ -16,7 +16,7 @@
 
 | 功能 | 现有覆盖 | 后续补强 |
 | --- | --- | --- |
-| 规则注册表 | 稳定 key、默认状态、legacy key、依赖图、alias 唯一性和迁移归一化 | 自动检查 README 与注册表一致性 |
+| 规则注册表 | 稳定 key、默认状态、legacy key、依赖图、alias 唯一性、迁移归一化和示例元数据（经单规则引擎输出校验） | 自动检查 README 与注册表一致性 |
 | 格式化管线 | 规则选择、组合、换行、幂等性、未知 key、清洗 fixture 和保护回归 | 属性测试和更大真实语料 |
 | 来源文本清洗 | 方括号引用角标、普通文本重复空格、连续空行；保护链接、代码、URL 和 fenced code | PDF/CAJ 软换行、圆括号引用和更复杂的异常字符清洗 |
 | PDF/CAJ 清洗 Spike | 合成失败基线：段内软换行、多栏顺序、连字符断行、CJK 内部空格、表格/公式边界；`cleanup.cjk-internal-space` 仅为默认关闭的保守试实现，当前不作为真实来源通过证据 | 需补充许可/脱敏真实 PDF/CAJ 文本、人工标注和失败率基线后再完成 CJK 空格验收或实现段内软换行 |
@@ -27,7 +27,7 @@
 | 全角/半角转换 | `text.halfwidth-digits` 与 `text.halfwidth-ascii` 的职责边界、全角空格/NFKC 反例和结构保护 | 补充真实来源语料后评估更多字符类别 |
 | 单位和数学 | 有限词典、复合单位、数学边界 | 按真实语料扩展词典 |
 | 自定义替换、简繁转换与工作流预设 | Rust 请求/设置/预设 fixture；GUI 与 TUI 组件/事件交互、添加/编辑/启停/删除/转换选择、预设加载与应用、设置加载、持久化、请求透传、实时重排、快捷键立即排版和旧设置兼容；默认与 `simplified-trad-conversion` feature 构建覆盖；embedded GUI E2E 已覆盖保存、替换输出、重启恢复及 feature 下双向真实转换 | CLI 参数 |
-| 设置 | Rust Windows 测试 16/16；Windows 真实 GUI 修复后已手动完成保存、重启恢复、损坏 fixture、ACL 保存失败及视觉/DPI/窄窗口回归；损坏设置、重启恢复和 NTFS ACL 已在两个 provider 自动化通过；统一 artifact、受控失败 probe 和 GUI 主题/窄窗口 artifact 已实现 | embedded/W3C Windows E2E 已复验真实 WebView2、IPC、全不选恒等、临时路径、规则保存、ACL 拒写恢复和失败留证；三档人工 DPI 已完成，GUI DPI 自动验证已跳过（不执行）；三档人工 GUI 验证已完成；GitLab Windows stage 已跳过 |
+| 设置 | Rust Windows 测试 16/16；旧版本 Windows GUI 与 PR #24 当前设置页已完成保存、重启恢复、损坏 fixture、ACL 保存失败及视觉/DPI/窄窗口回归；损坏设置、重启恢复和 NTFS ACL 已在两个 provider 自动化通过；统一 artifact、受控失败 probe 和 GUI 主题/窄窗口 artifact 已实现 | PR #24 的主题三项间距、`rules.yaml` 路径悬停/复制、简繁转换间距、规则 hover 示例、键盘焦点和窄窗口 Footer 已在 2026-09-04 Windows 原生 checkout 验证；默认/feature restart 均 2/2；三档 DPI 自动矩阵仍跳过；GitLab Windows stage 仍跳过 |
 | 前端状态 | 防抖、竞态、错误、主题、字体、快捷键以及替换/转换设置透传 | 真实 IPC E2E |
 | 输出模式、布局与统计 | 实时/手动模式切换、手动模式显式排版、自动/左右/上下布局、Unicode code point 输入输出统计、设置加载与持久化 | 真实窗口尺寸矩阵 |
 | 复制动作 | 复制结果保留内容、复制并清空成功后清空、复制失败不清空、无失焦自动动作 | 真实系统剪贴板失败场景 |
@@ -40,7 +40,7 @@
 前端测试 57/57、Rust 设置测试 16/16、Rust/TUI 测试 158/158 均通过；embedded 与标准 W3C provider 的普通 WebView2/Rust IPC 用例各 3/3、设置重启 write/read 各 1/1、三种损坏设置 fixture 各 3/3、NTFS ACL 各 1/1 通过。统一 artifact、受控失败 probe、GUI 主题/窄窗口 artifact 和 TUI 非交互 transcript 已验证；Windows TUI release 构建和 `--stdin --no-config` smoke 通过，TUI-EDIT-DELETE-001 已关闭。
 **2026-09-02 新一轮 Windows 复验补充**：前端单测 69/69、E2E typecheck、embedded/WebDriver/简繁 feature/TUI release 构建通过；W3C smoke 2/2、重启恢复 2/2、损坏设置 3/3、NTFS ACL 1/1、GUI 视觉 artifact 1/1、设置快捷键控制台 1/1、TUI transcript 4/4 通过。旧 binary 的 embedded 完整回归曾在 `selection-and-persistence.spec.ts` 第三个 case 失败（替换设置未作用于真实 GUI 输出）；修复输入事件、保存序列保护和 E2E 诊断后，Linux/WSL embedded 定向回归已恢复为 3/3，Windows 需用当前修复 binary 重新留证。独立简繁 feature spec 在正确先构建 `simplified-trad-conversion` binary 后为 2/2 通过（s2t、t2s）；此前失败是运行默认 binary 的构建顺序错误。Windows 下 `cargo test --features tui` 的 Unix-only 权限测试已增加 `#[cfg(unix)]`，需在 Windows 重新运行确认测试目标编译和完整结果。
 
-**2026-09-03 Windows 收尾结果**：已按 Runbook 串行完成 embedded selection 3/3、简繁 feature 2/2、W3C smoke 2/2 和 Windows MSVC `cargo test --features tui` 166/166；重启、损坏设置、ACL、GUI artifact、设置控制台和 TUI transcript 也均有通过证据。GUI DPI 自动矩阵与 GitLab Windows stage 仍按项目决定跳过，Windows Terminal 交互 artifact 由用户确认通过。若 artifact 出现 `exitCode=0` 但 `finished=0`，仍必须记为未完成。
+**2026-09-03 Windows 收尾结果**：已按 Runbook 串行完成 embedded selection 3/3、简繁 feature 2/2、W3C smoke 2/2 和 Windows MSVC `cargo test --features tui` 166/166；重启、损坏设置、ACL、GUI artifact、设置控制台和 TUI transcript 也均有通过证据。GUI DPI 自动矩阵与 GitLab Windows stage 仍按项目决定跳过，Windows Terminal 交互 artifact 由用户确认通过。PR #24 的新增设置页交互在 2026-09-04 的最终复验中完成，详见 [windows-e2e-runbook.md](windows-e2e-runbook.md) §14。若 artifact 出现 `exitCode=0` 但 `finished=0`，仍必须记为未完成。
 
 > **2026-09-01**：Windows Terminal 交互复验发现三个多行显示缺陷（WT-TUI-001 额外行绘制到状态栏、WT-TUI-002 光标不可见、WT-TUI-003 emoji 显示），证据见 [windows-terminal-tui-manual.md](windows-terminal-tui-manual.md)。已按与 ratatui 渲染等价的视觉换行重算光标与滚动（`src-tauri/src/tui/wrap.rs`），并新增 10 项 Rust/UI 回归；本轮 Windows MSVC 上 158/158 通过，真实 Windows Terminal 复验已由用户确认通过。
 
@@ -245,8 +245,8 @@ cargo build --manifest-path src-tauri/Cargo.toml --features tui --release --bin 
 - [x] 输入框和输出框的边框、圆角、阴影一致；
 - [x] “字体”和“快捷键”的标题与说明间距一致；
 - [x] “恢复默认字体”和“恢复默认快捷键”视觉样式一致；
-- [x] 长 Windows 路径使用中间省略，并保留 `rules.yaml` 文件名；
-- [x] 路径 `title` 和 `aria-label` 仍包含完整路径；
+- [x] 长 Windows 路径仅显示 `rules.yaml`，不显示超长路径；
+- [x] 路径 `title` 和 `aria-label` 仍包含完整路径；悬停可见，点击复制完整路径；
 - [x] 主题“跟随系统”、快捷键总开关和规则 checkbox 使用统一黑白样式；
 - [x] 设置滚动区、底部操作区和长路径不会相互挤压或溢出；
 - [x] 键盘焦点、Space 切换和 disabled 状态正常；
@@ -470,3 +470,11 @@ Windows 100%/125%/150% DPI 人工 GUI 验证已完成；GUI DPI 自动验证已�
 ### 7.17 2026-09-03 提交 6687c13 Windows capability 刷新
 
 在隔离 Windows 原生 checkout `E:\CopyPolish-6687` 上重新执行当前提交 `6687c1390c633385cfd02135cf3072f4d18f94a9`：Node 24.19.0、Rust 1.98.0 `x86_64-pc-windows-msvc`；frontend/e2e `npm ci` 和 E2E typecheck 均退出码 0。默认 embedded `selection-and-persistence.spec.ts` 为 3/3，确认 capability=false、T2S/S2T 禁用并归一化为 `none`；feature embedded `simplified-trad-conversion.spec.ts` 为 2/2，确认 capability=true、s2t/t2s 真实输出；Windows MSVC `cargo test --features tui` 为 167 passed/0 failed；W3C smoke 为 2/2，随机端口 51737，artifact `exitCode=0`、`finished=1`、`passed=1`、`failed=0`。本轮没有把 npm 警告或 WDIO 清理 mock store warning 计为失败；隔离 checkout 与生成物已清理。
+### 7.18 2026-09-04 当前 checkout Windows 复验
+
+WSL 源文件与文档已同步到 `E:\Shiraishi\VSCode Workspace\chinese_copywriting_formatter`，随后在 Windows 原生 checkout 串行复验：E2E typecheck 通过，前端单测 101/101，默认 embedded selection 3/3，简繁 feature 2/2，WebDriver/W3C smoke 2/2，Windows MSVC `cargo test --features tui` 182/182，损坏设置三个 fixture 3/3，NTFS ACL 1/1，GUI 视觉 artifact 1/1，设置快捷键控制台 1/1，TUI transcript 4/4（artifact `e2e/artifacts/tui-transcript/1788520976024`）。GUI DPI 自动矩阵和 GitLab Windows stage 继续跳过；125%/150% 人工 GUI 与 Windows Terminal 交互 artifact 保持已完成。
+
+历史记录：`test:restart-settings` 在默认 binary 下曾因旧 spec 在 `restart-settings.spec.ts:53` 强制注入并等待 `t2s` 而失败。当前 spec 已按 capability 分支修正，且 2026-09-04 Windows 原生最终复验中默认与 feature 的 write/read 均为 2/2；该历史失败不影响已通过的损坏设置、ACL、feature 转换、W3C、TUI transcript 和 Rust 回归。
+### 7.19 2026-09-04 spec 修正后的 Windows 最终复验
+
+重启恢复 spec 排除 `rule-card-*` 容器后，在 E 盘 Windows 原生 checkout 完成最终验证：前端 101/101、E2E typecheck、默认 embedded selection 3/3、默认重启 write/read 2/2、简繁 feature 重启 write/read 2/2、feature 转换 2/2、损坏设置 3/3、NTFS ACL 1/1、GUI 视觉 artifact 1/1、设置快捷键 1/1、W3C smoke 重跑 2/2、Windows MSVC Rust/TUI 主库 182 + properties 5 + readme_registry 3 全部通过；TUI transcript 4/4（artifact `e2e/artifacts/tui-transcript/1788528444537`）。GUI DPI 自动矩阵、GitLab Windows stage 继续跳过；125%/150% 人工 GUI 和 Windows Terminal 交互 artifact 保持已完成。此前默认/feature 重启 read phase 的 `data-state=null` 与首次 W3C smoke 失败均已定位并不再复现。

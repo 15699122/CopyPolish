@@ -33,8 +33,8 @@ pub(crate) mod unicode_boundaries;
 pub(crate) mod unit_lexicon;
 
 pub use model::{
-    CharacterConversion, FormatRequest, Preset, ReplacementPair, RuleKind, RuleMeta, RuleRisk,
-    RuleSelection,
+    CharacterConversion, FormatRequest, Preset, ReplacementPair, RuleExample, RuleKind, RuleMeta,
+    RuleRisk, RuleSelection,
 };
 pub use pipeline::format_text;
 #[cfg(feature = "profile-stages")]

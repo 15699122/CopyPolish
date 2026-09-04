@@ -85,8 +85,8 @@ export function ReplacementsSection({
         </Button>
       </div>
 
-      <div className="space-y-1.5">
-        <label htmlFor="conversion-select" className="text-xs font-medium text-muted-foreground">
+      <div className="space-y-1.5" data-testid="conversion-settings">
+        <label htmlFor="conversion-select" className="block text-xs font-medium text-muted-foreground">
           简繁转换
         </label>
         <select

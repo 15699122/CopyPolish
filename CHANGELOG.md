@@ -12,7 +12,16 @@
 - 增加默认关闭的 `cleanup.cjk-internal-space` 保守试实现：仅删除普通可编辑正文中 Han grapheme 之间的单个 ASCII 空格，保留连续空格、制表符、跨行和其他脚本/标点边界；未经真实 PDF/CAJ 语料和人工标注验收，段内软换行仍不处理。
 - 增加 GUI 静态帮助入口和首次使用提示；帮助说明高风险清洗规则、结构保护、输出/复制动作及浏览器演示模式边界，首次提示可关闭或直接打开帮助，查看状态仅保存在前端 `localStorage`。
 
+- 设置“规则”列表每条规则增加悬停示例提示（例如“０１ → 01”）；示例由注册表维护并与真实引擎输出经 Rust 测试强制一致，键盘用户可通过规则复选框的辅助描述获知。
+
+### Changed
+
+- 设置弹窗底部设置文件路径仅显示 `rules.yaml`；完整路径通过悬停/聚焦查看，点击可复制到剪贴板，并提供成功/失败反馈。
+- 统一“主题”分区“跟随系统 / 浅色 / 深色”三个选项为等宽布局并统一间隔；“简繁转换”标签与其选择框改为明确的纵向分层间距，与其它分区一致。
+
 ### Maintenance
+
+- 2026-09-04：PR #24 的 Windows 原生验收已闭环；当前 binary 的主题间距、路径悬停/复制、简繁转换布局、规则示例提示、键盘焦点、窄窗口 Footer、默认/feature 重启恢复及 W3C smoke 均已取得通过证据。GUI DPI 自动矩阵和 GitLab Windows stage 按项目决定跳过。详细记录见 `docs/windows-e2e-runbook.md`。
 
 - 记录 PDF/CAJ 段内软换行与 CJK 内部异常空格 Spike：当前仓库没有真实 PDF/CAJ 原文件或脱敏语料；现仅试实现默认关闭的保守 CJK-Han 单空格子集，未将其标记为真实来源验收通过，段内软换行和多栏顺序仍不处理。详情见 `docs/decisions/pdf-soft-wrap-spike.md`。
 - 2026-09-03 复核 E2E 依赖：WebdriverIO 9.31.5、`@wdio/tauri-service` 1.3.0 已是当前直接依赖版本；审计仍报告 13 项 high，根因是 `@puppeteer/browsers@2.13.2` 引入的 `extract-zip@2.0.1`，上游暂无修复版本。未接受跨 major override 或 `npm audit fix --force` 的 WebdriverIO 8 降级，详情见 `docs/decisions/wdio-transitive-dependencies.md`。

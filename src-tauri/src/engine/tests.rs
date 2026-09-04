@@ -239,6 +239,49 @@ fn rule_metadata_enums_serialize_with_stable_wire_values() {
 }
 
 #[test]
+fn rule_examples_are_present_and_meaningful() {
+    for rule in rules() {
+        let ex = &rule.meta.example;
+        assert!(
+            !ex.before.trim().is_empty(),
+            "规则 `{}` 缺少示例输入",
+            rule.key()
+        );
+        assert!(
+            !ex.after.trim().is_empty(),
+            "规则 `{}` 缺少示例输出",
+            rule.key()
+        );
+        assert_ne!(
+            ex.before, ex.after,
+            "规则 `{}` 的示例未体现任何修改",
+            rule.key()
+        );
+    }
+}
+
+#[test]
+fn rule_examples_match_engine_output() {
+    for rule in rules() {
+        let key = rule.key();
+        let ex = &rule.meta.example;
+        let request = FormatRequest {
+            text: ex.before.clone(),
+            selection: RuleSelection::Only {
+                keys: vec![key.to_string()],
+            },
+            ..Default::default()
+        };
+        let actual = format_text(&request)
+            .unwrap_or_else(|e| panic!("规则 `{key}` 示例格式化失败：{e}"));
+        assert_eq!(
+            actual, ex.after,
+            "规则 `{key}` 的示例与真实引擎输出不一致"
+        );
+    }
+}
+
+#[test]
 fn registry_legacy_aliases_are_unique_and_do_not_shadow_stable_keys() {
     let stable_keys: std::collections::HashSet<&str> =
         rules().iter().map(|rule| rule.key()).collect();
@@ -343,6 +386,10 @@ fn registry_dependency_graph_rejects_unknown_and_cyclic_edges() {
                 section: "test".to_string(),
                 name: key.to_string(),
                 description: "测试规则".to_string(),
+                example: super::RuleExample {
+                    before: "a".to_string(),
+                    after: "b".to_string(),
+                },
                 kind: crate::engine::RuleKind::Typography,
                 risk: crate::engine::RuleRisk::Safe,
                 disputed: false,

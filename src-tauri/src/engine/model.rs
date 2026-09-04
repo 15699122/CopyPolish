@@ -38,6 +38,14 @@ impl RuleRisk {
     }
 }
 
+/// 规则的单条修改示例：`before` 经该规则（仅启用此规则）处理后的结果是 `after`。
+/// `after` 与注册表实现一致，不会随时间漂移；由 Rust 测试强制校验。
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq)]
+pub struct RuleExample {
+    pub before: String,
+    pub after: String,
+}
+
 /// 规则元数据（serde 序列化给 Tauri 前端）。
 /// `key` 是稳定的机器标识（如 `spacing.cjk-latin`），展示名与分组仅用于 UI。
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
@@ -46,6 +54,7 @@ pub struct RuleMeta {
     pub section: String,
     pub name: String,
     pub description: String,
+    pub example: RuleExample,
     pub kind: RuleKind,
     pub risk: RuleRisk,
     pub disputed: bool,
