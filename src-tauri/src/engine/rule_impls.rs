@@ -9,7 +9,9 @@ use std::sync::OnceLock;
 
 use super::semantic_tokens::{scan_semantic_tokens, SemanticTokenKind};
 use super::tokenizer::contains_cjk;
-use super::unicode_boundaries::{for_each_adjacent_unit, BoundaryStrategy, ScriptClass, TextUnit};
+use super::unicode_boundaries::{
+    for_each_adjacent_unit, units, BoundaryStrategy, ScriptClass, TextUnit,
+};
 
 // ---------------------------------------------------------------------------
 // 基础工具
@@ -69,6 +71,36 @@ pub fn kangxi_radicals(text: &str) -> String {
             }
         })
         .collect()
+}
+
+/// cleanup.cjk-internal-space：删除普通正文中相邻两个 Han grapheme 之间单个 ASCII 空格。
+///
+/// 只处理「Han + 单个空格 + Han」的最小模式，且最多删除一个空格：多个连续空格、
+/// 制表符和跨换行的间隔都保留，CJK 与拉丁字母、数字、单位或标点之间的边界不受影响。
+/// Markdown、HTML、LaTeX、代码、URL、邮箱和表格等结构由上游 span 保护层排除。
+/// 默认关闭：该规则按合成失败基线试实现，未经真实 PDF/CAJ 语料与人工标注验收，
+/// 误删率仍需在真实来源语料上复核（见 `docs/decisions/pdf-soft-wrap-spike.md`）。
+pub fn cjk_internal_space(text: &str) -> String {
+    let units = units(text, BoundaryStrategy::Graphemes);
+
+    // 判定「Han + 单个空格 + Han」三元组：标记需要移除的中间空格单位。
+    let mut remove = vec![false; units.len()];
+    for i in 1..units.len().saturating_sub(1) {
+        if units[i - 1].script == ScriptClass::Han
+            && units[i].text == " "
+            && units[i + 1].script == ScriptClass::Han
+        {
+            remove[i] = true;
+        }
+    }
+
+    let mut out = String::with_capacity(text.len());
+    for (idx, unit) in units.iter().enumerate() {
+        if !remove[idx] {
+            out.push_str(unit.text);
+        }
+    }
+    out
 }
 
 /// text.unicode-equivalents：将已确认等价的 Unicode 单位字符统一为推荐写法。

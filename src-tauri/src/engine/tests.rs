@@ -191,7 +191,7 @@ fn passing_golden_fixtures_are_idempotent() {
 fn registry_contains_migrated_rules_with_defaults() {
     let all = rules();
     // 历史规则、温标空格规则和默认关闭的 Unicode/全角 ASCII 转换规则均已注册。
-    assert_eq!(all.len(), 20);
+    assert_eq!(all.len(), 21);
     assert_eq!(enabled_defaults().len(), 9);
     let disabled: Vec<_> = all
         .iter()
@@ -205,6 +205,7 @@ fn registry_contains_migrated_rules_with_defaults() {
             keys::CLEANUP_COLLAPSE_HORIZONTAL_SPACES,
             keys::CLEANUP_LIMIT_BLANK_LINES,
             keys::CLEANUP_KANGXI_RADICALS,
+            keys::CLEANUP_CJK_INTERNAL_SPACE,
             keys::TEXT_HALFWIDTH_ASCII,
             keys::TEXT_UNICODE_EQUIVALENTS,
             keys::NAMING_PROPER_NOUNS,
@@ -273,6 +274,7 @@ fn registry_execution_order_is_phase_explicit_and_stable() {
             keys::CLEANUP_COLLAPSE_HORIZONTAL_SPACES,
             keys::CLEANUP_LIMIT_BLANK_LINES,
             keys::CLEANUP_KANGXI_RADICALS,
+            keys::CLEANUP_CJK_INTERNAL_SPACE,
             keys::PUNCT_NO_REPETITION,
             keys::PUNCT_FULLWIDTH_CJK,
             keys::TEXT_HALFWIDTH_DIGITS,
@@ -1093,6 +1095,17 @@ fn numeric_punctuation_spacing_is_conservative_and_explicit() {
         numeric_punctuation_space("价格1 . 5.0、比例1 / 2"),
         "价格1 . 5.0、比例1/2"
     );
+}
+
+#[test]
+fn cjk_internal_space_only_removes_single_han_han_spaces() {
+    use super::rule_impls::cjk_internal_space;
+
+    assert_eq!(cjk_internal_space("中 文本和数 据"), "中文本和数据");
+    assert_eq!(cjk_internal_space("中  文"), "中  文");
+    assert_eq!(cjk_internal_space("中 A中 5"), "中 A中 5");
+    assert_eq!(cjk_internal_space("中 \n文"), "中 \n文");
+    assert_eq!(cjk_internal_space("𠀀 文"), "𠀀文");
 }
 
 #[test]
