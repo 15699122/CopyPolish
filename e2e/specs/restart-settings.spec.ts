@@ -89,12 +89,12 @@ describe(`CopyPolish 设置重启恢复：${phase}`, () => {
     await $("[data-testid=\"open-settings\"]").click();
     await browser.waitUntil(
       async () => {
-        const rules = await $$('[data-testid^="rule-"]');
+        const rules = await $$('[data-testid^="rule-"]:not([data-testid^="rule-card-"])');
         return (await rules.length) > 0;
       },
       { timeout: 10_000, timeoutMsg: "第二次启动规则列表未加载" },
     );
-    const rules = await $$('[data-testid^="rule-"]');
+    const rules = await $$('[data-testid^="rule-"]:not([data-testid^="rule-card-"])');
     for (const rule of rules) {
       expect(await rule.getAttribute("data-state")).toBe("unchecked");
     }
