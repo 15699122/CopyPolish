@@ -9,7 +9,7 @@ Windows 原生计划已独立整理为 [windows-e2e-runbook.md](windows-e2e-runb
 
 ## Windows 原生执行摘要
 
-以下步骤是 Windows 验证的最短完整路径。必须在 Windows 原生桌面、Windows Terminal + PowerShell 7 中执行；WSL 只能用于代码检查和跨平台 smoke，不能替代 WebView2、NTFS ACL、DPI、剪贴板或 raw-mode 验证。
+以下步骤是 Windows 验证的最短完整路径。必须在 Windows 原生桌面、Windows Terminal + PowerShell 7 中执行；WSL 只能用于代码检查和跨平台 smoke，不能替代 WebView2、NTFS ACL、DPI、剪贴板或 raw-mode 验证。PR #24（`fa2fc1c`）新增的设置页验收尚未取得 Windows 原生新鲜证据，具体待办见 [windows-e2e-runbook.md](windows-e2e-runbook.md) §1.2.1。
 
 ### Windows 前置条件
 
@@ -76,12 +76,12 @@ cargo build --manifest-path src-tauri/Cargo.toml --features tui --release --bin 
 - E2E 工具路线已确定为 WebdriverIO + `@wdio/tauri-service` + embedded provider；
 - 当前仓库已提交最小 WebdriverIO E2E 工程和 `e2e` Cargo feature；
 - 当前仓库已提交两个 E2E WebDriver plugin 的条件注册与 capability 隔离；
-- Linux/WSL 图形环境不能替代 Windows 原生桌面验收；
+- Linux/WSL 图形环境不能替代 Windows 原生桌面验收；因此 PR #24 的设置页间距、系统剪贴板、窄窗口和 Windows DPI 项目仍需 Windows 原生留证；
 - 当前 Node 实际版本为 `v26.7.0`，超出项目 `.nvmrc` / `package.json` 要求的 `>=24 <25`，不能作为正式 E2E 基线；
 - 默认 Tauri 配置仍使用现有 `src-tauri/tauri.conf.json` 和生产 capability；
 - 当前 Linux/WSLg 已通过真实 GUI smoke：embedded WebDriver、WebView、真实 `format_text` IPC、全不选恒等和设置路径/保存链路均已验证；本次通过日期为 2026-08-30。
 - 参考项目 `Choochmeque/tauri-plugin-webdriver` 的 `0.2.1` 版本已作为并行 provider 完成 Linux/WSLg PoC；标准 WebDriver 连接、真实 WebView、真实 IPC、全不选恒等和设置保存均已通过，本次复核日期为 2026-08-31。
-- Windows 原生最小桌面链路及修复后的 GUI/TUI/设置/ACL/双 provider 回归均已完成；TUI-EDIT-DELETE-001 已通过编辑器边界修复、Rust 回归测试和 Windows 定向复验关闭。ACL 专用故障注入 spec 已通过，后续仅需继续完善失败时的 CI artifact 收集。标准 W3C provider 已于 2026-09-01 收敛为兼容性 smoke（`specs/w3c/smoke.spec.ts`），不再与 embedded provider 并行跑完整回归。
+- Windows 原生历史基线已覆盖 GUI/TUI/设置/ACL/双 provider 回归；TUI-EDIT-DELETE-001 已通过编辑器边界修复、Rust 回归测试和 Windows 定向复验关闭。PR #24 当前设置页新增交互仍需使用当前修复 binary 重新验收；ACL 专用故障注入 spec 已通过，后续仅需继续完善失败时的 CI artifact 收集。标准 W3C provider 已于 2026-09-01 收敛为兼容性 smoke（`specs/w3c/smoke.spec.ts`），不再与 embedded provider 并行跑完整回归。
 
 本环境已完成的前置确认：
 
@@ -655,7 +655,7 @@ npm run test:webdriver --prefix e2e -- --spec specs/startup-formatting.spec.ts
 2. 打开设置窗口；
 3. 修改规则选择、主题、字体或 UI 缩放中的至少一项；
 4. 等待 `[data-testid="settings-status"]` 显示保存成功；
-5. 读取 `[data-testid="settings-path"]`，确认目标是临时目录中的 `rules.yaml`；
+5. 读取 `[data-testid="settings-path"]`，确认可见文本为 `rules.yaml`，并通过 `title`/`aria-label` 确认目标是临时目录中的完整 `rules.yaml` 路径；
 6. 关闭应用并确认进程退出；
 7. 使用同一个临时设置目录重新启动 binary；
 8. 打开设置并确认修改后的状态恢复；
@@ -930,11 +930,11 @@ P0.2 只有在以下条件全部满足后才能标记完成。括号中的状态
 
 三种损坏设置 fixture 已由 `test:corrupt-settings` 入口覆盖，不再属于未完成项。
 
-重启恢复已由 `test:restart-settings` 入口覆盖，不再属于未完成项。
+重启恢复已有 `test:restart-settings` 入口；默认构建的 capability=false 语义断言已修正，但需在 Windows/当前 runner 重新执行 write/read 后才能将本轮结果标记为通过。
 
 标准 W3C provider 已于 2026-09-01 收敛为兼容性 smoke（`specs/w3c/smoke.spec.ts`），各 `:webdriver` 专项脚本已从 `package.json` 移除。
 
-因此，后续仅保留 React 19 告警兼容性说明；GUI DPI 自动验证已按项目决定跳过，Terminal 交互 artifact 已通过。GitLab Windows 可选 stage 已跳过（不执行），不再列入后续门禁。GUI 主题/窄窗口 artifact、受控失败诊断包和 TUI 非交互 transcript 已完成；当前未完成项不再包括 Windows 手动功能回归、损坏设置 fixture、重启恢复、NTFS ACL 故障注入或 TUI 编辑器 Delete 边界。
+因此，后续仅保留 React 19 告警兼容性说明；GUI DPI 自动验证已按项目决定跳过，Terminal 交互 artifact 已通过。GitLab Windows 可选 stage 已跳过（不执行），不再列入后续门禁。GUI 主题/窄窗口 artifact、受控失败诊断包和 TUI 非交互 transcript 已完成；当前未完成项仅包括按 capability 分支修正后的 `test:restart-settings` 在 Windows/当前 runner 上重新执行并记录新的 write/read 证据。
 
 ## 12. 2026-09-01 自动化补充结果
 
@@ -951,14 +951,14 @@ Node 24.19.0、Rust 1.98.0 MSVC、WebView2 151.0.4129.107 下，前端 69/69、W
 
 ## 2026-09-03 当前 Windows 执行入口
 
-当前修复提交的 Windows 复验必须以 `docs/windows-e2e-runbook.md` 第 2.5 节为唯一串行执行入口：先记录原生环境并安装依赖，再构建/运行默认 embedded `selection-and-persistence.spec.ts`，随后构建带 `simplified-trad-conversion` feature 的 binary 并运行双向转换 spec，最后执行 W3C smoke 和 Windows MSVC 下的 `cargo test --features tui`。本次保存竞态修复已在 Linux/WSL 默认 embedded 3/3、简繁 feature 2/2 通过；完整 embedded runner 的结果只有在实际执行统计 `finished > 0` 且每个 spec 有明确通过数时才可计入结论；`exitCode=0` 与 `finished=0` 的 artifact 必须记录为 runner 未完成。
+当前修复提交的 Windows 复验必须以 `docs/windows-e2e-runbook.md` 第 2.5 节为唯一串行执行入口：先记录原生环境并安装依赖，再构建/运行默认 embedded `selection-and-persistence.spec.ts`，随后构建带 `simplified-trad-conversion` feature 的 binary 并运行双向转换 spec，最后执行 W3C smoke、`test:restart-settings` 和 Windows MSVC 下的 `cargo test --features tui`。本次保存竞态修复已在 Linux/WSL 默认 embedded 3/3、简繁 feature 2/2 通过；完整 embedded runner 的结果只有在实际执行统计 `finished > 0` 且每个 spec 有明确通过数时才可计入结论；`exitCode=0` 与 `finished=0` 的 artifact 必须记录为 runner 未完成。
 
 Windows 必须刷新、不能由 Linux/WSL 替代的证据是：当前修复 binary 的真实 WebView2 replacement 保存/输出链路、当前 feature binary 的真实 s2t/t2s 输出，以及 `cargo test --features tui` 的 Windows 编译/测试结果。重启恢复、损坏设置、NTFS ACL、GUI 视觉 artifact、设置快捷键控制台和 TUI transcript 已有专项入口，按需复跑；DPI 自动矩阵和 GitLab Windows stage 按项目决定跳过。
 
 
 ## 2026-09-03 Windows 原生验证收尾
 
-Windows native environment checkout 的当前证据：前端 70/70、E2E typecheck、embedded selection 3/3、设置重启 2/2、损坏设置 3/3、NTFS ACL 1/1、GUI 视觉 1/1、设置快捷键 1/1、TUI transcript 4/4，以及 Windows MSVC cargo test --features tui 166/166 均通过。简繁 feature 在独立 feature binary 上 2/2 通过（s2t、t2s）；标准 W3C smoke 2/2 通过。GUI DPI 自动验证和 GitLab Windows stage 仍为跳过；125%/150% 人工 GUI 与 Windows Terminal 交互 artifact 仍为已完成。Windows 端当前自动化收尾项目已全部完成。
+Windows native environment checkout 的历史证据：前端 70/70、E2E typecheck、embedded selection 3/3、损坏设置 3/3、NTFS ACL 1/1、GUI 视觉 1/1、设置快捷键 1/1、TUI transcript 4/4，以及 Windows MSVC cargo test --features tui 166/166 均通过；简繁 feature 在独立 feature binary 上 2/2 通过（s2t、t2s）；标准 W3C smoke 2/2 通过。该段的旧 `设置重启 2/2` 结果不覆盖 2026-09-04 的 capability 复验；当前 restart spec 已修正，仍需重新执行 write/read。GUI DPI 自动验证和 GitLab Windows stage 仍为跳过；125%/150% 人工 GUI 与 Windows Terminal 交互 artifact 仍为已完成。
 
 ## 2026-09-03 提交 6687c13 Windows capability 刷新
 
