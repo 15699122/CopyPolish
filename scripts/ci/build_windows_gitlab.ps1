@@ -166,7 +166,11 @@ Copy-Item (Join-Path $staging "CopyPolish.exe") (Join-Path $dist "CopyPolish.exe
 
 # ---- TUI 独立资产 -------------------------------------------------------------
 Invoke-Native "Build TUI release binary" {
-    cargo build --features tui --release --bin copypolish-tui
+    cargo build `
+        --manifest-path "$RepoRoot\src-tauri\Cargo.toml" `
+        --features tui `
+        --release `
+        --bin copypolish-tui
 }
 $tuiExe = Join-Path $RepoRoot "src-tauri\target\release\copypolish-tui.exe"
 if (-not (Test-Path $tuiExe)) { throw "TUI build output was not found: $tuiExe" }
