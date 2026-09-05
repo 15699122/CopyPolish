@@ -65,6 +65,9 @@ jobs:
           npm ci --prefix e2e
           npm run typecheck --prefix e2e
 
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+
       - name: Dependency audit
         run: python3 scripts/verify.py --profile audit
 
