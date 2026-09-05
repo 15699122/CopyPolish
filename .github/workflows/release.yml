@@ -27,6 +27,9 @@ concurrency:
 
 env:
   RELEASE_TAG: ${{ inputs.tag }}
+  # Windows runner 的 Python 默认 cp1252，中文输出会触发 UnicodeEncodeError；
+  # 强制 UTF-8（对 Linux 无影响）。
+  PYTHONUTF8: "1"
 
 defaults:
   run:
