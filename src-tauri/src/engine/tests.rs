@@ -253,7 +253,8 @@ fn rule_examples_are_present_and_meaningful() {
             rule.key()
         );
         assert_ne!(
-            ex.before, ex.after,
+            ex.before,
+            ex.after,
             "规则 `{}` 的示例未体现任何修改",
             rule.key()
         );
@@ -272,12 +273,9 @@ fn rule_examples_match_engine_output() {
             },
             ..Default::default()
         };
-        let actual = format_text(&request)
-            .unwrap_or_else(|e| panic!("规则 `{key}` 示例格式化失败：{e}"));
-        assert_eq!(
-            actual, ex.after,
-            "规则 `{key}` 的示例与真实引擎输出不一致"
-        );
+        let actual =
+            format_text(&request).unwrap_or_else(|e| panic!("规则 `{key}` 示例格式化失败：{e}"));
+        assert_eq!(actual, ex.after, "规则 `{key}` 的示例与真实引擎输出不一致");
     }
 }
 

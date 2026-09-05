@@ -302,7 +302,10 @@ fn example_for_key(key: &str) -> (&'static str, &'static str) {
         TEXT_UNICODE_EQUIVALENTS => ("直径3Å", "直径3Å"),
         NAMING_PROPER_NOUNS => ("使用 github 登录", "使用 GitHub 登录"),
         NAMING_EXPAND_ABBREVIATIONS => ("使用 ts 开发", "使用 TypeScript 开发"),
-        SPACING_AROUND_LINKS => ("查看[官网](https://example.com)然后", "查看 [官网](https://example.com) 然后"),
+        SPACING_AROUND_LINKS => (
+            "查看[官网](https://example.com)然后",
+            "查看 [官网](https://example.com) 然后",
+        ),
         PUNCT_CORNER_QUOTES => ("他说“你好”", "他说「你好」"),
         SPACING_CJK_LATIN => ("在LeanCloud上", "在 LeanCloud 上"),
         SPACING_CJK_NUMBER => ("花了5000元", "花了 5000 元"),
