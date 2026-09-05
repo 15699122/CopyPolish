@@ -248,7 +248,15 @@ CopyPolish_linux_amd64.AppImage
 
 ### 8.1 发布资产来源
 
-当前标准流程由 GitLab tag pipeline 或分平台本地构建产生并汇总全部七项平台资产（桌面版五项 + TUI 独立资产两项）及 `SHA256SUMS`。维护者下载后执行完整校验，再使用 GitHub CLI 或 GitHub Releases 页面完成公开 Release；上传前不得将不完整资产集标记为正式版。GitHub Actions 当前负责 `dev` / `master` 的常规分支 CI，不替代跨平台 Release 构建；仓库变量 `ACTIONS_ENABLED` 的实际状态以 GitHub 仓库设置为准。
+当前标准流程由 GitLab tag pipeline 或分平台本地构建产生并汇总全部七项平台资产（桌面版五项 + TUI 独立资产两项）及 `SHA256SUMS`。维护者下载后执行完整校验，再使用 GitHub CLI 或 GitHub Releases 页面完成公开 Release；上传前不得将不完整资产集标记为正式版。仓库变量 `ACTIONS_ENABLED` 的实际状态以 GitHub 仓库设置为准。
+
+自 v0.6.0 起，GitHub Actions 亦提供正式 Release 构建（`.github/workflows/release.yml`，`workflow_dispatch` 两阶段手动触发）。推荐流程：
+
+1. **演练**：在 `master` 上手动运行 Release workflow，`publish=false`——依次执行 validate → build-linux → build-windows → windows-smoke → assemble，产出七项资产与 `SHA256SUMS` 的 workflow artifact（保留 7 天），不创建 tag/Release；
+2. **发布**：演练通过后在 `master` 上再次手动运行，`publish=true`——publish job 校验 tag 不存在且严格匹配 `vX.Y.Z`、复核 checksum 后创建 annotated tag 并以 `docs/archive/releases/vX.Y.Z.md` 为 Notes 发布 latest Release；
+3. 维护者仍应从 GitHub Release 重新下载全部资产并执行 `sha256sum -c SHA256SUMS` 复核（见 §11）。
+
+publish job 仅允许在 `master` 分支执行；资产清单与校验逻辑复用 `scripts/verify_release_assets.py`，与本地/GitLab 构建一致。
 
 TUI 资产与桌面版共享同一 Release、tag、SHA256SUMS 与发布方式，命名遵循相同规范：
 
