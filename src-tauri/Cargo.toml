@@ -52,7 +52,7 @@ unicode-segmentation = "1.12"
 opencc-fmmseg = { version = "0.11.5", optional = true }
 
 # Ratatui 终端界面仅在 `--features tui` 时编译，不影响默认 Tauri 构建。
-ratatui = { version = "0.29", optional = true }
+ratatui = { version = "0.30", optional = true }
 crossterm = { version = "0.28", optional = true }
 unicode-width = { version = "0.2", optional = true }
 
