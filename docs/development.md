@@ -17,6 +17,8 @@
 
 Linux/WSL 环境可以完成前端、Rust、E2E typecheck 和业务语义验证，但不能替代 Windows 原生桌面验收。PR #24 的 Windows 原生验收已于 2026-09-04 闭环：主题三项间距、窄窗口 Footer、`rules.yaml` 完整路径悬停/复制、简繁转换标签间距、规则 hover 示例、键盘焦点/Space/Enter 行为以及设置保存/恢复均已取得通过证据。详细矩阵、命令、artifact 和清理要求见 [windows-e2e-runbook.md](windows-e2e-runbook.md) §14 和 [testing.md](testing.md) §7.19；后续仅在相关代码、工具链或诊断范围变化时按需复跑。
 
+v0.6.0 RC/正式版新增的 Windows 发布步骤集中见 [release/manual-release.md](release/manual-release.md) §9.1：必须在 Windows 原生 MSVC/WebView2 环境构建 `CopyPolish.exe`、桌面版 `.7z` 和 TUI `.7z`，完成默认 embedded、简繁 feature、W3C smoke、Windows MSVC TUI、设置/ACL/DPI/Terminal 验收，并在最终跨平台资产合并后运行 `--platform all` 与 `SHA256SUMS` 校验。Linux/WSL 只负责可替代的基础验证；本轮若暂不处理 GitLab，不推送任何 GitLab tag。
+
 ## 工具链和初始化
 
 Node 版本由 `.nvmrc` 固定，Rust 版本由 `rust-toolchain.toml` 固定：

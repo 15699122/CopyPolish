@@ -248,24 +248,147 @@ CopyPolish_linux_amd64.AppImage
 
 ### 8.1 发布资产来源
 
-当前标准流程由 GitLab tag pipeline 构建并汇总全部七项平台资产（桌面版五项 + TUI 独立资产两项）及 `SHA256SUMS`。维护者下载后执行完整校验，再使用 GitHub CLI 或 GitHub Releases 页面完成公开 Release；上传前不得将不完整资产集标记为正式版。GitHub Actions 当前负责 `dev` / `master` 的常规分支 CI，不替代 GitLab/本地跨平台 Release 构建；仓库变量 `ACTIONS_ENABLED` 必须为 `true`。
+当前标准流程由 GitLab tag pipeline 或分平台本地构建产生并汇总全部七项平台资产（桌面版五项 + TUI 独立资产两项）及 `SHA256SUMS`。维护者下载后执行完整校验，再使用 GitHub CLI 或 GitHub Releases 页面完成公开 Release；上传前不得将不完整资产集标记为正式版。GitHub Actions 当前负责 `dev` / `master` 的常规分支 CI，不替代跨平台 Release 构建；仓库变量 `ACTIONS_ENABLED` 的实际状态以 GitHub 仓库设置为准。
 
 TUI 资产与桌面版共享同一 Release、tag、SHA256SUMS 与发布方式，命名遵循相同规范：
 
 - `CopyPolish-tui-windows-x64.7z`：根目录直接包含 `CopyPolish-tui.exe`（PowerShell 7 调用）；
 - `CopyPolish-tui-linux-x86_64.7z`：根目录直接包含 `copypolish-tui`（上传后保留可执行权限）。
 
-若从 GitLab Package Registry 下载 AppImage 遇到网络错误，应先解决认证或网络问题；在五项资产齐全前不要创建 GitHub Release。下载前可确认以下 URL 对应文件返回 HTTP 200：
+若从构建服务下载 AppImage 遇到网络错误，应先解决认证或网络问题；在七项发布资产和 `SHA256SUMS` 齐全前不要创建 GitHub Release。下载前可确认对应 Package Registry 文件返回 HTTP 200：
 
 ```text
 https://gitlab.com/api/v4/projects/85804438/packages/generic/copypolish/vX.Y.Z[-suffix]/CopyPolish_linux_amd64.AppImage
 ```
 
-手动发布前必须下载并校验全部五项资产，缺少 AppImage 时不得继续发布，这是预期的安全门禁。
+手动发布前必须下载并校验全部七项发布资产及 `SHA256SUMS`，缺少 AppImage、任一 TUI 资产或校验文件时不得继续发布，这是预期的安全门禁。
 
 > 不要把 `GITLAB_TOKEN` 或任何 PAT 写入 remote URL、脚本、仓库文件、命令参数、构建日志或提交历史。项目凭据使用 `source scripts/load_tokens.sh` 加载；GitLab MCP Server 仍使用 OAuth，不接受 PAT，GitLab CI 的 `CI_JOB_TOKEN` 仅在 job 内使用。
 
 ## 9. Windows 真机人工验收
+
+### 9.1 v0.6.0 RC / 正式版 Windows 原生执行清单
+
+以下步骤是当前 v0.6.0 RC 和正式版发布前必须在 **Windows 10/11 原生桌面环境**完成的最小闭环。详细 E2E、artifact 和失败诊断步骤见 [windows-e2e-runbook.md](../windows-e2e-runbook.md) §2.5；本节是发布顺序摘要，不替代该 Runbook。
+
+#### A. 准备独立 Windows 发布工作区
+
+1. 从待发布 commit 或 tag 创建独立 worktree/clone；不要使用含有其他未提交改动的日常工作区。
+2. 工作区应位于 Windows 文件系统短路径（例如 `C:\src\CopyPolish`），避免同时从 WSL 和 Windows 操作同一个 `node_modules`、`target` 或 staging 目录。
+3. 记录待发布 commit SHA，并确认版本文件将在同一工作区内同步。
+
+#### B. 确认 Windows 工具链
+
+必须使用 Windows 原生工具，而不是 WSL 的 Linux 工具链：
+
+- Node.js 与 `.nvmrc` 一致（当前约束 `>=24 <25`，推荐 `24.19.0`）；
+- Rust `x86_64-pc-windows-msvc` toolchain，且安装 Visual Studio Build Tools 的 **Desktop development with C++** 与 Windows SDK；
+- Windows WebView2 Runtime；
+- Windows Terminal + PowerShell 7（TUI 人工交互时）；
+- 7-Zip `7z.exe`；
+- Git，以及访问显示设置、剪贴板、进程、端口和 NTFS ACL 的权限。
+
+在 PowerShell 中记录：
+
+```powershell
+git rev-parse HEAD
+node --version
+npm --version
+rustc --version
+cargo --version
+$PSVersionTable.PSVersion
+wt --version
+```
+
+#### C. 同步版本并执行基础检查
+
+在隔离发布工作区执行：
+
+```powershell
+python scripts/prepare_release_version.py v0.6.0-rc1
+python scripts/check_version.py v0.6.0-rc1
+python scripts/verify.py --profile release --tag v0.6.0-rc1
+npm ci --prefix frontend
+npm ci --prefix e2e
+npm run typecheck --prefix e2e
+```
+
+正式版将 `v0.6.0-rc1` 替换为 `v0.6.0`。版本脚本会修改五个构建配置文件，因此只能在隔离发布工作区执行；不要把这些临时修改合并回日常开发分支。
+
+#### D. 构建 Windows 桌面和 TUI 资产
+
+推荐直接执行仓库脚本：
+
+```powershell
+.\scripts\build_release_local.ps1 v0.6.0-rc1
+```
+
+脚本必须由 Windows 的 Node、Cargo、Tauri CLI 和 7-Zip 执行，不能用 WSL 的 Linux `npm`、`cargo` 或 Tauri CLI 代替。应生成：
+
+```text
+dist\CopyPolish.exe
+dist\CopyPolish-windows-x64.7z
+dist\CopyPolish-tui-windows-x64.7z
+```
+
+两个 `.7z` 都必须在 staging 目录内部压缩：
+
+- `CopyPolish-windows-x64.7z` 根目录直接包含 `CopyPolish.exe`，以及运行所需的旁置 DLL；
+- `CopyPolish-tui-windows-x64.7z` 根目录直接包含 `CopyPolish-tui.exe`；
+- 不得出现 `dist/`、`windows/` 或其他额外父目录。
+
+#### E. 执行 Windows 原生验收
+
+按 [windows-e2e-runbook.md](../windows-e2e-runbook.md) §2.5 的顺序执行：
+
+1. `npm run build:app --prefix e2e` 后运行 `selection-and-persistence.spec.ts`，默认 embedded 必须 3/3；
+2. `npm run build:app:simplified-trad --prefix e2e` 后运行 feature spec，必须 2/2，确认真实 `s2t` / `t2s` 输出；
+3. `npm run build:app:webdriver --prefix e2e` 后运行 W3C smoke，确认 session、主窗口、真实格式化、设置保存和退出清理；
+4. 执行 `cargo test --manifest-path src-tauri/Cargo.toml --features tui`，确认 Windows MSVC 测试目标通过；
+5. 使用当前 Windows binary 完成设置保存/重启、损坏设置、NTFS ACL、GUI 主题/窄窗口和 TUI transcript 验收；
+6. 在 Windows Terminal + PowerShell 7 中按需复验 raw-mode、Unicode/emoji、bracketed paste、OSC 52、保存/重启和退出清理；
+7. 按发布前人工要求检查 100%/125%/150% DPI 和至少一个窄窗口。GUI DPI 自动矩阵仍按项目决策跳过，不得把跳过记为自动化通过。
+
+Linux/WSL 可以提供前端、Rust、E2E typecheck、性能和业务语义证据，但不能替代 Windows WebView2、MSVC、Windows 便携版启动、DPI、NTFS ACL、剪贴板、Windows Terminal 或 Windows 进程清理验收。
+
+#### F. Windows 资产与发布前清理
+
+Windows 原生验收结束后：
+
+```powershell
+python scripts/verify_release_assets.py v0.6.0-rc1 --dist-dir dist --platform windows
+```
+
+将 Windows 侧三个资产与 Linux 侧四个资产合并到同一 `dist` 目录后，统一执行：
+
+```bash
+python scripts/verify_release_assets.py v0.6.0-rc1 --dist-dir dist --platform all
+Get-Content dist\SHA256SUMS
+Get-FileHash dist\CopyPolish.exe, dist\CopyPolish-windows-x64.7z, `
+  dist\CopyPolish_linux_amd64.deb, dist\CopyPolish-linux-x86_64.rpm, `
+  dist\CopyPolish_linux_amd64.AppImage, dist\CopyPolish-tui-windows-x64.7z, `
+  dist\CopyPolish-tui-linux-x86_64.7z -Algorithm SHA256
+
+# 也可以在 Git Bash/WSL 中执行：
+# sha256sum -c dist/SHA256SUMS
+```
+
+最终完整发布集必须包含七项资产和一个校验文件：
+
+```text
+CopyPolish.exe
+CopyPolish-windows-x64.7z
+CopyPolish_linux_amd64.deb
+CopyPolish-linux-x86_64.rpm
+CopyPolish_linux_amd64.AppImage
+CopyPolish-tui-windows-x64.7z
+CopyPolish-tui-linux-x86_64.7z
+SHA256SUMS
+```
+
+记录测试结论后，关闭 CopyPolish、WDIO、Node 和 TUI 进程，确认测试端口、临时设置目录、ACL deny 和 staging 已清理。截图、日志、page source、设置 fixture 和构建目录只保留在本地审计位置，不提交、不上传仓库。
+
+本轮明确不处理 GitLab 历史同步或发布 tag 时，不应执行 `git push gitlab`；只保留本地 Windows 构建和验收证据。
 
 正式发布前，在真实 Windows 10/11 环境运行本地构建的 `CopyPolish.exe` 完成 [v0.5.0-release-plan.md](../archive/release-plans/v0.5.0-release-plan.md) 第 12 节的全部人工验收项，至少包括：
 

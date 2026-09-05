@@ -6,6 +6,17 @@ Linux、Linux/WSL 环境 环境 图形环境 和普通 Chrome 可以验证部分
 
 ## 1. 范围与当前状态
 
+### 1.0 v0.6.0 RC / 正式版发布入口
+
+需要为 v0.6.0 RC 或正式版准备 Windows 发布资产时，先阅读 [手动发布指南](release/manual-release.md) §9.1。该清单集中说明 Windows 原生工具链、隔离发布工作区、桌面版和 TUI 资产构建、Windows 专属验收、跨平台资产合并及 SHA256 校验；本 Runbook 的 §2.5 继续作为 GUI/TUI E2E、artifact 和失败诊断的详细执行依据。
+
+发布前必须区分以下两类结果：
+
+- Linux/WSL：可以完成 Rust/前端/性能/安全/文档基础验证和 Linux 资产构建；
+- Windows 原生：必须完成 Windows Tauri binary、MSVC/Tauri 构建、Windows 桌面/TUI 资产、WebView2、NTFS ACL、DPI、剪贴板和 Windows Terminal 相关验收。
+
+本轮明确暂不处理 GitLab 时，只执行本地 Windows 构建与验收，不创建或推送 GitLab tag；成功结果记录摘要，原始 artifact 保留在本地审计位置。
+
 ### 1.1 已完成、无需重复判定为未测的内容
 
 以下 Windows 功能性验证已经完成：

@@ -54,6 +54,30 @@
 
 截至 2026-09-01，E2E 依赖审计报告 13 个 high，涉及多个 WebdriverIO/浏览器工具传递依赖；`serialize-javascript` 已固定到 `7.1.1`，`deepmerge-ts` 已固定到 `8.0.2`，两者均不再出现在审计结果中。剩余告警继续在依赖升级时跟踪；`@puppeteer/browsers`/`extract-zip` 暂不覆盖，等待完整 provider 回归和工具链升级窗口。Cargo 在 Windows 原生环境调试构建中曾报告增量缓存目录 `os error 5`，但相关编译、测试和 release 构建均以退出码 0 完成。
 
+### 2.2 平台边界与发布前 Windows 门禁
+
+以下能力不能由 Linux、WSL、普通浏览器或仅有服务会话的 runner 替代：
+
+| Windows 原生项目 | 必须确认的原因 | 发布前要求 |
+| --- | --- | --- |
+| Windows Tauri binary 启动 | 验证 WebView2、Windows 进程和真实 Rust IPC | 当前 commit 构建后启动并完成 embedded GUI 回归 |
+| MSVC / Windows SDK 构建 | 验证链接器、资源和 Windows target | `x86_64-pc-windows-msvc` 构建/测试退出码为 0 |
+| Windows 便携版和 TUI `.7z` | 验证 exe、旁置 DLL、7-Zip 根目录结构 | 生成桌面版和 TUI 两项 Windows 资产，并运行 `--platform windows` 校验 |
+| NTFS ACL 保存失败 | Linux 权限映射不能复现 Windows deny ACE | `test:acl-settings` 通过，deny ACE 已恢复 |
+| DPI、窗口和剪贴板 | 浏览器 viewport 不等于 Windows 桌面行为 | 100%/125%/150% DPI 和窄窗口人工检查；复制动作人工确认 |
+| Windows Terminal TUI | raw-mode、OSC 52、字体和 emoji 宽度依赖真实终端 | 按需完成 Terminal artifact；跳过项必须明确记录 |
+
+v0.6.0 RC/正式版的 Windows 执行顺序、命令、artifact、清理和失败诊断统一见 [windows-e2e-runbook.md](windows-e2e-runbook.md) §2.5；发布资产构建和合并校验见 [release/manual-release.md](release/manual-release.md) §9.1。发布前最小门禁为：
+
+1. 默认 embedded GUI `selection-and-persistence`：3/3；
+2. `simplified-trad-conversion` feature GUI：2/2；
+3. 标准 W3C smoke：2/2；
+4. Windows MSVC `cargo test --features tui`：退出码 0；
+5. 损坏设置、NTFS ACL、GUI artifact、TUI transcript 和必要的 Windows Terminal 人工验收完成；
+6. Windows 三项资产通过 `verify_release_assets.py --platform windows`，最终七项资产 + `SHA256SUMS` 通过 `--platform all` 和哈希校验。
+
+Linux/WSL 仍应执行 `checks`、`frontend`、`rust`、`audit`、E2E typecheck 和业务语义回归，但这些结果不能替代上述 Windows 原生门禁。
+
 ## 3. 常用命令
 
 ```bash
