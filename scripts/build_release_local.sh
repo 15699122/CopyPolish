@@ -55,6 +55,20 @@ echo "== 构建 Linux bundle =="
 npm ci --prefix "$REPO_ROOT/frontend"
 npm run tauri --prefix "$REPO_ROOT/frontend" -- build
 
+echo "== 构建并打包 Linux TUI 独立资产 =="
+cargo build \
+    --manifest-path "$REPO_ROOT/src-tauri/Cargo.toml" \
+    --features tui \
+    --release \
+    --bin copypolish-tui
+
+# TUI 独立资产：staging 目录内部压缩，根目录直接包含二进制。
+TUI_STAGING="$DIST_DIR/tui-staging"
+mkdir -p "$TUI_STAGING"
+cp "$REPO_ROOT/src-tauri/target/release/copypolish-tui" "$TUI_STAGING/"
+(cd "$TUI_STAGING" && 7z a -t7z -mx=9 "$DIST_DIR/CopyPolish-tui-linux-x86_64.7z" copypolish-tui)
+rm -rf "$TUI_STAGING"
+
 BUNDLE_DIR="$REPO_ROOT/src-tauri/target/release/bundle"
 mkdir -p "$DIST_DIR"
 
@@ -63,13 +77,7 @@ find "$BUNDLE_DIR" -name '*.deb' -exec cp {} "$DIST_DIR/CopyPolish_linux_amd64.d
 find "$BUNDLE_DIR" -name '*.rpm' -exec cp {} "$DIST_DIR/CopyPolish-linux-x86_64.rpm" \;
 find "$BUNDLE_DIR" -name '*.AppImage' -exec cp {} "$DIST_DIR/CopyPolish_linux_amd64.AppImage" \;
 
-echo "== 校验产物 =="
+echo "== 校验产物（Linux 平台资产）=="
 python3 "$REPO_ROOT/scripts/verify_release_assets.py" "$TAG" \
     --dist-dir "$DIST_DIR" \
-    || {
-        echo "提示：Windows 资产缺失属正常现象——本脚本仅产出 Linux 资产，" >&2
-        echo "完整五资产校验需在 Windows 构建完成后合并目录再跑一次。" >&2
-    }
-
-echo "完成：Linux 资产已输出到 $DIST_DIR"
-ls -la "$DIST_DIR"
+    --platform linux

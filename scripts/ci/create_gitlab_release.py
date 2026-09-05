@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Create the GitLab Release for the current CI tag.
 
-The six files must already exist in the Generic Package Registry.
+The eight files (seven release assets plus SHA256SUMS) must already exist
+in the Generic Package Registry.
 Authentication is provided by CI_JOB_TOKEN.
 """
 
@@ -27,6 +28,8 @@ def main() -> int:
         "CopyPolish_linux_amd64.deb",
         "CopyPolish-linux-x86_64.rpm",
         "CopyPolish_linux_amd64.AppImage",
+        "CopyPolish-tui-windows-x64.7z",
+        "CopyPolish-tui-linux-x86_64.7z",
         "SHA256SUMS",
     ]
     payload = {
@@ -37,7 +40,7 @@ def main() -> int:
         "description": (
             f"# {tag}\n\n"
             f"- Commit: `{commit_sha}`\n"
-            "- 五个平台资产已完成校验。\n"
+            "- 七个发布资产已完成校验。\n"
             "- SHA-256 摘要见 `SHA256SUMS`。\n\n"
             "> 本 Release 由 GitLab CI 生成，正式对外发布前仍需人工复核 Release Notes。"
         ),
