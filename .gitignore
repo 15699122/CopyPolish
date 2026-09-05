@@ -27,14 +27,43 @@ src-tauri/gen/
 # 编辑器 / 系统
 .DS_Store
 *.log
+.vscode/
+.idea/
+*.code-workspace
 
-# 用户设置（保存在当前工作目录）
+# 本地环境与凭据
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+*.pem
+*.key
+id_rsa
+id_ed25519
+credentials.json
+auth.json
+session.json
+
+# 用户设置（仅保存在本地工作目录）
 /ccw-formatter-settings.json
+ccw-formatter-settings.json.*
 
 # 运行时用户设置（exe 同目录 rules.yaml）
 /rules.yaml
+rules.yaml.bak
 
-# SOPS / age 明文副本（仅提交加密的 secrets/*.env）
+# 本地数据库
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.sqlite-journal
+
+# SOPS / age 文件仅保存在本地；仓库只提交示例模板
+secrets/*
+!secrets/*.example
 secrets/*.env.plain
 secrets/*.env.dec
 secrets/*.env.clear
@@ -43,4 +72,7 @@ secrets/*.env.clear
 
 # age 私钥不得提交
 keys.txt
-*.agekey
+
+# 本地 SOPS 配置
+.sops.yaml
+!.sops.yaml.example

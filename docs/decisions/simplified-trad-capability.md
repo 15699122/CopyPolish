@@ -79,7 +79,7 @@ Cargo feature
 
 ### 跨平台
 
-- Linux/WSL 默认和 feature GUI E2E 均通过；
+- Linux/WSL 环境 默认和 feature GUI E2E 均通过；
 - Windows 默认和 feature GUI E2E 均通过；
 - 默认、TUI、feature、组合 Cargo 测试通过；
 - `docs/licenses.md` 与发布资产说明在正式启用 feature 时同步更新。

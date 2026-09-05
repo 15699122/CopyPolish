@@ -1,6 +1,6 @@
-# 文案净排
+# 文案净排（CopyPolish）
 
-> 项目名称：**文案净排**（英文：**CopyPolish**）。
+> 项目名称：**文案净排**（英文：**CopyPolish**）。源码仓库：<https://github.com/15699122/CopyPolish>
 
 文案净排（CopyPolish）是一款本地优先的中文文本清洗与规范排版工具，适用于网页文案、技术文档以及从 PDF、CAJ、Zotero 等来源复制的文本。它按照 [chinese-copywriting-guidelines](https://github.com/sparanoid/chinese-copywriting-guidelines) 的简体中文文案规范，整理中文、英文、数字、单位和标点之间的格式，并提供首批来源文本清洗、自定义字面量替换和可选简繁转换能力。
 
@@ -215,3 +215,41 @@ copypolish-tui --help
 - [CHANGELOG.md](CHANGELOG.md)：版本和重要变更记录。
 
 已完成版本的发布计划与验收记录保存在 `docs/archive/`，不作为当前开发任务清单。
+
+## 参考
+
+CopyPolish 的产品规则、实现方式和工程工具参考了以下项目、规范与官方资料。这里列出的是项目文档或实现中明确采用、对照或依赖的主要来源；第三方传递依赖的完整许可证信息以 [docs/licenses.md](docs/licenses.md) 为准。
+
+- [CopyPolish](https://github.com/15699122/CopyPolish)：当前项目的公开源码仓库；实现和行为以仓库中的源码、配置和测试为准。
+
+### 规范与数据来源
+
+- [chinese-copywriting-guidelines](https://github.com/sparanoid/chinese-copywriting-guidelines)：简体中文文案排版规范的主要参考。
+- [Unicode Character Database](https://www.unicode.org/ucd/)：康熙部首兼容分解映射、Unicode 字符属性和相关边界语义的数据来源。
+- [Unicode Standard Annex #29](https://www.unicode.org/reports/tr29/)：grapheme cluster 边界处理的规范参考。
+
+### 产品与功能参考
+
+- [paper-assistant](https://github.com/laorange/paper-assistant)：来源文本清洗、引用角标和 PDF/CAJ 复制文本场景的功能对照参考。CopyPolish 不复制其源码，也不解析 PDF/DOCX 文件本体。
+- [Grammarly](https://www.grammarly.com/)：用于产品边界对照；CopyPolish 不依赖 Grammarly 或在线服务。
+
+### 应用框架与界面生态
+
+- [Tauri](https://v2.tauri.app/)：桌面应用壳、IPC、窗口和构建配置。
+- [React](https://react.dev/)：GUI 组件和状态交互。
+- [Vite](https://vite.dev/)：前端开发服务器和生产构建。
+- [Tailwind CSS](https://tailwindcss.com/)：界面样式工具链。
+- [shadcn/ui](https://ui.shadcn.com/) 与 [Radix UI](https://www.radix-ui.com/)：设置弹窗、表单控件和无障碍交互基础。
+- [Lucide](https://lucide.dev/)：界面图标。
+- [Rust](https://www.rust-lang.org/)：排版引擎、设置模型和 TUI 实现语言。
+- [Ratatui](https://ratatui.rs/) 与 [Crossterm](https://github.com/crossterm-rs/crossterm)：终端版 `copypolish-tui` 的界面渲染和终端事件处理。
+
+### 文本转换、测试与工程工具
+
+- [OpenCC](https://github.com/BYVoid/OpenCC)：简繁转换词典和语义边界的参考；实际可选转换实现使用 [opencc-fmmseg](https://github.com/laisuk/opencc-fmmseg)。
+- [WebdriverIO](https://webdriver.io/)：真实 Tauri GUI E2E 测试框架和 provider 配置参考。
+- [Tauri WebDriver 文档](https://v2.tauri.app/develop/tests/webdriver/)：embedded 与标准 WebDriver 测试路线参考。
+- [tauri-plugin-webdriver](https://github.com/Choochmeque/tauri-plugin-webdriver)：标准 W3C WebDriver provider 的 PoC 和兼容性 smoke 参考，不是生产 GUI 的唯一测试路线。
+- [sops](https://github.com/getsops/sops) 与 [age](https://age-encryption.org/)：加密凭据文件和密钥管理工具。
+
+参考项目只用于规范、架构、功能边界或测试方案对照；CopyPolish 的实际行为以仓库中的 Rust 引擎、前端实现、配置文件和测试结果为准。

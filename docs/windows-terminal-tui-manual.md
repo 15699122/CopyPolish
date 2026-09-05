@@ -12,12 +12,12 @@
 ## 1. 前置条件
 
 1. 使用 Windows Terminal 1.24 或更新版本，并打开 PowerShell 7 配置文件。
-2. 从 Windows native environment Windows 原生 checkout 执行，不要在 `<wsl-path>` 路径中构建。
+2. 从 Windows 原生环境 Windows 原生 checkout 执行，不要在 `<wsl-path>` 路径中构建。
 3. 确认工具链：`node --version` 为 24.19.0，`rustc --version` 为 1.98.0 MSVC。
 4. 进入项目：
 
    ```powershell
-   Set-Location -LiteralPath 'E:\\\chinese_copywriting_formatter'
+   Set-Location -LiteralPath 'C:\src\CopyPolish'
    ```
 
 5. 构建 TUI：
@@ -144,7 +144,7 @@
 1. 在 Windows Terminal 打开 PowerShell 7，确认 `$env:WT_SESSION` 非空，并记录：
 
    ```powershell
-   Set-Location -LiteralPath 'E:\\\chinese_copywriting_formatter'
+   Set-Location -LiteralPath 'C:\src\CopyPolish'
    $env:WT_SESSION
    wt.exe --version
    $PSVersionTable.PSVersion

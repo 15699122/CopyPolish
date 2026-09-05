@@ -2,7 +2,7 @@
 
 > **归档说明**：本决策已关闭。选定方案 A（embedded）为主路线、方案 E（标准 W3C WebDriver）为并行 provider；后续执行状态统一记录在 [e2e-development.md](../../e2e-development.md) 与 [windows-e2e-runbook.md](../../windows-e2e-runbook.md)。Windows 原生验证已全部完成或按项目决策跳过；本文仅保留选型依据，不维护进度状态。
 >
-> 状态：方案 A 已建立并通过 Linux/WSLg 基线；方案 E 已完成 Linux/WSLg 并行 PoC，并于 2026-08-31 在 Windows WebView2 上完成最小对照 smoke。TUI 事件路由、规则排序、编辑器边界和 GUI 样式随后完成修复；修复后的双 provider 最小回归、设置重启恢复、损坏设置、NTFS ACL、Windows GUI/TUI 手动回归、连续稳定性、统一 artifact、受控失败 probe、GUI 主题/窄窗口 artifact 和 TUI 非交互 transcript 均已完成。Windows 三档 DPI 人工验证已完成（自动矩阵决定不执行）、Terminal 交互 artifact 已由用户确认通过、React 19 告警已由设置控制台 runner 复核为 0、GitLab Windows 可选 E2E 已决定跳过（不执行）。
+> 状态：方案 A 已建立并通过 Linux/WSL 环境g 基线；方案 E 已完成 Linux/WSL 环境g 并行 PoC，并于 2026-08-31 在 Windows WebView2 上完成最小对照 smoke。TUI 事件路由、规则排序、编辑器边界和 GUI 样式随后完成修复；修复后的双 provider 最小回归、设置重启恢复、损坏设置、NTFS ACL、Windows GUI/TUI 手动回归、连续稳定性、统一 artifact、受控失败 probe、GUI 主题/窄窗口 artifact 和 TUI 非交互 transcript 均已完成。Windows 三档 DPI 人工验证已完成（自动矩阵决定不执行）、Terminal 交互 artifact 已由用户确认通过、React 19 告警已由设置控制台 runner 复核为 0、GitLab Windows 可选 E2E 已决定跳过（不执行）。
 > **2026-09-01 收敛**：方案 E（标准 W3C WebDriver）已从并行完整回归缩减为兼容性 smoke，仅保留 `specs/w3c/smoke.spec.ts`（session 创建、主窗口发现、1 次真实格式化、1 次设置保存、正常退出与清理）。`wdio.webdriver.conf.ts` 与 `run-webdriver-specs.ts` 已同步指向 `specs/w3c/`，`package.json` 中各 `:webdriver` 专项脚本已移除。方案 A（embedded）仍为唯一完整回归主路线。
 > 前置阅读：[roadmap.md](../../roadmap.md)。
 
@@ -83,7 +83,7 @@ Windows 验证必须对方案 A 和方案 E 使用同一 commit、同一 Node/Ru
 | --- | --- | --- | --- |
 | binary 构建 | 通过 | 通过 | Node 24.19.0、MSVC、Rust MSVC |
 | WebView2 启动 | 通过 | 通过 | WebView2 Runtime 151.0.4129.107 |
-| session 创建 | 通过 | 通过 | embedded session；W3C 随机端口 55755/53010 |
+| session 创建 | 通过 | 通过 | embedded session；W3C 随机 localhost 端口 |
 | 主窗口发现 | 通过 | 通过 | 真实打包前端窗口 |
 | 默认格式化与 Rust IPC | 通过 | 通过 | `在LeanCloud上，花了5000元` |
 | 设置保存 | 通过 | 通过 | 临时 `rules.yaml` |

@@ -53,7 +53,7 @@ vi.mock("@/lib/tauri", () => ({
   getRules: mocks.getRules,
   getEnabledDefaults: mocks.getEnabledDefaults,
   getPresets: mocks.getPresets,
-  getSettingsPath: () => "C:\\Users\\Tester\\Desktop\\CopyPolish\\rules.yaml",
+  getSettingsPath: () => "C:\\src\\CopyPolish\\rules.yaml",
   getUserSettings: mocks.getUserSettings,
   saveUserSettings: mocks.saveUserSettings,
   getAppVersion: mocks.getAppVersion,
@@ -294,11 +294,11 @@ describe("App 主流程", () => {
     const settingsPathEl = screen.getByTestId("settings-path");
     expect(settingsPathEl).toHaveAttribute(
       "title",
-      "C:\\Users\\Tester\\Desktop\\CopyPolish\\rules.yaml",
+      "C:\\src\\CopyPolish\\rules.yaml",
     );
     expect(settingsPathEl).toHaveAttribute(
       "aria-label",
-      "点击复制设置文件完整路径：C:\\Users\\Tester\\Desktop\\CopyPolish\\rules.yaml",
+      "点击复制设置文件完整路径：C:\\src\\CopyPolish\\rules.yaml",
     );
     expect(settingsPathEl).toHaveAttribute("type", "button");
     expect(settingsPathEl).toHaveClass("underline", "decoration-dotted", "underline-offset-4");

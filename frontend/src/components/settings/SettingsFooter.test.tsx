@@ -9,7 +9,7 @@ describe("SettingsFooter", () => {
   const onResetDefaults = vi.fn();
   const onOpenChange = vi.fn();
 
-  const WIN_PATH = "C:\\Users\\Tester\\Desktop\\CopyPolish\\rules.yaml";
+  const WIN_PATH = "C:\\src\\CopyPolish\\rules.yaml";
 
   function renderFooter(settingsPath: string | null = null) {
     return render(

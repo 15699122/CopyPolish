@@ -33,12 +33,12 @@
 - 增加自定义字面量替换：扩展 `FormatRequest` 为统一请求模型（有序、仅 active、span 保护前执行），随 `Preset` 模板一并落地；GUI 与 TUI 均支持添加、编辑、启停和删除替换项，并将列表顺序持久化到设置。
 - 补齐 GUI 与 TUI 的替换/简繁转换交互回归：覆盖设置恢复、旧字段默认值、持久化、实时重排、TUI 请求面板和快捷键立即排版设置透传。
 - 增加真实 GUI E2E 的替换/转换保存与重启恢复用例：默认构建验证 capability=false、设置保存/恢复、替换行为及不可用简繁选择归一化；`simplified-trad-conversion` feature 单独验证 capability=true 与真实双向转换。Windows 默认 embedded、feature embedded 和 W3C smoke 均已取得当前收尾证据；TUI/CLI 共享设置行为已接入。
-- 新增 `build:app:simplified-trad` 与 feature 专用 GUI E2E spec，并在当前 Linux/WSL embedded provider 验证双向真实转换 2/2 通过（`s2t` / `t2s`）；默认 E2E 构建语义保持不变。
+- 新增 `build:app:simplified-trad` 与 feature 专用 GUI E2E spec，并在当前 Linux/WSL 环境 环境 embedded provider 验证双向真实转换 2/2 通过（`s2t` / `t2s`）；默认 E2E 构建语义保持不变。
 - 收敛 Windows 原生验证文档：明确默认 embedded 完整回归、简繁 feature embedded 双向验证、W3C 兼容性 smoke、NTFS ACL 和按需 GUI artifact 的执行顺序；移除已不存在的专项 `:webdriver` 命令引用，并标明 DPI 自动矩阵、GitLab stage 和已完成的 Terminal/TUI 项目状态。
-- 修复设置保存状态的旧 Promise 覆盖问题，并增强 E2E 的真实输入事件、格式化请求/结果和失败诊断；Linux/WSL 默认 embedded 设置链路恢复为 3/3，简繁 feature GUI 双向转换为 2/2。Windows 需使用当前修复 binary 重新留证，Unix-only 权限测试已增加平台条件。
-- 修复立即设置保存未取消旧输入防抖保存的问题，避免旧的简繁转换快照在 `t2s` 设置之后再次写入；新增保存时序回归和 feature E2E 的实际保存序号/转换值校验。Linux/WSL 默认 embedded 3/3、简繁 feature 2/2 通过；Windows 仍需使用当前 binary 重新留证。
+- 修复设置保存状态的旧 Promise 覆盖问题，并增强 E2E 的真实输入事件、格式化请求/结果和失败诊断；Linux/WSL 环境 环境 默认 embedded 设置链路恢复为 3/3，简繁 feature GUI 双向转换为 2/2。Windows 需使用当前修复 binary 重新留证，Unix-only 权限测试已增加平台条件。
+- 修复立即设置保存未取消旧输入防抖保存的问题，避免旧的简繁转换快照在 `t2s` 设置之后再次写入；新增保存时序回归和 feature E2E 的实际保存序号/转换值校验。Linux/WSL 环境 环境 默认 embedded 3/3、简繁 feature 2/2 通过；Windows 仍需使用当前 binary 重新留证。
 - 增加构建 capability 查询：默认构建明确声明不包含简繁转换能力，GUI 禁用 T2S/S2T 并将不可用选择归一化为 `none`；`simplified-trad-conversion` feature 构建继续启用真实 OpenCC 转换。默认与 feature GUI 回归均覆盖 capability 边界。
-- 使用提交 `6687c13` 在隔离 Windows 原生 checkout 刷新 capability 证据：默认 embedded 3/3、简繁 feature embedded 2/2、Windows MSVC TUI 167/167、W3C smoke 2/2（随机端口 51737）均通过；所有 runner 均有明确完成数，隔离 checkout 和生成物已清理。
+- 使用提交 `6687c13` 在隔离 Windows 原生 checkout 刷新 capability 证据：默认 embedded 3/3、简繁 feature embedded 2/2、Windows MSVC TUI 167/167、W3C smoke 2/2（随机 localhost 端口）均通过；所有 runner 均有明确完成数，隔离 checkout 和生成物已清理。
 - TUI 新增替换与字符转换请求设置面板（`Ctrl+E`）：支持有序替换项新增/编辑/启停/删除、`from`/`to` 字段切换和 `none`/`t2s`/`s2t` 模式循环；与 GUI 共用 `FormatRequest` 和 `rules.yaml`，默认构建将不可用简繁模式归一化为 `none`，feature 构建保留真实转换。
 - 新增三个内置工作流预设：中文文案、PDF 清洗、技术文档。预设通过 `get_presets` 同时提供给 GUI 和 TUI，只展开为统一 `FormatRequest` 的规则选择、替换与转换字段；PDF 预设不解析 PDF 文件本体。
 - 新增文本清洗与规范排版工作流决策（`docs/decisions/text-cleaning-workflow.md`），并将产品描述调整为本地优先的中文文本清洗与规范排版工具；更复杂的来源文本清洗和其他转换能力仍属于后续路线图，不代表本版本已经实现。
@@ -73,7 +73,7 @@
 - 修复 TUI 规则面板展示顺序、输入区可打印字符误触全局快捷键、bracketed paste 以及最后一个 grapheme 的 Delete/Right 边界；修复后的 Windows Terminal raw-mode、规则排序、`Get-Clipboard` 完整粘贴、新快捷键语义和编辑器边界已完成手动回归。
 - 修复 Windows Terminal 自动换行后的多行显示缺陷（WT-TUI-001 额外行绘制/状态栏重叠、WT-TUI-002 光标不可见）：新增与 ratatui 渲染等价的视觉换行布局（`src-tauri/src/tui/wrap.rs`），光标与滚动改按视觉行而非逻辑行计算，并新增 10 项 Rust/UI 回归（含 CJK、emoji grapheme 与 ratatui 渲染等价校验）。Windows MSVC 完整 TUI 测试已增至 158/158 通过；WT-TUI-003（emoji 显示）一并纳入修复范围，WT-TUI-001/002/003 均已在真实 Windows Terminal 中由用户确认复验通过并关闭。
 - 2026-09-01 Windows 复验：前端 57/57、TUI 158/158、TUI transcript 4/4、embedded provider 普通 E2E 3/3、重启设置 write/read、三种损坏设置、NTFS ACL、GUI artifact 和受控失败 probe 全部达到预期。100%/125%/150% DPI 人工 GUI 验证已完成；GitLab Windows 可选 E2E stage 已决定跳过（不执行）。标准 W3C provider 已收敛为兼容性 smoke（`specs/w3c/smoke.spec.ts`）。
-- 统一桌面 GUI 输出框边框阴影、设置标题间距、恢复按钮、长路径中间省略和主题/快捷键复选框样式；Linux/WSLg 前端测试与构建及 Windows WebView2 下的 DPI、窄窗口和视觉回归均已完成。
+- 统一桌面 GUI 输出框边框阴影、设置标题间距、恢复按钮、长路径中间省略和主题/快捷键复选框样式；Linux/WSL 环境 环境g 前端测试与构建及 Windows WebView2 下的 DPI、窄窗口和视觉回归均已完成。
 - 抽离前端规则目录加载（`useRuleCatalog`）和清空输入反馈（`useClearFeedback`），降低 `App.tsx` 编排复杂度。
 - 拆分设置界面为独立分区组件（主题、显示、快捷键、规则、状态 Footer），`SettingsDialog.tsx` 负责编排。
 - 抽取设置提醒文案与判定到 `frontend/src/lib/settingsLoadNotices.ts`，主界面与设置 Footer 共用，消除重复并精简 `App.tsx`。

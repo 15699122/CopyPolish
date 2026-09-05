@@ -19,7 +19,7 @@ GitHub 是源码、Issue、Pull Request、版本 tag 和公开 Release 的主平
 快速自检：浏览器访问 `https://gitlab.com/api/v4/mcp`，
 返回 MCP/OAuth 协议响应而非 404 即为已开启。
 
-本项目使用的 GitLab 项目地址为
+本项目使用的 GitLab Build Service 项目地址为
 `https://gitlab.com/olivaceum-group/chinese_copywriting_formatter`
 （Olivaceum-group，Ultimate 试用中）。
 

@@ -24,6 +24,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SOPS_FILE = REPO_ROOT / "secrets" / "tokens.env"
+SOPS_EXAMPLE_FILE = REPO_ROOT / "secrets" / "tokens.env.example"
 
 # 只匹配高置信度的凭据形态，避免把文档中的变量名或普通示例误报。
 SECRET_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
@@ -94,7 +95,9 @@ def scan_plaintext_secrets() -> list[str]:
 def validate_sops_structure() -> list[str]:
     errors: list[str] = []
     if not SOPS_FILE.is_file():
-        return [f"missing SOPS file: {SOPS_FILE.relative_to(REPO_ROOT)}"]
+        if not SOPS_EXAMPLE_FILE.is_file():
+            return [f"missing SOPS template: {SOPS_EXAMPLE_FILE.relative_to(REPO_ROOT)}"]
+        return []
 
     text = SOPS_FILE.read_text(encoding="utf-8", errors="replace")
     lines = text.splitlines()
@@ -128,6 +131,8 @@ def validate_sops_structure() -> list[str]:
 
 
 def validate_with_sops(require_sops: bool) -> list[str]:
+    if not SOPS_FILE.is_file():
+        return []
     sops = shutil.which("sops")
     if sops is None:
         if require_sops:
@@ -157,6 +162,12 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     errors = scan_plaintext_secrets()
+    tracked_secrets = run(["git", "ls-files", "--error-unmatch", "secrets/tokens.env"])
+    if tracked_secrets.returncode == 0:
+        errors.append("secrets/tokens.env must not be tracked; keep it local and use secrets/tokens.env.example")
+    tracked_sops = run(["git", "ls-files", "--error-unmatch", ".sops.yaml"])
+    if tracked_sops.returncode == 0:
+        errors.append(".sops.yaml must not be tracked; use .sops.yaml.example")
     errors.extend(validate_sops_structure())
     errors.extend(validate_with_sops(args.require_sops))
 

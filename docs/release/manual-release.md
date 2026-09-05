@@ -10,11 +10,11 @@
 | --- | --- | --- |
 | GitLab 构建 + 手动整理/发布 | 当前主路线之一 | 手动将合法 `v*` tag 推送到 GitLab；GitLab 构建 Linux/Windows（含 TUI 独立资产）、生成内部资产；维护者下载、校验并手动发布到 GitHub Release |
 | 本地 Linux/Windows 构建 + 手动发布 | 当前主路线之一 | 在对应原生平台构建全部资产，执行统一校验后手动上传到 GitHub 或 GitLab Release |
-| GitHub Actions | 暂时禁用 | 因账户计费阻塞，所有 job 由仓库 Variable `ACTIONS_ENABLED`（默认 unset/非 true）守卫，不运行；恢复时在仓库 Settings > Variables 将其设为 `true`。常规验证与 Release 构建均由 GitLab pipeline 或本地承担 |
+| GitHub Actions | 已启用 | `ci` workflow 负责 `dev` / `master` 的 push 和 Pull Request 常规验证；仓库变量 `ACTIONS_ENABLED` 当前应为 `true`。GitHub Actions 不负责跨平台正式 Release 资产构建 |
 
 原则：
 
-- GitHub Actions 暂时禁用（账户计费阻塞，见上表）；常规分支验证当前由本地 `verify.py` 承担，跨平台 Release 由 GitLab tag pipeline 或本地构建完成，手动上传前必须保留验证日志和资产校验结果；
+- GitHub Actions 当前负责常规分支验证；本地 `verify.py` 是可复现的同等验证入口，跨平台 Release 资产由 GitLab tag pipeline 或本地原生构建完成，手动上传前必须保留验证日志和资产校验结果；
 - 每个 Release 必须能追溯到一个明确的 Git commit 与 Git tag；
 - 未经过 `prepare_release_version.py` 同步版本的二进制不得作为 Release 资产上传；
 - Windows 资产必须在 Windows 上构建，Linux 资产必须在 Linux 上构建（本项目未配置交叉编译）。
@@ -81,7 +81,7 @@ npm ci --prefix frontend
 npm run tauri --prefix frontend -- build --no-bundle
 ```
 
-产物位于 `src-tauri/target/release/chinese-copywriting-formatter.exe`。
+构建产物位于 `src-tauri/target/release/chinese-copywriting-formatter.exe`（Cargo package 的内部文件名）；发布前必须复制并重命名为 `CopyPolish.exe`。
 
 打包规范（与 GitLab Windows 构建脚本保持一致）：
 
@@ -131,7 +131,7 @@ Windows 主机
 - Windows 主机已安装 WebView2 Runtime；
 - Windows 主机已安装 7-Zip，并可通过 `7z.exe` 调用；
 - WSL 中可执行 `powershell.exe` 或 `pwsh.exe`，且 Windows 工具能访问同一份源码目录；
-- 源码位于 Windows 文件系统（例如 `C:\src\chinese_copywriting_formatter`，WSL 中对应 `/mnt/c/src/chinese_copywriting_formatter`）。
+- 源码位于 Windows 文件系统（例如 `C:\src\CopyPolish`，WSL 中对应 `/mnt/c/src/CopyPolish`）。
 
 不建议将发布工作区放在 WSL 的 ext4 文件系统中后再让 Windows 工具通过网络或特殊路径访问。Node、Cargo、Tauri 和 Windows 文件监视器在 `/mnt/c/...` 下的行为更容易与 Windows 原生构建保持一致；如果性能明显不足，可在 Windows 文件系统中准备独立发布 worktree。
 
@@ -140,8 +140,8 @@ Windows 主机
 在 WSL 中执行 Git 操作和版本同步。以下路径仅为示例，请替换为实际 Windows 路径：
 
 ```bash
-export WIN_REPO='C:\src\chinese_copywriting_formatter'
-export WSL_REPO='/mnt/c/src/chinese_copywriting_formatter'
+export WIN_REPO='C:\src\CopyPolish'
+export WSL_REPO='/mnt/c/src/CopyPolish'
 
 cd "$WSL_REPO"
 git fetch origin --tags
@@ -182,7 +182,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \
 
 如果主机使用 PowerShell 7，也可以将 `powershell.exe` 替换为 `pwsh.exe`。路径中包含空格时，优先使用 `-LiteralPath`；复杂路径或复杂参数建议写入一个 Windows `.ps1` 脚本后由 WSL 调用，避免 Bash、PowerShell 和 JSON 字符串多重转义。
 
-构建完成后，Windows 输出仍应位于发布 worktree 的：
+构建完成后，Windows 内部输出仍应位于发布 worktree 的：
 
 ```text
 src-tauri\target\release\chinese-copywriting-formatter.exe
@@ -202,7 +202,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \
    Copy-Item -LiteralPath \$exe -Destination (Join-Path \$staging 'CopyPolish.exe'); \
    Get-ChildItem (Split-Path \$exe) -Filter '*.dll' -File -ErrorAction SilentlyContinue | Copy-Item -Destination \$staging; \
    \$sevenZip = (Get-Command 7z -ErrorAction SilentlyContinue).Source; \
-   if (-not \$sevenZip) { \$sevenZip = 'C:\\Program Files\\7-Zip\\7z.exe' }; \
+   if (-not \$sevenZip) { \$sevenZip = '$env:ProgramFiles\7-Zip\7z.exe' }; \
    \$dist = Join-Path \$PWD 'dist/windows'; \
    New-Item -ItemType Directory -Force -Path \$dist | Out-Null; \
    Push-Location \$staging; \
@@ -248,7 +248,7 @@ CopyPolish_linux_amd64.AppImage
 
 ### 8.1 发布资产来源
 
-当前标准流程由 GitLab tag pipeline 构建并汇总全部七项平台资产（桌面版五项 + TUI 独立资产两项）及 `SHA256SUMS`。维护者下载后执行完整校验，再使用 GitHub CLI 或 GitHub Releases 页面完成公开 Release；上传前不得将不完整资产集标记为正式版。`v0.5.0` 已完成正式发布；后续版本仍须在资产完整且校验通过后再发布。
+当前标准流程由 GitLab tag pipeline 构建并汇总全部七项平台资产（桌面版五项 + TUI 独立资产两项）及 `SHA256SUMS`。维护者下载后执行完整校验，再使用 GitHub CLI 或 GitHub Releases 页面完成公开 Release；上传前不得将不完整资产集标记为正式版。GitHub Actions 当前负责 `dev` / `master` 的常规分支 CI，不替代 GitLab/本地跨平台 Release 构建；仓库变量 `ACTIONS_ENABLED` 必须为 `true`。
 
 TUI 资产与桌面版共享同一 Release、tag、SHA256SUMS 与发布方式，命名遵循相同规范：
 
