@@ -10,21 +10,29 @@
 //   前端均无需改动。
 // =============================================================================
 
-use super::model::RuleMeta;
+use super::model::{RuleExample, RuleKind, RuleMeta, RuleRisk};
 use super::rule_impls;
 use std::collections::{HashMap, HashSet};
 
 /// 稳定规则 key 常量。
 pub mod keys {
+    pub const CLEANUP_REFERENCE_SQUARE: &str = "cleanup.reference-square";
+    pub const CLEANUP_COLLAPSE_HORIZONTAL_SPACES: &str = "cleanup.collapse-horizontal-spaces";
+    pub const CLEANUP_LIMIT_BLANK_LINES: &str = "cleanup.limit-blank-lines";
+    pub const CLEANUP_KANGXI_RADICALS: &str = "cleanup.kangxi-radicals";
+    pub const CLEANUP_CJK_INTERNAL_SPACE: &str = "cleanup.cjk-internal-space";
     pub const SPACING_CJK_LATIN: &str = "spacing.cjk-latin";
     pub const SPACING_CJK_NUMBER: &str = "spacing.cjk-number";
     pub const SPACING_NUMBER_UNIT: &str = "spacing.number-unit";
+    pub const SPACING_NUMERIC_PUNCTUATION: &str = "spacing.numeric-punctuation";
     pub const SPACING_TEMPERATURE_CJK: &str = "spacing.temperature-cjk";
     pub const SPACING_NO_SPACE_AROUND_FW_PUNCT: &str = "spacing.no-space-around-fw-punct";
     pub const PUNCT_NO_REPETITION: &str = "punctuation.no-repetition";
     pub const PUNCT_FULLWIDTH_CJK: &str = "punctuation.fullwidth-cjk";
     pub const TEXT_HALFWIDTH_DIGITS: &str = "text.halfwidth-digits";
+    pub const TEXT_HALFWIDTH_ASCII: &str = "text.halfwidth-ascii";
     pub const TEXT_ASCII_PUNCT_IN_LATIN: &str = "text.ascii-punct-in-latin";
+    pub const TEXT_UNICODE_EQUIVALENTS: &str = "text.unicode-equivalents";
     pub const NAMING_PROPER_NOUNS: &str = "naming.proper-nouns";
     pub const NAMING_EXPAND_ABBREVIATIONS: &str = "naming.expand-abbreviations";
     pub const SPACING_AROUND_LINKS: &str = "spacing.around-links";
@@ -37,6 +45,7 @@ pub mod keys {
 /// 的顺序由 `execution_rules` 显式决定，而不是由调用方自行推断。
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum RulePhase {
+    Cleanup,
     PunctuationNormalization,
     NamingNormalization,
     StructureBoundary,
@@ -62,15 +71,25 @@ pub struct RuleDef {
 fn phase_for_key(key: &str) -> RulePhase {
     use keys::*;
     match key {
+        CLEANUP_REFERENCE_SQUARE
+        | CLEANUP_COLLAPSE_HORIZONTAL_SPACES
+        | CLEANUP_LIMIT_BLANK_LINES
+        | CLEANUP_KANGXI_RADICALS
+        | CLEANUP_CJK_INTERNAL_SPACE => RulePhase::Cleanup,
         PUNCT_NO_REPETITION
         | PUNCT_FULLWIDTH_CJK
         | TEXT_HALFWIDTH_DIGITS
+        | TEXT_HALFWIDTH_ASCII
         | TEXT_ASCII_PUNCT_IN_LATIN => RulePhase::PunctuationNormalization,
         NAMING_PROPER_NOUNS | NAMING_EXPAND_ABBREVIATIONS => RulePhase::NamingNormalization,
-        SPACING_AROUND_LINKS | PUNCT_CORNER_QUOTES => RulePhase::StructureBoundary,
-        SPACING_CJK_LATIN | SPACING_CJK_NUMBER | SPACING_NUMBER_UNIT | SPACING_TEMPERATURE_CJK => {
-            RulePhase::TextBoundary
+        SPACING_AROUND_LINKS | PUNCT_CORNER_QUOTES | TEXT_UNICODE_EQUIVALENTS => {
+            RulePhase::StructureBoundary
         }
+        SPACING_CJK_LATIN
+        | SPACING_CJK_NUMBER
+        | SPACING_NUMBER_UNIT
+        | SPACING_NUMERIC_PUNCTUATION
+        | SPACING_TEMPERATURE_CJK => RulePhase::TextBoundary,
         SPACING_NO_SPACE_AROUND_FW_PUNCT => RulePhase::FinalCleanup,
         _ => RulePhase::FinalCleanup,
     }
@@ -79,15 +98,23 @@ fn phase_for_key(key: &str) -> RulePhase {
 fn dependencies_for_key(key: &str) -> (&'static [&'static str], &'static [&'static str]) {
     use keys::*;
     match key {
+        CLEANUP_REFERENCE_SQUARE
+        | CLEANUP_COLLAPSE_HORIZONTAL_SPACES
+        | CLEANUP_LIMIT_BLANK_LINES
+        | CLEANUP_KANGXI_RADICALS
+        | CLEANUP_CJK_INTERNAL_SPACE => (&[], &[]),
         PUNCT_FULLWIDTH_CJK => (&[], &[PUNCT_NO_REPETITION][..]),
         TEXT_HALFWIDTH_DIGITS => (&[], &[PUNCT_FULLWIDTH_CJK][..]),
-        TEXT_ASCII_PUNCT_IN_LATIN => (&[], &[TEXT_HALFWIDTH_DIGITS][..]),
+        TEXT_HALFWIDTH_ASCII => (&[], &[TEXT_HALFWIDTH_DIGITS][..]),
+        TEXT_ASCII_PUNCT_IN_LATIN => (&[], &[TEXT_HALFWIDTH_ASCII][..]),
         NAMING_EXPAND_ABBREVIATIONS => (&[], &[NAMING_PROPER_NOUNS][..]),
         PUNCT_CORNER_QUOTES => (&[], &[SPACING_AROUND_LINKS][..]),
         SPACING_CJK_NUMBER => (&[], &[SPACING_CJK_LATIN][..]),
         SPACING_NUMBER_UNIT => (&[], &[SPACING_CJK_NUMBER][..]),
-        SPACING_TEMPERATURE_CJK => (&[], &[SPACING_NUMBER_UNIT][..]),
+        SPACING_NUMERIC_PUNCTUATION => (&[], &[SPACING_NUMBER_UNIT][..]),
+        SPACING_TEMPERATURE_CJK => (&[], &[SPACING_NUMERIC_PUNCTUATION][..]),
         SPACING_NO_SPACE_AROUND_FW_PUNCT => (&[], &[SPACING_TEMPERATURE_CJK][..]),
+        TEXT_UNICODE_EQUIVALENTS => (&[], &[PUNCT_CORNER_QUOTES][..]),
         _ => (&[], &[]),
     }
 }
@@ -107,11 +134,20 @@ fn def(
     legacy: &'static [&'static str],
     apply: fn(&str) -> String,
 ) -> RuleDef {
+    let (description, kind, risk) = metadata_for_key(key, name, disputed);
+    let (before, after) = example_for_key(key);
     RuleDef {
         meta: RuleMeta {
             key: key.to_string(),
             section: section.to_string(),
             name: name.to_string(),
+            description: description.to_string(),
+            example: RuleExample {
+                before: before.to_string(),
+                after: after.to_string(),
+            },
+            kind,
+            risk,
             disputed,
             default,
         },
@@ -123,11 +159,214 @@ fn def(
     }
 }
 
+/// 为现有静态规则集中生成面向用户的说明和风险分类。
+///
+/// 规则调用点继续保持原有参数形态，避免在元数据扩展时遗漏 stable key、
+/// 默认状态或 legacy alias；后续新增规则必须在这里补充明确的分类和描述。
+fn metadata_for_key(key: &str, _name: &str, disputed: bool) -> (&'static str, RuleKind, RuleRisk) {
+    use keys::*;
+    match key {
+        CLEANUP_REFERENCE_SQUARE => (
+            "删除普通文本中的数字引用角标，如 [1]、[2, 3]、[4-7] 和对应的中文方括号形式。",
+            RuleKind::Cleanup,
+            RuleRisk::Contextual,
+        ),
+        CLEANUP_COLLAPSE_HORIZONTAL_SPACES => (
+            "将普通可编辑文本中的连续 ASCII 空格折叠为一个，不改写代码、链接、公式和其他保护结构。",
+            RuleKind::Cleanup,
+            RuleRisk::Contextual,
+        ),
+        CLEANUP_LIMIT_BLANK_LINES => (
+            "将普通文本中的连续空行限制为一个空行，跳过受保护的 Markdown、代码、公式和 HTML 结构。",
+            RuleKind::Cleanup,
+            RuleRisk::Contextual,
+        ),
+        CLEANUP_KANGXI_RADICALS => (
+            "依据 Unicode 官方兼容分解表，将 U+2F00–U+2FD5 康熙部首映射为对应汉字；默认关闭，不执行全文 Unicode 规范化。",
+            RuleKind::Cleanup,
+            RuleRisk::Contextual,
+        ),
+        CLEANUP_CJK_INTERNAL_SPACE => (
+            "删除普通正文中相邻两个汉字之间单个 ASCII 空格，用于修复从 PDF/CAJ 复制时混入的内部异常空格；跳过连续空格、制表符、跨换行、CJK 与拉丁/数字/单位/标点边界，并受结构保护。默认关闭：按合成失败基线试实现，未经真实来源语料验收。",
+            RuleKind::Cleanup,
+            RuleRisk::Contextual,
+        ),
+        PUNCT_NO_REPETITION => (
+            "折叠连续重复标点，并规范连续叹号和问号的组合。",
+            RuleKind::Typography,
+            RuleRisk::Contextual,
+        ),
+        PUNCT_FULLWIDTH_CJK => (
+            "在中文语境中将适合的半角标点转换为中文全角标点，不处理 URL、代码和公式。",
+            RuleKind::Typography,
+            RuleRisk::Contextual,
+        ),
+        TEXT_HALFWIDTH_DIGITS => (
+            "仅将全角数字 ０–９ 转换为 ASCII 半角数字。",
+            RuleKind::Conversion,
+            RuleRisk::Safe,
+        ),
+        TEXT_HALFWIDTH_ASCII => (
+            "将全角 ASCII 字母和标点转换为半角字符；全角数字由独立的半角数字规则负责，不执行全文 NFKC。",
+            RuleKind::Conversion,
+            RuleRisk::Contextual,
+        ),
+        TEXT_ASCII_PUNCT_IN_LATIN => (
+            "在可识别的英文片段中恢复半角标点，不对全文执行无上下文标点互转。",
+            RuleKind::Typography,
+            RuleRisk::Contextual,
+        ),
+        TEXT_UNICODE_EQUIVALENTS => (
+            "仅转换有限的等价 Unicode 单位字符，不执行全文 NFKC。",
+            RuleKind::Conversion,
+            RuleRisk::Contextual,
+        ),
+        NAMING_PROPER_NOUNS => (
+            "将有限词典中的专有名词统一为约定大小写。",
+            RuleKind::Typography,
+            RuleRisk::Contextual,
+        ),
+        NAMING_EXPAND_ABBREVIATIONS => (
+            "将有限词典中的不推荐缩写替换为约定写法。",
+            RuleKind::Typography,
+            RuleRisk::Contextual,
+        ),
+        SPACING_AROUND_LINKS => (
+            "在链接与相邻中文之间增加空格；属于可争议的排版偏好。",
+            RuleKind::Typography,
+            RuleRisk::Contextual,
+        ),
+        PUNCT_CORNER_QUOTES => (
+            "在中文语境中将符合条件的直引号转换为直角引号。",
+            RuleKind::Typography,
+            RuleRisk::Contextual,
+        ),
+        SPACING_CJK_LATIN => (
+            "在中文与拉丁字母之间增加空格，并尊重 grapheme 和保护边界。",
+            RuleKind::Typography,
+            RuleRisk::Safe,
+        ),
+        SPACING_CJK_NUMBER => (
+            "在中文与数字之间增加空格，并尊重单位和结构保护边界。",
+            RuleKind::Typography,
+            RuleRisk::Safe,
+        ),
+        SPACING_NUMBER_UNIT => (
+            "在数字与已识别的单位之间增加空格。",
+            RuleKind::Typography,
+            RuleRisk::Contextual,
+        ),
+        SPACING_NUMERIC_PUNCTUATION => (
+            "移除小数点、时间/比例冒号、数字分组逗号和数字斜线两侧的异常 ASCII 空格，并保留版本号/IP 等连续点号数字链。",
+            RuleKind::Cleanup,
+            RuleRisk::Contextual,
+        ),
+        SPACING_TEMPERATURE_CJK => (
+            "在摄氏度或华氏度符号与中文之间增加空格。",
+            RuleKind::Typography,
+            RuleRisk::Contextual,
+        ),
+        SPACING_NO_SPACE_AROUND_FW_PUNCT => (
+            "移除全角标点与相邻字符之间不必要的空格。",
+            RuleKind::Typography,
+            RuleRisk::Safe,
+        ),
+        _ => (
+            "未分类规则。",
+            RuleKind::Typography,
+            if disputed {
+                RuleRisk::Contextual
+            } else {
+                RuleRisk::Safe
+            },
+        ),
+    }
+}
+
+/// 每条规则的短示例（仅启用该规则时 `before` 会被处理为 `after`）。
+/// 示例必须与真实注册表行为一致，由 `engine::tests::rule_examples_match_engine_output` 校验，
+/// 防止展示文案与实现漂移。
+fn example_for_key(key: &str) -> (&'static str, &'static str) {
+    use keys::*;
+    match key {
+        CLEANUP_REFERENCE_SQUARE => ("根据结果[1]得出", "根据结果得出"),
+        CLEANUP_COLLAPSE_HORIZONTAL_SPACES => ("普通  文本", "普通 文本"),
+        CLEANUP_LIMIT_BLANK_LINES => ("第一段。\n\n\n第二段。", "第一段。\n\n第二段。"),
+        CLEANUP_KANGXI_RADICALS => ("部首⼀⼁", "部首一丨"),
+        CLEANUP_CJK_INTERNAL_SPACE => ("复 制的中 文", "复制的中文"),
+        PUNCT_NO_REPETITION => ("德国队！！", "德国队！"),
+        PUNCT_FULLWIDTH_CJK => ("你好,世界!", "你好，世界！"),
+        TEXT_HALFWIDTH_DIGITS => ("只卖１０００元", "只卖1000元"),
+        TEXT_HALFWIDTH_ASCII => ("ＡＢＣ！", "ABC!"),
+        TEXT_ASCII_PUNCT_IN_LATIN => ("Hello，world！", "Hello, world！"),
+        TEXT_UNICODE_EQUIVALENTS => ("直径3Å", "直径3Å"),
+        NAMING_PROPER_NOUNS => ("使用 github 登录", "使用 GitHub 登录"),
+        NAMING_EXPAND_ABBREVIATIONS => ("使用 ts 开发", "使用 TypeScript 开发"),
+        SPACING_AROUND_LINKS => (
+            "查看[官网](https://example.com)然后",
+            "查看 [官网](https://example.com) 然后",
+        ),
+        PUNCT_CORNER_QUOTES => ("他说“你好”", "他说「你好」"),
+        SPACING_CJK_LATIN => ("在LeanCloud上", "在 LeanCloud 上"),
+        SPACING_CJK_NUMBER => ("花了5000元", "花了 5000 元"),
+        SPACING_NUMBER_UNIT => ("宽带有10Gbps", "宽带有10 Gbps"),
+        SPACING_NUMERIC_PUNCTUATION => ("取小数1 . 5", "取小数1.5"),
+        SPACING_TEMPERATURE_CJK => ("-20 ℃保存", "-20 ℃ 保存"),
+        SPACING_NO_SPACE_AROUND_FW_PUNCT => ("你好 ， 世界 ！", "你好，世界！"),
+        _ => ("原文", "原文"),
+    }
+}
+
 /// 规则注册表。数组顺序是 UI 展示和同阶段规则的稳定 tie-breaker。
-/// 历史 12 条规则已全部迁移；争议规则与两个名词规则默认关闭。
+/// 历史规则已全部迁移；争议规则、Unicode 输出规范化和两个名词规则默认关闭。
 static RULES: std::sync::LazyLock<Vec<RuleDef>> = std::sync::LazyLock::new(|| {
     use keys::*;
     vec![
+        def(
+            CLEANUP_REFERENCE_SQUARE,
+            "文本清洗",
+            "删除方括号引用角标",
+            false,
+            false,
+            &["删除方括号引用角标"],
+            rule_impls::remove_square_reference_badges,
+        ),
+        def(
+            CLEANUP_COLLAPSE_HORIZONTAL_SPACES,
+            "文本清洗",
+            "折叠连续空格",
+            false,
+            false,
+            &["折叠连续空格"],
+            rule_impls::collapse_horizontal_spaces,
+        ),
+        def(
+            CLEANUP_LIMIT_BLANK_LINES,
+            "文本清洗",
+            "限制连续空行",
+            false,
+            false,
+            &["限制连续空行"],
+            rule_impls::limit_blank_lines,
+        ),
+        def(
+            CLEANUP_KANGXI_RADICALS,
+            "文本清洗",
+            "修复康熙部首",
+            false,
+            false,
+            &["修复康熙部首"],
+            rule_impls::kangxi_radicals,
+        ),
+        def(
+            CLEANUP_CJK_INTERNAL_SPACE,
+            "文本清洗",
+            "清理中文之间异常空格",
+            false,
+            false,
+            &[],
+            rule_impls::cjk_internal_space,
+        ),
         def(
             PUNCT_NO_REPETITION,
             "标点符号",
@@ -156,6 +395,15 @@ static RULES: std::sync::LazyLock<Vec<RuleDef>> = std::sync::LazyLock::new(|| {
             rule_impls::fullwidth_digits,
         ),
         def(
+            TEXT_HALFWIDTH_ASCII,
+            "全角和半角",
+            "ASCII 字符使用半角形式",
+            false,
+            false,
+            &[],
+            rule_impls::fullwidth_ascii,
+        ),
+        def(
             TEXT_ASCII_PUNCT_IN_LATIN,
             "全角和半角",
             "遇到完整的英文整句、特殊名词，其内容使用半角标点",
@@ -163,6 +411,15 @@ static RULES: std::sync::LazyLock<Vec<RuleDef>> = std::sync::LazyLock::new(|| {
             true,
             &["遇到完整的英文整句_特殊名词_其内容使用半角标点"],
             rule_impls::halfwidth_in_english,
+        ),
+        def(
+            TEXT_UNICODE_EQUIVALENTS,
+            "全角和半角",
+            "统一等价 Unicode 单位字符",
+            false,
+            false,
+            &[],
+            rule_impls::unicode_equivalents,
         ),
         def(
             NAMING_PROPER_NOUNS,
@@ -226,6 +483,15 @@ static RULES: std::sync::LazyLock<Vec<RuleDef>> = std::sync::LazyLock::new(|| {
             true,
             &["数字与单位之间需要增加空格"],
             rule_impls::digit_unit_space,
+        ),
+        def(
+            SPACING_NUMERIC_PUNCTUATION,
+            "空格",
+            "修复数值标点异常空格",
+            false,
+            false,
+            &["修复数值标点异常空格"],
+            rule_impls::numeric_punctuation_space,
         ),
         def(
             SPACING_TEMPERATURE_CJK,

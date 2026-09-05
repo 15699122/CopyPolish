@@ -133,9 +133,7 @@ Invoke-Native "Verify version $Tag" { & $python "$RepoRoot\scripts\check_version
 Push-Location (Join-Path $RepoRoot "frontend")
 try {
     Invoke-Native "Install frontend dependencies" { npm ci }
-    # 关键：沿用已成功的 GitHub 命令。这里的第二个 -- 只传给 Tauri，
-    # 不会把 --no-bundle 误传给 cargo build。
-    Invoke-Native "Build Tauri Windows exe" { npm run tauri build -- --no-bundle }
+    Invoke-Native "Build Tauri Windows exe" { npm run tauri -- build --no-bundle }
 }
 finally {
     Pop-Location
@@ -165,6 +163,32 @@ finally {
     Pop-Location
 }
 Copy-Item (Join-Path $staging "CopyPolish.exe") (Join-Path $dist "CopyPolish.exe") -Force
+
+# ---- TUI 独立资产 -------------------------------------------------------------
+Invoke-Native "Build TUI release binary" {
+    cargo build `
+        --manifest-path "$RepoRoot\src-tauri\Cargo.toml" `
+        --features tui `
+        --release `
+        --bin copypolish-tui
+}
+$tuiExe = Join-Path $RepoRoot "src-tauri\target\release\copypolish-tui.exe"
+if (-not (Test-Path $tuiExe)) { throw "TUI build output was not found: $tuiExe" }
+$tuiStaging = Join-Path $env:TEMP "copypolish-tui-windows-staging"
+if (Test-Path $tuiStaging) { Remove-Item -Recurse -Force $tuiStaging }
+New-Item -ItemType Directory -Force -Path $tuiStaging | Out-Null
+Copy-Item $tuiExe (Join-Path $tuiStaging "CopyPolish-tui.exe")
+$tuiArchive = Join-Path $dist "CopyPolish-tui-windows-x64.7z"
+if (Test-Path $tuiArchive) { Remove-Item -Force $tuiArchive }
+Push-Location $tuiStaging
+try {
+    & $sevenZip a -t7z -mx=9 $tuiArchive "CopyPolish-tui.exe"
+    if ($LASTEXITCODE -ne 0) { throw "7-Zip (TUI) failed with exit code $LASTEXITCODE" }
+}
+finally {
+    Pop-Location
+}
+Remove-Item -Recurse -Force $tuiStaging
 
 & $python "$RepoRoot\scripts\verify_release_assets.py" $Tag --dist-dir $dist --platform windows
 if ($LASTEXITCODE -ne 0) { throw "Windows asset verification failed" }

@@ -7,12 +7,52 @@
 // 并安全丢弃未知规则。
 // =============================================================================
 
-use crate::engine::{self, RuleMeta};
+use crate::engine::{self, CharacterConversion, ReplacementPair, RuleMeta};
 
-/// format_text(text, selection) -> String
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BuildCapabilities {
+    pub simplified_trad_conversion: bool,
+}
+
+/// 返回当前 binary 编译时包含的可选能力。
 #[tauri::command]
-pub fn format_text(text: String, selection: engine::RuleSelection) -> Result<String, String> {
-    let req = engine::FormatRequest { text, selection };
+pub fn get_build_capabilities() -> BuildCapabilities {
+    BuildCapabilities {
+        simplified_trad_conversion: cfg!(feature = "simplified-trad-conversion"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::get_build_capabilities;
+
+    #[test]
+    fn build_capabilities_match_the_compiled_feature() {
+        assert_eq!(
+            get_build_capabilities().simplified_trad_conversion,
+            cfg!(feature = "simplified-trad-conversion"),
+        );
+    }
+}
+
+/// format_text(text, selection, replacements, conversion) -> String
+///
+/// `replacements` 与 `conversion` 为可选的请求层阶段；默认空 / None 时
+/// 输出与扩展前完全一致，旧调用方可只传 `{ text, selection }`。
+#[tauri::command]
+pub fn format_text(
+    text: String,
+    selection: engine::RuleSelection,
+    replacements: Option<Vec<ReplacementPair>>,
+    conversion: Option<CharacterConversion>,
+) -> Result<String, String> {
+    let req = engine::FormatRequest {
+        text,
+        selection,
+        replacements: replacements.unwrap_or_default(),
+        conversion: conversion.unwrap_or_default(),
+    };
     engine::format_text(&req)
 }
 
@@ -64,4 +104,10 @@ pub fn get_enabled_defaults() -> Result<Vec<String>, String> {
         return Err("engine default rules are empty".to_string());
     }
     Ok(defaults)
+}
+
+/// 返回内置工作流预设；预设只组合统一请求模型字段。
+#[tauri::command]
+pub fn get_presets() -> Result<Vec<engine::Preset>, String> {
+    Ok(engine::presets())
 }

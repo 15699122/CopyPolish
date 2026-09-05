@@ -1,23 +1,26 @@
 //! TUI 与桌面 GUI 共享设置的桥接层。
 //!
 //! 共享存储就是现有 GUI 使用的 `rules.yaml`（见 `crate::user_settings`）；
-//! TUI 只消费与其相关的两个字段：
+//! TUI 消费与其相关的设置字段：
 //!
 //! - `enabled`：启用规则 key 列表 —— 映射为 `RuleSelection`；
 //! - `last_input`：最近一次编辑的原文 —— 启动时恢复到输入框。
+//! - `replacements` / `conversion`：请求层替换和字符转换设置。
 //!
 //! GUI 专属字段（theme、font、ui_scale 等）在此模块中被原样保留，TUI 不解释
 //! 也不覆盖它们。测试只覆盖纯映射函数，绝不触碰真实文件系统中的设置文件。
 
 use std::collections::BTreeSet;
 
-use crate::engine::{RuleMeta, RuleSelection};
+use crate::engine::{CharacterConversion, ReplacementPair, RuleMeta, RuleSelection};
 use crate::user_settings;
 
 /// 从共享设置加载出的、TUI 关心的配置子集。
 pub struct SharedConfig {
     pub selection: RuleSelection,
     pub last_input: String,
+    pub replacements: Vec<ReplacementPair>,
+    pub conversion: CharacterConversion,
 }
 
 /// 注册表中全部规则 key 的集合。
@@ -95,26 +98,45 @@ pub fn load_shared(no_config: bool) -> Option<SharedConfig> {
     Some(SharedConfig {
         selection: selection_from_enabled(&loaded.settings.enabled, &rules),
         last_input: loaded.settings.last_input,
+        replacements: loaded.settings.replacements,
+        conversion: normalize_conversion(loaded.settings.conversion),
     })
 }
 
-/// 将当前规则选择与最近输入写回共享设置。
+/// 默认构建不包含 OpenCC；不可用转换模式必须在 TUI 读取、请求和保存前归一化。
+pub fn normalize_conversion(conversion: CharacterConversion) -> CharacterConversion {
+    if cfg!(feature = "simplified-trad-conversion") {
+        conversion
+    } else {
+        CharacterConversion::None
+    }
+}
+
+/// 将当前规则选择、替换项、转换模式与最近输入写回共享设置。
 ///
 /// 采用“读改写”：先读取现有设置以保留 GUI 专属字段，再更新
-/// `enabled` 与 `last_input`。注意：会写入真实文件系统，单测不要调用。
-pub fn persist(selection: &RuleSelection, last_input: &str) -> Result<(), String> {
+/// `enabled`、`last_input`、`replacements` 与 `conversion`。注意：会写入真实文件系统，单测不要调用。
+pub fn persist(
+    selection: &RuleSelection,
+    last_input: &str,
+    replacements: &[ReplacementPair],
+    conversion: CharacterConversion,
+) -> Result<(), String> {
     let rules = crate::engine::default_rules();
     let mut settings = user_settings::load_with_status()
         .map(|loaded| loaded.settings)
         .unwrap_or_default();
     settings.enabled = enabled_from_selection(selection, &rules);
     settings.last_input = last_input.to_string();
+    settings.replacements = replacements.to_vec();
+    settings.conversion = normalize_conversion(conversion);
     user_settings::save(&settings)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::engine::{RuleKind, RuleRisk};
 
     /// 构造包含 3 条规则的迷你注册表：其中两条默认启用。
     fn mini_registry() -> Vec<RuleMeta> {
@@ -125,6 +147,13 @@ mod tests {
                 key: key.to_string(),
                 section: "测试".to_string(),
                 name: format!("规则 {key}"),
+                description: format!("测试规则 {key}"),
+                example: crate::engine::RuleExample {
+                    before: format!("前{key}"),
+                    after: format!("后{key}"),
+                },
+                kind: RuleKind::Typography,
+                risk: RuleRisk::Safe,
                 disputed: false,
                 default: index < 2,
             })
@@ -230,5 +259,16 @@ mod tests {
             selection_from_enabled(&["ghost".to_string()], &rules),
             RuleSelection::None
         ));
+    }
+
+    #[test]
+    fn default_build_normalizes_unavailable_conversion() {
+        let requested = CharacterConversion::SimplifiedToTraditional;
+        let normalized = normalize_conversion(requested);
+        if cfg!(feature = "simplified-trad-conversion") {
+            assert_eq!(normalized, requested);
+        } else {
+            assert_eq!(normalized, CharacterConversion::None);
+        }
     }
 }

@@ -1,43 +1,69 @@
 [package]
 name = "chinese-copywriting-formatter"
-version = "0.5.0"
+version = "0.6.0"
 description = "文案净排（CopyPolish）—— 本地桌面端中文文案排版工具"
 authors = ["CopyPolish"]
 edition = "2021"
 
-# 参考脚手架：本机尚未安装 cargo / pkg-config / libpython，需先安装工具链后再编译。
 [lib]
 name = "chinese_copywriting_formatter_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [features]
 default = []
+# 简繁转换（T2S/S2T）。依赖 opencc-fmmseg（MIT，内置 OpenCC 风格词典，
+# 正向最大匹配分词，无运行时 I/O）。默认构建不启用，避免引入 native(zstd) 编译。
+simplified-trad-conversion = ["dep:opencc-fmmseg"]
 tui = ["dep:ratatui", "dep:crossterm", "dep:unicode-width"]
+# Tauri CLI 在打包时会启用该 feature；embedded E2E 直接用 Cargo 构建，
+# 因此必须显式启用 custom protocol 才能加载内嵌 frontendDist。
+custom-protocol = ["tauri/custom-protocol"]
+e2e-wdio = [
+    "custom-protocol",
+    "dep:tauri-plugin-wdio",
+    "dep:tauri-plugin-wdio-webdriver",
+]
+e2e-webdriver = [
+    "custom-protocol",
+    "dep:tauri-plugin-webdriver",
+]
+# 现有 WebdriverIO service 方案的兼容别名；参考插件方案使用 e2e-webdriver。
+e2e = ["e2e-wdio"]
+# 仅用于本地性能剖析（examples/profile_stages.rs），不影响生产构建与测试门禁。
+profile-stages = []
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
 tauri = { version = "2", features = [] }
+tauri-plugin-wdio = { version = "1", optional = true }
+tauri-plugin-wdio-webdriver = { version = "1", optional = true }
+tauri-plugin-webdriver = { version = "=0.2.1", optional = true }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_yaml = "0.9"
 regex = "1"
-# 保护层正则需要 lookbehind / backreference（LaTeX 转义 $、fenced code 缩进回引等），
-# regex crate 不支持，使用 fancy-regex。
-fancy-regex = "0.19"
 # UAX #29 文本边界（grapheme cluster），roadmap §5：
 # 为中英/中数插空规则提供不被 emoji ZWJ、组合附加符切断的判定单位。
 unicode-segmentation = "1.12"
+# 简繁转换（可选，见 `simplified-trad-conversion` feature）。
+# opencc-fmmseg：MIT，OpenCC 词典 + FMM 分词，内置压缩词典、无运行时 I/O。
+opencc-fmmseg = { version = "0.11.5", optional = true }
 
 # Ratatui 终端界面仅在 `--features tui` 时编译，不影响默认 Tauri 构建。
 ratatui = { version = "0.29", optional = true }
 crossterm = { version = "0.28", optional = true }
 unicode-width = { version = "0.2", optional = true }
 
-# 说明：应用为纯 Rust 实现，历史 Python 参考实现不参与构建、打包或测试门禁。
+# 应用为纯 Rust 实现；历史实现不参与构建、打包或测试门禁。
 
 [[bin]]
 name = "copypolish-tui"
 path = "src/bin/copypolish-tui.rs"
 required-features = ["tui"]
+
+# 分阶段剖析示例依赖 profile-stages feature 暴露的计时入口。
+[[example]]
+name = "profile_stages"
+required-features = ["profile-stages"]

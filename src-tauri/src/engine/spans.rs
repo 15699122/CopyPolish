@@ -102,17 +102,25 @@ pub(crate) fn arbitrate_spans(mut candidates: Vec<TextSpan>) -> Vec<TextSpan> {
         )
     });
 
+    // accepted 始终按 start 排序；候选按优先级/起点/长度排序，
+    // 因此只需检查插入点两侧的相邻 span。已接受 span 彼此不重叠，
+    // 任意更远的 span 不可能与当前候选发生交集。
     let mut accepted: Vec<TextSpan> = Vec::with_capacity(candidates.len());
     for candidate in candidates {
-        if accepted
-            .iter()
-            .copied()
-            .all(|span| !span.overlaps(candidate))
-        {
-            accepted.push(candidate);
+        let insertion = accepted
+            .binary_search_by_key(&candidate.start, |span| span.start)
+            .unwrap_or_else(|index| index);
+        let overlaps_previous = insertion
+            .checked_sub(1)
+            .and_then(|index| accepted.get(index))
+            .is_some_and(|span| span.overlaps(candidate));
+        let overlaps_next = accepted
+            .get(insertion)
+            .is_some_and(|span| span.overlaps(candidate));
+        if !overlaps_previous && !overlaps_next {
+            accepted.insert(insertion, candidate);
         }
     }
-    accepted.sort_by_key(|span| (span.start, span.end));
     accepted
 }
 
@@ -160,31 +168,96 @@ pub(crate) fn scan_semantic_spans(text: &str) -> Vec<TextSpan> {
 
 /// 扫描当前保护层已经支持的结构 span。
 ///
-/// 这是结构保护的统一扫描入口，结果会被生产 span-aware 管线消费；完整
-/// placeholder → TextEdit 迁移仍在进行。
+/// 这是结构保护的统一扫描入口，结果会被生产 span-aware 管线消费；保护结构
+/// 当前仍通过内部 placeholder 承载，规则编辑逐步迁移到 TextEdit。
 pub(crate) fn scan_structure_spans(text: &str) -> Vec<TextSpan> {
+    let lines = line_ranges(text);
     let mut spans = Vec::new();
-    scan_front_matter_spans(text, &mut spans);
-    scan_fenced_code_spans(text, &mut spans);
+    scan_front_matter_spans(&lines, &mut spans);
+    scan_fenced_code_spans(&lines, &mut spans);
     scan_html_comment_spans(text, &mut spans);
-    scan_reference_definition_spans(text, &mut spans);
-    scan_indented_code_spans(text, &mut spans);
-    scan_table_separator_spans(text, &mut spans);
+    scan_reference_definition_spans(&lines, &mut spans);
+    scan_indented_code_spans(&lines, &mut spans);
+    scan_table_separator_spans(&lines, &mut spans);
     scan_inline_code_spans(text, &mut spans);
     scan_markdown_link_spans(text, &mut spans);
     scan_url_email_spans(text, &mut spans);
-    scan_html_block_spans(text, &mut spans);
+    scan_html_block_spans(&lines, &mut spans);
     scan_inline_html_spans(text, &mut spans);
-    scan_reference_link_spans(text, &mut spans);
-    scan_hard_break_spans(text, &mut spans);
+    scan_hard_break_spans(&lines, &mut spans);
     scan_latex_delimited_spans(text, &mut spans);
     scan_latex_command_spans(text, &mut spans);
     scan_dollar_math_spans(text, &mut spans);
     arbitrate_spans(spans)
 }
 
+/// 逐扫描器计时（`profile-stages` feature，仅本地性能分析用）。
+/// 返回 (仲裁后的 span, 各扫描器耗时)。
+#[cfg(feature = "profile-stages")]
+pub(crate) fn scan_structure_spans_timings(
+    text: &str,
+) -> (Vec<TextSpan>, Vec<(&'static str, std::time::Duration)>) {
+    use std::time::Instant;
+
+    let lines = line_ranges(text);
+    let mut spans = Vec::new();
+    let mut timings = Vec::new();
+
+    macro_rules! timed {
+        ($name:literal, $call:expr) => {{
+            let t = Instant::now();
+            $call;
+            timings.push(($name, t.elapsed()));
+        }};
+    }
+
+    timed!("front_matter", scan_front_matter_spans(&lines, &mut spans));
+    timed!("fenced_code", scan_fenced_code_spans(&lines, &mut spans));
+    timed!("html_comment", scan_html_comment_spans(text, &mut spans));
+    timed!(
+        "reference_definition",
+        scan_reference_definition_spans(&lines, &mut spans)
+    );
+    timed!(
+        "indented_code",
+        scan_indented_code_spans(&lines, &mut spans)
+    );
+    timed!(
+        "table_separator",
+        scan_table_separator_spans(&lines, &mut spans)
+    );
+    timed!("inline_code", scan_inline_code_spans(text, &mut spans));
+    timed!("markdown_links", scan_markdown_link_spans(text, &mut spans));
+    timed!("url_email", scan_url_email_spans(text, &mut spans));
+    timed!("html_block", scan_html_block_spans(&lines, &mut spans));
+    timed!("inline_html", scan_inline_html_spans(text, &mut spans));
+    timed!("hard_break", scan_hard_break_spans(&lines, &mut spans));
+    timed!(
+        "latex_delimited",
+        scan_latex_delimited_spans(text, &mut spans)
+    );
+    timed!("latex_command", scan_latex_command_spans(text, &mut spans));
+    timed!("dollar_math", scan_dollar_math_spans(text, &mut spans));
+    (arbitrate_spans(spans), timings)
+}
+
 pub(crate) fn scan_all_spans(text: &str) -> Vec<TextSpan> {
     let mut spans = scan_semantic_spans(text);
+    spans.extend(scan_structure_spans(text));
+    arbitrate_spans(spans)
+}
+
+/// 扫描可编辑规则阶段必须避开的保护 span。
+///
+/// 可编辑阶段只需要不透明结构和化学式；测量、温度、科学单位与普通数学
+/// 语义 span 会继续参与行内规则，因此不必在这次预扫描中生成。这样可以
+/// 避免在正式保护扫描前重复执行语义扫描，同时保持 `editable_line_ranges`
+/// 所需的保护边界不变。
+pub(crate) fn scan_editable_protection_spans(text: &str) -> Vec<TextSpan> {
+    let mut spans = detect_chemical_formulas(text)
+        .into_iter()
+        .filter_map(|(start, end)| TextSpan::new(start, end, SpanKind::ChemicalFormula))
+        .collect::<Vec<_>>();
     spans.extend(scan_structure_spans(text));
     arbitrate_spans(spans)
 }
@@ -200,8 +273,7 @@ fn line_ranges(text: &str) -> Vec<(usize, usize, &str)> {
     ranges
 }
 
-fn scan_front_matter_spans(text: &str, output: &mut Vec<TextSpan>) {
-    let lines = line_ranges(text);
+fn scan_front_matter_spans(lines: &[(usize, usize, &str)], output: &mut Vec<TextSpan>) {
     let Some(&(start, _, first)) = lines.first() else {
         return;
     };
@@ -220,8 +292,7 @@ fn scan_front_matter_spans(text: &str, output: &mut Vec<TextSpan>) {
     }
 }
 
-fn scan_fenced_code_spans(text: &str, output: &mut Vec<TextSpan>) {
-    let lines = line_ranges(text);
+fn scan_fenced_code_spans(lines: &[(usize, usize, &str)], output: &mut Vec<TextSpan>) {
     let mut index = 0;
     while index < lines.len() {
         let (start, _, line) = lines[index];
@@ -284,8 +355,8 @@ fn scan_html_comment_spans(text: &str, output: &mut Vec<TextSpan>) {
     }
 }
 
-fn scan_reference_definition_spans(text: &str, output: &mut Vec<TextSpan>) {
-    for (start, end, line) in line_ranges(text) {
+fn scan_reference_definition_spans(lines: &[(usize, usize, &str)], output: &mut Vec<TextSpan>) {
+    for &(start, end, line) in lines {
         let trimmed = line.trim_start_matches([' ', '\t']);
         let indent = line.len() - trimmed.len();
         if indent > 3 || !trimmed.starts_with('[') {
@@ -306,8 +377,7 @@ fn scan_reference_definition_spans(text: &str, output: &mut Vec<TextSpan>) {
     }
 }
 
-fn scan_indented_code_spans(text: &str, output: &mut Vec<TextSpan>) {
-    let lines = line_ranges(text);
+fn scan_indented_code_spans(lines: &[(usize, usize, &str)], output: &mut Vec<TextSpan>) {
     let mut index = 0;
     while index < lines.len() {
         if !(lines[index].2.starts_with("    ") || lines[index].2.starts_with('\t')) {
@@ -329,24 +399,25 @@ fn scan_indented_code_spans(text: &str, output: &mut Vec<TextSpan>) {
     }
 }
 
-fn scan_table_separator_spans(text: &str, output: &mut Vec<TextSpan>) {
-    for (start, end, line) in line_ranges(text) {
+fn scan_table_separator_spans(lines: &[(usize, usize, &str)], output: &mut Vec<TextSpan>) {
+    for &(start, end, line) in lines {
         let trimmed = line.trim();
         if !trimmed.contains('|') {
             continue;
         }
-        let cells: Vec<&str> = trimmed
+        let (cell_count, valid) = trimmed
             .split('|')
             .map(str::trim)
             .filter(|cell| !cell.is_empty())
-            .collect();
-        let valid = cells.len() >= 2
-            && cells.iter().all(|cell| {
+            .fold((0usize, true), |(count, valid), cell| {
                 let cell = cell.strip_prefix(':').unwrap_or(cell);
                 let cell = cell.strip_suffix(':').unwrap_or(cell);
-                cell.len() >= 3 && cell.bytes().all(|byte| byte == b'-')
+                (
+                    count + 1,
+                    valid && cell.len() >= 3 && cell.bytes().all(|byte| byte == b'-'),
+                )
             });
-        if valid {
+        if cell_count >= 2 && valid {
             if let Some(span) = TextSpan::new(start, end, SpanKind::TableSeparator) {
                 output.push(span);
             }
@@ -355,56 +426,75 @@ fn scan_table_separator_spans(text: &str, output: &mut Vec<TextSpan>) {
 }
 
 fn scan_inline_code_spans(text: &str, output: &mut Vec<TextSpan>) {
+    use std::collections::HashMap;
+
     let bytes = text.as_bytes();
-    let mut cursor = 0;
-    while cursor < bytes.len() {
-        let Some(relative) = text[cursor..].find('`') else {
-            break;
-        };
-        let start = cursor + relative;
-        let mut delimiter_end = start;
-        while delimiter_end < bytes.len() && bytes[delimiter_end] == b'`' {
-            delimiter_end += 1;
-        }
-        let delimiter_len = delimiter_end - start;
-        let mut search = delimiter_end;
-        let line_end = text[delimiter_end..]
+    let mut line_start = 0usize;
+    while line_start < bytes.len() {
+        let line_end = text[line_start..]
             .find('\n')
-            .map(|offset| delimiter_end + offset)
+            .map(|offset| line_start + offset)
             .unwrap_or(bytes.len());
-        let mut close = None;
-        while search < line_end {
-            let Some(relative_tick) = text[search..line_end].find('`') else {
-                break;
-            };
-            let candidate = search + relative_tick;
-            let mut candidate_end = candidate;
-            while candidate_end < line_end && bytes[candidate_end] == b'`' {
-                candidate_end += 1;
+
+        // 每个反引号连续段只扫描一次；同长度 delimiter 的候选位置按出现顺序
+        // 建索引，后续用二分查找代替“从当前位置重新 find 到行尾”的嵌套扫描。
+        let mut runs: Vec<(usize, usize, usize)> = Vec::new();
+        let mut cursor = line_start;
+        while cursor < line_end {
+            if bytes[cursor] != b'`' {
+                cursor += 1;
+                continue;
             }
-            if candidate_end - candidate == delimiter_len {
-                close = Some(candidate_end);
-                break;
+            let run_start = cursor;
+            while cursor < line_end && bytes[cursor] == b'`' {
+                cursor += 1;
             }
-            search = candidate_end;
+            runs.push((run_start, cursor, cursor - run_start));
         }
-        if let Some(end) = close {
-            if let Some(span) = TextSpan::new(start, end, SpanKind::InlineCode) {
-                output.push(span);
-            }
-            cursor = end;
-        } else {
-            // 与 protection.rs 保持一致：未闭合 delimiter 只保护反引号串本身，
-            // 后续正文仍可参与格式化；边界空格由 inline placeholder 逻辑处理。
-            if let Some(span) = TextSpan::new(start, delimiter_end, SpanKind::InlineCode) {
-                output.push(span);
-            }
-            cursor = delimiter_end;
+
+        let mut by_length: HashMap<usize, Vec<(usize, usize)>> = HashMap::new();
+        for &(run_start, run_end, length) in &runs {
+            by_length
+                .entry(length)
+                .or_default()
+                .push((run_start, run_end));
         }
+
+        let mut run_index = 0usize;
+        while run_index < runs.len() {
+            let (start, delimiter_end, delimiter_len) = runs[run_index];
+            let candidates = &by_length[&delimiter_len];
+            let next_candidate =
+                candidates.partition_point(|&(candidate, _)| candidate < delimiter_end);
+            let close = candidates.get(next_candidate).map(|&(_, run_end)| run_end);
+
+            if let Some(end) = close {
+                if let Some(span) = TextSpan::new(start, end, SpanKind::InlineCode) {
+                    output.push(span);
+                }
+                // 跳过已消费的闭合 run；下一次从闭合 run 之后继续，
+                // 与原实现设置 cursor = end 的行为一致。
+                run_index = runs.partition_point(|&(_, run_end, _)| run_end <= end);
+            } else {
+                // 与 protection.rs 保持一致：未闭合 delimiter 只保护反引号串本身，
+                // 后续正文仍可参与格式化；边界空格由 inline placeholder 逻辑处理。
+                if let Some(span) = TextSpan::new(start, delimiter_end, SpanKind::InlineCode) {
+                    output.push(span);
+                }
+                run_index += 1;
+            }
+        }
+
+        if line_end == bytes.len() {
+            break;
+        }
+        line_start = line_end + 1;
     }
 }
 
 fn scan_markdown_link_spans(text: &str, output: &mut Vec<TextSpan>) {
+    use super::protection::find_link_label_end;
+
     let bytes = text.as_bytes();
     let mut cursor = 0;
     while cursor < bytes.len() {
@@ -416,22 +506,41 @@ fn scan_markdown_link_spans(text: &str, output: &mut Vec<TextSpan>) {
             .checked_sub(1)
             .filter(|index| bytes[*index] == b'!')
             .unwrap_or(label_start);
-        let Some(label_end) = balanced_end(bytes, label_start, b'[', b']') else {
+        let Some(label_end) = find_link_label_end(bytes, label_start) else {
             cursor = label_start + 1;
             continue;
         };
-        if bytes.get(label_end + 1) != Some(&b'(') {
-            cursor = label_end + 1;
-            continue;
+
+        match bytes.get(label_end + 1) {
+            Some(b'(') => {
+                let Some(target_end) = balanced_end(bytes, label_end + 1, b'(', b')') else {
+                    cursor = label_end + 1;
+                    continue;
+                };
+                if let Some(span) =
+                    TextSpan::new(structure_start, target_end + 1, SpanKind::MarkdownLink)
+                {
+                    output.push(span);
+                }
+                cursor = target_end + 1;
+            }
+            Some(b'[') => {
+                let reference_start = label_end + 1;
+                let Some(reference_end) = find_link_label_end(bytes, reference_start) else {
+                    cursor = reference_start + 1;
+                    continue;
+                };
+                if let Some(span) =
+                    TextSpan::new(label_start, reference_end + 1, SpanKind::MarkdownLink)
+                {
+                    output.push(span);
+                }
+                cursor = reference_end + 1;
+            }
+            _ => {
+                cursor = label_end + 1;
+            }
         }
-        let Some(target_end) = balanced_end(bytes, label_end + 1, b'(', b')') else {
-            cursor = label_end + 1;
-            continue;
-        };
-        if let Some(span) = TextSpan::new(structure_start, target_end + 1, SpanKind::MarkdownLink) {
-            output.push(span);
-        }
-        cursor = target_end + 1;
     }
 }
 
@@ -440,23 +549,31 @@ fn scan_markdown_link_spans(text: &str, output: &mut Vec<TextSpan>) {
 fn scan_url_email_spans(text: &str, output: &mut Vec<TextSpan>) {
     use std::sync::OnceLock;
 
-    static PATTERNS: OnceLock<(regex::Regex, regex::Regex)> = OnceLock::new();
-    let (url, email) = PATTERNS.get_or_init(|| {
-        (
-            regex::Regex::new(r#"(?i)https?://[^\s，。；：！？、（）《》【】「」“”‘’…—<>'"]+"#)
-                .expect("invalid URL span regex"),
-            regex::Regex::new(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}")
-                .expect("invalid email span regex"),
+    static PATTERN: OnceLock<regex::Regex> = OnceLock::new();
+    let pattern = PATTERN.get_or_init(|| {
+        regex::Regex::new(
+            r#"(?i:https?://[^\s，。；：！？、（）《》【】「」“”‘’…—<>'"]+)|[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}"#,
         )
+        .expect("invalid URL/email span regex")
     });
 
-    for matched in url.find_iter(text) {
-        if let Some(span) = TextSpan::new(matched.start(), matched.end(), SpanKind::Url) {
-            output.push(span);
-        }
-    }
-    for matched in email.find_iter(text) {
-        if let Some(span) = TextSpan::new(matched.start(), matched.end(), SpanKind::Email) {
+    for matched in pattern.find_iter(text) {
+        let kind = if matched
+            .as_str()
+            .as_bytes()
+            .get(..7)
+            .is_some_and(|prefix| prefix.eq_ignore_ascii_case(b"http://"))
+            || matched
+                .as_str()
+                .as_bytes()
+                .get(..8)
+                .is_some_and(|prefix| prefix.eq_ignore_ascii_case(b"https://"))
+        {
+            SpanKind::Url
+        } else {
+            SpanKind::Email
+        };
+        if let Some(span) = TextSpan::new(matched.start(), matched.end(), kind) {
             output.push(span);
         }
     }
@@ -485,22 +602,22 @@ fn balanced_end(bytes: &[u8], start: usize, open: u8, close: u8) -> Option<usize
     None
 }
 
-fn scan_html_block_spans(text: &str, output: &mut Vec<TextSpan>) {
-    let lines: Vec<&str> = text.split('\n').collect();
+fn scan_html_block_spans(lines: &[(usize, usize, &str)], output: &mut Vec<TextSpan>) {
     let mut offset = 0usize;
     let mut line = 0usize;
     while line < lines.len() {
-        let trimmed = lines[line].trim_start_matches([' ', '\t']);
-        let indent = lines[line].len() - trimmed.len();
+        let current_line = lines[line].2;
+        let trimmed = current_line.trim_start_matches([' ', '\t']);
+        let indent = current_line.len() - trimmed.len();
         let Some(tag) = html_block_tag(trimmed, indent) else {
-            offset += lines[line].len() + usize::from(line + 1 < lines.len());
+            offset += current_line.len() + usize::from(line + 1 < lines.len());
             line += 1;
             continue;
         };
         let closing = format!("</{tag}");
         let mut end_line = None;
-        for (candidate, content) in lines.iter().enumerate().skip(line) {
-            if content.to_ascii_lowercase().contains(&closing) {
+        for (candidate, &(_, _, content)) in lines.iter().enumerate().skip(line) {
+            if contains_ascii_case_insensitive(content, &closing) {
                 end_line = Some(candidate);
                 break;
             }
@@ -509,19 +626,19 @@ fn scan_html_block_spans(text: &str, output: &mut Vec<TextSpan>) {
             // 终点必须包含起始行到结束行之间的所有中间行与换行符，
             // 否则块内正文会漏出 span 被当作可编辑文本格式化。
             let mut end = offset;
-            for content in lines.iter().take(end_line).skip(line) {
+            for &(_, _, content) in lines.iter().take(end_line).skip(line) {
                 end += content.len() + 1;
             }
-            end += lines[end_line].len();
+            end += lines[end_line].2.len();
             if let Some(span) = TextSpan::new(offset, end, SpanKind::HtmlBlock) {
                 output.push(span);
             }
-            for content in lines.iter().take(end_line + 1).skip(line) {
+            for &(_, _, content) in lines.iter().take(end_line + 1).skip(line) {
                 offset += content.len() + 1;
             }
             line = end_line + 1;
         } else {
-            offset += lines[line].len() + usize::from(line + 1 < lines.len());
+            offset += current_line.len() + usize::from(line + 1 < lines.len());
             line += 1;
         }
     }
@@ -565,41 +682,9 @@ fn scan_inline_html_spans(text: &str, output: &mut Vec<TextSpan>) {
     }
 }
 
-/// 扫描引用式 Markdown 链接 `[label][reference]`，避免链接标记被普通规则拆开。
-fn scan_reference_link_spans(text: &str, output: &mut Vec<TextSpan>) {
-    use super::protection::find_link_label_end;
-
-    let bytes = text.as_bytes();
-    let mut cursor = 0usize;
-    while cursor < bytes.len() {
-        let Some(relative) = text[cursor..].find('[') else {
-            break;
-        };
-        let start = cursor + relative;
-        let Some(label_end) = find_link_label_end(bytes, start) else {
-            break;
-        };
-        let Some(reference_start) = label_end.checked_add(1) else {
-            break;
-        };
-        if bytes.get(reference_start) != Some(&b'[') {
-            cursor = label_end + 1;
-            continue;
-        }
-        let Some(reference_end) = find_link_label_end(bytes, reference_start) else {
-            cursor = reference_start + 1;
-            continue;
-        };
-        if let Some(span) = TextSpan::new(start, reference_end + 1, SpanKind::MarkdownLink) {
-            output.push(span);
-        }
-        cursor = reference_end + 1;
-    }
-}
-
 /// 扫描 Markdown 硬换行标记：行尾两个以上空格或行尾反斜杠。
-fn scan_hard_break_spans(text: &str, output: &mut Vec<TextSpan>) {
-    for (start, end, line) in line_ranges(text) {
+fn scan_hard_break_spans(lines: &[(usize, usize, &str)], output: &mut Vec<TextSpan>) {
+    for &(start, end, line) in lines {
         let trailing_spaces = line.len() - line.trim_end_matches(' ').len();
         let length = if trailing_spaces >= 2 {
             trailing_spaces
@@ -622,20 +707,49 @@ fn scan_hard_break_spans(text: &str, output: &mut Vec<TextSpan>) {
 /// 扫描反斜杠定界的 LaTeX 数学：`\(...\)` 与 `\[...\]`。
 /// 这两类结构由旧保护层整体保留，span-aware 管线也必须将其视为不透明区域。
 fn scan_latex_delimited_spans(text: &str, output: &mut Vec<TextSpan>) {
-    for (open, close) in [(r"\(", r"\)"), (r"\[", r"\]")] {
-        let mut cursor = 0usize;
-        while let Some(relative_open) = text[cursor..].find(open) {
-            let start = cursor + relative_open;
-            let content_start = start + open.len();
-            let Some(relative_close) = text[content_start..].find(close) else {
-                break;
-            };
-            let end = content_start + relative_close + close.len();
-            if let Some(span) = TextSpan::new(start, end, SpanKind::LatexMath) {
+    const DELIMITERS: [(&str, &str); 2] = [(r"\(", r"\)"), (r"\[", r"\]")];
+    let bytes = text.as_bytes();
+    let mut cursor = 0usize;
+    let mut next_allowed = [0usize; DELIMITERS.len()];
+    let mut disabled = [false; DELIMITERS.len()];
+
+    while cursor < bytes.len() {
+        let Some(relative_open) = text[cursor..].find('\\') else {
+            break;
+        };
+        let start = cursor + relative_open;
+        let Some(delimiter_index) = DELIMITERS
+            .iter()
+            .position(|(open, _)| text[start..].starts_with(open))
+        else {
+            cursor = start + 1;
+            continue;
+        };
+        if disabled[delimiter_index] || start < next_allowed[delimiter_index] {
+            cursor = start + 1;
+            continue;
+        }
+
+        let (open, close) = DELIMITERS[delimiter_index];
+        let content_start = start + open.len();
+        let Some(relative_close) = text[content_start..].find(close) else {
+            // 未闭合：仍保护开定界符本身（如 `\(`、`\[`），
+            // 避免标点规则将其中的括号改写为全角而破坏结构。
+            if let Some(span) = TextSpan::new(start, content_start, SpanKind::LatexMath) {
                 output.push(span);
             }
-            cursor = end;
+            disabled[delimiter_index] = true;
+            cursor = start + 1;
+            continue;
+        };
+        let end = content_start + relative_close + close.len();
+        if let Some(span) = TextSpan::new(start, end, SpanKind::LatexMath) {
+            output.push(span);
         }
+        // 每类定界符独立跳过已消费区间；另一类定界符仍可在其中被发现，
+        // 与原先分别扫描两种 delimiter 的行为一致。
+        next_allowed[delimiter_index] = end;
+        cursor = start + 1;
     }
 }
 
@@ -733,21 +847,48 @@ fn html_block_tag(line: &str, indent: usize) -> Option<&'static str> {
     })
 }
 
+fn contains_ascii_case_insensitive(haystack: &str, needle: &str) -> bool {
+    let needle = needle.as_bytes();
+    if needle.is_empty() {
+        return false;
+    }
+
+    let haystack = haystack.as_bytes();
+    let mut cursor = 0usize;
+    while let Some(relative) = haystack[cursor..]
+        .iter()
+        .position(|byte| (*byte).eq_ignore_ascii_case(&needle[0]))
+    {
+        let start = cursor + relative;
+        if haystack
+            .get(start..start + needle.len())
+            .is_some_and(|window| {
+                window
+                    .iter()
+                    .zip(needle)
+                    .all(|(left, right)| left.eq_ignore_ascii_case(right))
+            })
+        {
+            return true;
+        }
+        cursor = start + 1;
+        if cursor >= haystack.len() {
+            break;
+        }
+    }
+    false
+}
+
 fn scan_dollar_math_spans(text: &str, output: &mut Vec<TextSpan>) {
     let bytes = text.as_bytes();
     let mut cursor = 0;
     while cursor < bytes.len() {
-        let Some(relative) = text[cursor..].find('$') else {
+        let Some(start) = find_next_unescaped_dollar(bytes, cursor, false) else {
             break;
         };
-        let start = cursor + relative;
         // 与生产保护层保持一致：只有奇数个连续反斜杠才会转义美元符号；
         // 偶数反斜杠后的 `$x$` 仍是数学 span，但其边界不能按普通 inline
         // placeholder 处理，否则会在反斜杠与公式之间插入额外空格。
-        if escaped_dollar(bytes, start) {
-            cursor = start + 1;
-            continue;
-        }
         let display = bytes.get(start + 1) == Some(&b'$');
         let delimiter_len = if display { 2 } else { 1 };
         if !display
@@ -761,19 +902,14 @@ fn scan_dollar_math_spans(text: &str, output: &mut Vec<TextSpan>) {
         let content_start = start + delimiter_len;
         let mut search = content_start;
         let mut close = None;
-        while search < bytes.len() {
-            if bytes[search] == b'$'
-                && !escaped_dollar(bytes, search)
-                && (delimiter_len == 2 || bytes.get(search + 1) != Some(&b'$'))
-                && (delimiter_len == 1 || bytes.get(search + 1) == Some(&b'$'))
+        while let Some(candidate) = find_next_unescaped_dollar(bytes, search, !display) {
+            if (delimiter_len == 2 || bytes.get(candidate + 1) != Some(&b'$'))
+                && (delimiter_len == 1 || bytes.get(candidate + 1) == Some(&b'$'))
             {
-                close = Some(search + delimiter_len);
+                close = Some(candidate + delimiter_len);
                 break;
             }
-            if !display && bytes[search] == b'\n' {
-                break;
-            }
-            search += 1;
+            search = candidate + 1;
         }
         if let Some(end) = close {
             if let Some(span) = TextSpan::new(start, end, SpanKind::LatexMath) {
@@ -786,21 +922,30 @@ fn scan_dollar_math_spans(text: &str, output: &mut Vec<TextSpan>) {
     }
 }
 
-fn escaped_dollar(bytes: &[u8], index: usize) -> bool {
-    let mut count = 0usize;
-    let mut cursor = index;
-    while cursor > 0 && bytes[cursor - 1] == b'\\' {
-        count += 1;
-        cursor -= 1;
+fn find_next_unescaped_dollar(bytes: &[u8], start: usize, stop_at_newline: bool) -> Option<usize> {
+    let mut slash_count = 0usize;
+    for (index, &byte) in bytes.iter().enumerate().skip(start) {
+        if byte == b'\\' {
+            slash_count += 1;
+            continue;
+        }
+        if stop_at_newline && byte == b'\n' {
+            return None;
+        }
+        if byte == b'$' && slash_count.is_multiple_of(2) {
+            return Some(index);
+        }
+        slash_count = 0;
     }
-    count % 2 == 1
+    None
 }
 
 #[cfg(test)]
 mod tests {
     use super::{
-        arbitrate_spans, scan_all_spans, scan_semantic_spans, scan_structure_spans, SpanKind,
-        SpanPriority, TextSpan,
+        arbitrate_spans, contains_ascii_case_insensitive, find_next_unescaped_dollar,
+        scan_all_spans, scan_editable_protection_spans, scan_semantic_spans, scan_structure_spans,
+        SpanKind, SpanPriority, TextSpan,
     };
 
     #[test]
@@ -840,6 +985,19 @@ mod tests {
     }
 
     #[test]
+    fn editable_protection_scan_excludes_editable_semantic_spans() {
+        let text = "样品Fe²⁺厚度10μm且计算$x$，代码`GitHub`";
+        let spans = scan_editable_protection_spans(text);
+        let kinds: Vec<SpanKind> = spans.iter().map(|span| span.kind).collect();
+
+        assert!(kinds.contains(&SpanKind::ChemicalFormula));
+        assert!(kinds.contains(&SpanKind::InlineCode));
+        assert!(!kinds.contains(&SpanKind::Measurement));
+        assert!(!kinds.contains(&SpanKind::MathExpression));
+        assert!(spans.windows(2).all(|pair| pair[0].end <= pair[1].start));
+    }
+
+    #[test]
     fn invalid_empty_span_is_rejected() {
         assert!(TextSpan::new(4, 4, SpanKind::EditableText).is_none());
         assert!(TextSpan::new(8, 3, SpanKind::EditableText).is_none());
@@ -865,6 +1023,36 @@ mod tests {
             &text[spans[0].start..spans[0].end],
             "`10μm $x$ https://example.com`"
         );
+    }
+
+    #[test]
+    fn url_email_scanner_merges_matches_without_changing_kinds() {
+        let text = "访问HTTPS://example.com，联系 alice@example.com，另见https://example.org。";
+        let spans = scan_structure_spans(text);
+        let matches: Vec<(SpanKind, &str)> = spans
+            .into_iter()
+            .filter(|span| matches!(span.kind, SpanKind::Url | SpanKind::Email))
+            .map(|span| (span.kind, &text[span.start..span.end]))
+            .collect();
+        assert_eq!(
+            matches,
+            vec![
+                (SpanKind::Url, "HTTPS://example.com"),
+                (SpanKind::Email, "alice@example.com"),
+                (SpanKind::Url, "https://example.org")
+            ]
+        );
+    }
+
+    #[test]
+    fn table_separator_scanner_accepts_valid_cells_and_rejects_invalid_rows() {
+        let text = "| :--- | ---: |\n| -- | --- |\n| --- | 文本 |\n| --- | --- | --- |";
+        let spans: Vec<&str> = scan_structure_spans(text)
+            .into_iter()
+            .filter(|span| span.kind == SpanKind::TableSeparator)
+            .map(|span| &text[span.start..span.end])
+            .collect();
+        assert_eq!(spans, vec!["| :--- | ---: |", "| --- | --- | --- |"]);
     }
 
     #[test]
@@ -899,7 +1087,7 @@ mod tests {
     /// 否则块内正文会漏出 span 被当作可编辑文本格式化。
     #[test]
     fn html_block_span_covers_interior_lines() {
-        let text = "<div class=\"notice\">\n在GitHub上发布5000元\n</div>\n正文在GitHub上发布";
+        let text = "<div class=\"notice\">\n在GitHub上发布5000元\n</DIV>\n正文在GitHub上发布";
         let spans = scan_structure_spans(text);
         let span = spans
             .iter()
@@ -907,7 +1095,120 @@ mod tests {
             .expect("html block span must be detected");
         assert_eq!(
             &text[span.start..span.end],
-            "<div class=\"notice\">\n在GitHub上发布5000元\n</div>"
+            "<div class=\"notice\">\n在GitHub上发布5000元\n</DIV>"
+        );
+    }
+
+    #[test]
+    fn ascii_case_insensitive_search_handles_utf8_prefixes_and_boundaries() {
+        assert!(contains_ascii_case_insensitive("中文</DIV>正文", "</div"));
+        assert!(contains_ascii_case_insensitive(
+            "prefix </sEcTiOn> suffix",
+            "</section"
+        ));
+        assert!(!contains_ascii_case_insensitive(
+            "中文<article>正文",
+            "</article"
+        ));
+        assert!(!contains_ascii_case_insensitive("abc", ""));
+    }
+
+    #[test]
+    fn dollar_candidate_scan_handles_odd_and_even_backslash_runs() {
+        let text = r"前\$a 偶数\\$x$ 后";
+        let bytes = text.as_bytes();
+        let first = find_next_unescaped_dollar(bytes, 0, false).expect("even dollar exists");
+        assert_eq!(&text[first..first + 1], "$");
+        let second =
+            find_next_unescaped_dollar(bytes, first + 1, false).expect("closing dollar exists");
+        assert_eq!(&text[second..second + 1], "$");
+        assert!(find_next_unescaped_dollar(bytes, second + 1, false).is_none());
+    }
+
+    #[test]
+    fn single_dollar_candidate_scan_stops_at_newline() {
+        let text = "前$未闭合\n后$有效$";
+        let bytes = text.as_bytes();
+        let start = find_next_unescaped_dollar(bytes, 0, false).expect("opening dollar exists");
+        assert!(find_next_unescaped_dollar(bytes, start + 1, true).is_none());
+    }
+
+    #[test]
+    fn markdown_link_span_covers_nested_parentheses() {
+        let text = "前缀[文档](https://example.com/foo_(bar_(baz)))后缀";
+        let span = scan_structure_spans(text)
+            .into_iter()
+            .find(|span| span.kind == SpanKind::MarkdownLink)
+            .expect("nested markdown link span must be detected");
+        assert_eq!(
+            &text[span.start..span.end],
+            "[文档](https://example.com/foo_(bar_(baz)))"
+        );
+    }
+
+    #[test]
+    fn latex_delimiter_scanner_merges_mixed_delimiter_passes() {
+        let text = r"前\(x\)中\[y\]尾\(z\)";
+        let spans: Vec<&str> = scan_structure_spans(text)
+            .into_iter()
+            .filter(|span| span.kind == SpanKind::LatexMath)
+            .map(|span| &text[span.start..span.end])
+            .collect();
+        assert_eq!(spans, vec![r"\(x\)", r"\[y\]", r"\(z\)"]);
+    }
+
+    #[test]
+    fn latex_delimiter_scanner_preserves_per_type_unclosed_behavior() {
+        let text = r"前\(未闭合 \[y\] 后\(仍未闭合";
+        let spans: Vec<&str> = scan_structure_spans(text)
+            .into_iter()
+            .filter(|span| span.kind == SpanKind::LatexMath)
+            .map(|span| &text[span.start..span.end])
+            .collect();
+        assert_eq!(spans, vec![r"\(", r"\[y\]"]);
+    }
+
+    #[test]
+    fn reference_link_span_preserves_label_start_for_image_like_syntax() {
+        let text = "前缀![图片][logo]后缀";
+        let span = scan_structure_spans(text)
+            .into_iter()
+            .find(|span| span.kind == SpanKind::MarkdownLink)
+            .expect("reference link span must be detected");
+        assert_eq!(&text[span.start..span.end], "[图片][logo]");
+    }
+
+    #[test]
+    fn inline_code_span_requires_matching_delimiter_length() {
+        let text = "前缀``代码`内容``后缀";
+        let span = scan_structure_spans(text)
+            .into_iter()
+            .find(|span| span.kind == SpanKind::InlineCode)
+            .expect("inline code span must be detected");
+        assert_eq!(&text[span.start..span.end], "``代码`内容``");
+    }
+
+    #[test]
+    fn unclosed_inline_code_only_protects_delimiter_run() {
+        let text = "前缀```未闭合后缀";
+        let span = scan_structure_spans(text)
+            .into_iter()
+            .find(|span| span.kind == SpanKind::InlineCode)
+            .expect("unclosed delimiter span must be detected");
+        assert_eq!(&text[span.start..span.end], "```");
+    }
+
+    #[test]
+    fn inline_code_scanner_preserves_multiple_and_mixed_delimiters() {
+        let text = "前`一`中``二 ` 内容``后```三```再````四````尾";
+        let spans: Vec<&str> = scan_structure_spans(text)
+            .into_iter()
+            .filter(|span| span.kind == SpanKind::InlineCode)
+            .map(|span| &text[span.start..span.end])
+            .collect();
+        assert_eq!(
+            spans,
+            vec!["`一`", "``二 ` 内容``", "```三```", "````四````"]
         );
     }
 }

@@ -8,13 +8,13 @@
 
 | 模式 | 用途 | 说明 |
 | --- | --- | --- |
-| GitLab 构建 + 手动整理/发布 | 当前主路线之一 | 手动将合法 `v*` tag 推送到 GitLab；GitLab 构建 Linux/Windows、生成内部资产；维护者下载、校验并手动发布 |
+| GitLab 构建 + 手动整理/发布 | 当前主路线之一 | 手动将合法 `v*` tag 推送到 GitLab；GitLab 构建 Linux/Windows（含 TUI 独立资产）、生成内部资产；维护者下载、校验并手动发布到 GitHub Release |
 | 本地 Linux/Windows 构建 + 手动发布 | 当前主路线之一 | 在对应原生平台构建全部资产，执行统一校验后手动上传到 GitHub 或 GitLab Release |
-| GitHub Actions | 当前不使用 | workflow 已从源码树移除，不得依赖 GitHub runner 自动构建或发布 |
+| GitHub Actions | 已启用 | `ci` workflow 负责 `dev` / `master` 的 push 和 Pull Request 常规验证；仓库变量 `ACTIONS_ENABLED` 当前应为 `true`。GitHub Actions 不负责跨平台正式 Release 资产构建 |
 
 原则：
 
-- 当前 GitHub Actions 暂停期间，本地验证和 GitLab pipeline 是构建门禁；手动上传前必须保留验证日志和资产校验结果；
+- GitHub Actions 当前负责常规分支验证；本地 `verify.py` 是可复现的同等验证入口，跨平台 Release 资产由 GitLab tag pipeline 或本地原生构建完成，手动上传前必须保留验证日志和资产校验结果；
 - 每个 Release 必须能追溯到一个明确的 Git commit 与 Git tag；
 - 未经过 `prepare_release_version.py` 同步版本的二进制不得作为 Release 资产上传；
 - Windows 资产必须在 Windows 上构建，Linux 资产必须在 Linux 上构建（本项目未配置交叉编译）。
@@ -64,19 +64,10 @@ python3 scripts/check_version.py vX.Y.Z[-suffix]
 
 ## 5. 发布前统一验证
 
-在发布工作区执行与 CI 对齐的完整验证：
+在发布工作区执行与 CI 对齐的完整验证。统一入口会依次执行版本校验、前端、Rust/TUI、性能、安全和 Markdown 门禁：
 
 ```bash
-npm ci --prefix frontend
-npm test --prefix frontend -- --run
-npm run build --prefix frontend
-
-cargo fmt --manifest-path src-tauri/Cargo.toml --check
-cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
-cargo test --manifest-path src-tauri/Cargo.toml
-
-git diff --check
-python3 scripts/check_version.py vX.Y.Z[-suffix]
+python3 scripts/verify.py --profile release --tag vX.Y.Z[-suffix]
 ```
 
 任一失败都不得继续构建与发布。
@@ -87,17 +78,18 @@ python3 scripts/check_version.py vX.Y.Z[-suffix]
 
 ```powershell
 npm ci --prefix frontend
-npm run tauri --prefix frontend -- build -- --no-bundle
+npm run tauri --prefix frontend -- build --no-bundle
 ```
 
-产物位于 `src-tauri/target/release/chinese-copywriting-formatter.exe`。
+构建产物位于 `src-tauri/target/release/chinese-copywriting-formatter.exe`（Cargo package 的内部文件名）；发布前必须复制并重命名为 `CopyPolish.exe`。
 
-打包规范（与 `release.yml` 一致）：
+打包规范（与 GitLab Windows 构建脚本保持一致）：
 
 1. 将 exe 重命名为 `CopyPolish.exe` 放入临时 staging 目录；
 2. 将构建输出同目录存在的旁置 DLL 一并复制进 staging 根目录；
 3. 在 **staging 目录内部**压缩为 `CopyPolish-windows-x64.7z`，确保压缩包根目录直接包含 `CopyPolish.exe`，不含 `dist/`、`windows/` 等额外父目录；
-4. 最终资产两个文件平级放置：
+4. TUI 独立资产同规范打包：`CopyPolish-tui-windows-x64.7z` 根目录直接包含 `CopyPolish-tui.exe`，`CopyPolish-tui-linux-x86_64.7z` 根目录直接包含 `copypolish-tui`；
+5. 桌面版最终资产两个文件平级放置：
 
 ```text
 CopyPolish.exe
@@ -139,7 +131,7 @@ Windows 主机
 - Windows 主机已安装 WebView2 Runtime；
 - Windows 主机已安装 7-Zip，并可通过 `7z.exe` 调用；
 - WSL 中可执行 `powershell.exe` 或 `pwsh.exe`，且 Windows 工具能访问同一份源码目录；
-- 源码位于 Windows 文件系统（例如 `C:\src\chinese_copywriting_formatter`，WSL 中对应 `/mnt/c/src/chinese_copywriting_formatter`）。
+- 源码位于 Windows 文件系统（例如 `C:\src\CopyPolish`，WSL 中对应 `/mnt/c/src/CopyPolish`）。
 
 不建议将发布工作区放在 WSL 的 ext4 文件系统中后再让 Windows 工具通过网络或特殊路径访问。Node、Cargo、Tauri 和 Windows 文件监视器在 `/mnt/c/...` 下的行为更容易与 Windows 原生构建保持一致；如果性能明显不足，可在 Windows 文件系统中准备独立发布 worktree。
 
@@ -148,8 +140,8 @@ Windows 主机
 在 WSL 中执行 Git 操作和版本同步。以下路径仅为示例，请替换为实际 Windows 路径：
 
 ```bash
-export WIN_REPO='C:\src\chinese_copywriting_formatter'
-export WSL_REPO='/mnt/c/src/chinese_copywriting_formatter'
+export WIN_REPO='C:\src\CopyPolish'
+export WSL_REPO='/mnt/c/src/CopyPolish'
 
 cd "$WSL_REPO"
 git fetch origin --tags
@@ -169,19 +161,10 @@ WSL 可以执行不依赖 Windows GUI 的验证：
 ```bash
 cd "$WSL_REPO-release"
 
-npm ci --prefix frontend
-npm test --prefix frontend -- --run
-npm run build --prefix frontend
-
-cargo fmt --manifest-path src-tauri/Cargo.toml --check
-cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
-cargo test --manifest-path src-tauri/Cargo.toml
-
-git diff --check
-python3 scripts/check_version.py vX.Y.Z[-suffix]
+python3 scripts/verify.py --profile release --tag vX.Y.Z[-suffix]
 ```
 
-这些命令验证前端、纯 Rust 引擎、设置测试和版本一致性；它们**不等于** Windows Tauri Release 构建。最终 Windows 产物仍必须由 Windows 主机工具链生成并在 Windows 上启动验收。
+该命令验证前端、纯 Rust 引擎、TUI、性能、安全、文档和版本一致性；它**不等于** Windows Tauri Release 构建。最终 Windows 产物仍必须由 Windows 主机工具链生成并在 Windows 上启动验收。
 
 ### 7.5 从 WSL 调用 Windows 主机构建
 
@@ -194,12 +177,12 @@ echo "$WIN_RELEASE_REPO"
 powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \
   "Set-Location -LiteralPath '$WIN_RELEASE_REPO'; \
    npm ci --prefix frontend; \
-   npm run tauri --prefix frontend -- build -- --no-bundle"
+   npm run tauri --prefix frontend -- build --no-bundle"
 ```
 
 如果主机使用 PowerShell 7，也可以将 `powershell.exe` 替换为 `pwsh.exe`。路径中包含空格时，优先使用 `-LiteralPath`；复杂路径或复杂参数建议写入一个 Windows `.ps1` 脚本后由 WSL 调用，避免 Bash、PowerShell 和 JSON 字符串多重转义。
 
-构建完成后，Windows 输出仍应位于发布 worktree 的：
+构建完成后，Windows 内部输出仍应位于发布 worktree 的：
 
 ```text
 src-tauri\target\release\chinese-copywriting-formatter.exe
@@ -219,7 +202,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \
    Copy-Item -LiteralPath \$exe -Destination (Join-Path \$staging 'CopyPolish.exe'); \
    Get-ChildItem (Split-Path \$exe) -Filter '*.dll' -File -ErrorAction SilentlyContinue | Copy-Item -Destination \$staging; \
    \$sevenZip = (Get-Command 7z -ErrorAction SilentlyContinue).Source; \
-   if (-not \$sevenZip) { \$sevenZip = 'C:\\Program Files\\7-Zip\\7z.exe' }; \
+   if (-not \$sevenZip) { \$sevenZip = '$env:ProgramFiles\7-Zip\7z.exe' }; \
    \$dist = Join-Path \$PWD 'dist/windows'; \
    New-Item -ItemType Directory -Force -Path \$dist | Out-Null; \
    Push-Location \$staging; \
@@ -265,19 +248,147 @@ CopyPolish_linux_amd64.AppImage
 
 ### 8.1 发布资产来源
 
-当前标准流程由 GitLab tag pipeline 构建并汇总全部五项平台资产及 `SHA256SUMS`。维护者下载后执行完整校验，再使用 GitHub CLI 创建公开 Release；不再维护本地分阶段上传 Linux 资产的备用脚本。
+当前标准流程由 GitLab tag pipeline 或分平台本地构建产生并汇总全部七项平台资产（桌面版五项 + TUI 独立资产两项）及 `SHA256SUMS`。维护者下载后执行完整校验，再使用 GitHub CLI 或 GitHub Releases 页面完成公开 Release；上传前不得将不完整资产集标记为正式版。GitHub Actions 当前负责 `dev` / `master` 的常规分支 CI，不替代跨平台 Release 构建；仓库变量 `ACTIONS_ENABLED` 的实际状态以 GitHub 仓库设置为准。
 
-若从 GitLab Package Registry 下载 AppImage 遇到网络错误，应先解决认证或网络问题；在五项资产齐全前不要创建 GitHub Release。下载前可确认以下 URL 对应文件返回 HTTP 200：
+TUI 资产与桌面版共享同一 Release、tag、SHA256SUMS 与发布方式，命名遵循相同规范：
+
+- `CopyPolish-tui-windows-x64.7z`：根目录直接包含 `CopyPolish-tui.exe`（PowerShell 7 调用）；
+- `CopyPolish-tui-linux-x86_64.7z`：根目录直接包含 `copypolish-tui`（上传后保留可执行权限）。
+
+若从构建服务下载 AppImage 遇到网络错误，应先解决认证或网络问题；在七项发布资产和 `SHA256SUMS` 齐全前不要创建 GitHub Release。下载前可确认对应 Package Registry 文件返回 HTTP 200：
 
 ```text
 https://gitlab.com/api/v4/projects/85804438/packages/generic/copypolish/vX.Y.Z[-suffix]/CopyPolish_linux_amd64.AppImage
 ```
 
-手动发布前必须下载并校验全部五项资产，缺少 AppImage 时不得继续发布，这是预期的安全门禁。
+手动发布前必须下载并校验全部七项发布资产及 `SHA256SUMS`，缺少 AppImage、任一 TUI 资产或校验文件时不得继续发布，这是预期的安全门禁。
 
 > 不要把 `GITLAB_TOKEN` 或任何 PAT 写入 remote URL、脚本、仓库文件、命令参数、构建日志或提交历史。项目凭据使用 `source scripts/load_tokens.sh` 加载；GitLab MCP Server 仍使用 OAuth，不接受 PAT，GitLab CI 的 `CI_JOB_TOKEN` 仅在 job 内使用。
 
 ## 9. Windows 真机人工验收
+
+### 9.1 v0.6.0 RC / 正式版 Windows 原生执行清单
+
+以下步骤是当前 v0.6.0 RC 和正式版发布前必须在 **Windows 10/11 原生桌面环境**完成的最小闭环。详细 E2E、artifact 和失败诊断步骤见 [windows-e2e-runbook.md](../windows-e2e-runbook.md) §2.5；本节是发布顺序摘要，不替代该 Runbook。
+
+#### A. 准备独立 Windows 发布工作区
+
+1. 从待发布 commit 或 tag 创建独立 worktree/clone；不要使用含有其他未提交改动的日常工作区。
+2. 工作区应位于 Windows 文件系统短路径（例如 `C:\src\CopyPolish`），避免同时从 WSL 和 Windows 操作同一个 `node_modules`、`target` 或 staging 目录。
+3. 记录待发布 commit SHA，并确认版本文件将在同一工作区内同步。
+
+#### B. 确认 Windows 工具链
+
+必须使用 Windows 原生工具，而不是 WSL 的 Linux 工具链：
+
+- Node.js 与 `.nvmrc` 一致（当前约束 `>=24 <25`，推荐 `24.19.0`）；
+- Rust `x86_64-pc-windows-msvc` toolchain，且安装 Visual Studio Build Tools 的 **Desktop development with C++** 与 Windows SDK；
+- Windows WebView2 Runtime；
+- Windows Terminal + PowerShell 7（TUI 人工交互时）；
+- 7-Zip `7z.exe`；
+- Git，以及访问显示设置、剪贴板、进程、端口和 NTFS ACL 的权限。
+
+在 PowerShell 中记录：
+
+```powershell
+git rev-parse HEAD
+node --version
+npm --version
+rustc --version
+cargo --version
+$PSVersionTable.PSVersion
+wt --version
+```
+
+#### C. 同步版本并执行基础检查
+
+在隔离发布工作区执行：
+
+```powershell
+python scripts/prepare_release_version.py v0.6.0-rc1
+python scripts/check_version.py v0.6.0-rc1
+python scripts/verify.py --profile release --tag v0.6.0-rc1
+npm ci --prefix frontend
+npm ci --prefix e2e
+npm run typecheck --prefix e2e
+```
+
+正式版将 `v0.6.0-rc1` 替换为 `v0.6.0`。版本脚本会修改五个构建配置文件，因此只能在隔离发布工作区执行；不要把这些临时修改合并回日常开发分支。
+
+#### D. 构建 Windows 桌面和 TUI 资产
+
+推荐直接执行仓库脚本：
+
+```powershell
+.\scripts\build_release_local.ps1 v0.6.0-rc1
+```
+
+脚本必须由 Windows 的 Node、Cargo、Tauri CLI 和 7-Zip 执行，不能用 WSL 的 Linux `npm`、`cargo` 或 Tauri CLI 代替。应生成：
+
+```text
+dist\CopyPolish.exe
+dist\CopyPolish-windows-x64.7z
+dist\CopyPolish-tui-windows-x64.7z
+```
+
+两个 `.7z` 都必须在 staging 目录内部压缩：
+
+- `CopyPolish-windows-x64.7z` 根目录直接包含 `CopyPolish.exe`，以及运行所需的旁置 DLL；
+- `CopyPolish-tui-windows-x64.7z` 根目录直接包含 `CopyPolish-tui.exe`；
+- 不得出现 `dist/`、`windows/` 或其他额外父目录。
+
+#### E. 执行 Windows 原生验收
+
+按 [windows-e2e-runbook.md](../windows-e2e-runbook.md) §2.5 的顺序执行：
+
+1. `npm run build:app --prefix e2e` 后运行 `selection-and-persistence.spec.ts`，默认 embedded 必须 3/3；
+2. `npm run build:app:simplified-trad --prefix e2e` 后运行 feature spec，必须 2/2，确认真实 `s2t` / `t2s` 输出；
+3. `npm run build:app:webdriver --prefix e2e` 后运行 W3C smoke，确认 session、主窗口、真实格式化、设置保存和退出清理；
+4. 执行 `cargo test --manifest-path src-tauri/Cargo.toml --features tui`，确认 Windows MSVC 测试目标通过；
+5. 使用当前 Windows binary 完成设置保存/重启、损坏设置、NTFS ACL、GUI 主题/窄窗口和 TUI transcript 验收；
+6. 在 Windows Terminal + PowerShell 7 中按需复验 raw-mode、Unicode/emoji、bracketed paste、OSC 52、保存/重启和退出清理；
+7. 按发布前人工要求检查 100%/125%/150% DPI 和至少一个窄窗口。GUI DPI 自动矩阵仍按项目决策跳过，不得把跳过记为自动化通过。
+
+Linux/WSL 可以提供前端、Rust、E2E typecheck、性能和业务语义证据，但不能替代 Windows WebView2、MSVC、Windows 便携版启动、DPI、NTFS ACL、剪贴板、Windows Terminal 或 Windows 进程清理验收。
+
+#### F. Windows 资产与发布前清理
+
+Windows 原生验收结束后：
+
+```powershell
+python scripts/verify_release_assets.py v0.6.0-rc1 --dist-dir dist --platform windows
+```
+
+将 Windows 侧三个资产与 Linux 侧四个资产合并到同一 `dist` 目录后，统一执行：
+
+```bash
+python scripts/verify_release_assets.py v0.6.0-rc1 --dist-dir dist --platform all
+Get-Content dist\SHA256SUMS
+Get-FileHash dist\CopyPolish.exe, dist\CopyPolish-windows-x64.7z, `
+  dist\CopyPolish_linux_amd64.deb, dist\CopyPolish-linux-x86_64.rpm, `
+  dist\CopyPolish_linux_amd64.AppImage, dist\CopyPolish-tui-windows-x64.7z, `
+  dist\CopyPolish-tui-linux-x86_64.7z -Algorithm SHA256
+
+# 也可以在 Git Bash/WSL 中执行：
+# sha256sum -c dist/SHA256SUMS
+```
+
+最终完整发布集必须包含七项资产和一个校验文件：
+
+```text
+CopyPolish.exe
+CopyPolish-windows-x64.7z
+CopyPolish_linux_amd64.deb
+CopyPolish-linux-x86_64.rpm
+CopyPolish_linux_amd64.AppImage
+CopyPolish-tui-windows-x64.7z
+CopyPolish-tui-linux-x86_64.7z
+SHA256SUMS
+```
+
+记录测试结论后，关闭 CopyPolish、WDIO、Node 和 TUI 进程，确认测试端口、临时设置目录、ACL deny 和 staging 已清理。截图、日志、page source、设置 fixture 和构建目录只保留在本地审计位置，不提交、不上传仓库。
+
+本轮明确不处理 GitLab 历史同步或发布 tag 时，不应执行 `git push gitlab`；只保留本地 Windows 构建和验收证据。
 
 正式发布前，在真实 Windows 10/11 环境运行本地构建的 `CopyPolish.exe` 完成 [v0.5.0-release-plan.md](../archive/release-plans/v0.5.0-release-plan.md) 第 12 节的全部人工验收项，至少包括：
 
@@ -306,7 +417,9 @@ gh release create vX.Y.Z \
   CopyPolish-windows-x64.7z \
   CopyPolish_linux_amd64.deb \
   CopyPolish-linux-x86_64.rpm \
-  CopyPolish_linux_amd64.AppImage
+  CopyPolish_linux_amd64.AppImage \
+  CopyPolish-tui-windows-x64.7z \
+  CopyPolish-tui-linux-x86_64.7z
 ```
 
 预发布必须显式改为：
@@ -323,12 +436,14 @@ gh release create vX.Y.Z-preN \
 
 ## 11. 发布后复核与回滚原则
 
-- [ ] tag、Release 标题、应用内"关于"版本三者一致（预发布带 pre 后缀）；
-- [ ] 五个资产齐全且命名正确；
+- [ ] tag、Release 标题、应用内版本三者一致（预发布带 pre 后缀）；
+- [ ] 七个资产齐全且命名正确（桌面版五项 + TUI 两项）；`SHA256SUMS` 也已上传；
 - [ ] 正式版标记 latest，预发布标记 prerelease 且不占用 latest；
-- [ ] Release Notes 经人工审阅：覆盖本次用户可感知的变化，不重复上一版内容，保留固定说明（便携版命名、设置迁移、已知限制等）；
-- [ ] Windows 资产经过实际下载并运行验证；
-- [ ] 发布结果同步回对应版本计划归档（如 `docs/archive/release-plans/v0.5.0-release-plan.md`）。
+- [ ] Release Notes 已人工审阅并与本次改动范围一致；
+- [ ] Windows 资产已从 GitLab 下载并完成 SHA256 校验，Windows 10/11 真机验收已完成；
+- [ ] 发布结果已同步回对应版本的归档计划。
+
+> 安全提醒：若 token 曾出现在命令行参数、进程列表或日志中，必须立即轮换/吊销该 token，并使用新的 SOPS 加密凭据继续操作。
 
 回滚原则：GitHub Release 可编辑资产列表与 Notes，但**不要删除已发布的 tag**；发现严重问题时优先发预发布修复版，而不是撤回历史 Release。
 
@@ -357,6 +472,6 @@ gh release create vX.Y.Z-preN \
 - 验证：CI run <链接> / 本地全量命令通过
 - Windows 真机验收：通过（记录人、机型、系统版本、DPI）
 - Release URL：<链接>
-- 资产核对：exe / 7z / deb / rpm / AppImage 均已上传且命名正确
+- 资产核对：exe / 7z / deb / rpm / AppImage / TUI 两项 7z 均已上传且命名正确
 - latest / prerelease 标记：正确
 ```

@@ -30,17 +30,10 @@ if ($dirty) {
 
 Write-Host "== 同步 tag 完整版本 ($Tag) =="
 python3 "$RepoRoot\scripts\prepare_release_version.py" $Tag
-python3 "$RepoRoot\scripts\check_version.py" $Tag
 
 if (-not $SkipVerify) {
     Write-Host "== 发布前统一验证（与 CI 对齐）=="
-    npm ci --prefix frontend
-    npm test --prefix frontend -- --run
-    npm run build --prefix frontend
-    cargo fmt --manifest-path src-tauri/Cargo.toml --check
-    cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
-    cargo test --manifest-path src-tauri/Cargo.toml
-    git diff --check
+    python3 "$RepoRoot\scripts\verify.py" --profile release --tag $Tag
 }
 else {
     Write-Host "== 跳过验证（-SkipVerify）=="
@@ -48,7 +41,7 @@ else {
 
 Write-Host "== 构建 Windows 便携 exe =="
 npm ci --prefix frontend
-npm run tauri --prefix frontend -- build -- --no-bundle
+npm run tauri --prefix frontend -- build --no-bundle
 
 $ExePath = "src-tauri\target\release\chinese-copywriting-formatter.exe"
 if (-not (Test-Path $ExePath)) {
@@ -62,7 +55,7 @@ New-Item -ItemType Directory -Path $Staging | Out-Null
 
 Copy-Item $ExePath (Join-Path $Staging "CopyPolish.exe")
 
-# 与 release.yml 一致：构建输出同目录存在的旁置 DLL 一并复制进 staging 根目录。
+# 与 build_windows_gitlab.ps1 一致：构建输出同目录存在的旁置 DLL 一并复制进 staging 根目录。
 $BuildDir = Split-Path -Parent $ExePath
 Get-ChildItem -Path $BuildDir -Filter *.dll | ForEach-Object {
     Copy-Item $_.FullName (Join-Path $Staging $_.Name)
@@ -90,12 +83,34 @@ finally {
 Copy-Item (Join-Path $Staging "CopyPolish.exe") (Join-Path $DistDir "CopyPolish.exe")
 Remove-Item -Recurse -Force $Staging
 
-Write-Host "== 校验产物 =="
-python3 "$RepoRoot\scripts\verify_release_assets.py" $Tag --dist-dir dist
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "提示：Linux 资产缺失属正常现象——本脚本仅产出 Windows 资产，" 
-    Write-Host "完整五资产校验需在 Linux 构建完成后合并目录再跑一次。"
+Write-Host "== 构建并打包 Windows TUI 独立资产 =="
+cargo build `
+    --manifest-path "$RepoRoot\src-tauri\Cargo.toml" `
+    --features tui `
+    --release `
+    --bin copypolish-tui
+$TuiExe = Join-Path $RepoRoot "src-tauri\target\release\copypolish-tui.exe"
+if (-not (Test-Path $TuiExe)) {
+    Write-Error "找不到 TUI 构建产物: $TuiExe"
 }
+$TuiStaging = Join-Path $PWD "windows-tui-staging"
+if (Test-Path $TuiStaging) { Remove-Item -Recurse -Force $TuiStaging }
+New-Item -ItemType Directory -Force -Path $TuiStaging | Out-Null
+Copy-Item $TuiExe (Join-Path $TuiStaging "CopyPolish-tui.exe")
+$TuiArchive = Join-Path $DistDir "CopyPolish-tui-windows-x64.7z"
+if (Test-Path $TuiArchive) { Remove-Item -Force $TuiArchive }
+Push-Location $TuiStaging
+try {
+    & 7z.exe a -t7z -mx=9 $TuiArchive "CopyPolish-tui.exe" | Out-Host
+    if ($LASTEXITCODE -ne 0) { Write-Error "7z (TUI) 压缩失败，退出码 $LASTEXITCODE" }
+}
+finally {
+    Pop-Location
+}
+Remove-Item -Recurse -Force $TuiStaging
 
-Write-Host "完成：Windows 资产已输出到 $DistDir"
-Get-ChildItem $DistDir
+Write-Host "== 校验产物（Windows 平台资产）=="
+& python3 "$RepoRoot\scripts\verify_release_assets.py" $Tag --dist-dir $DistDir --platform windows
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Windows 资产校验失败"
+}

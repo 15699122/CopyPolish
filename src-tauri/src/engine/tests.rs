@@ -1,7 +1,6 @@
 // engine/tests.rs —— 引擎单元测试（迁移自旧 rust_engine.rs，并新增
 // 化学式识别、注册表扩展性与旧 key 迁移的回归测试）。
 
-use super::pipeline::{format_text_legacy, format_text_span_aware};
 use super::*;
 
 #[derive(serde::Deserialize)]
@@ -12,10 +11,28 @@ struct GoldenCase {
     expected: String,
 }
 
+#[derive(serde::Deserialize)]
+struct RequestGoldenCase {
+    name: String,
+    request: RequestGoldenInput,
+    expected: String,
+}
+
+#[derive(serde::Deserialize)]
+struct RequestGoldenInput {
+    text: String,
+    selection: RuleSelection,
+    #[serde(default)]
+    replacements: Vec<ReplacementPair>,
+    #[serde(default)]
+    conversion: CharacterConversion,
+}
+
 fn req(text: &str) -> FormatRequest {
     FormatRequest {
         text: text.to_string(),
         selection: RuleSelection::Defaults,
+        ..Default::default()
     }
 }
 
@@ -52,6 +69,10 @@ fn load_passing_golden_cases() -> Vec<(String, GoldenCase)> {
             include_str!("../../tests/fixtures/selection-and-regressions.yaml"),
         ),
         (
+            "unicode-normalization.yaml",
+            include_str!("../../tests/fixtures/unicode-normalization.yaml"),
+        ),
+        (
             "unicode-boundaries.yaml",
             include_str!("../../tests/fixtures/unicode-boundaries.yaml"),
         ),
@@ -76,28 +97,20 @@ fn load_passing_golden_cases() -> Vec<(String, GoldenCase)> {
             include_str!("../../tests/fixtures/rule-interactions.yaml"),
         ),
         (
+            "structure-precedence.yaml",
+            include_str!("../../tests/fixtures/structure-precedence.yaml"),
+        ),
+        (
             "newline-and-idempotence.yaml",
             include_str!("../../tests/fixtures/newline-and-idempotence.yaml"),
         ),
-    ]
-    .into_iter()
-    .flat_map(|(file, yaml)| parse_fixture(file, yaml))
-    .collect()
-}
-
-fn load_pending_baseline_cases() -> Vec<(String, GoldenCase)> {
-    [
         (
-            "markdown-blocks.yaml",
-            include_str!("../../tests/fixtures/markdown-blocks.yaml"),
+            "real-world-corpus.yaml",
+            include_str!("../../tests/fixtures/real-world-corpus.yaml"),
         ),
         (
-            "punctuation-contexts.yaml",
-            include_str!("../../tests/fixtures/punctuation-contexts.yaml"),
-        ),
-        (
-            "structure-precedence.yaml",
-            include_str!("../../tests/fixtures/structure-precedence.yaml"),
+            "text-cleanup.yaml",
+            include_str!("../../tests/fixtures/text-cleanup.yaml"),
         ),
     ]
     .into_iter()
@@ -114,6 +127,8 @@ fn golden_fixtures_match_expected_output() {
         let request = FormatRequest {
             text: case.input.clone(),
             selection: case.selection.clone(),
+
+            ..Default::default()
         };
         let actual = format_text(&request).unwrap_or_else(|error| {
             panic!("fixture {file} / {} failed to format: {error}", case.name)
@@ -147,50 +162,21 @@ fn golden_fixtures_cover_every_registered_rule() {
 }
 
 #[test]
-fn pending_baselines_are_loadable_and_expose_unimplemented_behavior() {
-    let cases = load_pending_baseline_cases();
-    assert!(
-        !cases.is_empty(),
-        "pending baseline suite must not be empty"
-    );
-
-    let mismatches: Vec<String> = cases
-        .iter()
-        .filter_map(|(file, case)| {
-            let request = FormatRequest {
-                text: case.input.clone(),
-                selection: case.selection.clone(),
-            };
-            let actual = format_text(&request).unwrap_or_else(|error| {
-                panic!("fixture {file} / {} failed to format: {error}", case.name)
-            });
-            (actual != case.expected).then(|| {
-                format!(
-                    "{file} / {}\n  expected: {:?}\n  actual:   {:?}",
-                    case.name, case.expected, actual
-                )
-            })
-        })
-        .collect();
-
-    assert!(
-        !mismatches.is_empty(),
-        "pending baseline unexpectedly has no current gaps; review and promote it to passing fixtures"
-    );
-}
-
-#[test]
 fn passing_golden_fixtures_are_idempotent() {
     for (file, case) in load_passing_golden_cases() {
         let request = FormatRequest {
             text: case.input,
             selection: case.selection,
+
+            ..Default::default()
         };
         let once = format_text(&request)
             .unwrap_or_else(|error| panic!("fixture {file} / {} failed: {error}", case.name));
         let twice = format_text(&FormatRequest {
             text: once.clone(),
             selection: request.selection,
+
+            ..Default::default()
         })
         .unwrap_or_else(|error| panic!("fixture {file} / {} failed twice: {error}", case.name));
         assert_eq!(
@@ -204,8 +190,8 @@ fn passing_golden_fixtures_are_idempotent() {
 #[test]
 fn registry_contains_migrated_rules_with_defaults() {
     let all = rules();
-    // 历史 12 条规则及温标空格规则均已注册。
-    assert_eq!(all.len(), 13);
+    // 历史规则、温标空格规则和默认关闭的 Unicode/全角 ASCII 转换规则均已注册。
+    assert_eq!(all.len(), 21);
     assert_eq!(enabled_defaults().len(), 9);
     let disabled: Vec<_> = all
         .iter()
@@ -215,10 +201,18 @@ fn registry_contains_migrated_rules_with_defaults() {
     assert_eq!(
         disabled,
         vec![
+            keys::CLEANUP_REFERENCE_SQUARE,
+            keys::CLEANUP_COLLAPSE_HORIZONTAL_SPACES,
+            keys::CLEANUP_LIMIT_BLANK_LINES,
+            keys::CLEANUP_KANGXI_RADICALS,
+            keys::CLEANUP_CJK_INTERNAL_SPACE,
+            keys::TEXT_HALFWIDTH_ASCII,
+            keys::TEXT_UNICODE_EQUIVALENTS,
             keys::NAMING_PROPER_NOUNS,
             keys::NAMING_EXPAND_ABBREVIATIONS,
             keys::SPACING_AROUND_LINKS,
             keys::PUNCT_CORNER_QUOTES,
+            keys::SPACING_NUMERIC_PUNCTUATION,
         ]
     );
     for rule in all {
@@ -234,23 +228,108 @@ fn registry_contains_migrated_rules_with_defaults() {
 }
 
 #[test]
+fn rule_metadata_enums_serialize_with_stable_wire_values() {
+    let cleanup = rules()
+        .iter()
+        .find(|rule| rule.key() == keys::CLEANUP_REFERENCE_SQUARE)
+        .expect("cleanup rule should be registered");
+    let json = serde_json::to_value(&cleanup.meta).expect("rule metadata should serialize");
+    assert_eq!(json["kind"], "cleanup");
+    assert_eq!(json["risk"], "contextual");
+}
+
+#[test]
+fn rule_examples_are_present_and_meaningful() {
+    for rule in rules() {
+        let ex = &rule.meta.example;
+        assert!(
+            !ex.before.trim().is_empty(),
+            "规则 `{}` 缺少示例输入",
+            rule.key()
+        );
+        assert!(
+            !ex.after.trim().is_empty(),
+            "规则 `{}` 缺少示例输出",
+            rule.key()
+        );
+        assert_ne!(
+            ex.before,
+            ex.after,
+            "规则 `{}` 的示例未体现任何修改",
+            rule.key()
+        );
+    }
+}
+
+#[test]
+fn rule_examples_match_engine_output() {
+    for rule in rules() {
+        let key = rule.key();
+        let ex = &rule.meta.example;
+        let request = FormatRequest {
+            text: ex.before.clone(),
+            selection: RuleSelection::Only {
+                keys: vec![key.to_string()],
+            },
+            ..Default::default()
+        };
+        let actual =
+            format_text(&request).unwrap_or_else(|e| panic!("规则 `{key}` 示例格式化失败：{e}"));
+        assert_eq!(actual, ex.after, "规则 `{key}` 的示例与真实引擎输出不一致");
+    }
+}
+
+#[test]
+fn registry_legacy_aliases_are_unique_and_do_not_shadow_stable_keys() {
+    let stable_keys: std::collections::HashSet<&str> =
+        rules().iter().map(|rule| rule.key()).collect();
+    let mut aliases = std::collections::HashSet::new();
+
+    for rule in rules() {
+        for alias in rule.legacy {
+            assert!(
+                !stable_keys.contains(alias),
+                "legacy alias {alias:?} must not shadow stable rule key"
+            );
+            assert!(
+                aliases.insert(*alias),
+                "legacy alias {alias:?} must identify only one rule"
+            );
+            assert_eq!(
+                normalize_rule_keys(&[(*alias).to_string()]),
+                vec![rule.key().to_string()],
+                "legacy alias {alias:?} must normalize to its owning rule"
+            );
+        }
+    }
+}
+
+#[test]
 fn registry_execution_order_is_phase_explicit_and_stable() {
     let ordered = execution_rules();
     let keys: Vec<&str> = ordered.iter().map(|rule| rule.key()).collect();
     assert_eq!(
         keys,
         vec![
+            keys::CLEANUP_REFERENCE_SQUARE,
+            keys::CLEANUP_COLLAPSE_HORIZONTAL_SPACES,
+            keys::CLEANUP_LIMIT_BLANK_LINES,
+            keys::CLEANUP_KANGXI_RADICALS,
+            keys::CLEANUP_CJK_INTERNAL_SPACE,
             keys::PUNCT_NO_REPETITION,
             keys::PUNCT_FULLWIDTH_CJK,
             keys::TEXT_HALFWIDTH_DIGITS,
+            keys::TEXT_HALFWIDTH_ASCII,
             keys::TEXT_ASCII_PUNCT_IN_LATIN,
             keys::NAMING_PROPER_NOUNS,
             keys::NAMING_EXPAND_ABBREVIATIONS,
             keys::SPACING_AROUND_LINKS,
             keys::PUNCT_CORNER_QUOTES,
+            keys::TEXT_UNICODE_EQUIVALENTS,
             keys::SPACING_CJK_LATIN,
             keys::SPACING_CJK_NUMBER,
             keys::SPACING_NUMBER_UNIT,
+            keys::SPACING_NUMERIC_PUNCTUATION,
             keys::SPACING_TEMPERATURE_CJK,
             keys::SPACING_NO_SPACE_AROUND_FW_PUNCT,
         ]
@@ -280,6 +359,17 @@ fn registry_dependency_graph_is_valid() {
 }
 
 #[test]
+fn temperature_rule_keeps_independent_stable_key_without_legacy_alias() {
+    let rule = rules()
+        .iter()
+        .find(|rule| rule.key() == keys::SPACING_TEMPERATURE_CJK)
+        .expect("temperature rule must be registered");
+    assert_eq!(rule.key(), keys::SPACING_TEMPERATURE_CJK);
+    assert!(rule.meta.default);
+    assert!(rule.legacy.is_empty());
+}
+
+#[test]
 fn registry_dependency_graph_rejects_unknown_and_cyclic_edges() {
     use super::registry::{resolve_execution_order, RuleDef, RulePhase};
 
@@ -293,6 +383,13 @@ fn registry_dependency_graph_rejects_unknown_and_cyclic_edges() {
                 key: key.to_string(),
                 section: "test".to_string(),
                 name: key.to_string(),
+                description: "测试规则".to_string(),
+                example: super::RuleExample {
+                    before: "a".to_string(),
+                    after: "b".to_string(),
+                },
+                kind: crate::engine::RuleKind::Typography,
+                risk: crate::engine::RuleRisk::Safe,
                 disputed: false,
                 default: false,
             },
@@ -370,6 +467,17 @@ fn formats_unicode_and_compound_measurements_without_word_false_positives() {
         "电阻 10 kΩ，阻抗 50 Ω"
     );
     assert_eq!(
+        format_text(&req("速度5km，频率2kHz，压力4kPa，功率8kW")).unwrap(),
+        "速度 5 km，频率 2 kHz，压力 4 kPa，功率 8 kW"
+    );
+    assert_eq!(
+        format_text(&req(
+            "缓冲液浓度5mM，药物2μM，加入3mmol和4μmol，电池容量6mAh，能量7kWh"
+        ))
+        .unwrap(),
+        "缓冲液浓度 5 mM，药物 2 μM，加入 3 mmol 和 4 μmol，电池容量 6 mAh，能量 7 kWh"
+    );
+    assert_eq!(
         format_text(&req("浓度30mg·mL⁻¹，密度2kg·m⁻³")).unwrap(),
         "浓度 30 mg·mL⁻¹，密度 2 kg·m⁻³"
     );
@@ -415,8 +523,22 @@ fn formats_punctuation_and_proper_nouns() {
     let with_nouns = FormatRequest {
         text: "使用 github 登录".to_string(),
         selection: RuleSelection::Only { keys: enabled },
+
+        ..Default::default()
     };
     assert_eq!(format_text(&with_nouns).unwrap(), "使用 GitHub 登录");
+}
+
+#[test]
+fn proper_nouns_preserve_boundaries_and_adjacent_matches() {
+    assert_eq!(
+        super::rule_impls::proper_nouns("github,google 与 macos、mac 和 https 连接"),
+        "GitHub,Google 与 macOS、Mac 和 HTTPS 连接"
+    );
+    assert_eq!(
+        super::rule_impls::proper_nouns("mygithub githubx xgithub"),
+        "mygithub githubx xgithub"
+    );
 }
 
 #[test]
@@ -427,6 +549,8 @@ fn disabled_rules_are_not_applied() {
         selection: RuleSelection::Only {
             keys: vec![keys::PUNCT_NO_REPETITION.to_string()],
         },
+
+        ..Default::default()
     };
     assert_eq!(format_text(&none).unwrap(), "在LeanCloud上");
 }
@@ -441,6 +565,8 @@ fn unknown_keys_are_safely_ignored() {
                 keys::SPACING_CJK_NUMBER.to_string(),
             ],
         },
+
+        ..Default::default()
     };
     assert_eq!(format_text(&mixed).unwrap(), "花了 5000 元");
 }
@@ -452,15 +578,16 @@ fn explicit_rule_selection_modes_are_unambiguous() {
     let all = FormatRequest {
         text: text.to_string(),
         selection: RuleSelection::All,
+
+        ..Default::default()
     };
-    assert_eq!(
-        format_text(&all).unwrap(),
-        "在 LeanCloud 上，花了 5000 元！"
-    );
+    assert_eq!(format_text(&all).unwrap(), "在 LeanCloud 上,花了 5000 元!");
 
     let defaults = FormatRequest {
         text: text.to_string(),
         selection: RuleSelection::Defaults,
+
+        ..Default::default()
     };
     assert_eq!(
         format_text(&defaults).unwrap(),
@@ -472,12 +599,16 @@ fn explicit_rule_selection_modes_are_unambiguous() {
         selection: RuleSelection::Only {
             keys: vec![keys::PUNCT_NO_REPETITION.to_string()],
         },
+
+        ..Default::default()
     };
     assert_eq!(format_text(&only).unwrap(), "在LeanCloud上，花了5000元！");
 
     let none = FormatRequest {
         text: text.to_string(),
         selection: RuleSelection::None,
+
+        ..Default::default()
     };
     assert_eq!(format_text(&none).unwrap(), text);
 }
@@ -496,6 +627,8 @@ fn rule_selection_key_order_does_not_change_pipeline_order() {
                 keys::SPACING_TEMPERATURE_CJK.to_string(),
             ],
         },
+
+        ..Default::default()
     };
     let reverse = FormatRequest {
         text: text.to_string(),
@@ -508,6 +641,8 @@ fn rule_selection_key_order_does_not_change_pipeline_order() {
                 keys::NAMING_PROPER_NOUNS.to_string(),
             ],
         },
+
+        ..Default::default()
     };
     assert_eq!(
         format_text(&forward).unwrap(),
@@ -554,11 +689,15 @@ fn representative_rule_compositions_are_idempotent() {
             selection: RuleSelection::Only {
                 keys: selected.iter().map(|key| (*key).to_string()).collect(),
             },
+
+            ..Default::default()
         };
         let once = format_text(&request).unwrap();
         let twice = format_text(&FormatRequest {
             text: once.clone(),
             selection: request.selection.clone(),
+
+            ..Default::default()
         })
         .unwrap();
         assert_eq!(once, twice, "composition is not idempotent: {text}");
@@ -587,6 +726,48 @@ fn legacy_keys_are_normalized_to_stable_keys() {
     assert_eq!(
         normalize_rule_keys(&dup),
         vec![keys::SPACING_CJK_LATIN.to_string()]
+    );
+}
+
+#[test]
+fn unicode_equivalents_are_explicit_and_do_not_change_defaults() {
+    let source = "单位10µm与3Å";
+    assert_eq!(format_text(&req(source)).unwrap(), "单位 10 µm 与 3 Å");
+
+    let selected = FormatRequest {
+        text: source.to_string(),
+        selection: RuleSelection::Only {
+            keys: vec![keys::TEXT_UNICODE_EQUIVALENTS.to_string()],
+        },
+
+        ..Default::default()
+    };
+    assert_eq!(format_text(&selected).unwrap(), "单位10μm与3Å");
+
+    let source_with_math = "单位10µm与3Å，公式$µ+Å$保持原样";
+    let all = FormatRequest {
+        text: source_with_math.to_string(),
+        selection: RuleSelection::All,
+
+        ..Default::default()
+    };
+    assert_eq!(
+        format_text(&all).unwrap(),
+        "单位 10 μm 与 3 Å,公式 $µ+Å$ 保持原样"
+    );
+}
+
+#[test]
+fn preserves_unclosed_latex_delimiters() {
+    // 未闭合结构坚持“宁漏格式化，不破坏结构”：开定界符本身
+    // 不得被标点规则改写为全角（旧实现会把 `\(` 变成 `\（`）。
+    assert_eq!(
+        format_text(&req(r"未闭合\(abc继续GitHub")).unwrap(),
+        r"未闭合 \(abc 继续 GitHub"
+    );
+    assert_eq!(
+        format_text(&req(r"未闭合\[abc继续GitHub")).unwrap(),
+        r"未闭合 \[abc 继续 GitHub"
     );
 }
 
@@ -686,8 +867,8 @@ fn formats_protected_content() {
     );
 
     assert_eq!(
-        format_text(&req("行内<span>GitHub</span>继续")).unwrap(),
-        "行内 <span>GitHub</span> 继续"
+        format_text(&req("行内<span>GitHub</SPAN>继续")).unwrap(),
+        "行内 <span>GitHub</SPAN> 继续"
     );
     assert_eq!(
         format_text(&req(
@@ -786,7 +967,20 @@ fn chemical_formulas_are_recognized_as_whole_units() {
     assert_eq!(spans.len(), 1);
     assert_eq!(&"铁离子Fe²⁺用于反应"[spans[0].0..spans[0].1], "Fe²⁺");
 
-    for sample in ["FeCl₂·4H₂O", "SO₄²⁻", "CuSO₄·5H₂O", "Fe³⁺", "Na⁺"] {
+    for sample in [
+        "FeCl₂·4H₂O",
+        "SO₄²⁻",
+        "CuSO₄·5H₂O",
+        "Fe³⁺",
+        "Na⁺",
+        // 括号分组：配位化合物、沉淀式与水合物。
+        "[Fe(CN)₆]³⁻",
+        "K₃[Fe(CN)₆]",
+        "Fe(CN)₆",
+        "Ca(OH)₂",
+        "Al₂(SO₄)₃",
+        "(NH₄)₂SO₄",
+    ] {
         let spans = detect(sample);
         assert_eq!(spans.len(), 1, "{sample}");
         assert_eq!(&sample[spans[0].0..spans[0].1], sample);
@@ -795,6 +989,9 @@ fn chemical_formulas_are_recognized_as_whole_units() {
     // 普通单词与不含特征的简单式子不被吞并（保守策略）。
     assert!(detect("GitHub TypeScript").is_empty());
     assert!(detect("H2O and CO2").is_empty());
+    // 普通括号文本不含化学式特征，不会被误保护。
+    assert!(detect("如(a)所示").is_empty());
+    assert!(detect("引用[1]标注").is_empty());
 
     // 同文存在真实化学式（Fe²⁺）时，普通大写缩写不得被误判为化学式；
     // 否则 DA-PEG-DA 末尾的 DA 会被保护并在补空格阶段产生 `DA-PEG- DA`。
@@ -821,6 +1018,35 @@ fn chemical_formulas_survive_formatting() {
         format_text(&req("电解质如SO₄²⁻溶液！！")).unwrap(),
         "电解质如 SO₄²⁻ 溶液！"
     );
+    // 括号分组化学式内部的半角括号不得被标点规则改成全角。
+    assert_eq!(
+        format_text(&req("配合物[Fe(CN)₆]³⁻与K₃[Fe(CN)₆]在溶液中")).unwrap(),
+        "配合物 [Fe(CN)₆]³⁻ 与 K₃[Fe(CN)₆] 在溶液中"
+    );
+    assert_eq!(
+        format_text(&req("溶液含Ca(OH)₂和Al₂(SO₄)₃，pH为7")).unwrap(),
+        "溶液含 Ca(OH)₂ 和 Al₂(SO₄)₃，pH 为 7"
+    );
+    assert_eq!(
+        format_text(&req("加入(NH₄)₂SO₄后继续GitHub")).unwrap(),
+        "加入 (NH₄)₂SO₄ 后继续 GitHub"
+    );
+}
+
+#[test]
+fn unicode_urls_parenthesized_urls_and_complex_chemistry_stay_protected() {
+    let unicode_url = format_text(&req("访问https://例え.テスト/文档?查询=値。即可")).unwrap();
+    assert!(unicode_url.contains("https://例え.テスト/文档?查询=値。"));
+
+    let parenthesized_url = format_text(&req(
+        "请参考（https://example.com/foo_(bar_(baz)))，然后继续GitHub",
+    ))
+    .unwrap();
+    assert!(parenthesized_url.contains("https://example.com/foo_(bar_(baz))"));
+
+    let chemistry = format_text(&req("样品为[FeCl₂·4H₂O]²⁻，另有DA-PEG-DA用于测试")).unwrap();
+    assert!(chemistry.contains("FeCl₂·4H₂O"));
+    assert!(chemistry.contains("DA-PEG-DA"));
 }
 
 #[test]
@@ -883,6 +1109,65 @@ fn formats_superscript_unit_and_acronym_boundaries() {
         "AC 磁场，且 30 mg\u{b7}mL\u{207b}\u{b9} 比 10 mg\u{b7}mL\u{207b}\u{b9} 作用更强，旋转 DC 磁场下。"
     );
 }
+
+#[test]
+fn kangxi_radicals_use_the_full_unicode_compatibility_mapping() {
+    use super::rule_impls::kangxi_radicals;
+
+    let radicals: String = (0x2F00..=0x2FD5).filter_map(char::from_u32).collect();
+    let converted = kangxi_radicals(&radicals);
+    assert_eq!(converted.chars().count(), 214);
+    assert_eq!(converted.chars().next(), Some('一'));
+    assert_eq!(converted.chars().nth(1), Some('丨'));
+    assert_eq!(converted.chars().nth(0xD4), Some('龜'));
+    assert_eq!(converted.chars().last(), Some('龠'));
+    assert_eq!(kangxi_radicals("A一⼀"), "A一一");
+}
+
+#[test]
+fn numeric_punctuation_spacing_is_conservative_and_explicit() {
+    use super::rule_impls::numeric_punctuation_space;
+
+    assert_eq!(
+        numeric_punctuation_space("1 . 5 10 : 30 16 / 9 1 , 000"),
+        "1.5 10:30 16/9 1,000"
+    );
+    assert_eq!(
+        numeric_punctuation_space("版本1 . 2 . 3，地址192 . 168 . 0 . 1"),
+        "版本1 . 2 . 3，地址192 . 168 . 0 . 1"
+    );
+    assert_eq!(
+        numeric_punctuation_space("价格1 . 5.0、比例1 / 2"),
+        "价格1 . 5.0、比例1/2"
+    );
+}
+
+#[test]
+fn cjk_internal_space_only_removes_single_han_han_spaces() {
+    use super::rule_impls::cjk_internal_space;
+
+    assert_eq!(cjk_internal_space("中 文本和数 据"), "中文本和数据");
+    assert_eq!(cjk_internal_space("中  文"), "中  文");
+    assert_eq!(cjk_internal_space("中 A中 5"), "中 A中 5");
+    assert_eq!(cjk_internal_space("中 \n文"), "中 \n文");
+    assert_eq!(cjk_internal_space("𠀀 文"), "𠀀文");
+}
+
+#[test]
+fn numeric_punctuation_rule_respects_structural_protection() {
+    let request = FormatRequest {
+        text: "正文1 . 5，链接https://example.com/1 . 5，代码`1 . 5`，公式$1 . 5$".to_string(),
+        selection: RuleSelection::Only {
+            keys: vec![keys::SPACING_NUMERIC_PUNCTUATION.to_string()],
+        },
+        ..Default::default()
+    };
+    assert_eq!(
+        format_text(&request).unwrap(),
+        "正文1.5，链接 https://example.com/1 . 5，代码 `1 . 5`，公式 $1 . 5$"
+    );
+}
+
 /// roadmap §5：新旧边界策略在既有黄金样例输入上输出必须一致；
 /// grapheme 策略的新行为只体现在 unicode-boundaries.yaml 中。
 #[test]
@@ -917,12 +1202,12 @@ fn chemical_detection_unaffected_by_boundary_layer() {
     assert_eq!(&sample[spans[0].0..spans[0].1], "Fe²⁺");
 }
 
-/// 语义编辑计划路径与生产 placeholder 路径的逐例对照（roadmap §5.7）。
+/// 语义编辑计划路径与生产路径的逐例对照。
 ///
 /// 本测试只覆盖 EditPlan 当前职责范围内的计量单位/数学边界 fixture；
-/// 完整 span-aware 混合管线的全量等价性由下方独立测试负责。
+/// 其余生产规则由黄金 fixture 和生产入口直接验证。
 #[test]
-fn edit_plan_path_matches_placeholder_pipeline_on_semantic_fixtures() {
+fn semantic_edit_plan_matches_production_on_semantic_fixtures() {
     use super::edit_plan::format_units_and_math_via_edits;
 
     let semantic_fixtures = [
@@ -941,6 +1226,8 @@ fn edit_plan_path_matches_placeholder_pipeline_on_semantic_fixtures() {
             let request = FormatRequest {
                 text: case.input.clone(),
                 selection: case.selection.clone(),
+
+                ..Default::default()
             };
             let production = format_text(&request)
                 .unwrap_or_else(|error| panic!("fixture {file} / {} failed: {error}", case.name));
@@ -954,38 +1241,168 @@ fn edit_plan_path_matches_placeholder_pipeline_on_semantic_fixtures() {
     }
 }
 
-/// span 感知混合管线与生产 placeholder 管线在全部稳定 fixture 上的输出一致。
-///
-/// 混合管线以统一 span 划分不可编辑区间，并在可编辑区间复用现有纯函数规则；
-/// 该测试是 R3 生产接管前的等价性门禁。
+/// FinalCleanup TextEdit 迁移回归：行内代码内部不受全角标点清理影响。
 #[test]
-fn span_aware_pipeline_matches_production_on_stable_fixtures() {
-    let all_cases = load_passing_golden_cases();
-    assert!(
-        !all_cases.is_empty(),
-        "stable fixture suite must not be empty"
+fn final_cleanup_edit_path_does_not_touch_inline_code() {
+    let request = FormatRequest {
+        text: "代码`你好 ， 世界`继续， 以及 ！结束".to_string(),
+        selection: RuleSelection::Only {
+            keys: vec![keys::SPACING_NO_SPACE_AROUND_FW_PUNCT.to_string()],
+        },
+
+        ..Default::default()
+    };
+    // 注意：行内占位符边缘补空格是既有生产行为；清理本身不改写行内代码内部。
+    assert_eq!(
+        format_text(&request).unwrap(),
+        "代码 `你好 ， 世界` 继续，以及！结束"
     );
-    let mut mismatches: Vec<String> = Vec::new();
-    for (file, case) in &all_cases {
-        let request = FormatRequest {
-            text: case.input.clone(),
-            selection: case.selection.clone(),
-        };
-        let production = format_text_legacy(&request)
-            .unwrap_or_else(|e| panic!("fixture {file} / {} legacy failed: {e}", case.name));
-        let span_aware = format_text_span_aware(&request)
-            .unwrap_or_else(|e| panic!("fixture {file} / {} span-aware failed: {e}", case.name));
-        if production != span_aware {
-            mismatches.push(format!(
-                "{file} / {}\n  production: {:?}\n  span-aware: {:?}",
-                case.name, production, span_aware
-            ));
-        }
+}
+
+/// FinalCleanup 必须排在结构边界规则之后：直角引号转换产生的全角标点
+/// 同样参与空格清理（与迁移前行循环顺序一致）。
+#[test]
+fn final_cleanup_runs_after_structure_boundary_rules() {
+    let request = FormatRequest {
+        text: "说“你好” 一下".to_string(),
+        selection: RuleSelection::Only {
+            keys: vec![
+                keys::PUNCT_CORNER_QUOTES.to_string(),
+                keys::SPACING_NO_SPACE_AROUND_FW_PUNCT.to_string(),
+            ],
+        },
+
+        ..Default::default()
+    };
+    assert_eq!(format_text(&request).unwrap(), "说「你好」一下");
+}
+
+/// 全角标点清理幂等：同一输入连续格式化两次结果一致。
+#[test]
+fn final_cleanup_is_idempotent_via_production_path() {
+    let selection = RuleSelection::Only {
+        keys: vec![keys::SPACING_NO_SPACE_AROUND_FW_PUNCT.to_string()],
+    };
+    let once = format_text(&FormatRequest {
+        text: "你好， 世界 ！ 继续".to_string(),
+        selection: selection.clone(),
+
+        ..Default::default()
+    })
+    .unwrap();
+    let twice = format_text(&FormatRequest {
+        text: once.clone(),
+        selection,
+
+        ..Default::default()
+    })
+    .unwrap();
+    assert_eq!(once, twice);
+}
+
+/// 大量行内占位符压力回归：占位符边缘补空格不得按占位符拼接正则，
+/// 否则 1 MB 级文本会超过正则编译大小上限并 panic（roadmap §8）。
+#[test]
+fn inline_placeholder_spacing_scales_to_thousands_of_placeholders() {
+    let count = 20_000;
+    let mut placeholders: Vec<(String, String)> = Vec::with_capacity(count);
+    let mut text = String::new();
+    for index in 0..count {
+        let ph = protection::placeholder(index);
+        text.push_str("中文");
+        text.push_str(&ph);
+        placeholders.push((ph, "`x`".to_string()));
     }
-    assert!(
-        mismatches.is_empty(),
-        "span-aware pipeline diverged from production on {} case(s):\n{}",
-        mismatches.len(),
-        mismatches.join("\n")
+    let output = protection::space_around_inline_placeholders(&text, &placeholders);
+    // 每个占位符前补一个空格；除末尾占位符（后无字符）外，后侧也各补一个空格。
+    assert_eq!(output.len(), text.len() + 2 * count - 1);
+}
+
+#[test]
+fn request_model_replacement_and_conversion_fixtures() {
+    let cases: Vec<RequestGoldenCase> = serde_yaml::from_str(include_str!(
+        "../../tests/fixtures/replacement-and-conversion.yaml"
+    ))
+    .expect("failed to parse replacement-and-conversion.yaml");
+
+    for case in cases {
+        let request = FormatRequest {
+            text: case.request.text,
+            selection: case.request.selection,
+            replacements: case.request.replacements,
+            conversion: case.request.conversion,
+        };
+        let actual = format_text(&request)
+            .unwrap_or_else(|error| panic!("fixture {} failed: {error}", case.name));
+        assert_eq!(actual, case.expected, "fixture {} mismatch", case.name);
+    }
+}
+
+#[test]
+fn preset_expands_to_the_same_request_fields() {
+    let preset = Preset {
+        key: "test".to_string(),
+        name: "测试".to_string(),
+        description: "测试预设".to_string(),
+        selection: RuleSelection::None,
+        replacements: vec![ReplacementPair {
+            from: "A".to_string(),
+            to: "B".to_string(),
+            active: true,
+        }],
+        conversion: CharacterConversion::TraditionalToSimplified,
+    };
+    let request = preset.to_request("输入".to_string());
+    assert_eq!(request.text, "输入");
+    assert_eq!(request.selection, RuleSelection::None);
+    assert_eq!(request.replacements, preset.replacements);
+    assert_eq!(
+        request.conversion,
+        CharacterConversion::TraditionalToSimplified
     );
+}
+
+// ---- 简繁转换（Spike 接入）-----------------------------------------------
+
+/// 非 `simplified-trad-conversion` 构建下，T2S/S2T 保持互斥占位：返回原文。
+#[cfg(not(feature = "simplified-trad-conversion"))]
+#[test]
+fn conversion_modes_are_placeholders_without_feature() {
+    let request = FormatRequest {
+        text: "後設資料".to_string(),
+        selection: RuleSelection::None,
+        conversion: CharacterConversion::TraditionalToSimplified,
+        ..Default::default()
+    };
+    assert_eq!(format_text(&request).unwrap(), "後設資料");
+    let request = FormatRequest {
+        text: "设计".to_string(),
+        selection: RuleSelection::None,
+        conversion: CharacterConversion::SimplifiedToTraditional,
+        ..Default::default()
+    };
+    assert_eq!(format_text(&request).unwrap(), "设计");
+}
+
+/// 启用 `simplified-trad-conversion` 时的转换回归：基本 T2S/S2T、
+/// 结构保护（链接/URL/代码/公式内部不被改写）、只转可编辑区间。
+#[cfg(feature = "simplified-trad-conversion")]
+#[test]
+fn simplified_trad_conversion_fixtures() {
+    let cases: Vec<RequestGoldenCase> = serde_yaml::from_str(include_str!(
+        "../../tests/fixtures/simplified-trad-conversion.yaml"
+    ))
+    .expect("failed to parse simplified-trad-conversion.yaml");
+
+    for case in cases {
+        let request = FormatRequest {
+            text: case.request.text,
+            selection: case.request.selection,
+            replacements: case.request.replacements,
+            conversion: case.request.conversion,
+        };
+        let actual = format_text(&request)
+            .unwrap_or_else(|error| panic!("fixture {} failed: {error}", case.name));
+        assert_eq!(actual, case.expected, "fixture {} mismatch", case.name);
+    }
 }

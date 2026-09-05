@@ -7,7 +7,7 @@
 校验内容：
 1. tag 命名符合 vX.Y.Z 或 vX.Y.Z-suffix；名称含 "-" 视为预发布；
 2. 版本一致性（复用 scripts/check_version.py）；
-3. 五个发布资产存在且命名正确；
+3. 七个发布资产存在且命名正确（桌面版 Windows/Linux 五项 + TUI 独立资产两项）；
 4. Windows .7z 在 staging 目录内部压缩：根目录直接包含 CopyPolish.exe，
    不允许出现额外的父目录层。
 
@@ -36,7 +36,15 @@ LINUX_ASSETS = (
     "CopyPolish_linux_amd64.AppImage",
 )
 
-EXPECTED_ASSETS = WINDOWS_ASSETS + LINUX_ASSETS
+# TUI 独立发布资产（决策：TUI 与桌面版共享 Release 与发布方式，命名规范一致）。
+# 包内根目录直接包含对应二进制：Windows 为 CopyPolish-tui.exe，
+# Linux 为 copypolish-tui。
+TUI_ASSETS = (
+    "CopyPolish-tui-windows-x64.7z",
+    "CopyPolish-tui-linux-x86_64.7z",
+)
+
+EXPECTED_ASSETS = WINDOWS_ASSETS + LINUX_ASSETS + TUI_ASSETS
 
 TAG_RE = re.compile(r"^v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$")
 
@@ -71,8 +79,8 @@ def check_assets(
     dist_dir: Path, errors: list[str], platform: str
 ) -> list[Path]:
     expected = {
-        "windows": WINDOWS_ASSETS,
-        "linux": LINUX_ASSETS,
+        "windows": WINDOWS_ASSETS + ("CopyPolish-tui-windows-x64.7z",),
+        "linux": LINUX_ASSETS + ("CopyPolish-tui-linux-x86_64.7z",),
         "all": EXPECTED_ASSETS,
     }[platform]
     missing = [name for name in expected if not (dist_dir / name).is_file()]
@@ -89,6 +97,15 @@ def check_assets(
 
 
 def check_7z_root_layout(archive: Path, errors: list[str]) -> None:
+    # 桌面版包根目录必须含 CopyPolish.exe；TUI 包根目录必须含其平台二进制。
+    required_binary = {
+        "CopyPolish-windows-x64.7z": "CopyPolish.exe",
+        "CopyPolish-tui-windows-x64.7z": "CopyPolish-tui.exe",
+        "CopyPolish-tui-linux-x86_64.7z": "copypolish-tui",
+    }.get(archive.name)
+    if required_binary is None:
+        return
+
     seven_zip = shutil.which("7z") or shutil.which("7za") or shutil.which("7zr")
     if seven_zip is None:
         # 没有 7z CLI 时跳过结构检查，但给出明确提示。
@@ -118,10 +135,10 @@ def check_7z_root_layout(archive: Path, errors: list[str]) -> None:
             continue
         root_entries.add(path)
 
-    if "CopyPolish.exe" not in root_entries:
+    if required_binary not in root_entries:
         fail(
             errors,
-            ".7z 根目录未直接包含 CopyPolish.exe——请在 staging 目录内部压缩，"
+            f".7z 根目录未直接包含 {required_binary}——请在 staging 目录内部压缩，"
             "不要把 staging 目录本身压进包里",
         )
     dirs_at_root = [
@@ -158,9 +175,22 @@ def main(argv: list[str] | None = None) -> int:
         fail(errors, f"资产目录不存在: {dist_dir}")
     else:
         present = check_assets(dist_dir, errors, args.platform)
-        archive = dist_dir / "CopyPolish-windows-x64.7z"
-        if args.platform in ("windows", "all") and archive.is_file():
-            check_7z_root_layout(archive, errors)
+        platform_archives = {
+            "windows": (
+                "CopyPolish-windows-x64.7z",
+                "CopyPolish-tui-windows-x64.7z",
+            ),
+            "linux": ("CopyPolish-tui-linux-x86_64.7z",),
+            "all": (
+                "CopyPolish-windows-x64.7z",
+                "CopyPolish-tui-windows-x64.7z",
+                "CopyPolish-tui-linux-x86_64.7z",
+            ),
+        }[args.platform]
+        for name in platform_archives:
+            archive = dist_dir / name
+            if archive.is_file():
+                check_7z_root_layout(archive, errors)
         if present and not errors:
             print(f"OK: {len(present)} 个资产命名齐全")
 

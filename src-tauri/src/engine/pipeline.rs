@@ -1,99 +1,146 @@
 // engine/pipeline.rs
 // =============================================================================
-// 格式化主流程：
+// 格式化主流程（全部规则执行已收敛到 TextEdit 应用层）：
 //   1. 归一化换行符（处理后还原）；
-//   2. 保护层：先化学式，再 Markdown / LaTeX / URL / 邮箱；
-//   3. 缩进代码行整行占位；
-//   4. 逐行按 registry 注册顺序应用已启用规则；
-//   5. 行内占位符补边界空格 -> 还原全部占位符。
+//   2. 跨行来源清洗（当前为普通文本连续空行限制）；
+//   3. 请求层：自定义字面量替换（有序、span 保护前）；
+//   4. 请求层：字符转换（简繁，互斥，当前仅 None 生效）；
+//   5. 在可编辑区间通过 TextEdit 应用清洗、标点/名词规范化规则；
+//   6. 保护层：不透明结构 span（含化学式）转为内部占位符；
+//   7. 在受保护文本上通过 TextEdit 应用结构边界/文本边界/最终清理规则；
+//   8. 行内占位符补边界空格 -> 还原全部占位符。
 //
 // 规则选择由 `RuleSelection` 显式表达；未知 key 安全忽略。
 // =============================================================================
 
-use std::collections::HashSet;
-
-use super::model::{FormatRequest, RuleSelection};
-use super::protection::{
-    is_placeholder_line, placeholder, restore, space_around_inline_placeholders,
-    space_around_math_placeholders,
+use super::edit_plan::{
+    apply_blank_line_cleanup, apply_editable_rules, apply_protected_text_rules,
 };
-#[cfg(test)]
+use super::model::{CharacterConversion, FormatRequest, ReplacementPair};
 use super::protection::{
-    protect, protect_byte_spans, protect_byte_spans_with_offset, protect_markdown_lines,
-    restore_escaped_markdown_adjacency,
+    placeholder, restore, space_around_inline_placeholders, space_around_math_placeholders,
 };
-use super::registry::{execution_rules, rules};
-#[cfg(test)]
-use super::semantic_tokens::scan_math_expressions;
 use super::spans::{scan_all_spans, TextSpan};
-#[cfg(test)]
-use super::tokenizer::detect_chemical_formulas;
 
-/// 迁移期保留的旧 placeholder 管线，仅供新旧路径等价性回归测试使用。
-#[cfg(test)]
-pub(crate) fn format_text_legacy(req: &FormatRequest) -> Result<String, String> {
-    let enabled: HashSet<String> = match &req.selection {
-        RuleSelection::All => rules().iter().map(|rule| rule.key().to_string()).collect(),
-        RuleSelection::Defaults => super::registry::enabled_defaults().into_iter().collect(),
-        RuleSelection::Only { keys } => keys.iter().cloned().collect(),
-        RuleSelection::None => HashSet::new(),
-    };
-
-    let (text, newline) = normalize_newlines(&req.text);
-
-    let mut placeholders: Vec<(String, String)> = Vec::new();
-
-    // 化学式保护必须最先执行：识别基于原始文本的字节区间。
-    let chem_spans = detect_chemical_formulas(&text);
-    let text = protect_byte_spans(&text, &chem_spans, &mut placeholders);
-
-    // 数学 token 单独保存：表达式内部需要保护，但不应参与 Markdown/链接占位符
-    // 的通用边界补空格，否则会在全角逗号后产生非预期空格。
-    let math_spans = scan_math_expressions(&text);
-    let mut math_placeholders: Vec<(String, String)> = Vec::new();
-    let text =
-        protect_byte_spans_with_offset(&text, &math_spans, &mut math_placeholders, 1_000_000);
-
-    let protected = protect(&text, &mut placeholders)?;
-    let line_protected = protect_markdown_lines(&protected, &mut placeholders);
-
-    let registered = execution_rules();
-    let mut out: Vec<String> = Vec::new();
-    for line in line_protected.split('\n') {
-        if line.trim().is_empty() {
-            // 空白行规范化为空行。
-            out.push(String::new());
-            continue;
-        }
-        if is_placeholder_line(line) {
-            out.push(line.to_string());
-            continue;
-        }
-
-        let mut current = line.to_string();
-        for rule in &registered {
-            if enabled.contains(rule.key()) {
-                current = (rule.apply)(&current);
-            }
-        }
-        out.push(current);
-    }
-
-    let formatted = out.join("\n");
-    let formatted = space_around_inline_placeholders(&formatted, &placeholders);
-    let formatted = space_around_math_placeholders(&formatted, &math_placeholders);
-    let restored = restore(&formatted, &placeholders);
-    let restored = restore(&restored, &math_placeholders);
-    let restored = restore_escaped_markdown_adjacency(&restored, &placeholders);
-    Ok(restore_newlines(&restored, newline))
-}
+#[cfg(feature = "simplified-trad-conversion")]
+use opencc_fmmseg::{OpenCC, OpenccConfig};
 
 /// 格式化文本的正式入口。
-///
-/// 生产路径已切换到 span-aware 混合管线；旧 placeholder 管线暂时保留在
-/// 本模块内，待发布后完成输出与性能观察后再删除。
 pub fn format_text(req: &FormatRequest) -> Result<String, String> {
-    format_text_span_aware(req)
+    format_text_impl(req)
+}
+
+/// 返回当前文本中应受结构保护、禁止清洗/转换改写的不透明区间。
+/// 与 `apply_replacements` / `apply_character_conversion` 共用，保证
+/// 自定义替换与字符转换都不会改写 Markdown 链接、URL、代码、公式或化学式内部。
+fn opaque_ranges(text: &str) -> Vec<(usize, usize)> {
+    scan_all_spans(text)
+        .into_iter()
+        .filter(|span| {
+            span.priority == super::spans::SpanPriority::OpaqueStructure
+                || span.kind == super::spans::SpanKind::ChemicalFormula
+        })
+        .map(|span| (span.start, span.end))
+        .collect()
+}
+
+/// 应用自定义字面量替换（有序、仅 active 项）。
+///
+/// 替换在 span 保护前执行，但先扫描当前文本中的不透明结构，
+/// 只改写可编辑区间；因此不会改写 Markdown 链接、URL、代码、公式或化学式内部。
+/// `from` 为字面量字符串（非正则），按向量顺序依次应用。空 `from` 项被安全跳过。
+fn apply_replacements(text: &str, replacements: &[ReplacementPair]) -> String {
+    let mut out = text.to_string();
+    for pair in replacements {
+        if !pair.active || pair.from.is_empty() {
+            continue;
+        }
+        let protected_ranges = opaque_ranges(&out);
+        let mut next = String::with_capacity(out.len());
+        let mut cursor = 0usize;
+        while let Some(relative_start) = out[cursor..].find(&pair.from) {
+            let start = cursor + relative_start;
+            let end = start + pair.from.len();
+            let overlaps_protected =
+                protected_ranges
+                    .iter()
+                    .any(|&(protected_start, protected_end)| {
+                        start < protected_end && protected_start < end
+                    });
+            if overlaps_protected {
+                next.push_str(&out[cursor..end]);
+            } else {
+                next.push_str(&out[cursor..start]);
+                next.push_str(&pair.to);
+            }
+            cursor = end;
+        }
+        next.push_str(&out[cursor..]);
+        out = next;
+    }
+    out
+}
+
+/// 应用字符转换（简繁）。
+///
+/// 未启用 `simplified-trad-conversion` feature 时为互斥占位：仅 `None`
+/// 实际生效，T2S/S2T 返回原文。
+#[cfg(not(feature = "simplified-trad-conversion"))]
+fn apply_character_conversion(text: &str, conversion: CharacterConversion) -> String {
+    match conversion {
+        CharacterConversion::None => text.to_string(),
+        // 简繁转换依赖与词汇级语义由独立 Spike 决策；默认构建占位保持原文。
+        CharacterConversion::TraditionalToSimplified
+        | CharacterConversion::SimplifiedToTraditional => text.to_string(),
+    }
+}
+
+/// 启用 `simplified-trad-conversion` 时的字符转换实现。
+///
+/// 通过 `opencc-fmmseg`（MIT，OpenCC 风格词典 + FMM 分词）实现互斥的
+/// T2S/S2T；转换只作用于可编辑区间，不改写结构 span。转换器以
+/// `OnceLock` 缓存（内置压缩词典解压成本高），`convert_with_config`
+/// 以 `&self` 调用，可安全跨请求共享。
+#[cfg(feature = "simplified-trad-conversion")]
+fn apply_character_conversion(text: &str, conversion: CharacterConversion) -> String {
+    match conversion {
+        CharacterConversion::None => text.to_string(),
+        CharacterConversion::TraditionalToSimplified => {
+            static T2S: std::sync::OnceLock<OpenCC> = std::sync::OnceLock::new();
+            let conv = T2S.get_or_init(OpenCC::new);
+            convert_editable(text, |segment| convert_traditional(conv, segment))
+        }
+        CharacterConversion::SimplifiedToTraditional => {
+            static S2T: std::sync::OnceLock<OpenCC> = std::sync::OnceLock::new();
+            let conv = S2T.get_or_init(OpenCC::new);
+            convert_editable(text, |segment| convert_simplified(conv, segment))
+        }
+    }
+}
+
+#[cfg(feature = "simplified-trad-conversion")]
+fn convert_traditional(conv: &OpenCC, segment: &str) -> String {
+    conv.convert_with_config(segment, OpenccConfig::T2s, false)
+}
+
+#[cfg(feature = "simplified-trad-conversion")]
+fn convert_simplified(conv: &OpenCC, segment: &str) -> String {
+    conv.convert_with_config(segment, OpenccConfig::S2t, false)
+}
+
+/// 对文本的可编辑区间逐个应用转换函数，跳过不透明结构，再重组。
+#[cfg(feature = "simplified-trad-conversion")]
+fn convert_editable(text: &str, mut convert: impl FnMut(&str) -> String) -> String {
+    let ranges = opaque_ranges(text);
+    let mut out = String::with_capacity(text.len());
+    let mut cursor = 0usize;
+    for &(start, end) in &ranges {
+        out.push_str(&convert(&text[cursor..start]));
+        out.push_str(&text[start..end]);
+        cursor = end;
+    }
+    out.push_str(&convert(&text[cursor..]));
+    out
 }
 
 fn normalize_newlines(text: &str) -> (String, &'static str) {
@@ -115,26 +162,14 @@ fn restore_newlines(text: &str, newline: &str) -> String {
 }
 
 // ---------------------------------------------------------------------------
-// span 感知混合管线（roadmap §5.7 R3 收尾的探索入口）。
+// span 感知格式化管线。
 //
-// 这是「placeholder → TextEdit」重构的 span-aware 混合实现：用 scan_all_spans
-// 划定的不可编辑区间替代 protection 的部分占位符，然后对可编辑区间复用现有
-// execution_rules 纯函数规则。当前已接入生产 format_text；旧 placeholder 管线
-// 暂时保留为迁移期对照实现；
-// URL / 邮箱、硬换行、引用式链接、未闭合反引号及数学复合单位等结构已纳入
-// span 扫描和对照门禁，后续重点转为旧 placeholder 清理、完整 TextEdit 迁移和性能验证。
+// 用 scan_all_spans 划定不可编辑区间：可编辑规则在原文上以 TextEdit 应用，
+// 其余规则在受保护文本上以 TextEdit 应用。占位符仅用于承载不可编辑 span；
+// 全部规则执行已收敛到 edit_plan.rs 的 TextEdit 模型。
 // ---------------------------------------------------------------------------
 
-fn enabled_set(req: &FormatRequest) -> HashSet<String> {
-    match &req.selection {
-        RuleSelection::All => rules().iter().map(|rule| rule.key().to_string()).collect(),
-        RuleSelection::Defaults => super::registry::enabled_defaults().into_iter().collect(),
-        RuleSelection::Only { keys } => keys.iter().cloned().collect(),
-        RuleSelection::None => HashSet::new(),
-    }
-}
-
-/// 把「不透明结构」span 替代入主占位符，返回受控文本与占位符表。
+/// 把“不透明结构”span 替代入内部保护占位符，返回受控文本与占位符表。
 /// 语义原子（测量/温度/科学单位/数学）不占位——它们应作为普通文本参与
 /// 逐行规则（如 `spacing.number-unit`、`temperature-cjk`），与生产一致。
 type Placeholder = (String, String);
@@ -212,40 +247,137 @@ fn protect_spans(text: &str, spans: &[TextSpan]) -> ProtectedSpans {
     }
 }
 
-/// span 感知混合管线：用 span 划分不可编辑区间 → 可编辑区间复用纯函数规则
-/// → 还原。仅供测试/对照，不改变生产路径。
-#[cfg_attr(not(test), allow(dead_code))]
-pub(crate) fn format_text_span_aware(req: &FormatRequest) -> Result<String, String> {
-    let enabled = enabled_set(req);
+/// 用 span 划分不可编辑区间，再格式化可编辑内容。
+fn format_text_impl(req: &FormatRequest) -> Result<String, String> {
     let (text, newline) = normalize_newlines(&req.text);
+
+    // 1. 跨行来源清洗先处理（连续空行）。
+    let text = apply_blank_line_cleanup(&text, &req.selection)?;
+
+    // 2. 请求层：自定义字面量替换与字符转换（均在 span 保护前执行，
+    //    避免破坏 Markdown / URL / 代码结构）。
+    let text = apply_replacements(&text, &req.replacements);
+    let text = apply_character_conversion(&text, req.conversion);
+
+    // 3. 在可编辑区间通过 TextEdit 应用清洗、标点/名词规范化规则。
+    let text = apply_editable_rules(&text, &req.selection)?;
 
     let spans = scan_all_spans(&text);
     let protected_spans = protect_spans(&text, &spans);
-    let protected = protected_spans.text;
 
-    let registered = execution_rules();
-    let mut out: Vec<String> = Vec::new();
-    for line in protected.split('\n') {
-        if line.trim().is_empty() {
-            out.push(String::new());
-            continue;
-        }
-        if is_placeholder_line(line) {
-            out.push(line.to_string());
-            continue;
-        }
-        let mut current = line.to_string();
-        for rule in &registered {
-            if enabled.contains(rule.key()) {
-                current = (rule.apply)(&current);
-            }
-        }
-        out.push(current);
-    }
-
-    let formatted = out.join("\n");
+    // 结构边界/文本边界/清理规则：受保护文本上的 TextEdit，
+    // 顺序与迁移前保护层行循环一致，随后补占位符边缘空格并还原。
+    let formatted = apply_protected_text_rules(&protected_spans.text, &req.selection)?;
     let formatted = space_around_inline_placeholders(&formatted, &protected_spans.inline);
     let formatted = space_around_math_placeholders(&formatted, &protected_spans.math);
     let restored = restore(&formatted, &protected_spans.all);
     Ok(restore_newlines(&restored, newline))
+}
+
+/// 分阶段计时剖析入口（`--features profile-stages`，仅本地性能分析用）。
+///
+/// 按 `format_text_impl` 的实际执行顺序返回各阶段耗时（纳秒）：
+/// 1. `normalize`：换行归一化；
+/// 2. `blank_line_cleanup`：跨行连续空行清洗；
+/// 3. `replacements`：自定义字面量替换；
+/// 4. `conversion`：字符转换（简繁）；
+/// 5. `editable_rules`：清洗、标点/名词规范化（原文 TextEdit，内含一次全文 span 扫描）；
+/// 6. `scan_spans`：Markdown/URL/LaTeX/化学式等 span 扫描；
+/// 7. `protect`：不透明 span 转占位符；
+/// 8. `protected_rules`：结构边界/文本边界/最终清理规则（受保护文本 TextEdit）；
+/// 9. `placeholder_spacing`：占位符边缘补空格；
+/// 10. `restore`：还原占位符与换行符。
+///
+/// 输出与 `format_text` 完全一致；本函数不参与任何测试门禁与打包。
+#[cfg(feature = "profile-stages")]
+pub fn format_text_stage_timings(
+    req: &FormatRequest,
+) -> Result<Vec<(&'static str, std::time::Duration)>, String> {
+    use std::time::Instant;
+
+    let mut timings: Vec<(&'static str, std::time::Duration)> = Vec::with_capacity(10);
+
+    let t = Instant::now();
+    let (text, newline) = normalize_newlines(&req.text);
+    timings.push(("normalize", t.elapsed()));
+
+    let t = Instant::now();
+    let text = apply_blank_line_cleanup(&text, &req.selection)?;
+    timings.push(("blank_line_cleanup", t.elapsed()));
+
+    let t = Instant::now();
+    let text = apply_replacements(&text, &req.replacements);
+    timings.push(("replacements", t.elapsed()));
+
+    let t = Instant::now();
+    let text = apply_character_conversion(&text, req.conversion);
+    timings.push(("conversion", t.elapsed()));
+
+    let t = Instant::now();
+    let text = apply_editable_rules(&text, &req.selection)?;
+    timings.push(("editable_rules", t.elapsed()));
+
+    let t = Instant::now();
+    let spans = scan_all_spans(&text);
+    timings.push(("scan_spans", t.elapsed()));
+
+    let t = Instant::now();
+    let protected_spans = protect_spans(&text, &spans);
+    timings.push(("protect", t.elapsed()));
+
+    let t = Instant::now();
+    let formatted = apply_protected_text_rules(&protected_spans.text, &req.selection)?;
+    timings.push(("protected_rules", t.elapsed()));
+
+    let t = Instant::now();
+    let formatted = space_around_inline_placeholders(&formatted, &protected_spans.inline);
+    let formatted = space_around_math_placeholders(&formatted, &protected_spans.math);
+    timings.push(("placeholder_spacing", t.elapsed()));
+
+    let t = Instant::now();
+    let restored = restore(&formatted, &protected_spans.all);
+    let _ = restore_newlines(&restored, newline);
+    timings.push(("restore", t.elapsed()));
+
+    Ok(timings)
+}
+
+/// 逐规则计时（`--features profile-stages`，仅本地性能分析用）。
+///
+/// 对每条已注册规则在整篇文本上直接调用其 `apply`，返回规则 key 与耗时。
+/// 注意：生产管线是“按可编辑行区间逐行应用”，本函数按整篇应用，
+/// 绝对值偏大，但用于**规则间相对热点比较**与生产归因方向一致。
+#[cfg(feature = "profile-stages")]
+pub fn per_rule_timings(req: &FormatRequest) -> Vec<(&'static str, std::time::Duration)> {
+    use std::time::Instant;
+
+    let (text, _) = normalize_newlines(&req.text);
+    let mut out = Vec::new();
+    for rule in super::registry::rules() {
+        let t = Instant::now();
+        let _ = (rule.apply)(&text);
+        out.push((rule.key(), t.elapsed()));
+    }
+    out
+}
+
+/// 语义 span 与结构 span 的分段扫描计时（`--features profile-stages`）。
+#[cfg(feature = "profile-stages")]
+pub fn scan_split_timings(text: &str) -> Vec<(&'static str, std::time::Duration)> {
+    use std::time::Instant;
+
+    let mut out = Vec::with_capacity(2);
+    let t = Instant::now();
+    let _ = super::spans::scan_semantic_spans(text);
+    out.push(("scan_semantic", t.elapsed()));
+    let t = Instant::now();
+    let _ = super::spans::scan_structure_spans(text);
+    out.push(("scan_structure", t.elapsed()));
+    out
+}
+
+/// 结构扫描器逐个计时（`--features profile-stages`，仅本地性能分析用）。
+#[cfg(feature = "profile-stages")]
+pub fn scan_structure_timings(text: &str) -> Vec<(&'static str, std::time::Duration)> {
+    super::spans::scan_structure_spans_timings(text).1
 }

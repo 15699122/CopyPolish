@@ -1,8 +1,6 @@
 use regex::Regex;
 use std::sync::OnceLock;
 
-use super::unicode_boundaries::{units, BoundaryStrategy, TextUnit};
-
 // engine/tokenizer.rs
 // =============================================================================
 // 字符分类与语义片段识别。
@@ -85,19 +83,6 @@ pub fn contains_cjk(text: &str) -> bool {
 }
 
 // ---------------------------------------------------------------------------
-// 插空规则专用：基于 Unicode 边界层的判定单位（roadmap §5）。
-//
-// 生产路径固定使用 Graphemes 策略，避免 emoji ZWJ / 组合附加符被切断；
-// LegacyChars 仅供测试对比新旧实现。化学式检测不经过这里，
-// 继续沿用保守正则 + 字节区间（见 detect_chemical_formulas）。
-// ---------------------------------------------------------------------------
-
-/// 插空类规则的判定单位序列。
-pub(crate) fn spacing_units(text: &str, strategy: BoundaryStrategy) -> Vec<TextUnit<'_>> {
-    units(text, strategy)
-}
-
-// ---------------------------------------------------------------------------
 // 化学式识别（保守语法）：
 //   formula_part := 大写字母 [小写字母] { 数字 | 下标数字 }*
 //   charge       := 上标序列 | (+|-)
@@ -117,9 +102,21 @@ pub fn detect_chemical_formulas(text: &str) -> Vec<(usize, usize)> {
 
     static FORMULA: OnceLock<Regex> = OnceLock::new();
     let formula = FORMULA.get_or_init(|| {
-        Regex::new(
-            r"(?:[A-Z][a-z]?(?:[0-9]+|[₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎]+)?)+(?:[⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾]+|[0-9]*[+-])?(?:[·⋅][0-9]*(?:[A-Z][a-z]?(?:[0-9]+|[₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎]+)?)+(?:[⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾]+|[0-9]*[+-])?)*",
-        )
+        // 化学式语法（保守）：
+        //   atom   := 大写字母 [小写字母] { 数字 | 下标数字 }*
+        //   group  := '(' atom+ ')' { 数字 | 下标数字 }*      圆括号分组（括号内无空格）
+        //   unit   := atom | group
+        //   公式   := ( unit | '[' unit+ ']' )+ 电荷? (水合物)*
+        // 括号分组用于配位化合物与沉淀式（如 [Fe(CN)₆]³⁻、Ca(OH)₂、(NH₄)₂SO₄）。
+        // 是否为化学式仍由后续“片段必须含特征字符”的逐候选校验兜底：
+        // 普通括号文本（如 "(a)"、"[1]"）不含下标/上标/连接符，不会被误保护。
+        let atom = r"[A-Z][a-z]?(?:[0-9]+|[₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎]+)?";
+        let group = format!(r"\((?:{atom})+\)(?:[0-9]+|[₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎]+)?");
+        let unit = format!(r"(?:{atom}|{group})");
+        let charge = r"(?:[⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾]+|[0-9]*[+-])?";
+        Regex::new(&format!(
+            r"(?:{unit}|\[{unit}+\])+{charge}(?:[·⋅][0-9]*(?:{unit})+{charge})*"
+        ))
         .expect("invalid chemical formula pattern")
     });
 

@@ -1,0 +1,88 @@
+# 真实文档语料回归。
+#
+# 这些样本模拟产品文案、技术文档、README、科研说明和用户输入中的混合文本。
+# 保护要求与当前预期输出直接写在每条 case 中；测试运行产生的日志和截图不属于该 corpus。
+
+- name: 产品发布文案中的品牌价格和标点
+  selection:
+    mode: defaults
+  input: |
+    文案净排支持GitHub、LeanCloud等服务，基础版价格为5000元！立即开始体验。
+  expected: |
+    文案净排支持 GitHub、LeanCloud 等服务，基础版价格为 5000 元！立即开始体验。
+
+- name: 技术文档中的命令路径与版本号
+  selection:
+    mode: defaults
+  input: |
+    请运行`cargo test --manifest-path src-tauri/Cargo.toml`验证Rust 1.98.0，并检查输出目录中的rules.yaml。
+  expected: |
+    请运行 `cargo test --manifest-path src-tauri/Cargo.toml` 验证 Rust 1.98.0，并检查输出目录中的 rules.yaml。
+
+- name: 部署文档中的容量和网络速率
+  selection:
+    mode: defaults
+  input: |
+    构建缓存占用256MiB，发布包大小为1GiB，建议使用1Gbps链路上传。
+  expected: |
+    构建缓存占用 256 MiB，发布包大小为 1 GiB，建议使用 1 Gbps 链路上传。
+
+- name: README 中的链接列表和普通正文
+  selection:
+    mode: defaults
+  input: |
+    安装后请访问[项目主页](https://example.com/copy-polish)，然后执行npm run build生成桌面版本。
+  expected: |
+    安装后请访问 [项目主页](https://example.com/copy-polish)，然后执行 npm run build 生成桌面版本。
+
+- name: 科研说明中的 HTML LaTeX 和复合单位
+  selection:
+    mode: defaults
+  input: |
+    <p>样品在25°C下保存，浓度为30mg·mL⁻¹。</p>计算公式为$E=mc^2$，结果约为3μm。
+  expected: |
+    <p>样品在25°C下保存，浓度为30mg·mL⁻¹。</p> 计算公式为 $E=mc^2$，结果约为 3 μm。
+
+- name: 化学式和 Unicode emoji 混合文本
+  selection:
+    mode: defaults
+  input: |
+    实验样品FeCl₂·4H₂O已完成✅，请将结果同步到GitHub。
+  expected: |
+    实验样品 FeCl₂·4H₂O 已完成✅，请将结果同步到 GitHub。
+
+- name: 多行 Markdown 表格和代码块
+  selection:
+    mode: defaults
+  input: |
+    ## 发布检查
+    | 项目 | 状态 |
+    | --- | --- |
+    | 构建版本1.0 | 已完成 |
+    ```bash
+    npm run test
+    ```
+    发布说明在GitHub上查看。
+  expected: |
+    ## 发布检查
+    | 项目 | 状态 |
+    | --- | --- |
+    | 构建版本 1.0 | 已完成 |
+    ```bash
+    npm run test
+    ```
+    发布说明在 GitHub 上查看。
+
+- name: 未闭合用户输入不吞并后续正文
+  selection:
+    mode: defaults
+  input: |
+    请查看[故障报告](https://example.com/issues/123然后继续修复5000元
+  expected: |
+    请查看[故障报告]（ https://example.com/issues/123然后继续修复5000元
+
+- name: CRLF 风格的部署说明
+  selection:
+    mode: defaults
+  input: "第一步部署到Windows服务器\r\n第二步检查端口8080\r\n第三步访问https://example.com"
+  expected: "第一步部署到 Windows 服务器\r\n第二步检查端口 8080\r\n第三步访问 https://example.com"

@@ -19,6 +19,8 @@ pub(crate) enum SemanticTokenKind {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct SemanticToken {
     pub kind: SemanticTokenKind,
+    /// 识别层使用的稳定语义 key；仅用于等价判断，不参与输出规范化。
+    pub canonical_unit: &'static str,
     pub start: usize,
     pub end: usize,
     pub number_end: usize,
@@ -46,11 +48,20 @@ impl SemanticToken {
 
         Self {
             kind,
+            canonical_unit: canonical_unit(unit),
             start: span.start,
             end: span.end,
             number_end: span.number_end,
             unit_start: span.unit_start,
         }
+    }
+}
+
+fn canonical_unit(unit: &str) -> &'static str {
+    match unit {
+        "μm" | "µm" => "um",
+        "Å" | "Å" => "angstrom",
+        _ => "unit",
     }
 }
 
@@ -112,6 +123,16 @@ mod tests {
         assert_eq!(tokens[0].kind, SemanticTokenKind::Measurement);
         assert_eq!(tokens[1].kind, SemanticTokenKind::Temperature);
         assert_eq!(tokens[2].kind, SemanticTokenKind::ScientificUnit);
+    }
+
+    #[test]
+    fn equivalent_unicode_units_share_canonical_keys_without_normalizing_output() {
+        let tokens = scan_semantic_tokens("10μm 10µm 3Å 3Å");
+        assert_eq!(tokens.len(), 4);
+        assert_eq!(tokens[0].canonical_unit, tokens[1].canonical_unit);
+        assert_eq!(tokens[2].canonical_unit, tokens[3].canonical_unit);
+        assert_eq!(tokens[0].canonical_unit, "um");
+        assert_eq!(tokens[2].canonical_unit, "angstrom");
     }
 
     #[test]

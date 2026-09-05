@@ -195,7 +195,11 @@ fn run_once(cli: &Cli) -> Result<(), String> {
         String::new()
     };
 
-    let request = FormatRequest { text, selection };
+    let request = FormatRequest {
+        text,
+        selection,
+        ..Default::default()
+    };
     let output = crate::engine::format_text(&request)?;
 
     if let Some(path) = &cli.output {

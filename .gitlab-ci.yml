@@ -3,6 +3,7 @@
 # GitHub pushes a v* release tag to this project.
 
 stages:
+  - security
   - build
   - package
   - release
@@ -18,6 +19,15 @@ workflow:
 .rules_tag:
   rules:
     - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/'
+
+security:check:
+  stage: security
+  image: alpine:3.20
+  before_script:
+    - apk add --no-cache python3 git
+  script:
+    - python3 scripts/verify.py --profile security
+  rules: !reference [.rules_tag, rules]
 
 build:linux:
   stage: build
@@ -36,17 +46,22 @@ build:linux:
   before_script:
     - apt-get update
     - apt-get install -y --no-install-recommends curl git python3 ca-certificates pkg-config xz-utils
-    - apt-get install -y --no-install-recommends libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+    - apt-get install -y --no-install-recommends libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf p7zip-full
     - curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" | tar -xJ --strip-components=1 -C /usr/local
   script:
     - python3 scripts/prepare_release_version.py "$CI_COMMIT_TAG"
-    - python3 scripts/check_version.py "$CI_COMMIT_TAG"
-    - npm ci --prefix frontend --cache frontend/.npm
+    - python3 scripts/verify.py --profile release --tag "$CI_COMMIT_TAG"
     - npm run tauri --prefix frontend -- build
+    - cargo build --manifest-path src-tauri/Cargo.toml --features tui --release --bin copypolish-tui
     - mkdir -p dist/linux
     - find src-tauri/target/release/bundle -name '*.deb' -exec cp {} dist/linux/CopyPolish_linux_amd64.deb \;
     - find src-tauri/target/release/bundle -name '*.rpm' -exec cp {} dist/linux/CopyPolish-linux-x86_64.rpm \;
     - find src-tauri/target/release/bundle -name '*.AppImage' -exec cp {} dist/linux/CopyPolish_linux_amd64.AppImage \;
+    # TUI 独立资产：staging 目录内部压缩，根目录直接包含二进制。
+    - mkdir -p dist/tui-staging
+    - cp src-tauri/target/release/copypolish-tui dist/tui-staging/
+    - cd dist/tui-staging && 7z a -t7z -mx=9 ../linux/CopyPolish-tui-linux-x86_64.7z copypolish-tui && cd ../..
+    - rm -rf dist/tui-staging
     - python3 scripts/verify_release_assets.py "$CI_COMMIT_TAG" --dist-dir dist/linux --platform linux
   artifacts:
     name: linux-bundles-$CI_COMMIT_TAG
@@ -67,7 +82,7 @@ build:windows:
         -File .\scripts\ci\build_windows_gitlab.ps1 `
         -Tag $env:CI_COMMIT_TAG
       if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      if (-not (Test-Path .\dist\windows\CopyPolish.exe) -or -not (Test-Path .\dist\windows\CopyPolish-windows-x64.7z)) {
+      if (-not (Test-Path .\dist\windows\CopyPolish.exe) -or -not (Test-Path .\dist\windows\CopyPolish-windows-x64.7z) -or -not (Test-Path .\dist\windows\CopyPolish-tui-windows-x64.7z)) {
         Write-Error "Windows build did not produce the required release assets"
         exit 1
       }
@@ -95,8 +110,10 @@ package:assemble:
     - cp dist/linux/CopyPolish_linux_amd64.AppImage dist/final/
     - cp dist/windows/CopyPolish.exe dist/final/
     - cp dist/windows/CopyPolish-windows-x64.7z dist/final/
+    - cp dist/windows/CopyPolish-tui-windows-x64.7z dist/final/
+    - cp dist/linux/CopyPolish-tui-linux-x86_64.7z dist/final/
     - python3 scripts/verify_release_assets.py "$CI_COMMIT_TAG" --dist-dir dist/final --platform all
-    - cd dist/final && sha256sum CopyPolish.exe CopyPolish-windows-x64.7z CopyPolish_linux_amd64.deb CopyPolish-linux-x86_64.rpm CopyPolish_linux_amd64.AppImage > SHA256SUMS && sha256sum -c SHA256SUMS
+    - cd dist/final && sha256sum CopyPolish.exe CopyPolish-windows-x64.7z CopyPolish_linux_amd64.deb CopyPolish-linux-x86_64.rpm CopyPolish_linux_amd64.AppImage CopyPolish-tui-windows-x64.7z CopyPolish-tui-linux-x86_64.7z > SHA256SUMS && sha256sum -c SHA256SUMS
   artifacts:
     name: release-files-$CI_COMMIT_TAG
     paths:
@@ -117,7 +134,7 @@ release:gitlab:
   script:
     - |
       BASE_URL="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/copypolish/${CI_COMMIT_TAG}"
-      for f in CopyPolish.exe CopyPolish-windows-x64.7z CopyPolish_linux_amd64.deb CopyPolish-linux-x86_64.rpm CopyPolish_linux_amd64.AppImage SHA256SUMS; do
+      for f in CopyPolish.exe CopyPolish-windows-x64.7z CopyPolish_linux_amd64.deb CopyPolish-linux-x86_64.rpm CopyPolish_linux_amd64.AppImage CopyPolish-tui-windows-x64.7z CopyPolish-tui-linux-x86_64.7z SHA256SUMS; do
         curl --fail --show-error --location --header "JOB-TOKEN: ${CI_JOB_TOKEN}" --upload-file "dist/final/${f}" "${BASE_URL}/${f}"
       done
     - python3 scripts/ci/create_gitlab_release.py

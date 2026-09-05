@@ -1,0 +1,146 @@
+# CopyPolish 架构说明
+
+本文记录当前实现事实。开发流程见根目录 [CONTRIBUTING.md](../CONTRIBUTING.md)，测试策略见 [testing.md](testing.md)。
+
+## 1. 总体结构
+
+```text
+React + TypeScript UI
+        │
+        │ frontend/src/lib/tauri.ts
+        ▼
+Tauri commands
+        │
+        ├── Rust engine::format_text
+        └── user_settings（rules.yaml）
+
+Ratatui TUI ───────────────┘
+```
+
+应用是 Tauri 2 桌面程序。前端负责界面状态和交互，Rust 负责排版行为、设置读写和 TUI。GUI 与 TUI 共用同一个 Rust 排版引擎，不维护两套规则实现。
+
+## 2. 目录职责
+
+```text
+frontend/src/
+├── App.tsx                    主界面编排
+├── components/                标题栏、设置窗口和 UI 基础组件
+├── hooks/                     格式化、设置、主题、快捷键和窗口控制
+├── lib/tauri.ts               前端唯一的 Tauri IPC 封装
+└── test/                      Vitest 全局测试环境
+
+src-tauri/src/
+├── commands.rs                Tauri command 边界
+├── user_settings.rs           rules.yaml、备份和旧 JSON 迁移
+├── engine/
+│   ├── registry.rs             稳定 key、元数据、默认状态和依赖
+│   ├── pipeline.rs             唯一生产格式化入口
+│   ├── spans.rs                结构/语义 span 扫描与仲裁
+│   ├── protection.rs           Markdown、LaTeX、URL、邮箱和化学式保护
+│   ├── tokenizer.rs            字符分类和化学式识别
+│   ├── semantic_tokens.rs      单位与数学语义识别
+│   ├── unicode_boundaries.rs   grapheme 边界和字符分类
+│   ├── edit_plan.rs            UTF-8 安全 TextEdit 规划与应用
+│   ├── rule_impls.rs            规则纯函数
+│   └── tests.rs                 引擎测试入口
+└── tui/                        Ratatui/Crossterm 终端界面
+```
+
+工程脚本在 `scripts/`，平台专属 CI 脚本在 `scripts/ci/`。可再生目录 `frontend/node_modules`、`frontend/dist`、`src-tauri/target` 和 `src-tauri/gen` 不属于源码。
+
+## 3. 请求和格式化数据流
+
+### GUI 与 TUI
+
+```text
+用户输入
+  → App/hooks
+  → lib/tauri.ts
+  → commands::format_text
+  → engine::format_text
+  → FormatRequest（规则选择、字面量替换、字符转换）
+  → 来源文本清洗（当前已实现方括号引用角标、连续空格和连续空行；其他清洗规则逐步加入）
+  → 可选字符转换（互斥简繁转换，随 `simplified-trad-conversion` feature 启用）
+  → registry + span scanner + TextEdit + protection
+  → 输出调度（实时/手动）
+  → 固定阶段的规范排版
+  → 输出结果
+```
+
+GUI 的输入变化、规则设置变化、替换/转换设置变化以及快捷键“立即排版”均通过同一套格式化调度入口传递当前 `replacements` 与 `conversion`，避免不同交互入口产生不一致的请求语义。`output_mode` 只控制是否由输入/设置变化触发调度；手动模式仍保留快捷键的显式立即排版入口。
+
+TUI 的交互界面通过 `Ctrl+E` 请求设置面板维护相同的 `replacements` 与 `conversion` 字段；`Ctrl+S` 和正常退出通过 `tui::settings` 读改写共享 `UserSettings`，因此 GUI 与 TUI 共用设置格式和 Rust `FormatRequest`，不复制规则实现。默认构建按 `simplified-trad-conversion` feature 将 T2S/S2T 归一化为 `CharacterConversion::None`。
+
+浏览器预览模式只提供最小 JS fallback，用于脱离 Tauri 开发 UI；它不代表完整 Rust 引擎行为。
+
+### Rust 格式化管线
+
+当前生产管线已经包含首批来源文本清洗规则：方括号引用角标、普通文本连续 ASCII 空格、普通文本连续空行和基于 Unicode 官方兼容分解表的康熙部首修复。`FormatRequest` 已承载有序字面量替换与互斥字符转换模式；启用 `simplified-trad-conversion` feature 时，简繁转换通过 `opencc-fmmseg`（MIT）实现并只作用于可编辑区间。
+
+1. 统一换行符并记录原始换行风格；
+2. 临时扫描结构 span，仅在可编辑区间执行有序用户自定义字面量替换；
+3. 在可编辑区间执行来源文本清洗；
+4. 执行可选的字符转换；简转繁和繁转简由 `CharacterConversion` 互斥表达，启用 `simplified-trad-conversion` 时由 `opencc-fmmseg` 实现并只改写可编辑区间；默认构建通过 capability 将不可用模式归一化为 `None`；
+5. 扫描结构/语义 span；
+6. 将不可编辑结构转换为内部保护占位符；
+7. 在受保护文本上执行结构边界、文本边界和规范排版规则；
+8. 处理占位符边界空格；
+9. 还原原文并恢复换行风格。
+
+所有生产规则阶段都经过 `edit_plan.rs` 的 TextEdit 应用层。保护层仍可使用内部 placeholder，但不存在第二套生产 pipeline。
+
+清洗规则不能以无结构全文替换取代 span 保护。自定义替换虽然位于正式保护占位符之前，但会先使用现有 span 扫描器排除不可编辑结构。默认应遵循“宁漏清洗，不破坏 Markdown、LaTeX、URL、邮箱、代码和化学式”的边界。全角 ASCII 转换使用有限 U+FF01–U+FF5E 映射，不使用全文 NFKC；`text.halfwidth-digits` 继续独立负责全角数字，`text.halfwidth-ascii` 默认关闭。
+
+PDF/CAJ 段内软换行仍只有 Spike 基线，尚未进入生产管线；CJK 内部异常空格已拆出为默认关闭的 `cleanup.cjk-internal-space` 保守试实现，仅删除普通可编辑文本中相邻 Han grapheme 之间的单个 ASCII 空格。仓库没有真实 PDF/CAJ 原文件或脱敏语料，因此该子集仍未完成真实来源验收，段内软换行、多栏顺序和连字符断词继续不处理；后续实现前必须补充来源类型、版面结构、人工期望和失败原因标注，详见 `docs/decisions/pdf-soft-wrap-spike.md`。
+
+## 4. 规则注册表
+
+`src-tauri/src/engine/registry.rs` 是静态排版规则的唯一事实来源。每个 `RuleDef` 包含稳定机器 key、展示元数据、默认启用状态、执行阶段、依赖、legacy key 别名和规则实现函数。`RuleMeta` 还向 GUI、TUI 和其他调用方提供规则说明、类型（清洗/转换/排版）和风险等级（低风险/需复核/高风险）；这些字段只影响展示和后续预设准入，不改变当前规则执行结果。每条规则还维护一个与真实引擎一致的改动示例（`before` → `after`），由 Rust 测试强制校验，用于规则列表的悬停提示，防止展示文案与实现漂移。
+
+前端通过 `get_rules` 动态取得元数据，因此新增规则通常不需要修改前端。新增规则必须同步测试、README 规则表、设置迁移兼容性和 CHANGELOG。
+
+内置工作流预设由 `engine/presets.rs` 维护，并通过 `commands::get_presets` 提供给 GUI；预设与 TUI 共用相同的 `Preset`/`FormatRequest` 字段，不复制规则实现。当前预设包括中文文案、PDF 清洗和技术文档；PDF 清洗只处理从 PDF/CAJ 复制出的文本，不解析文件本体。
+
+需要运行时参数的自定义替换、预设和简繁转换不应伪装成静态 `RuleDef`：它们应通过 `FormatRequest` 或独立配置模型传入，再由同一个 Rust pipeline 执行。核心规则顺序仍由 phase 和依赖图决定，用户不能任意拖拽改变保护与排版阶段。
+
+## 5. 设置和兼容性
+
+桌面端设置默认保存在程序同目录的 `rules.yaml`，损坏时尝试 `.bak`，首次发现旧版 `ccw-formatter-settings.json` 时进行迁移。读取和保存会把旧规则 key 归一化为稳定 key，并丢弃未知 key。程序目录不可写时（ADR 已采纳方案 B，见 `docs/decisions/settings-storage-policy.md`），启动时一次性决策回退到平台应用数据目录并通过 `UsingAppDataFallback` 提醒前端；实际路径经 `get_settings_path` 展示。程序目录与应用数据目录同时存在时，优先使用程序目录设置。
+
+GUI 通过设置 hook 管理规则选择、替换列表、转换模式、输出模式、布局和最近输入，并复用同一 `rules.yaml` 持久化模型；输入变化、设置操作和快捷键立即排版都会使用当前替换/转换设置，手动输出模式仅由显式动作刷新。`layout_mode` 只影响 GUI 主界面布局：`auto` 为宽屏左右/小屏上下，另外两种模式固定方向。输入/输出统计由前端按 Unicode code point 计算，不参与 Rust 请求。简繁能力由构建 capability 决定：feature 构建启用 T2S/S2T，默认构建禁用并归一化为 `none`。GUI 设置中的工作流预设通过 `get_presets` 获取，应用时同步更新规则选择、替换和转换设置。TUI 通过自己的设置门面复用同一文件，并在 `Ctrl+E` 请求设置面板和 `Ctrl+P` 预设面板中维护请求字段；前端浏览器预览不伪造 Rust 预设内容。
+
+GUI 的复制动作是显式的：`复制结果` 只写入剪贴板并保留当前输入/输出，`复制并清空` 只有在剪贴板写入成功后才调用统一清空流程；复制失败不会清除用户内容，也不使用窗口失焦事件触发复制或清空。快捷键 `Ctrl/Cmd+Shift+C` 继续绑定保留内容的 `复制结果`。
+
+GUI 静态帮助由 `HelpDialog` 提供，首次使用提示由 `useFirstRunNotice` 管理。首次提示只保存前端 `localStorage` 标记，不进入 Rust `UserSettings`，因此不会改变桌面端设置文件和 TUI 行为；帮助内容明确高风险清洗、结构保护、输出/复制动作及浏览器演示模式的限制。
+
+## 6. 常见修改入口
+
+| 任务 | 首选文件 |
+| --- | --- |
+| 修改规则行为 | `engine/rule_impls.rs`、`engine/registry.rs`、Rust fixture/测试 |
+| 增加来源文本清洗 | `engine/rule_impls.rs`、`engine/protection.rs`、清洗 fixture；高风险规则先补 ADR |
+| 增加数值标点空格修复 | `engine/rule_impls.rs`、`engine/registry.rs`、`spacing.yaml`；默认关闭并补充数值/版本/IP/结构保护反例 |
+| 增加运行时替换/预设 | `engine/model.rs`、`engine/pipeline.rs`、`commands.rs`、`frontend/src/lib/tauri.ts` |
+| 增加简繁转换 | 已以 `opencc-fmmseg` 接入（`engine/pipeline.rs` + `simplified-trad-conversion` feature）；扩展语义或地区词需补 `docs/decisions/` 记录 |
+| 修改保护边界 | `engine/spans.rs`、`engine/protection.rs`、保护 fixture |
+| 优化 inline-code 扫描 | `engine/spans.rs::scan_inline_code_spans`、结构 span 回归测试 |
+| 优化 span 仲裁 | `engine/spans.rs::arbitrate_spans`、span 优先级回归测试 |
+| 修改单位/数学识别 | `engine/semantic_tokens.rs`、`engine/unit_lexicon.rs` |
+| 修改前端格式化状态 | `frontend/src/hooks/useFormatter.ts`、`useInputFormatting.ts` |
+| 修改前端页面编排 | `frontend/src/hooks/useAppController.ts`、`frontend/src/App.tsx` |
+| 修改规则目录加载 | `frontend/src/hooks/useRuleCatalog.ts` |
+| 修改清空输入反馈 | `frontend/src/hooks/useClearFeedback.ts` |
+| 修改设置提醒文案/判定 | `frontend/src/lib/settingsLoadNotices.ts` |
+| 修改设置行为 | `user_settings.rs`、相关 settings hook、`SettingsDialog.tsx`、`components/settings/` |
+| 修改 IPC | `commands.rs` 和 `frontend/src/lib/tauri.ts` |
+| 修改 TUI | `src-tauri/src/tui/`，不得复制引擎规则 |
+| 修改发布流程 | `scripts/verify.py`、`scripts/ci/`、`docs/release/manual-release.md` |
+
+## 7. 不应违反的边界
+
+1. 前端不直接调用任意 Tauri command；窗口控制经 `@tauri-apps/api/window`（非 IPC 后端命令），Tauri 环境判断仍来自 `lib/tauri.ts`；
+2. TUI 不复制格式化规则；
+3. 不以历史 Python 实现作为当前行为基准；
+4. 不使用默认全文 NFKC 改写用户文本；
+5. 保护策略优先避免破坏 Markdown、LaTeX、URL、邮箱、代码和化学式；
+6. 变更发布配置时必须同步版本、资产校验和 Runbook。

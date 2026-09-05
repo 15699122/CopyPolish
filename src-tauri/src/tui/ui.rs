@@ -1,3 +1,6 @@
+use super::app::{App, FocusedPane, Overlay, RequestField, Status};
+use super::wrap;
+use crate::engine::{RuleKind, RuleRisk};
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
@@ -5,9 +8,6 @@ use ratatui::{
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Wrap},
     Frame,
 };
-use unicode_width::UnicodeWidthStr;
-
-use super::app::{App, FocusedPane, Overlay, Status};
 
 pub fn render(frame: &mut Frame, app: &App) {
     let root = Layout::default()
@@ -52,9 +52,15 @@ pub fn render(frame: &mut Frame, app: &App) {
         Color::DarkGray
     };
     let input_area = body[0];
+    let input_inner_width = input_area.width.saturating_sub(2).max(1);
     let input_inner_height = input_area.height.saturating_sub(2).max(1) as usize;
-    let (cursor_line, _) = app.input.line_column();
-    let input_scroll = cursor_line.saturating_sub(input_inner_height.saturating_sub(1)) as u16;
+    // 光标位置按“与 ratatui 渲染一致的视觉行”计算，而不是按逻辑行 + 整行宽度。
+    // 这样软换行后光标不会越过输入框绘制到状态栏也仍保持可见。
+    let cursor_visual =
+        wrap::cursor_visual(app.input.text(), app.input.cursor(), input_inner_width);
+    let input_scroll = cursor_visual
+        .row
+        .saturating_sub(input_inner_height.saturating_sub(1)) as u16;
     let output_style = if app.focused == FocusedPane::Output {
         Color::Cyan
     } else {
@@ -86,19 +92,16 @@ pub fn render(frame: &mut Frame, app: &App) {
     );
 
     if app.focused == FocusedPane::Input {
-        let visible_line = cursor_line.saturating_sub(input_scroll as usize);
-        let line_start = app.input.text()[..app.input.cursor()]
-            .rfind('\n')
-            .map_or(0, |index| index + 1);
-        let column_text = &app.input.text()[line_start..app.input.cursor()];
+        // visible_row 是光标相对滚动后的可见视觉行，保证其在输入框内部。
+        let visible_row = cursor_visual.row - input_scroll as usize;
         let cursor_x = input_area
             .x
             .saturating_add(1)
-            .saturating_add(column_text.width() as u16);
+            .saturating_add(cursor_visual.col);
         let cursor_y = input_area
             .y
             .saturating_add(1)
-            .saturating_add(visible_line as u16);
+            .saturating_add(visible_row as u16);
         if cursor_x < input_area.right().saturating_sub(1)
             && cursor_y < input_area.bottom().saturating_sub(1)
         {
@@ -116,16 +119,112 @@ pub fn render(frame: &mut Frame, app: &App) {
     };
     let selected = app.selected_keys().len();
     let footer = format!(
-        " {status} · 规则 {selected}/{} · Tab 切换 · r 规则 · c 复制 · Ctrl+S 保存 · ? 帮助 · q 退出",
+        " {status} · 规则 {selected}/{} · Tab 切换 · Ctrl+R 规则 · Ctrl+E 替换/转换 · Ctrl+P 预设 · c 复制 · Ctrl+S 保存 · Ctrl+? 帮助 · Ctrl+Q 退出",
         app.rules.len()
     );
     frame.render_widget(Paragraph::new(footer), root[2]);
 
     if app.overlay == Some(Overlay::Rules) {
         render_rules(frame, app);
+    } else if app.overlay == Some(Overlay::Request) {
+        render_request(frame, app);
+    } else if app.overlay == Some(Overlay::Presets) {
+        render_presets(frame, app);
     } else if app.overlay == Some(Overlay::Help) {
         render_help(frame);
     }
+}
+
+fn render_presets(frame: &mut Frame, app: &App) {
+    let area = centered_rect(78, 62, frame.area());
+    frame.render_widget(Clear, area);
+    let items = app.presets.iter().enumerate().map(|(index, preset)| {
+        let selected = if index == app.selected_preset {
+            ">"
+        } else {
+            " "
+        };
+        ListItem::new(format!(
+            "{selected} {} · {}：{}",
+            index + 1,
+            preset.name,
+            preset.description
+        ))
+    });
+    let list = List::new(items)
+        .block(
+            Block::default()
+                .title(" 预设 · ↑↓ 选择 · Enter 应用 · Esc 关闭 ")
+                .borders(Borders::ALL),
+        )
+        .highlight_style(
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        );
+    let mut state = list_state(app.selected_preset);
+    frame.render_stateful_widget(list, area, &mut state);
+}
+
+fn render_request(frame: &mut Frame, app: &App) {
+    let area = centered_rect(86, 78, frame.area());
+    frame.render_widget(Clear, area);
+    let conversion = match app.conversion {
+        crate::engine::CharacterConversion::None => "不转换",
+        crate::engine::CharacterConversion::TraditionalToSimplified => "繁体转简体（t2s）",
+        crate::engine::CharacterConversion::SimplifiedToTraditional => "简体转繁体（s2t）",
+    };
+    let capability = if cfg!(feature = "simplified-trad-conversion") {
+        "feature 已启用"
+    } else {
+        "默认构建不可用，v 不改变模式"
+    };
+    let mut lines = vec![
+        Line::from("替换与字符转换"),
+        Line::from(format!("转换：{conversion} · {capability}")),
+        Line::from(""),
+    ];
+    if app.replacements.is_empty() {
+        lines.push(Line::from("（暂无替换项，按 n 新增）"));
+    } else {
+        for (index, replacement) in app.replacements.iter().enumerate() {
+            let marker = if replacement.active { "[x]" } else { "[ ]" };
+            let selected = if index == app.selected_replacement {
+                ">"
+            } else {
+                " "
+            };
+            lines.push(Line::from(format!(
+                "{selected} {marker} {}: {} → {}",
+                index + 1,
+                if replacement.from.is_empty() {
+                    "（空）"
+                } else {
+                    &replacement.from
+                },
+                if replacement.to.is_empty() {
+                    "（空）"
+                } else {
+                    &replacement.to
+                },
+            )));
+        }
+    }
+    lines.push(Line::from(""));
+    let field = match app.request_field {
+        RequestField::From => "来源 from",
+        RequestField::To => "目标 to",
+    };
+    lines.push(Line::from(format!("当前编辑字段：{field}")));
+    lines.push(Line::from(
+        "↑↓ 选择 · n 新增 · d 删除 · Space 启停 · Tab 切换字段 · v 转换 · Enter 应用 · Esc 关闭",
+    ));
+    frame.render_widget(
+        Paragraph::new(Text::from(lines))
+            .block(Block::default().title(" 请求设置 ").borders(Borders::ALL))
+            .wrap(Wrap { trim: false }),
+        area,
+    );
 }
 
 fn render_rules(frame: &mut Frame, app: &App) {
@@ -138,9 +237,19 @@ fn render_rules(frame: &mut Frame, app: &App) {
         } else {
             "[ ]"
         };
+        let kind = match rule.kind {
+            RuleKind::Cleanup => "清洗",
+            RuleKind::Conversion => "转换",
+            RuleKind::Typography => "排版",
+        };
+        let risk = match rule.risk {
+            RuleRisk::Safe => "低风险",
+            RuleRisk::Contextual => "需复核",
+            RuleRisk::Destructive => "高风险",
+        };
         let disputed = if rule.disputed { " · 争议" } else { "" };
         ListItem::new(format!(
-            "{marker} {} · {}{disputed}",
+            "{marker} {} · {} [{kind} · {risk}]{disputed}",
             rule.section, rule.name
         ))
     });
@@ -167,14 +276,16 @@ fn render_help(frame: &mut Frame) {
         "",
         "Tab / Shift+Tab  切换输入、输出和规则区域",
         "Ctrl+Enter       立即排版",
-        "r                打开规则面板",
+        "Ctrl+R           打开规则面板（非输入区也可用 r）",
+        "Ctrl+E           打开替换与字符转换面板（非输入区也可用 e）",
+        "Ctrl+P           打开工作流预设面板（非输入区也可用 p）",
         "Space / Enter     切换当前规则",
         "a / d / n          全选 / 恢复默认 / 全不选",
         "c                复制输出（OSC 52）",
         "Ctrl+S           保存规则与最近输入到 rules.yaml",
-        "x                清空输入",
-        "? / Esc           帮助 / 关闭覆盖层",
-        "q                退出（退出时自动保存设置）",
+        "Ctrl+X           清空输入",
+        "Ctrl+? / Esc      帮助 / 关闭覆盖层",
+        "Ctrl+Q           退出（退出时自动保存设置）",
         "",
         "Esc 关闭此帮助",
     ];

@@ -15,13 +15,40 @@ export interface Rule {
   key: string;
   section: string;
   name: string;
+  description?: string;
+  example: { before: string; after: string };
+  kind?: "cleanup" | "conversion" | "typography";
+  risk?: "safe" | "contextual" | "destructive";
   disputed: boolean;
   default: boolean;
+}
+
+export interface ReplacementPair {
+  from: string;
+  to: string;
+  active: boolean;
+}
+
+export type CharacterConversion = "none" | "t2s" | "s2t";
+
+export interface BuildCapabilities {
+  simplifiedTradConversion: boolean;
 }
 
 export interface FormatRequest {
   text: string;
   selection: RuleSelection;
+  replacements?: ReplacementPair[];
+  conversion?: CharacterConversion;
+}
+
+export interface Preset {
+  key: string;
+  name: string;
+  description: string;
+  selection: RuleSelection;
+  replacements: ReplacementPair[];
+  conversion: CharacterConversion;
 }
 
 export type RuleSelection =
@@ -65,7 +92,40 @@ export async function formatText(request: FormatRequest): Promise<string> {
     if (request.selection.mode === "none") return request.text;
     return fallbackFormat(request.text);
   }
-  return invoke<string>("format_text", { ...request });
+  const payload = {
+    text: request.text,
+    selection: request.selection,
+    replacements: request.replacements ?? null,
+    conversion: request.conversion ?? null,
+  };
+  const e2e = import.meta.env.VITE_COPYPOLISH_E2E === "true";
+  if (e2e) {
+    window.__COPYPOLISH_E2E__ = {
+      ...window.__COPYPOLISH_E2E__,
+      lastFormatRequest: payload,
+      lastFormatResult: undefined,
+      lastFormatError: undefined,
+    };
+  }
+  try {
+    const result = await invoke<string>("format_text", payload);
+    if (e2e) {
+      window.__COPYPOLISH_E2E__ = {
+        ...window.__COPYPOLISH_E2E__,
+        lastFormatResult: result,
+        lastFormatError: undefined,
+      };
+    }
+    return result;
+  } catch (cause) {
+    if (e2e) {
+      window.__COPYPOLISH_E2E__ = {
+        ...window.__COPYPOLISH_E2E__,
+        lastFormatError: String(cause),
+      };
+    }
+    throw cause;
+  }
 }
 
 /** 浏览器预览为演示模式：规则列表由桌面端注册表提供，此处返回空列表。 */
@@ -79,6 +139,18 @@ export async function getEnabledDefaults(): Promise<string[]> {
   return invoke<string[]>("get_enabled_defaults");
 }
 
+/** 返回 Rust 内置工作流预设；浏览器预览不伪造预设内容。 */
+export async function getPresets(): Promise<Preset[]> {
+  if (!isTauri()) return [];
+  return invoke<Preset[]>("get_presets");
+}
+
+/** 返回当前构建是否包含可选的简繁转换实现。浏览器预览不宣称该能力。 */
+export async function getBuildCapabilities(): Promise<BuildCapabilities> {
+  if (!isTauri()) return { simplifiedTradConversion: false };
+  return invoke<BuildCapabilities>("get_build_capabilities");
+}
+
 
 // ---------------------------------------------------------------------------
 // 用户设置持久化（由 Rust 端保存在 exe 同目录的 rules.yaml；
@@ -89,6 +161,8 @@ export type ThemeMode = "system" | "light" | "dark";
 export type FontFamily = "system" | "microsoft-yahei" | "pingfang" | "noto-sans-cjk" | "simsun" | "simhei";
 export type EditorFontSize = "small" | "normal" | "large" | "x-large";
 export type UiScale = "compact" | "small" | "normal" | "large" | "x-large";
+export type OutputMode = "realtime" | "manual";
+export type LayoutMode = "auto" | "horizontal" | "vertical";
 export type ShortcutAction = "format_now" | "copy_output" | "open_settings";
 export type ShortcutBindings = Record<ShortcutAction, string>;
 
@@ -111,7 +185,8 @@ export type SettingsLoadNotice =
   | "legacy_settings_corrupt"
   | "primary_settings_corrupt_recovered_from_backup"
   | "primary_settings_corrupt_no_usable_backup"
-  | "backup_settings_corrupt";
+  | "backup_settings_corrupt"
+  | "using_app_data_fallback";
 
 export interface UserSettings {
   enabled: string[];
@@ -120,7 +195,11 @@ export interface UserSettings {
   font: FontFamily;
   editor_font_size: EditorFontSize;
   ui_scale: UiScale;
+  output_mode?: OutputMode;
+  layout_mode?: LayoutMode;
   shortcuts: ShortcutSettings;
+  replacements: ReplacementPair[];
+  conversion: CharacterConversion;
 }
 
 export interface LoadedUserSettings extends UserSettings {
@@ -148,7 +227,11 @@ export async function getUserSettings(): Promise<LoadedUserSettings | null> {
         font: ensureFontFamily(parsed.font),
         editor_font_size: ensureEditorFontSize(parsed.editor_font_size),
         ui_scale: ensureUiScale(parsed.ui_scale),
+        output_mode: ensureOutputMode(parsed.output_mode),
+        layout_mode: ensureLayoutMode(parsed.layout_mode),
         shortcuts: ensureShortcutSettings(parsed.shortcuts),
+        replacements: ensureReplacements(parsed.replacements),
+        conversion: ensureCharacterConversion(parsed.conversion),
         notices: [],
       };
     } catch {
@@ -168,7 +251,11 @@ export async function getUserSettings(): Promise<LoadedUserSettings | null> {
     font: ensureFontFamily(settings.font),
     editor_font_size: ensureEditorFontSize(settings.editor_font_size),
     ui_scale: ensureUiScale(settings.ui_scale),
+    output_mode: ensureOutputMode(settings.output_mode),
+    layout_mode: ensureLayoutMode(settings.layout_mode),
     shortcuts: ensureShortcutSettings(settings.shortcuts),
+    replacements: ensureReplacements(settings.replacements),
+    conversion: ensureCharacterConversion(settings.conversion),
     notices: loaded.notices ?? [],
   };
 }
@@ -193,6 +280,14 @@ export async function saveUserSettings(settings: UserSettings): Promise<void> {
       // localStorage 不可用时静默忽略（预览环境）。
     }
     return;
+  }
+  const e2e = import.meta.env.VITE_COPYPOLISH_E2E === "true";
+  if (e2e) {
+    window.__COPYPOLISH_E2E__ = {
+      ...window.__COPYPOLISH_E2E__,
+      lastSettingsSave: settings,
+      settingsSaveSequence: (window.__COPYPOLISH_E2E__?.settingsSaveSequence ?? 0) + 1,
+    };
   }
   await invoke("save_user_settings", { settings });
 }
@@ -225,4 +320,29 @@ function ensureUiScale(value: unknown): UiScale {
     return value;
   }
   return "normal";
+}
+
+function ensureOutputMode(value: unknown): OutputMode {
+  return value === "manual" ? "manual" : "realtime";
+}
+
+function ensureLayoutMode(value: unknown): LayoutMode {
+  if (value === "horizontal" || value === "vertical") return value;
+  return "auto";
+}
+
+function ensureCharacterConversion(value: unknown): CharacterConversion {
+  if (value === "t2s" || value === "s2t") return value;
+  return "none";
+}
+
+function ensureReplacements(value: unknown): ReplacementPair[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is Partial<ReplacementPair> => typeof item === "object" && item !== null)
+    .map((item) => ({
+      from: typeof item.from === "string" ? item.from : "",
+      to: typeof item.to === "string" ? item.to : "",
+      active: typeof item.active === "boolean" ? item.active : true,
+    }));
 }

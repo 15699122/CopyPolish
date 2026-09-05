@@ -1,0 +1,84 @@
+# 统一请求模型回归：自定义字面量替换与字符转换。
+# - 替换在 span 保护前执行，但链接/代码/公式内部不受影响（由上游 span 层排除）；
+# - 简繁转换当前仅 None 生效，t2s/s2t 占位保持原文；
+# - 默认 { text, selection } 调用输出与扩展前完全一致（replacements/conversion 可省略）。
+
+- name: 有序字面量替换生效且跳过 inactive 项
+  request:
+    text: "将 TODO 替换为待办，FIXME 替换为修复。"
+    selection:
+      mode: "none"
+    replacements:
+      - { from: "TODO", to: "待办", active: true }
+      - { from: "FIXME", to: "修复", active: false }
+  expected: "将 待办 替换为待办，FIXME 替换为修复。"
+
+- name: 替换顺序按向量先后应用
+  request:
+    text: "A→B→C"
+    selection:
+      mode: "none"
+    replacements:
+      - { from: "A", to: "B", active: true }
+      - { from: "B", to: "C", active: true }
+  expected: "C→C→C"
+
+- name: 自定义替换跳过链接与代码内部
+  request:
+    text: "普通 TODO、[TODO](https://example.com/TODO) 与 `TODO`。"
+    selection:
+      mode: "none"
+    replacements:
+      - { from: "TODO", to: "待办", active: true }
+  expected: "普通 待办、 [TODO](https://example.com/TODO) 与 `TODO`。"
+
+- name: 空 from 项安全跳过且不改变文本
+  request:
+    text: "文本不变"
+    selection:
+      mode: "none"
+    replacements:
+      - { from: "", to: "X", active: true }
+  expected: "文本不变"
+
+- name: 排版规则与自定义替换组合
+  request:
+    text: "在GitHub(TM)上发布"
+    selection:
+      mode: "only"
+      keys: ["spacing.cjk-latin"]
+    replacements:
+      - { from: "(TM)", to: "™", active: true }
+  expected: "在 GitHub™上发布"
+
+- name: conversion=none 保持原文
+  request:
+    text: "中文排版"
+    selection:
+      mode: "none"
+    conversion: "none"
+  expected: "中文排版"
+
+- name: conversion=t2s 对简体样本保持不变（无繁可转）
+  request:
+    text: "中文排版"
+    selection:
+      mode: "none"
+    conversion: "t2s"
+  expected: "中文排版"
+
+- name: conversion=s2t 对简体样本转换（无繁体字时保持不变）
+  request:
+    text: "中文排版"
+    selection:
+      mode: "none"
+    conversion: "s2t"
+  expected: "中文排版"
+
+- name: 省略 replacements 与 conversion 时输出与扩展前一致（向后兼容）
+  request:
+    text: "在GitHub上发布"
+    selection:
+      mode: "only"
+      keys: ["spacing.cjk-latin"]
+  expected: "在 GitHub 上发布"

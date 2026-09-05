@@ -1,0 +1,90 @@
+# 来源文本清洗规则回归：新规则默认关闭，显式选择后才生效。
+
+- name: 清理方括号和中文方括号引用角标
+  selection:
+    mode: only
+    keys:
+      - cleanup.reference-square
+  input: "根据实验结果[1]，已有研究【2, 3】和样本[4-7]均支持该结论。"
+  expected: "根据实验结果，已有研究和样本均支持该结论。"
+
+- name: 折叠普通文本重复空格但保护链接和代码
+  selection:
+    mode: only
+    keys:
+      - cleanup.collapse-horizontal-spaces
+  input: "普通  文本 [项目 主页](https://example.com/a  b) 与 `代码  片段`。"
+  expected: "普通 文本 [项目 主页](https://example.com/a  b) 与 `代码  片段`。"
+
+- name: 限制普通文本连续空行但保留代码块空行
+  selection:
+    mode: only
+    keys:
+      - cleanup.limit-blank-lines
+  input: |
+    第一段。
+
+
+
+    第二段。
+    ```text
+
+
+    code
+
+
+    ```
+    第三段。
+
+  expected: |
+    第一段。
+
+    第二段。
+    ```text
+
+
+    code
+
+
+    ```
+    第三段。
+
+- name: 显式修复康熙部首
+  selection:
+    mode: only
+    keys:
+      - cleanup.kangxi-radicals
+  input: "部首⼀⼁⼂⼃⿕"
+  expected: "部首一丨丶丿龠"
+
+- name: 康熙部首规则保持普通字符和结构内容
+  selection:
+    mode: only
+    keys:
+      - cleanup.kangxi-radicals
+  input: "普通字一，代码`⼀`，链接https://example.com/⼀"
+  expected: "普通字一，代码 `⼀`，链接 https://example.com/⼀"
+
+- name: 清理中文之间单个异常空格
+  selection:
+    mode: only
+    keys:
+      - cleanup.cjk-internal-space
+  input: "这是从PDF复 制的中 文文本。"
+  expected: "这是从PDF复制的中文文本。"
+
+- name: 中文异常空格规则保留连续空格和汉字与拉丁/数字边界
+  selection:
+    mode: only
+    keys:
+      - cleanup.cjk-internal-space
+  input: "中  文 ＡＢＣ数 字 5 以及标点，空格。"
+  expected: "中  文 ＡＢＣ数字 5 以及标点，空格。"
+
+- name: 中文异常空格规则保护代码和链接内容
+  selection:
+    mode: only
+    keys:
+      - cleanup.cjk-internal-space
+  input: "文本`中 文`与[链接 中 文](https://example.com/中 文)"
+  expected: "文本 `中 文` 与 [链接 中 文](https://example.com/中 文)"

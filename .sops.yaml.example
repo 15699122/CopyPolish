@@ -1,0 +1,7 @@
+# Local SOPS configuration template.
+# Copy this file to .sops.yaml and replace the placeholder with an approved
+# public age recipient. Never commit the local configuration or private key.
+
+creation_rules:
+  - path_regex: secrets/.*\.env$
+    age: <AGE_PUBLIC_RECIPIENT>

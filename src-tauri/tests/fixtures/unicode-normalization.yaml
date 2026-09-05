@@ -1,0 +1,10 @@
+# 默认关闭的有限 Unicode 输出规范化规则。
+# 只在显式选择 text.unicode-equivalents 时改写 µ/Å；数学结构保持保护。
+
+- name: 显式统一等价 Unicode 单位字符
+  selection:
+    mode: only
+    keys:
+      - text.unicode-equivalents
+  input: 薄膜厚度10µm，晶格常数3Å
+  expected: 薄膜厚度10μm，晶格常数3Å

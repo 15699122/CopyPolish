@@ -10,6 +10,7 @@ pub(crate) mod events;
 pub mod settings;
 mod terminal;
 pub(crate) mod ui;
+mod wrap;
 
 pub use app::App;
 pub use terminal::run;

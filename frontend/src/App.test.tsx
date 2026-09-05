@@ -3,7 +3,7 @@
  * mock 掉 @/lib/tauri，专注 UI 行为：
  * 输入→实时排版、设置弹窗规则开关与持久化、清除输入、启动时恢复用户设置。
  */
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { act, render, screen, waitFor, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -28,18 +28,20 @@ beforeEach(() => {
 
 const mocks = vi.hoisted(() => {
   const rules = [
-    { key: "rule-a", section: "空格", name: "中英文之间增加空格", disputed: false, default: true },
-    { key: "rule-b", section: "空格", name: "中文与数字之间增加空格", disputed: false, default: true },
-    { key: "rule-c", section: "争议", name: "争议规则", disputed: true, default: false },
+    { key: "rule-a", section: "空格", name: "中英文之间增加空格", description: "在中文与拉丁字母之间增加空格。", example: { before: "在LeanCloud上", after: "在 LeanCloud 上" }, kind: "typography", risk: "safe", disputed: false, default: true },
+    { key: "rule-b", section: "空格", name: "中文与数字之间增加空格", description: "在中文与数字之间增加空格。", example: { before: "花了5000元", after: "花了 5000 元" }, kind: "typography", risk: "safe", disputed: false, default: true },
+    { key: "rule-c", section: "争议", name: "争议规则", description: "这是一条需要复核的规则。", example: { before: "旧", after: "新" }, kind: "typography", risk: "contextual", disputed: true, default: false },
   ];
   return {
     rules,
     formatText: vi.fn(),
     getRules: vi.fn(),
     getEnabledDefaults: vi.fn(),
+    getPresets: vi.fn(),
     getUserSettings: vi.fn(),
     saveUserSettings: vi.fn(),
     getAppVersion: vi.fn(),
+    getBuildCapabilities: vi.fn(),
   };
 });
 
@@ -50,10 +52,12 @@ vi.mock("@/lib/tauri", () => ({
   formatText: mocks.formatText,
   getRules: mocks.getRules,
   getEnabledDefaults: mocks.getEnabledDefaults,
-  getSettingsPath: () => "C:\\Users\\Tester\\Desktop\\CopyPolish\\rules.yaml",
+  getPresets: mocks.getPresets,
+  getSettingsPath: () => "C:\\src\\CopyPolish\\rules.yaml",
   getUserSettings: mocks.getUserSettings,
   saveUserSettings: mocks.saveUserSettings,
   getAppVersion: mocks.getAppVersion,
+  getBuildCapabilities: mocks.getBuildCapabilities,
   DEFAULT_SHORTCUT_SETTINGS: {
     enabled: true,
     bindings: {
@@ -74,8 +78,18 @@ function mockFormat(transform: (text: string) => string) {
 async function setup() {
   const user = userEvent.setup();
   render(<App />);
-  // 等待初始化（getRules/getUserSettings）完成。
-  await waitFor(() => expect(mocks.getRules).toHaveBeenCalled());
+  // 等待初始化及设置恢复 effect 完成，避免异步状态更新落在未等待的 act scope 中。
+  await waitFor(() => {
+    expect(mocks.getRules).toHaveBeenCalled();
+    expect(mocks.getEnabledDefaults).toHaveBeenCalled();
+    expect(mocks.getUserSettings).toHaveBeenCalled();
+    expect(mocks.getAppVersion).toHaveBeenCalled();
+    expect(mocks.getBuildCapabilities).toHaveBeenCalled();
+  });
+  await act(async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+  });
   return { user };
 }
 
@@ -92,6 +106,7 @@ beforeEach(() => {
   mocks.getUserSettings.mockResolvedValue(null);
   mocks.saveUserSettings.mockResolvedValue(undefined);
   mocks.getAppVersion.mockResolvedValue("0.5.0-test");
+  mocks.getBuildCapabilities.mockResolvedValue({ simplifiedTradConversion: true });
 });
 
 describe("App 主流程", () => {
@@ -107,6 +122,8 @@ describe("App 主流程", () => {
     expect(mocks.formatText).toHaveBeenLastCalledWith({
       text: "hello",
       selection: { mode: "only", keys: ["rule-a", "rule-b"] },
+      replacements: [],
+      conversion: "none",
     });
   });
 
@@ -125,8 +142,44 @@ describe("App 主流程", () => {
     expect(screen.getByTestId("output-empty-state")).toBeInTheDocument();
   });
 
+  it("复制结果保留内容，复制并清空在复制成功后清空输入和输出", async () => {
+    mockFormat((t) => `格式化(${t})`);
+    const { user } = await setup();
+    const writeText = vi.spyOn(navigator.clipboard, "writeText");
+    const input = screen.getByTestId("input-textarea");
+    await user.type(input, "待处理");
+    await waitFor(() => expect(screen.getByTestId("output-text")).toHaveTextContent("格式化(待处理)"));
+
+    await user.click(screen.getByTestId("copy-output"));
+    expect(input).toHaveValue("待处理");
+    expect(screen.getByTestId("output-text")).toHaveTextContent("格式化(待处理)");
+
+    await user.click(screen.getByTestId("copy-and-clear"));
+    expect(writeText).toHaveBeenCalledWith("格式化(待处理)");
+    expect(input).toHaveValue("");
+    await waitFor(() => expect(screen.getByTestId("output-text")).toBeEmptyDOMElement());
+  });
+
+  it("复制并清空复制失败时保留输入和输出", async () => {
+    mockFormat((t) => `格式化(${t})`);
+    const { user } = await setup();
+    vi.spyOn(navigator.clipboard, "writeText").mockRejectedValueOnce(new Error("clipboard denied"));
+    const input = screen.getByTestId("input-textarea");
+    await user.type(input, "复制失败");
+    await waitFor(() => expect(screen.getByTestId("output-text")).toHaveTextContent("格式化(复制失败)"));
+
+    await user.click(screen.getByTestId("copy-and-clear"));
+
+    expect(input).toHaveValue("复制失败");
+    expect(screen.getByTestId("output-text")).toHaveTextContent("格式化(复制失败)");
+    expect(screen.getByTestId("copy-and-clear")).toBeEnabled();
+  });
+
   it("输入框显示示例型占位符，输出框空状态显示引导提示", async () => {
     await setup();
+    expect(screen.getByTestId("demo-mode-banner")).toHaveTextContent(
+      "演示模式：当前运行在浏览器预览中",
+    );
     const input = screen.getByTestId("input-textarea");
     expect(input).toHaveAttribute(
       "placeholder",
@@ -136,6 +189,28 @@ describe("App 主流程", () => {
     expect(screen.getByTestId("output-empty-state")).toHaveTextContent(
       "输入内容后，这里将实时显示规范化结果",
     );
+  });
+
+  it("首次使用显示提示，查看说明后打开帮助并记住已查看状态", async () => {
+    const { user } = await setup();
+
+    expect(screen.getByTestId("first-run-notice")).toBeInTheDocument();
+    await user.click(screen.getByTestId("first-run-help"));
+
+    expect(screen.queryByTestId("first-run-notice")).not.toBeInTheDocument();
+    expect(screen.getByTestId("help-dialog")).toBeInTheDocument();
+    expect(window.localStorage.getItem("copypolish.first-run-notice-seen")).toBe("1");
+  });
+
+  it("帮助入口展示静态说明，首次提示可单独关闭", async () => {
+    const { user } = await setup();
+
+    await user.click(screen.getByTestId("first-run-dismiss"));
+    expect(screen.queryByTestId("first-run-notice")).not.toBeInTheDocument();
+
+    await user.click(screen.getByTestId("open-help"));
+    expect(screen.getByTestId("help-dialog")).toHaveTextContent("高风险");
+    expect(screen.getByTestId("help-dialog")).toHaveTextContent("浏览器演示模式");
   });
 
   it("输入内容后隐藏输出框空状态提示", async () => {
@@ -171,16 +246,25 @@ describe("App 主流程", () => {
     const input = screen.getByTestId("input-textarea");
     await user.type(input, "hello");
 
-    await user.keyboard("{Control>}{Enter}{/Control}");
+    await act(async () => {
+      fireEvent.keyDown(input, { code: "Enter", ctrlKey: true, key: "Enter" });
+      await Promise.resolve();
+    });
     await waitFor(() => expect(mocks.formatText).toHaveBeenCalledWith(expect.objectContaining({ text: "hello" })));
 
     await waitFor(() => expect(screen.getByTestId("output-text")).toHaveTextContent("格式化(hello)"));
-    await user.keyboard("{Control>}{Shift>}c{/Shift}{/Control}");
+    await act(async () => {
+      fireEvent.keyDown(input, { code: "KeyC", ctrlKey: true, shiftKey: true, key: "C" });
+      await Promise.resolve();
+    });
     await waitFor(() => expect(screen.getByTestId("copy-status")).toHaveTextContent("已复制"));
 
     document.body.focus();
-    await user.keyboard("{Control>},{/Control}");
-    expect(screen.getByTestId("settings-dialog")).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.keyDown(document.body, { code: "Comma", ctrlKey: true, key: "," });
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(screen.getByTestId("settings-dialog")).toBeInTheDocument());
     await user.click(screen.getByTestId("settings-done"));
     await waitFor(() => expect(screen.getByTestId("open-settings")).toHaveFocus());
   });
@@ -210,26 +294,27 @@ describe("App 主流程", () => {
     const settingsPathEl = screen.getByTestId("settings-path");
     expect(settingsPathEl).toHaveAttribute(
       "title",
-      "C:\\Users\\Tester\\Desktop\\CopyPolish\\rules.yaml",
+      "C:\\src\\CopyPolish\\rules.yaml",
     );
     expect(settingsPathEl).toHaveAttribute(
       "aria-label",
-      "设置文件完整路径：C:\\Users\\Tester\\Desktop\\CopyPolish\\rules.yaml",
+      "点击复制设置文件完整路径：C:\\src\\CopyPolish\\rules.yaml",
     );
+    expect(settingsPathEl).toHaveAttribute("type", "button");
     expect(settingsPathEl).toHaveClass("underline", "decoration-dotted", "underline-offset-4");
     // 下划线只作用于路径本身，“设置文件：”标签不带下划线。
     expect(screen.getByTestId("settings-path-label")).not.toHaveClass("underline");
-    expect(settingsPathEl).toHaveTextContent("C:\\Users\\Tester\\Desktop\\CopyPolish\\rules.yaml");
+    expect(settingsPathEl).toHaveTextContent("rules.yaml");
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
     expect(screen.getByTestId("settings-version")).toHaveTextContent("版本 0.5.0-test");
     expect(screen.getByTestId("settings-footer")).toHaveClass("px-4", "py-4", "sm:px-6");
     expect(screen.getByTestId("settings-actions")).toBeInTheDocument();
     // 主题：跟随系统为勾选框，浅色/深色为单选项（默认勾选跟随时禁用）。
     expect(screen.getByTestId("theme-options")).toBeInTheDocument();
-    expect(screen.getByTestId("theme-options")).toHaveClass("grid-cols-[1.35fr_1fr_1fr]");
+    expect(screen.getByTestId("theme-options")).toHaveClass("grid-cols-3");
     expect(screen.getByTestId("theme-options").children).toHaveLength(3);
     expect(screen.getByTestId("theme-system")).toBeInTheDocument();
-    expect(screen.getByTestId("theme-system")).toHaveAttribute("type", "checkbox");
+    expect(screen.getByTestId("theme-system")).toHaveAttribute("role", "checkbox");
     expect(screen.getByTestId("theme-system")).toBeChecked();
     expect(screen.getByTestId("theme-light")).toBeDisabled();
     expect(screen.getByTestId("theme-dark")).toBeDisabled();
@@ -239,6 +324,12 @@ describe("App 主流程", () => {
     expect(screen.getByTestId("editor-font-size-select")).toHaveValue("normal");
     expect(screen.getByTestId("ui-scale-select")).toHaveValue("normal");
     expect(screen.getByText("中英文之间增加空格")).toBeVisible();
+    expect(screen.getByText("在中文与拉丁字母之间增加空格。")).toBeVisible();
+    const safeRule = screen.getByTestId("rule-rule-a").parentElement;
+    expect(safeRule).not.toBeNull();
+    expect(safeRule).toHaveTextContent("[排版]");
+    expect(safeRule).toHaveTextContent("· 低风险");
+    expect(safeRule).toHaveTextContent("在中文与拉丁字母之间增加空格。");
     expect(screen.getByText("中文与数字之间增加空格")).toBeVisible();
     expect(screen.getByText("争议规则")).toBeVisible();
     // 默认开启的规则展示在默认关闭的规则之前（仅展示顺序，不影响执行顺序）。
@@ -275,6 +366,8 @@ describe("App 主流程", () => {
         font: "system",
         editor_font_size: "normal",
         ui_scale: "normal",
+        output_mode: "realtime",
+        layout_mode: "auto",
         shortcuts: {
           enabled: true,
           bindings: {
@@ -283,6 +376,8 @@ describe("App 主流程", () => {
             open_settings: "CtrlOrCmd+Comma",
           },
         },
+        replacements: [],
+        conversion: "none",
       }),
     );
 
@@ -308,6 +403,8 @@ describe("App 主流程", () => {
       expect(mocks.formatText).toHaveBeenCalledWith({
         text: "",
         selection: { mode: "none" },
+        replacements: [],
+        conversion: "none",
       }),
     );
   });
@@ -320,6 +417,8 @@ describe("App 主流程", () => {
       font: "pingfang",
       editor_font_size: "large",
       ui_scale: "small",
+      replacements: [],
+      conversion: "none",
       notices: [],
     });
     mockFormat((t) => `格式化(${t})`);
@@ -479,6 +578,30 @@ describe("App 主流程", () => {
     );
   });
 
+  it("输出模式、布局和输入输出统计可用且手动模式不自动刷新", async () => {
+    mockFormat((t) => `格式化(${t})`);
+    const { user } = await setup();
+    await user.click(screen.getByTestId("open-settings"));
+    await user.selectOptions(screen.getByTestId("output-mode-select"), "manual");
+    await user.selectOptions(screen.getByTestId("layout-mode-select"), "vertical");
+    await user.click(screen.getByTestId("settings-done"));
+
+    const input = screen.getByTestId("input-textarea");
+    await user.type(input, "中文👍");
+    expect(screen.getByTestId("input-stats")).toHaveTextContent("输入：3 字符");
+    expect(screen.getByTestId("output-text")).toHaveTextContent("");
+    expect(screen.getByTestId("editor-layout")).toHaveClass("grid-rows-2");
+
+    await user.keyboard("{Control>}{Enter}{/Control}");
+    await waitFor(() => expect(screen.getByTestId("output-text")).toHaveTextContent("格式化(中文👍)"));
+    expect(screen.getByTestId("output-stats")).toHaveTextContent("输出：8 字符");
+    await waitFor(() =>
+      expect(mocks.saveUserSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ output_mode: "manual", layout_mode: "vertical" }),
+      ),
+    );
+  });
+
   it("设置加载提醒会显示在主界面和设置窗口", async () => {
     mocks.getUserSettings.mockResolvedValue({
       enabled: ["rule-a", "rule-b"],
@@ -495,6 +618,89 @@ describe("App 主流程", () => {
     );
     await user.click(screen.getByTestId("open-settings"));
     expect(screen.getByTestId("settings-load-notice-primary_settings_corrupt_recovered_from_backup")).toBeInTheDocument();
+  });
+
+  it("替换列表和简繁转换会实时更新请求并持久化", async () => {
+    mockFormat((t) => `格式化(${t})`);
+    const { user } = await setup();
+    await user.type(screen.getByTestId("input-textarea"), "TODO");
+    await waitFor(() => expect(screen.getByTestId("output-text")).toHaveTextContent("格式化(TODO)"));
+
+    await user.click(screen.getByTestId("open-settings"));
+    await waitFor(() => expect(screen.getByText("当前构建已包含简繁转换能力。")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId("replacement-add")).toBeEnabled());
+    await user.click(screen.getByTestId("replacement-add"));
+    await waitFor(() => expect(screen.getByTestId("replacement-from-0")).toBeInTheDocument());
+    await user.type(screen.getByTestId("replacement-from-0"), "TODO");
+    await user.type(screen.getByTestId("replacement-to-0"), "待办");
+    await user.selectOptions(screen.getByTestId("conversion-select"), "s2t");
+
+    await waitFor(() =>
+      expect(mocks.formatText).toHaveBeenLastCalledWith({
+        text: "TODO",
+        selection: { mode: "only", keys: ["rule-a", "rule-b"] },
+        replacements: [{ from: "TODO", to: "待办", active: true }],
+        conversion: "s2t",
+      }),
+    );
+    await waitFor(() =>
+      expect(mocks.saveUserSettings).toHaveBeenCalledWith(
+        expect.objectContaining({
+          replacements: [{ from: "TODO", to: "待办", active: true }],
+          conversion: "s2t",
+        }),
+      ),
+    );
+
+    await user.click(screen.getByTestId("replacement-remove-0"));
+    await waitFor(() =>
+      expect(mocks.formatText).toHaveBeenLastCalledWith({
+        text: "TODO",
+        selection: { mode: "only", keys: ["rule-a", "rule-b"] },
+        replacements: [],
+        conversion: "s2t",
+      }),
+    );
+  });
+
+  it("启动恢复替换项、转换模式和最近输入", async () => {
+    mocks.getUserSettings.mockResolvedValue({
+      enabled: ["rule-a", "rule-b"],
+      last_input: "TODO",
+      theme: "system",
+      font: "system",
+      editor_font_size: "normal",
+      ui_scale: "normal",
+      shortcuts: {
+        enabled: true,
+        bindings: {
+          format_now: "CtrlOrCmd+Enter",
+          copy_output: "CtrlOrCmd+Shift+KeyC",
+          open_settings: "CtrlOrCmd+Comma",
+        },
+      },
+      replacements: [{ from: "TODO", to: "待办", active: false }],
+      conversion: "t2s",
+      notices: [],
+    });
+    mockFormat((t) => `格式化(${t})`);
+    const { user } = await setup();
+
+    expect(screen.getByTestId("input-textarea")).toHaveValue("TODO");
+    await waitFor(() =>
+      expect(mocks.formatText).toHaveBeenCalledWith({
+        text: "TODO",
+        selection: { mode: "only", keys: ["rule-a", "rule-b"] },
+        replacements: [{ from: "TODO", to: "待办", active: false }],
+        conversion: "t2s",
+      }),
+    );
+
+    await user.click(screen.getByTestId("open-settings"));
+    expect(screen.getByTestId("replacement-from-0")).toHaveValue("TODO");
+    expect(screen.getByTestId("replacement-to-0")).toHaveValue("待办");
+    expect(screen.getByTestId("replacement-active-0")).not.toBeChecked();
+    expect(screen.getByTestId("conversion-select")).toHaveValue("t2s");
   });
 });
 
@@ -540,7 +746,8 @@ describe("快捷键配置", () => {
     expect(screen.queryByTestId("settings-dialog")).toBeNull();
 
     // 重新开启后恢复监听。
-    await user.click(toggle);
+    await user.click(screen.getByTestId("open-settings"));
+    await user.click(screen.getByTestId("shortcuts-toggle"));
     await waitFor(() =>
       expect(mocks.saveUserSettings).toHaveBeenCalledWith(
         expect.objectContaining({

@@ -8,8 +8,10 @@ use regex::{Captures, Regex};
 use std::sync::OnceLock;
 
 use super::semantic_tokens::{scan_semantic_tokens, SemanticTokenKind};
-use super::tokenizer::{contains_cjk, spacing_units};
-use super::unicode_boundaries::{BoundaryStrategy, ScriptClass, TextUnit};
+use super::tokenizer::contains_cjk;
+use super::unicode_boundaries::{
+    for_each_adjacent_unit, units, BoundaryStrategy, ScriptClass, TextUnit,
+};
 
 // ---------------------------------------------------------------------------
 // 基础工具
@@ -21,6 +23,110 @@ pub fn normalize_spaces(text: &str) -> String {
         .get_or_init(|| Regex::new(r" {2,}").unwrap())
         .replace_all(text, " ")
         .to_string()
+}
+
+/// cleanup.collapse-horizontal-spaces：折叠普通可编辑文本中的连续 ASCII 空格。
+pub fn collapse_horizontal_spaces(text: &str) -> String {
+    normalize_spaces(text)
+}
+
+/// cleanup.reference-square：删除数字方括号引用角标。
+///
+/// Markdown 链接、引用定义、代码和其他结构由上游 span 层排除；此函数本身
+/// 只负责普通可编辑片段中的字面模式，圆括号引用不在本轮范围内。
+pub fn remove_square_reference_badges(text: &str) -> String {
+    static ASCII: OnceLock<Regex> = OnceLock::new();
+    static CJK: OnceLock<Regex> = OnceLock::new();
+    let ascii = ASCII.get_or_init(|| Regex::new(r"\[[0-9]+(?:\s*[,\-–—]\s*[0-9]+)*\]").unwrap());
+    let cjk = CJK.get_or_init(|| Regex::new(r"【[0-9]+(?:\s*[,，\-–—]\s*[0-9]+)*】").unwrap());
+    let text = ascii.replace_all(text, "");
+    cjk.replace_all(&text, "").to_string()
+}
+
+/// cleanup.limit-blank-lines 的单行回退函数。
+/// 跨行压缩由 `edit_plan` 在结构 span 边界上完成；这里保留纯函数入口，
+/// 供注册表和后续预设共享同一规则元数据。
+pub fn limit_blank_lines(text: &str) -> String {
+    text.to_string()
+}
+
+/// cleanup.kangxi-radicals：按 UnicodeData 17.0.0 的兼容分解映射，
+/// 将 U+2F00..U+2FD5 康熙部首转换为对应汉字。
+///
+/// 映射表逐码位覆盖该连续区间，来源核验记录见
+/// `docs/decisions/kangxi-radicals.md`；这里不执行全文 Unicode 规范化。
+pub fn kangxi_radicals(text: &str) -> String {
+    const MAPPING: &str = "一丨丶丿乙亅二亠人儿入八冂冖冫几凵刀力勹匕匚匸十卜卩厂厶又口囗土士夂夊夕大女子宀寸小尢尸屮山巛工己巾干幺广廴廾弋弓彐彡彳心戈戶手支攴文斗斤方无日曰月木欠止歹殳毋比毛氏气水火爪父爻爿片牙牛犬玄玉瓜瓦甘生用田疋疒癶白皮皿目矛矢石示禸禾穴立竹米糸缶网羊羽老而耒耳聿肉臣自至臼舌舛舟艮色艸虍虫血行衣襾見角言谷豆豕豸貝赤走足身車辛辰辵邑酉釆里金長門阜隶隹雨靑非面革韋韭音頁風飛食首香馬骨高髟鬥鬯鬲鬼魚鳥鹵鹿麥麻黃黍黑黹黽鼎鼓鼠鼻齊齒龍龜龠";
+
+    text.chars()
+        .map(|ch| {
+            let codepoint = ch as u32;
+            if (0x2F00..=0x2FD5).contains(&codepoint) {
+                MAPPING
+                    .chars()
+                    .nth((codepoint - 0x2F00) as usize)
+                    .expect("UnicodeData Kangxi mapping must cover U+2F00..U+2FD5")
+            } else {
+                ch
+            }
+        })
+        .collect()
+}
+
+/// cleanup.cjk-internal-space：删除普通正文中相邻两个 Han grapheme 之间单个 ASCII 空格。
+///
+/// 只处理「Han + 单个空格 + Han」的最小模式，且最多删除一个空格：多个连续空格、
+/// 制表符和跨换行的间隔都保留，CJK 与拉丁字母、数字、单位或标点之间的边界不受影响。
+/// Markdown、HTML、LaTeX、代码、URL、邮箱和表格等结构由上游 span 保护层排除。
+/// 默认关闭：该规则按合成失败基线试实现，未经真实 PDF/CAJ 语料与人工标注验收，
+/// 误删率仍需在真实来源语料上复核（见 `docs/decisions/pdf-soft-wrap-spike.md`）。
+pub fn cjk_internal_space(text: &str) -> String {
+    let units = units(text, BoundaryStrategy::Graphemes);
+
+    // 判定「Han + 单个空格 + Han」三元组：标记需要移除的中间空格单位。
+    let mut remove = vec![false; units.len()];
+    for i in 1..units.len().saturating_sub(1) {
+        if units[i - 1].script == ScriptClass::Han
+            && units[i].text == " "
+            && units[i + 1].script == ScriptClass::Han
+        {
+            remove[i] = true;
+        }
+    }
+
+    let mut out = String::with_capacity(text.len());
+    for (idx, unit) in units.iter().enumerate() {
+        if !remove[idx] {
+            out.push_str(unit.text);
+        }
+    }
+    out
+}
+
+/// text.unicode-equivalents：将已确认等价的 Unicode 单位字符统一为推荐写法。
+///
+/// 该规则只处理有限映射，不执行全文 NFKC；默认关闭，避免未经用户选择
+/// 改写数学字母、兼容字符或其他文本。
+pub fn unicode_equivalents(text: &str) -> String {
+    text.replace('µ', "μ").replace('Å', "Å")
+}
+
+/// text.halfwidth-ascii：将全角 ASCII 字母和标点转换为对应的半角字符。
+///
+/// 全角数字由 `text.halfwidth-digits` 独立负责，因此这里跳过 U+FF10–U+FF19，
+/// 避免两个规则职责重叠。该规则只在可编辑片段执行；URL、代码、公式和化学式
+/// 等结构由上游 span 保护层排除。不执行全文 NFKC，也不处理全角空格 U+3000。
+pub fn fullwidth_ascii(text: &str) -> String {
+    text.chars()
+        .map(|ch| {
+            let codepoint = ch as u32;
+            if (0xFF01..=0xFF5E).contains(&codepoint) && !(0xFF10..=0xFF19).contains(&codepoint) {
+                char::from_u32(codepoint - 0xFEE0).expect("fullwidth ASCII mapping is valid")
+            } else {
+                ch
+            }
+        })
+        .collect()
 }
 
 fn is_ascii_alnum(ch: Option<char>) -> bool {
@@ -49,12 +155,17 @@ fn collapse_repeated_runs(text: &str, set: &[char]) -> String {
     out
 }
 
-fn replace_word_case_insensitive(text: &str, wrong: &str, right: &str) -> String {
-    let pattern = Regex::new(&format!(
+fn word_pattern(wrong: &str) -> Regex {
+    Regex::new(&format!(
         r"(?i)(^|[^A-Za-z0-9]){}([^A-Za-z0-9]|$)",
         regex::escape(wrong)
     ))
-    .unwrap();
+    .unwrap()
+}
+
+/// 词级替换必须使用预编译缓存：TextEdit 迁移后规则按可编辑片段高频调用，
+/// 每次重新编译正则会成为数量级热点（roadmap §8 性能基线实测）。
+fn replace_word_case_insensitive(text: &str, pattern: &Regex, right: &str) -> String {
     pattern
         .replace_all(text, |caps: &Captures| {
             format!("{}{}{}", &caps[1], right, &caps[2])
@@ -82,17 +193,29 @@ fn straight_corner_quotes(text: &str) -> String {
 
 /// 按判定单位在相邻类别之间插空；单位以完整 &str 输出，
 /// 保证 emoji ZWJ / 组合附加符等 grapheme 不会被拆开。
-fn insert_space_between_units<F>(unit_list: &[TextUnit<'_>], should_insert: F) -> String
+fn insert_space_between_units<F>(text: &str, strategy: BoundaryStrategy, should_insert: F) -> String
 where
     F: Fn(&TextUnit<'_>, &TextUnit<'_>) -> bool,
 {
-    let mut out = String::new();
-    for (idx, unit) in unit_list.iter().enumerate() {
-        if idx > 0 && should_insert(&unit_list[idx - 1], unit) {
-            out.push(' ');
+    let mut out = String::with_capacity(text.len());
+    for_each_adjacent_unit(text, strategy, |previous, script, unit_text| {
+        if let Some((previous_script, previous_text)) = previous {
+            let previous_unit = TextUnit {
+                text: previous_text,
+                byte_start: 0,
+                script: previous_script,
+            };
+            let unit = TextUnit {
+                text: unit_text,
+                byte_start: 0,
+                script,
+            };
+            if should_insert(&previous_unit, &unit) {
+                out.push(' ');
+            }
         }
-        out.push_str(unit.text);
-    }
+        out.push_str(unit_text);
+    });
     out
 }
 
@@ -102,7 +225,7 @@ where
 /// 边界判定使用 grapheme cluster 策略（`Graphemes`）；`_with` 变体仅供新旧策略对比
 /// 测试（`LegacyChars`），生产固定使用 Graphemes。
 pub(crate) fn cn_en_space_with(text: &str, strategy: BoundaryStrategy) -> String {
-    let base = insert_space_between_units(&spacing_units(text, strategy), |a, b| {
+    let base = insert_space_between_units(text, strategy, |a, b| {
         matches!(
             (a.script, b.script),
             (ScriptClass::Han, ScriptClass::Latin) | (ScriptClass::Latin, ScriptClass::Han)
@@ -176,7 +299,7 @@ pub fn cn_en_space(text: &str) -> String {
 
 /// spacing.cjk-number：中文与数字之间增加空格。
 pub(crate) fn cn_digit_space_with(text: &str, strategy: BoundaryStrategy) -> String {
-    let text = insert_space_between_units(&spacing_units(text, strategy), |a, b| {
+    let text = insert_space_between_units(text, strategy, |a, b| {
         matches!(
             (a.script, b.script),
             (ScriptClass::Han, ScriptClass::Digit) | (ScriptClass::Digit, ScriptClass::Han)
@@ -228,6 +351,101 @@ pub fn digit_unit_space(text: &str) -> String {
         })
         .replace_all(&out, "$1 $2")
         .to_string()
+}
+
+/// spacing.numeric-punctuation：修复数字与小数点、时间/比例标点、分组逗号和斜线
+/// 之间的异常 ASCII 空格。
+///
+/// 连续点号数字链（例如版本号/IP 的 `1 . 2 . 3`）保留原样，避免把版本/地址
+/// 误当作普通小数；URL、代码、公式等不透明结构由上游保护层排除。
+pub fn numeric_punctuation_space(text: &str) -> String {
+    static NUMERIC_PUNCTUATION: OnceLock<Regex> = OnceLock::new();
+    let numeric_punctuation = NUMERIC_PUNCTUATION.get_or_init(|| {
+        Regex::new(r"([0-9])[ \t]*([.,:/])[ \t]*([0-9])")
+            .expect("invalid numeric punctuation regex")
+    });
+
+    let mut protected = Vec::new();
+    let mut index = 0;
+    while index < text.len() {
+        let Some(ch) = text[index..].chars().next() else {
+            break;
+        };
+        if !ch.is_ascii_digit() {
+            index += ch.len_utf8();
+            continue;
+        }
+
+        let start = index;
+        let mut cursor = index + ch.len_utf8();
+        while text[cursor..]
+            .chars()
+            .next()
+            .is_some_and(|next| next.is_ascii_digit())
+        {
+            cursor += text[cursor..].chars().next().unwrap().len_utf8();
+        }
+        let mut dots = 0;
+        loop {
+            let before_separator = cursor;
+            while let Some(next) = text[cursor..].chars().next() {
+                if matches!(next, ' ' | '\t') {
+                    cursor += next.len_utf8();
+                } else {
+                    break;
+                }
+            }
+            if text[cursor..].starts_with('.') {
+                let dot_end = cursor + 1;
+                let mut after_dot = dot_end;
+                while let Some(next) = text[after_dot..].chars().next() {
+                    if matches!(next, ' ' | '\t') {
+                        after_dot += next.len_utf8();
+                    } else {
+                        break;
+                    }
+                }
+                if text[after_dot..]
+                    .chars()
+                    .next()
+                    .is_some_and(|next| next.is_ascii_digit())
+                {
+                    dots += 1;
+                    cursor = after_dot + text[after_dot..].chars().next().unwrap().len_utf8();
+                    while text[cursor..]
+                        .chars()
+                        .next()
+                        .is_some_and(|next| next.is_ascii_digit())
+                    {
+                        cursor += text[cursor..].chars().next().unwrap().len_utf8();
+                    }
+                    continue;
+                }
+            }
+            cursor = before_separator;
+            break;
+        }
+        if dots >= 2 {
+            protected.push((start, cursor));
+            index = cursor;
+        } else {
+            index = start + ch.len_utf8();
+        }
+    }
+    let normalize = |fragment: &str| {
+        numeric_punctuation
+            .replace_all(fragment, "$1$2$3")
+            .into_owned()
+    };
+    let mut out = String::with_capacity(text.len());
+    let mut cursor = 0;
+    for (start, end) in protected {
+        out.push_str(&normalize(&text[cursor..start]));
+        out.push_str(&text[start..end]);
+        cursor = end;
+    }
+    out.push_str(&normalize(&text[cursor..]));
+    out
 }
 
 /// spacing.temperature-cjk：摄氏度/华氏度符号与紧随的中文之间加空格。
@@ -412,22 +630,74 @@ const ABBR_MAP: &[(&str, &str)] = &[
 
 /// naming.proper-nouns：专有名词使用正确的大小写。
 pub fn proper_nouns(text: &str) -> String {
-    let mut out = text.to_string();
-    for (wrong, right) in PROPER_NOUNS {
-        out = replace_word_case_insensitive(&out, wrong, right);
-    }
-    out
+    static RULE: OnceLock<Regex> = OnceLock::new();
+    let rule = RULE.get_or_init(|| {
+        let mut words: Vec<&str> = PROPER_NOUNS.iter().map(|(wrong, _)| *wrong).collect();
+        // 前缀词（如 `mac` / `macos`、`http` / `https`）必须让较长候选优先，
+        // 否则合并正则可能先尝试较短候选，再在边界校验失败后产生额外回溯。
+        words.sort_by_key(|word| std::cmp::Reverse(word.len()));
+        let alternatives = words
+            .into_iter()
+            .map(regex::escape)
+            .collect::<Vec<_>>()
+            .join("|");
+        Regex::new(&format!(r"(?i)(?:{alternatives})")).expect("invalid proper-noun regex")
+    });
+
+    rule.replace_all(text, |caps: &Captures| {
+        let capture = caps.get(0).expect("proper-noun match must have a word");
+        let matched = capture.as_str();
+        let has_left_boundary = capture.start() == 0
+            || !text[..capture.start()]
+                .chars()
+                .next_back()
+                .is_some_and(|ch| ch.is_ascii_alphanumeric());
+        let has_right_boundary = capture.end() == text.len()
+            || !text[capture.end()..]
+                .chars()
+                .next()
+                .is_some_and(|ch| ch.is_ascii_alphanumeric());
+        if !has_left_boundary || !has_right_boundary {
+            return matched.to_string();
+        }
+        let normalized = matched.to_ascii_lowercase();
+        let right = PROPER_NOUNS
+            .iter()
+            .find_map(|(wrong, right)| (*wrong == normalized).then_some(*right))
+            .expect("proper-noun regex match must exist in dictionary");
+        right.to_string()
+    })
+    .to_string()
 }
 
 /// naming.expand-abbreviations：不要使用不地道的缩写。
 pub fn no_abbr(text: &str) -> String {
+    static RULES: OnceLock<Vec<(Regex, &'static str)>> = OnceLock::new();
+    static CJK_COLLAPSE: OnceLock<Vec<(Regex, &'static str)>> = OnceLock::new();
+    let rules = RULES.get_or_init(|| {
+        ABBR_MAP
+            .iter()
+            .map(|(wrong, right)| (word_pattern(wrong), *right))
+            .collect()
+    });
+    let collapses = CJK_COLLAPSE.get_or_init(|| {
+        ABBR_MAP
+            .iter()
+            .filter(|(_, right)| contains_cjk(right))
+            .map(|(_, right)| {
+                (
+                    Regex::new(&format!(r"\s+{}", regex::escape(right))).unwrap(),
+                    *right,
+                )
+            })
+            .collect()
+    });
     let mut out = text.to_string();
-    for (wrong, right) in ABBR_MAP {
-        out = replace_word_case_insensitive(&out, wrong, right);
-        if contains_cjk(right) {
-            let pattern = Regex::new(&format!(r"\s+{}", regex::escape(right))).unwrap();
-            out = pattern.replace_all(&out, *right).to_string();
-        }
+    for (pattern, right) in rules {
+        out = replace_word_case_insensitive(&out, pattern, right);
+    }
+    for (pattern, right) in collapses {
+        out = pattern.replace_all(&out, *right).to_string();
     }
     out
 }

@@ -1,0 +1,504 @@
+# CopyPolish 测试指南
+
+## 1. 测试层次
+
+必须依赖 Windows 原生环境的剩余 E2E 计划、步骤、artifact 结构和 GitLab runner 要求集中见 [windows-e2e-runbook.md](windows-e2e-runbook.md)。本文继续作为测试层次、功能映射和已有验证结果的入口。
+
+| 层次 | 位置 | 目的 |
+| --- | --- | --- |
+| Rust 单元/集成测试 | `src-tauri/src/**`、`src-tauri/tests/fixtures/` | 验证规则、管线、保护层、Unicode、设置和 TUI 状态 |
+| 前端 hook 测试 | `frontend/src/hooks/*.test.ts` | 验证异步状态、竞态、防抖、持久化和窗口交互 |
+| 前端组件测试 | `frontend/src/components/**/*.test.tsx`、`frontend/src/App.test.tsx` | 验证组件用户操作、设置窗口、快捷键和界面反馈 |
+| 性能门禁 | `scripts/check_performance.py`、`src-tauri/examples/unicode_baseline.rs` | 捕获数量级性能回退，不替代 profiling |
+| 桌面 smoke/E2E | 当前主要为人工验证 | 验证真实 Tauri IPC、窗口、设置和平台行为 |
+
+## 2. 功能—测试映射
+
+| 功能 | 现有覆盖 | 后续补强 |
+| --- | --- | --- |
+| 规则注册表 | 稳定 key、默认状态、legacy key、依赖图、alias 唯一性、迁移归一化和示例元数据（经单规则引擎输出校验） | 自动检查 README 与注册表一致性 |
+| 格式化管线 | 规则选择、组合、换行、幂等性、未知 key、清洗 fixture 和保护回归 | 属性测试和更大真实语料 |
+| 来源文本清洗 | 方括号引用角标、普通文本重复空格、连续空行；保护链接、代码、URL 和 fenced code | PDF/CAJ 软换行、圆括号引用和更复杂的异常字符清洗 |
+| PDF/CAJ 清洗 Spike | 合成失败基线：段内软换行、多栏顺序、连字符断行、CJK 内部空格、表格/公式边界；`cleanup.cjk-internal-space` 仅为默认关闭的保守试实现，当前不作为真实来源通过证据 | 需补充许可/脱敏真实 PDF/CAJ 文本、人工标注和失败率基线后再完成 CJK 空格验收或实现段内软换行 |
+| 康熙部首 | U+2F00–U+2FD5 的 214 项官方映射、默认关闭、范围外字符和结构保护 | Unicode 数据版本升级后的重新核验 |
+| 数值标点空格 | 显式规则下的小数、时间/比例、分组逗号和数字斜线；默认关闭及版本号/IP 连续点号反例 | 更复杂的本地化数字格式、货币和日期语料 |
+| Markdown/HTML/LaTeX | span、嵌套结构、未闭合结构、后续文本不吞并、保护 fixture | 继续扩展真实文档样本 |
+| Unicode | grapheme、emoji、组合符、CJK Ext-B | Unicode 数据/工具链升级回归 |
+| 全角/半角转换 | `text.halfwidth-digits` 与 `text.halfwidth-ascii` 的职责边界、全角空格/NFKC 反例和结构保护 | 补充真实来源语料后评估更多字符类别 |
+| 单位和数学 | 有限词典、复合单位、数学边界 | 按真实语料扩展词典 |
+| 自定义替换、简繁转换与工作流预设 | Rust 请求/设置/预设 fixture；GUI 与 TUI 组件/事件交互、添加/编辑/启停/删除/转换选择、预设加载与应用、设置加载、持久化、请求透传、实时重排、快捷键立即排版和旧设置兼容；默认与 `simplified-trad-conversion` feature 构建覆盖；embedded GUI E2E 已覆盖保存、替换输出、重启恢复及 feature 下双向真实转换 | CLI 参数 |
+| 设置 | Rust Windows 测试 16/16；旧版本 Windows GUI 与 PR #24 当前设置页已完成保存、重启恢复、损坏 fixture、ACL 保存失败及视觉/DPI/窄窗口回归；损坏设置、重启恢复和 NTFS ACL 已在两个 provider 自动化通过；统一 artifact、受控失败 probe 和 GUI 主题/窄窗口 artifact 已实现 | PR #24 的主题三项间距、`rules.yaml` 路径悬停/复制、简繁转换间距、规则 hover 示例、键盘焦点和窄窗口 Footer 已在 2026-09-04 Windows 原生 checkout 验证；默认/feature restart 均 2/2；三档 DPI 自动矩阵仍跳过；GitLab Windows stage 仍跳过 |
+| 前端状态 | 防抖、竞态、错误、主题、字体、快捷键以及替换/转换设置透传 | 真实 IPC E2E |
+| 输出模式、布局与统计 | 实时/手动模式切换、手动模式显式排版、自动/左右/上下布局、Unicode code point 输入输出统计、设置加载与持久化 | 真实窗口尺寸矩阵 |
+| 复制动作 | 复制结果保留内容、复制并清空成功后清空、复制失败不清空、无失焦自动动作 | 真实系统剪贴板失败场景 |
+| 帮助与首次提示 | 静态帮助入口和关键边界文案、首次提示显示/关闭/查看说明、localStorage 已查看状态 | 桌面端首次启动人工确认 |
+| TUI | CLI、编辑器、规则、替换/字符转换请求面板、预设面板、OSC 52、共享设置；Linux 非交互 smoke/transcript；Windows release、stdin 及修复后 Windows Terminal 手动回归 | Rust TUI 库测试 177/177，properties 5/5，README registry 3/3；GUI 预设组件与动作测试、Windows release/stdin 和非交互 transcript 已通过；请求面板覆盖替换增删/启停、字段编辑、转换循环、默认 feature 归一化和真实请求输出；预设面板覆盖三种内置工作流应用；本轮多行显示源码修复已由用户确认在 Windows Terminal 复验通过；TUI-EDIT-DELETE-001 已修复，真实 Terminal raw-mode/OSC 52 交互 artifact 已通过 |
+| 发布脚本 | 主要由脚本和人工 Runbook 覆盖 | 参数和失败路径自动化测试 |
+
+### 2.1 Windows 原生验证快照
+
+前端测试 57/57、Rust 设置测试 16/16、Rust/TUI 测试 158/158 均通过；embedded 与标准 W3C provider 的普通 WebView2/Rust IPC 用例各 3/3、设置重启 write/read 各 1/1、三种损坏设置 fixture 各 3/3、NTFS ACL 各 1/1 通过。统一 artifact、受控失败 probe、GUI 主题/窄窗口 artifact 和 TUI 非交互 transcript 已验证；Windows TUI release 构建和 `--stdin --no-config` smoke 通过，TUI-EDIT-DELETE-001 已关闭。
+**2026-09-02 新一轮 Windows 复验补充**：前端单测 69/69、E2E typecheck、embedded/WebDriver/简繁 feature/TUI release 构建通过；W3C smoke 2/2、重启恢复 2/2、损坏设置 3/3、NTFS ACL 1/1、GUI 视觉 artifact 1/1、设置快捷键控制台 1/1、TUI transcript 4/4 通过。旧 binary 的 embedded 完整回归曾在 `selection-and-persistence.spec.ts` 第三个 case 失败（替换设置未作用于真实 GUI 输出）；修复输入事件、保存序列保护和 E2E 诊断后，Linux/WSL 环境 环境 embedded 定向回归已恢复为 3/3，Windows 需用当前修复 binary 重新留证。独立简繁 feature spec 在正确先构建 `simplified-trad-conversion` binary 后为 2/2 通过（s2t、t2s）；此前失败是运行默认 binary 的构建顺序错误。Windows 下 `cargo test --features tui` 的 Unix-only 权限测试已增加 `#[cfg(unix)]`，需在 Windows 重新运行确认测试目标编译和完整结果。
+
+**2026-09-03 Windows 收尾结果**：已按 Runbook 串行完成 embedded selection 3/3、简繁 feature 2/2、W3C smoke 2/2 和 Windows MSVC `cargo test --features tui` 166/166；重启、损坏设置、ACL、GUI artifact、设置控制台和 TUI transcript 也均有通过证据。GUI DPI 自动矩阵与 GitLab Windows stage 仍按项目决定跳过，Windows Terminal 交互 artifact 由用户确认通过。PR #24 的新增设置页交互在 2026-09-04 的最终复验中完成，详见 [windows-e2e-runbook.md](windows-e2e-runbook.md) §14。若 artifact 出现 `exitCode=0` 但 `finished=0`，仍必须记为未完成。
+
+> **2026-09-01**：Windows Terminal 交互复验发现三个多行显示缺陷（WT-TUI-001 额外行绘制到状态栏、WT-TUI-002 光标不可见、WT-TUI-003 emoji 显示），证据见 [windows-terminal-tui-manual.md](windows-terminal-tui-manual.md)。已按与 ratatui 渲染等价的视觉换行重算光标与滚动（`src-tauri/src/tui/wrap.rs`），并新增 10 项 Rust/UI 回归；本轮 Windows MSVC 上 158/158 通过，真实 Windows Terminal 复验已由用户确认通过。
+
+平台专用自动化与留证已按项目决策达到当前范围：GUI DPI 自动矩阵决定不执行、GitLab Windows stage 决定跳过（不执行）；Windows Terminal 交互 artifact 已由用户确认通过。详细执行步骤见 [Windows 原生 E2E 与交互留证 Runbook](windows-e2e-runbook.md)：
+
+- [x] GUI 100%/125%/150% DPI 和窄窗口人工验证已完成；GUI DPI 自动截图/矩阵验证按项目决定跳过（不执行、不纳入门禁）；
+- [x] Windows Terminal TUI raw-mode、规则面板、粘贴、OSC 52、保存/退出/重启恢复的真实交互 artifact 已通过（用户确认）；非交互 transcript 仍作为补充证据；
+- [x] embedded/W3C 受控失败时完整诊断包自检：stdout/stderr、WDIO log、manifest、exit status、截图、page source 和设置 fixture 均已验证；统一 artifact 基础设施已完成；
+- [x] 通过真实 Tauri 设置控制台 runner 检查 React 19 `act` warning：两个 provider 各 1/1、warning=0；EdgeDriver 使用 UI 回退，硬件快捷键保留兼容性说明（现场人工确认）；
+- [x] GitLab Windows 可选 E2E stage：跳过（不执行）；项目决定不配置、不运行，不计作测试通过；
+
+截至 2026-09-01，E2E 依赖审计报告 13 个 high，涉及多个 WebdriverIO/浏览器工具传递依赖；`serialize-javascript` 已固定到 `7.1.1`，`deepmerge-ts` 已固定到 `8.0.2`，两者均不再出现在审计结果中。剩余告警继续在依赖升级时跟踪；`@puppeteer/browsers`/`extract-zip` 暂不覆盖，等待完整 provider 回归和工具链升级窗口。Cargo 在 Windows 原生环境调试构建中曾报告增量缓存目录 `os error 5`，但相关编译、测试和 release 构建均以退出码 0 完成。
+
+### 2.2 平台边界与发布前 Windows 门禁
+
+以下能力不能由 Linux、WSL、普通浏览器或仅有服务会话的 runner 替代：
+
+| Windows 原生项目 | 必须确认的原因 | 发布前要求 |
+| --- | --- | --- |
+| Windows Tauri binary 启动 | 验证 WebView2、Windows 进程和真实 Rust IPC | 当前 commit 构建后启动并完成 embedded GUI 回归 |
+| MSVC / Windows SDK 构建 | 验证链接器、资源和 Windows target | `x86_64-pc-windows-msvc` 构建/测试退出码为 0 |
+| Windows 便携版和 TUI `.7z` | 验证 exe、旁置 DLL、7-Zip 根目录结构 | 生成桌面版和 TUI 两项 Windows 资产，并运行 `--platform windows` 校验 |
+| NTFS ACL 保存失败 | Linux 权限映射不能复现 Windows deny ACE | `test:acl-settings` 通过，deny ACE 已恢复 |
+| DPI、窗口和剪贴板 | 浏览器 viewport 不等于 Windows 桌面行为 | 100%/125%/150% DPI 和窄窗口人工检查；复制动作人工确认 |
+| Windows Terminal TUI | raw-mode、OSC 52、字体和 emoji 宽度依赖真实终端 | 按需完成 Terminal artifact；跳过项必须明确记录 |
+
+v0.6.0 RC/正式版的 Windows 执行顺序、命令、artifact、清理和失败诊断统一见 [windows-e2e-runbook.md](windows-e2e-runbook.md) §2.5；发布资产构建和合并校验见 [release/manual-release.md](release/manual-release.md) §9.1。发布前最小门禁为：
+
+1. 默认 embedded GUI `selection-and-persistence`：3/3；
+2. `simplified-trad-conversion` feature GUI：2/2；
+3. 标准 W3C smoke：2/2；
+4. Windows MSVC `cargo test --features tui`：退出码 0；
+5. 损坏设置、NTFS ACL、GUI artifact、TUI transcript 和必要的 Windows Terminal 人工验收完成；
+6. Windows 三项资产通过 `verify_release_assets.py --platform windows`，最终七项资产 + `SHA256SUMS` 通过 `--platform all` 和哈希校验。
+
+Linux/WSL 仍应执行 `checks`、`frontend`、`rust`、`audit`、E2E typecheck 和业务语义回归，但这些结果不能替代上述 Windows 原生门禁。
+
+## 3. 常用命令
+
+```bash
+python3 scripts/verify.py --profile checks
+python3 scripts/verify.py --profile frontend
+python3 scripts/verify.py --profile rust
+python3 scripts/verify.py --profile audit
+```
+
+直接运行前端测试：
+
+```bash
+npm test --prefix frontend -- --run
+```
+
+## 4. 新规则测试要求
+
+每条规则至少应包含：
+
+1. 单规则输入/输出；
+2. 与相关规则的组合输出；
+3. Markdown、LaTeX、URL、代码或化学式等保护场景；
+4. 重复执行后的幂等性断言；
+5. 默认开关、规则选择和稳定 key 验证；
+6. 设置迁移、GUI 动态元数据和 TUI 兼容性检查（适用时）。
+
+争议性规则必须明确默认关闭或开启的理由，并在 README 和 CHANGELOG 中说明用户可见影响。
+
+## 5. Fixture 规范
+
+- 一个 fixture 文件聚焦一个领域；
+- 输入、规则选择和期望输出应清晰可读；
+- 修复 bug 先添加最小回归用例；
+- 不通过批量改写 fixture 隐藏行为变化；
+- 同时关注 LF/CRLF、Unicode 边界和重复格式化；
+- 设置读写测试使用系统临时目录，禁止写仓库内固定路径。
+
+### 5.1 真实文档语料
+
+`src-tauri/tests/fixtures/real-world-corpus.yaml` 用于保留接近实际使用场景的混合文本，当前覆盖产品文案、技术命令、README/Markdown 链接与表格、HTML/LaTeX 科研文本、单位、化学式、emoji、未闭合结构和 CRLF。每条样本同时记录 `name`、规则选择、输入和当前预期输出，并由黄金 fixture 测试验证格式化结果与幂等性。
+
+真实语料中的稳定边界行为应直接记录在该样本的 `expected` 中；若结果变化，应先说明结构保护或规则语义变化，再更新样本和 CHANGELOG，禁止用批量重写掩盖行为漂移。原始用户文档、截图、日志和测试运行 artifact 不得放入 corpus，也不得上传远程仓库。
+
+## 6. 桌面验证缺口
+
+当前 mock 测试不能完全替代真实桌面验证。Linux/WSL 环境 环境g 与 Windows WebView2 最小链路、修复后 Windows GUI/TUI/设置/ACL 手动回归及双 provider 稳定性验证均已完成；TUI-EDIT-DELETE-001 已通过编辑器边界修复和回归测试关闭。损坏设置三种 fixture、重启恢复和 NTFS ACL 已在 embedded/W3C provider 中自动化通过；统一 artifact、受控失败诊断、GUI 主题/窄窗口截图和 TUI 非交互 transcript 已完成，GUI DPI 自动验证已按项目决定跳过；硬件级快捷键兼容性仍保留诊断说明；GitLab stage 已跳过。
+
+TUI 非交互链路已在 Linux 上完成自动化 smoke：验证 `--help`、stdin 格式化、文件输入/输出、
+`--rules none` 恒等、未知规则 key 警告、缺失文件返回码 1，以及约 1.29 MB 输入的恒等处理。
+这些检查不替代真实 raw-mode 终端、Windows Terminal 交互或 Tauri 窗口行为 E2E；本次修复后的 TUI/GUI 回归和双 provider 连续稳定性已由人工完成，设置与 ACL 故障注入、非交互 transcript 和基础 GUI artifact 已自动化，Terminal 交互 artifact 已通过。
+
+## 7. Windows 原生回归清单（当前执行与已完成记录）
+
+以下项目必须在 Windows 原生、可交互的 Windows Terminal + PowerShell 7 会话中执行。WSL、Linux GUI、普通浏览器预览和旧 binary 不能替代本清单。本轮 Windows 已完成默认 embedded GUI、简繁 feature、标准 W3C smoke、NTFS ACL 和 GUI artifact；Windows Terminal/TUI 交互、三档 DPI 人工检查及其余设置故障项已有结果，不应重复记为未完成。
+
+### 7.0 Windows 原生专用步骤总览
+
+以下顺序适用于一次完整的 Windows 验证。除特别标注外，命令均在项目根目录的 **PowerShell 7** 中执行；建议使用短路径 checkout，避免长路径影响 WebView2、artifact 和 ACL 排查。
+
+#### 1. 确认环境并记录版本
+
+至少记录以下信息：
+
+```powershell
+git rev-parse HEAD
+$PSVersionTable.PSVersion
+node --version
+npm --version
+rustc --version
+rustup show active-toolchain
+Get-ComputerInfo | Select-Object WindowsProductName, WindowsVersion, OsBuildNumber
+Get-AppxPackage Microsoft.WindowsTerminal | Select-Object Name, Version
+Get-Command msedgewebview2.exe -ErrorAction SilentlyContinue
+```
+
+正式 Windows 基线要求 Node 满足项目约束 `>=24 <25`，Rust host 为 `x86_64-pc-windows-msvc`，并安装 Visual Studio Build Tools、WebView2 Runtime、Windows Terminal 和 PowerShell 7。版本信息必须和测试结果一起保存。
+
+#### 2. 安装依赖并构建测试 binary
+
+```powershell
+npm ci --prefix frontend
+npm ci --prefix e2e
+npm run build:app --prefix e2e
+npm run build:app:webdriver --prefix e2e
+npm run typecheck --prefix e2e
+cargo build --manifest-path src-tauri/Cargo.toml --features tui --release --bin copypolish-tui
+```
+
+如需验证 feature 构建下的真实简繁转换，另行执行以下命令。该步骤会覆盖 `src-tauri/target/debug/` 中的 embedded binary，完成后不要用该 binary 判定默认构建行为：
+
+```powershell
+npm run build:app:simplified-trad --prefix e2e
+npm run test --prefix e2e -- --spec specs/simplified-trad-conversion.spec.ts
+```
+
+两个 GUI provider 都必须使用当前 commit 构建的 binary；不能复用旧 binary 或旧 `frontend/dist`。标准 W3C provider 运行前还必须完成 `build:app:webdriver`。若执行 feature 简繁转换验证，必须先完成 `build:app:simplified-trad`，并在同一环境下运行对应 spec。
+
+#### 3. 依次执行 GUI provider 测试
+
+先执行 embedded provider 的完整回归，再执行标准 W3C provider 的兼容性 smoke。标准 W3C provider 已收敛到 `specs/w3c/smoke.spec.ts`，不再有设置恢复、损坏设置、ACL 或视觉 artifact 的独立 `:webdriver` 命令：
+
+```powershell
+npm run test --prefix e2e
+npm run test:webdriver --prefix e2e
+```
+
+每个 provider 都必须确认 WebView2/session 创建、主窗口发现、真实 Rust IPC、全不选恒等、临时 `rules.yaml`、设置保存、进程退出和目录清理成功。
+
+#### 4. 执行设置恢复和损坏 fixture
+
+```powershell
+npm run test:restart-settings --prefix e2e
+npm run test:corrupt-settings --prefix e2e
+```
+
+重启恢复入口会使用同一临时设置目录启动两次应用，验证规则选择、最近输入和真实 Rust IPC 输出恢复。损坏 fixture 入口覆盖主文件损坏且备份有效、无备份，以及主备份均损坏三种情况。
+
+#### 5. 执行 NTFS ACL 保存失败测试
+
+该步骤只能在 Windows 原生执行，不能使用 WSL `chmod`、Linux 权限映射或只读文件属性替代：
+
+```powershell
+npm run test:acl-settings --prefix e2e
+```
+
+runner 会使用 `icacls.exe` 为当前用户添加目录级写入 deny ACE，验证设置保存失败提示、`rules.yaml` 目标路径、应用未崩溃以及真实 Rust IPC 仍可用。测试结束时必须自动移除 deny ACE、恢复继承并删除临时目录；失败时先保留设置 fixture 到 artifact。
+
+#### 6. 执行 Windows Terminal/TUI 回归
+
+```powershell
+& .\src-tauri\target\release\copypolish-tui.exe
+```
+
+在 Windows Terminal + PowerShell 7 中验证 raw-mode、规则顺序、裸字符和 Ctrl 快捷键、粘贴/bracketed paste、格式化、复制/OSC 52、保存、退出、重启恢复以及终端状态清理。记录 Windows Terminal、PowerShell、窗口尺寸、字体、编码和 OSC 52 结果。
+
+#### 7. 失败留证与清理
+
+失败时保留对应 provider 的 `e2e/artifacts/`，至少包括 WDIO 日志、应用 stdout/stderr、manifest、退出状态、失败截图、page source、版本信息和临时设置 fixture。完成后确认：
+
+```powershell
+Get-Process | Where-Object { $_.ProcessName -match 'chinese-copywriting-formatter|wdio|node' }
+Get-NetTCPConnection -State Listen | Where-Object { $_.LocalPort -eq 4445 -or $_.LocalPort -ge 44000 }
+Get-ChildItem .\e2e\artifacts -Recurse
+Get-ChildItem . -Force -Filter 'rules.yaml*'
+git status --short
+```
+
+成功运行不得残留 CopyPolish、WDIO、Node 测试进程或监听端口，仓库根目录不得出现 `rules.yaml` / `rules.yaml.bak`。ACL 测试必须确认权限已恢复后才能结束。
+
+#### Windows-only 验收边界
+
+| 项目 | Windows 原生要求 | 当前 Linux/WSL 环境 环境 可做的工作 |
+| --- | --- | --- |
+| WebView2 双 provider | 真实 Windows WebView2/session 和进程清理 | 可验证 Linux/WSL 环境 环境g provider smoke |
+| 设置重启恢复 | 使用 Windows binary 实际启动两次 | 可验证跨平台设置恢复语义 |
+| 损坏设置 fixture | 可复验 Windows WebView2 提示 | 可验证文件损坏/备份恢复语义 |
+| NTFS ACL | 必须使用 `icacls.exe` 真实 deny ACE | 只能 typecheck 或显式跳过，不能宣称通过 |
+| Windows Terminal/TUI | 必须使用可交互 Windows Terminal + PowerShell 7 | 可运行 Linux 非交互 TUI smoke，不能替代 raw-mode/OSC 52 |
+| DPI、窄窗口、剪贴板 | 必须在 Windows 桌面实际观察并留证 | 不能由普通浏览器或 Linux GUI 替代 |
+
+### 7.1 环境与构建
+
+- [x] 记录 commit、Windows 版本、Node/npm、Rust host、Visual Studio Build Tools、WebView2 Runtime、Windows Terminal 和 PowerShell 版本；
+- [x] 确认 Node 满足项目约束，Rust host 为 `x86_64-pc-windows-msvc`；
+- [x] 执行 `npm ci --prefix frontend`、`npm ci --prefix e2e`、前端构建和 E2E typecheck；
+- [x] 构建 embedded provider 和标准 W3C provider 的测试 binary；
+- [x] 构建 TUI release binary：
+
+```powershell
+cargo build --manifest-path src-tauri/Cargo.toml --features tui --release --bin copypolish-tui
+```
+
+### 7.2 双 provider 最小真实 smoke
+
+对 embedded provider 和标准 W3C WebDriver provider 各执行一次，使用新的临时设置目录：
+
+- [x] WebView2 加载实际打包前端；
+- [x] session 创建和主窗口发现成功；
+- [x] `在LeanCloud上，花了5000元` 通过真实 Rust IPC 得到预期结果；
+- [x] 全不选时输出保持输入不变；
+- [x] 设置路径指向临时 `rules.yaml`；
+- [x] 保存成功、进程退出、临时目录清理成功；
+- [x] 不产生仓库根目录的 `rules.yaml` 或 `rules.yaml.bak`。
+
+### 7.3 GUI 样式和布局回归
+
+在浅色/深色主题、100%/125%/150% Windows 缩放和正常/窄窗口尺寸下检查：
+
+- [x] 输入框和输出框的边框、圆角、阴影一致；
+- [x] “字体”和“快捷键”的标题与说明间距一致；
+- [x] “恢复默认字体”和“恢复默认快捷键”视觉样式一致；
+- [x] 长 Windows 路径仅显示 `rules.yaml`，不显示超长路径；
+- [x] 路径 `title` 和 `aria-label` 仍包含完整路径；悬停可见，点击复制完整路径；
+- [x] 主题“跟随系统”、快捷键总开关和规则 checkbox 使用统一黑白样式；
+- [x] 设置滚动区、底部操作区和长路径不会相互挤压或溢出；
+- [x] 键盘焦点、Space 切换和 disabled 状态正常；
+- [x] 保存、重启恢复和真实格式化仍正常。
+
+每个主题和至少一个窄窗口尺寸保存截图、page source 和版本信息。
+
+### 7.4 修复后的 Windows Terminal TUI 回归
+
+在 Windows Terminal + PowerShell 7 中启动：
+
+```powershell
+& .\src-tauri\target\release\copypolish-tui.exe
+```
+
+必须重新验证：
+
+- [x] raw mode 启动和退出后终端状态恢复；
+- [x] 规则面板中默认启用规则全部位于默认关闭规则之前；
+- [x] 同一默认状态内顺序稳定；
+- [x] 输入区输入裸 `r`、`q`、`?` 时，字符进入正文，不打开规则、帮助或退出；
+- [x] 输入区使用 `Ctrl+R`、`Ctrl+?`、`Ctrl+Q` 时，分别打开规则、帮助和退出；
+- [x] 粘贴 `Get-Clipboard` 不截断，包含多个 `r`、`q`、`?`、中文和换行的文本保持完整；
+- [x] bracketed paste 插入后可继续编辑并正常格式化；
+- [x] 输出区、规则区的导航和复制行为仍正常；
+- [x] `Ctrl+S` 保存规则和最近输入；
+- [x] 重启后规则选择和最近输入恢复；
+- [x] OSC 52 可用时复制成功，不可用时显示降级提示；
+- [x] TUI 退出后无残留进程、终端控制序列或错误状态。
+
+### 7.5 设置故障和清理回归
+
+每个 provider 至少覆盖一次：
+
+- [x] `rules.yaml` 损坏、`.bak` 有效（embedded/W3C 自动化通过）；
+- [x] `rules.yaml` 损坏、`.bak` 缺失（embedded/W3C 自动化通过）；
+- [x] `rules.yaml` 和 `.bak` 均损坏（embedded/W3C 自动化通过）；
+- [x] NTFS ACL 拒绝写入后保存失败提示正确（Windows 原生 embedded/W3C 各 1/1 通过）；
+- [x] ACL harness 在 `finally` 中恢复，临时目录可删除；
+- [x] Windows ACL 失败时保留 stdout/stderr、WDIO log、manifest、exit status、截图、page source 和设置 fixture；
+- [x] 成功后无 CopyPolish、WDIO、Node 测试残留进程和监听端口。
+
+### 7.6 修复后手动核验记录（已完成）
+
+以下项目不能由已有 mock、stdin smoke 或最小 WebView2 E2E 代替。本次已在 Windows 原生环境 checkout、Windows Terminal + PowerShell 7、可交互桌面和修复后的 binary 上完成；以下步骤同时作为复现和审计记录。
+
+#### A. GUI 视觉、窗口和 DPI
+
+1. 在 Windows 原生环境项目根目录执行 `npm ci --prefix frontend`、`npm ci --prefix e2e`、`npm run build:app --prefix e2e`。
+2. 新建临时设置目录并启动隔离 checkout 中的 `src-tauri\\target\\debug\\chinese-copywriting-formatter.exe`：
+
+   ```powershell
+   $settingsDir = Join-Path $env:TEMP ("copypolish-manual-" + [guid]::NewGuid())
+   New-Item -ItemType Directory -Path $settingsDir | Out-Null
+   $env:COPYPOLISH_E2E_SETTINGS_DIR = $settingsDir
+   & .\\src-tauri\\target\\debug\\chinese-copywriting-formatter.exe
+   ```
+
+3. 在 Windows 显示设置依次使用 100%、125%、150% 缩放；每个缩放值都重新启动应用并保存一张截图。
+4. 在正常窗口和窄窗口检查：输入/输出框边框、圆角、阴影；设置标题和说明间距；“恢复默认字体/快捷键”按钮；主题、快捷键总开关和规则 checkbox 的黑白样式；设置滚动区与底部按钮是否溢出。
+5. 在设置窗口确认长 Windows 路径使用中间省略但保留 `rules.yaml`，并通过路径的 `title`/`aria-label` 读取完整路径。
+6. 切换浅色/深色主题，修改字体、字号、缩放和至少一条规则；确认保存状态为“设置已保存”，关闭并重新启动后状态和格式化结果仍正确。
+7. 关闭应用，删除临时目录；若失败，保留截图、page source、stdout/stderr 和临时设置目录。
+
+#### B. 设置恢复、损坏 fixture 和 NTFS ACL
+
+1. 每个 case 使用新的临时目录，并设置 `$env:COPYPOLISH_E2E_SETTINGS_DIR`；不要操作用户真实设置。
+2. 分别准备：
+   - Case A：`rules.yaml` 非法，`rules.yaml.bak` 有效；
+   - Case B：`rules.yaml` 非法，`.bak` 缺失；
+   - Case C：`rules.yaml` 和 `.bak` 均非法。
+3. 启动应用并确认 WebView2、主界面和真实格式化均可用；检查 `settings-load-notices`：A 显示从备份恢复，B/C 显示使用默认设置；保存后确认不会继续传播非法 YAML。
+4. 关闭并再次启动同一临时目录，确认有效备份或默认规则仍能恢复；记录设置文件内容、提示文本和退出状态。
+5. ACL 流程必须用 `try/finally`：
+
+   ```powershell
+   $settingsDir = Join-Path $env:TEMP ("copypolish-acl-" + [guid]::NewGuid())
+   New-Item -ItemType Directory -Path $settingsDir | Out-Null
+   $user = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
+   try {
+     Set-Content (Join-Path $settingsDir 'rules.yaml') "enabled: []`n" -Encoding utf8
+     icacls $settingsDir /inheritance:r
+     icacls $settingsDir /deny "${user}:(OI)(CI)(W)"
+     $env:COPYPOLISH_E2E_SETTINGS_DIR = $settingsDir
+     & .\\src-tauri\\target\\debug\\chinese-copywriting-formatter.exe
+     # 在设置窗口修改规则并保存。
+     # 必须看到 settings-status 的“设置保存失败”及 rules.yaml 路径。
+   } finally {
+     icacls $settingsDir /remove:d $user /T /C
+     icacls $settingsDir /inheritance:e /T /C
+     Remove-Item -LiteralPath $settingsDir -Recurse -Force
+   }
+   ```
+
+6. ACL 拒写期间确认应用不崩溃、格式化仍可用；`finally` 后确认目录可删除、没有 CopyPolish/WDIO/Node 残留进程。
+
+#### C. Windows Terminal TUI raw-mode、快捷键、粘贴和恢复
+
+1. 在项目根目录执行 `cargo build --manifest-path src-tauri/Cargo.toml --features tui --release --bin copypolish-tui`，使用同一临时设置目录启动：
+
+   ```powershell
+   $settingsDir = Join-Path $env:TEMP ("copypolish-tui-" + [guid]::NewGuid())
+   New-Item -ItemType Directory -Path $settingsDir | Out-Null
+   $env:COPYPOLISH_E2E_SETTINGS_DIR = $settingsDir
+   & .\\src-tauri\\target\\release\\copypolish-tui.exe
+   ```
+
+2. 确认 raw mode 启动；在输入区逐个输入裸 `r`、`q`、`?`，确认字符进入正文而不是打开面板或退出。
+3. 使用 `Ctrl+R` 打开规则面板，确认默认启用规则排在默认关闭规则之前且同组顺序稳定；用 Space、`a`、`d`、`n` 切换后以 Esc 关闭。
+4. 使用 `Ctrl+?` 打开帮助，确认快捷键说明；使用 `Ctrl+Q` 退出，确认终端回到正常输入状态。
+5. 用 PowerShell 准备含中文、换行以及多个 `r`/`q`/`?` 的剪贴板文本：`Set-Clipboard -Value "第一行 r q ?`n第二行 中文"`，在 TUI 中粘贴；确认完整插入、可继续编辑且格式化不截断。
+6. 在输出区测试导航和复制；用 `Get-Clipboard` 验证复制结果，记录 OSC 52 成功或降级提示。
+7. 用 `Ctrl+S` 保存规则和最近输入，退出后重新启动同一目录，确认规则选择和最近输入恢复。
+8. 使用 `Ctrl+E` 打开请求设置面板：新增替换、编辑 `from`/`to`、Space 启停、d 删除、Enter 应用；确认输出使用当前替换列表。
+9. 使用 `v` 循环转换模式；默认构建只能保持 `none`，feature 构建应能选择 `t2s`/`s2t` 并由 Rust 引擎产生真实输出；保存后重启确认替换和转换设置恢复。
+10. 使用 `Ctrl+P` 打开预设面板，依次确认中文文案、PDF 清洗和技术文档预设可见；按 Enter 应用后，规则选择和请求字段应更新，PDF 预设不应尝试读取 PDF 文件本体。
+8. 退出后检查没有残留进程、控制序列或损坏终端；保存终端截图、版本和操作记录。
+
+TUI-EDIT-DELETE-001（2026-08-31）已修复：`TextEditor` 现在将最后一个 grapheme 的下一个边界正确处理为 `text.len()`，因此 Right 可以移动到文本末尾，Delete 可以删除最后一个 grapheme。Rust 编辑器和 TUI 事件级回归已覆盖 ASCII、中文、emoji、组合字符和多行边界。
+
+#### D. 双 provider 连续稳定性和清理记录
+
+1. 在同一 commit、同一环境下，embedded 与 W3C provider 各运行 5 次：分别执行 `npm run test --prefix e2e` 和 `npm run test:webdriver --prefix e2e`。
+2. 每次记录 spec 通过数、总耗时、随机端口、首个 IPC 时间、失败重试和 artifact 路径。
+3. 每轮结束执行 `Get-Process`、`Get-NetTCPConnection -State Listen`，确认没有 CopyPolish、WDIO、Node 残留；成功轮次可删除 artifact，失败轮次必须保留日志、截图、page source、manifest、退出码和 fixture。
+4. 只有 5 次均可复现通过且无未解释 flaky，才可把 provider 标记为稳定；否则记录失败轮次和诊断，不纳入阻塞式门禁。
+### 7.7 损坏设置自动化入口
+
+普通 `npm run test` 和 `npm run test:webdriver` 不会自动执行需要外部 fixture 环境变量的损坏设置 spec；使用以下入口会依次执行三种 fixture：
+
+```bash
+npm run test:corrupt-settings --prefix e2e
+```
+
+每个 fixture 都会在 provider 启动前写入独立临时目录，并验证恢复/降级提醒和真实 Rust IPC 格式化。未提供 `COPYPOLISH_E2E_SETTINGS_FIXTURE` 时，`corrupt-settings.spec.ts` 会显式跳过，避免污染普通 smoke。
+
+当前 Linux/WSL 环境 环境g 与 Windows 原生验证结果：embedded provider 3/3、标准 W3C provider 3/3 通过。该入口覆盖跨平台文件损坏语义；NTFS ACL 由独立入口验证。
+
+### 7.8 设置重启恢复自动化入口
+
+使用以下入口在同一临时 `rules.yaml` 目录中连续启动两次应用：第一次保存“全不选”、替换项、转换模式和最近输入，第二次验证规则、替换项、转换模式、原始最近输入以及按恢复设置重新格式化后的输出和真实 Rust IPC 输出恢复。
+
+```bash
+npm run test:restart-settings --prefix e2e
+```
+
+当前已有 runner 和 spec 覆盖上述字段；重启用例在“全不选”状态下验证原始输入和设置恢复，随后由独立格式化步骤验证恢复的替换结果；替换执行也由 GUI 保存用例在“全选”状态下验证。本入口在 Windows 上只运行 embedded provider；标准 W3C provider 只运行兼容性 smoke。NTFS ACL 拒写由独立入口验证。
+
+### 7.9 GUI 替换与简繁转换保存入口
+
+`selection-and-persistence.spec.ts` 已增加真实 embedded GUI 用例，覆盖打开设置、添加替换、编辑来源/目标、等待保存、读取临时 `rules.yaml` 以及关闭设置后的真实格式化输出；默认构建同时确认 capability=false 时不能选择有效的 `s2t`。真实 `s2t`/`t2s` 选择和输出由独立的 feature spec 覆盖。该用例通过 `test` runner 执行，使用独立的 `COPYPOLISH_E2E_SETTINGS_DIR`，不会写入仓库根目录。
+
+默认 E2E 构建验证设置保存、恢复、替换行为，以及 capability=false 时 t2s/s2t 被禁用并归一化为 `none`。使用 `npm run build:app:simplified-trad --prefix e2e` 构建后，再运行 `npm run test --prefix e2e -- --spec specs/simplified-trad-conversion.spec.ts`，可验证 capability=true 与 `s2t`/`t2s` 双向真实 GUI/Rust IPC 输出；当前 Linux/WSL 环境 环境 embedded provider 为 2/2 通过。完整结构保护回归仍由 Rust feature fixture 覆盖。
+
+### 7.10 NTFS ACL 保存失败自动化入口
+
+该入口仅允许在 Windows 原生环境运行，使用 `icacls.exe` 为当前用户添加目录级 `(OI)(CI)(W)` deny ACE；不使用 Linux `chmod`、WSL 权限映射或只读属性模拟 NTFS ACL。runner 会先写入有效 `rules.yaml`，再启动 provider，最后在 `finally` 中移除 deny、恢复继承并删除临时目录。
+
+```powershell
+npm run test:acl-settings --prefix e2e
+```
+
+spec 验证设置窗口显示保存失败、错误文本包含 `rules.yaml`，以及保存失败后应用仍能通过真实 Rust IPC 工作。非 Windows 环境会明确输出跳过并返回成功；这不代表 ACL 场景已通过。失败时 runner 会在恢复权限前复制设置 fixture 到 provider artifact 目录。
+
+2026-08-31 Windows 原生结果：embedded provider 1/1、标准 W3C provider 1/1 通过；两个 runner 均完成 deny ACE 注入、保存失败与真实 IPC 验证，并在 `finally` 中恢复 ACL、删除 fixture。
+
+### 7.11 双 provider 稳定性统计（已完成）
+
+在同一 commit、同一环境下，两个 provider 各连续运行至少 5 次，记录：
+
+- 每次运行的 spec、通过/失败状态和耗时；
+- binary 启动、WebView/session 创建和首个 IPC 的耗时；
+- 随机端口、端口冲突和重试情况；
+- CopyPolish、WDIO、Node 残留进程；
+- artifact 是否完整；
+- flaky 失败的复现次数和诊断结论。
+
+当前版本两个 provider 的连续稳定性统计已完成并记录；损坏设置 fixture、重启恢复、NTFS ACL 自动化、统一 artifact 基础设施、受控失败 artifact 自检、主题/窄窗口 GUI artifact 和 TUI 非交互 transcript 已完成。React 19 warning 闭环和硬件级快捷键兼容性仍保留说明；Terminal 交互 artifact 已通过；GUI DPI 自动验证和 GitLab Windows stage 均已跳过。
+
+### 7.12 TUI 非交互 transcript artifact
+
+使用以下入口采集 TUI 非交互模式的输入、stdout、stderr、退出码、命令参数、白名单环境摘要和结果汇总：
+
+```bash
+npm run test:tui-transcript --prefix e2e
+```
+
+当前 Linux/WSL 环境 环境 验证结果为 4/4 通过，覆盖默认格式化、`--rules none` 恒等、未知规则 warning 和缺失输入文件错误。该入口可以在 Windows 原生复用，但不替代 Windows Terminal raw-mode、规则面板、剪贴板或 OSC 52 交互 artifact。
+
+### 7.13 Windows 剩余计划入口
+
+Windows 100%/125%/150% DPI 人工 GUI 验证已完成；GUI DPI 自动验证已跳过（不执行），不纳入自动矩阵；Windows Terminal 交互 artifact 已通过（用户确认）。GitLab Windows 可选 E2E stage 已跳过（不执行），不计作通过。请按 [windows-e2e-runbook.md](windows-e2e-runbook.md) 执行，并分别记录 DPI 三档的缩放/主题/窗口矩阵和原始 artifact、Terminal raw-mode/规则面板/快捷键/Unicode 粘贴/OSC 52/保存重启/终端清理。
+
+当前 `.gitlab-ci.yml` 只有 Windows release build；可选 E2E stage 已决定跳过（不执行），Runbook 中的 YAML 仅保留为历史设计参考。
+
+## 8. 测试完成标准
+
+- 没有新增未解释的 warning；
+- `git diff --check` 通过；
+- Markdown 链接检查通过；
+- 密钥扫描通过；
+- 涉及规则、设置、Tauri 或发布时已完成相应额外验证。
+
+### 7.14 2026-09-01 自动化补充结果
+
+- E2E TypeScript 类型检查通过。
+- 设置快捷键控制台 runner：embedded 与标准 WebDriver 各 1/1 通过，`actWarningCount=0`。由于当前 EdgeDriver 将逗号键上报为 `code=","`，两个 artifact 均记录原生键事件诊断并通过 UI “打开设置”回退完成界面/控制台验证；不得把它表述为硬件级 `Ctrl+,` 注入已独立通过。
+- GUI DPI 自动验证已按项目决定跳过（不执行）；既有 200% artifact 仅作历史诊断记录，三档人工 GUI 验证保持完成。
+- Windows Terminal TUI artifact 已由用户确认完整交互通过；`--prepare-only` 仍可用于生成 `manifest.json`、`result.json` 和 `manual-checklist.json`，实际交互结果以用户确认的 artifact 为准。
+
+### 7.15 2026-09-01 复验记录
+
+- ACL fixture 保留路径已修复：先解除 deny ACE，再复制 `settings-fixture`，最后删除临时目录；embedded/WebDriver 测试均通过，保留目录包含 `rules.yaml`，权限恢复和清理完成。
+- GUI DPI 自动验证已决定跳过，不再切换 Windows 显示设置或重新执行目标矩阵。
+- 早期普通命令会话运行完整 Windows Terminal TUI artifact 时因缺 `WT_SESSION` 按设计退出；`--prepare-only` 可生成手动清单。用户随后在真实 Windows Terminal 完成 WT-TUI-001/002/003 真实终端复验和完整交互 artifact，并确认通过。
+
+### 7.16 2026-09-03 Windows 原生复验结果
+
+本轮 Windows 原生环境 checkout 使用 WebView2 152.0.4191.53 串行执行。`selection-and-persistence.spec.ts` 3/3、设置重启 2/2、损坏设置 3/3、NTFS ACL 1/1、GUI 视觉 artifact 1/1、设置快捷键 1/1、TUI transcript 4/4 通过；Windows MSVC `cargo test --features tui` 为 166 passed/0 failed；前端单测为 70/70，E2E typecheck 通过。简繁 feature 在当前修复 binary 上为 2/2（s2t、t2s），标准 W3C smoke 为 2/2；本节早先的 1/2 和未完成记录属于同日较早的旧 binary/runner 结果，仅保留在历史日志中，不覆盖最终结果。GUI DPI 自动矩阵和 GitLab Windows stage 继续跳过；125%/150% GUI 人工验证及 Windows Terminal 交互 artifact 保持已完成。
+
+### 7.17 2026-09-03 提交 6687c13 Windows capability 刷新
+
+在 Windows 原生隔离 checkout 上重新执行当前提交 `6687c1390c633385cfd02135cf3072f4d18f94a9`：Node 24.19.0、Rust 1.98.0 `x86_64-pc-windows-msvc`；frontend/e2e `npm ci` 和 E2E typecheck 均退出码 0。默认 embedded `selection-and-persistence.spec.ts` 为 3/3，确认 capability=false、T2S/S2T 禁用并归一化为 `none`；feature embedded `simplified-trad-conversion.spec.ts` 为 2/2，确认 capability=true、s2t/t2s 真实输出；Windows MSVC `cargo test --features tui` 为 167 passed/0 failed；W3C smoke 为 2/2，随机 localhost 端口，artifact（exitCode=0）、`finished=1`、`passed=1`、`failed=0`。本轮没有把 npm 警告或 WDIO 清理 mock store warning 计为失败；隔离 checkout 与生成物已清理。
+### 7.18 2026-09-04 当前 checkout Windows 复验
+
+源文件与文档已同步到 Windows 原生隔离 checkout，随后串行复验：前端 101/101、E2E typecheck、默认 embedded selection 3/3、简繁 feature 2/2，WebDriver/W3C smoke 2/2，Windows MSVC `cargo test --features tui` 182/182，损坏设置三个 fixture 3/3，NTFS ACL 1/1，GUI 视觉 artifact 1/1，设置快捷键控制台 1/1，TUI transcript 4/4。GUI DPI 自动矩阵和 GitLab Windows stage 继续跳过；125%/150% 人工 GUI 与 Windows Terminal 交互 artifact 保持已完成。
+
+历史记录：`test:restart-settings` 在默认 binary 下曾因旧 spec 在 `restart-settings.spec.ts:53` 强制注入并等待 `t2s` 而失败。当前 spec 已按 capability 分支修正，且 2026-09-04 Windows 原生最终复验中默认与 feature 的 write/read 均为 2/2；该历史失败不影响已通过的损坏设置、ACL、feature 转换、W3C、TUI transcript 和 Rust 回归。
+### 7.19 2026-09-04 spec 修正后的 Windows 最终复验
+
+重启恢复 spec 排除 `rule-card-*` 容器后，在 Windows 原生环境 Windows 原生 checkout 完成最终验证：前端 101/101、E2E typecheck、默认 embedded selection 3/3、默认重启 write/read 2/2、简繁 feature 重启 write/read 2/2、feature 转换 2/2、损坏设置 3/3、NTFS ACL 1/1、GUI 视觉 artifact 1/1、设置快捷键 1/1、W3C smoke 重跑 2/2、Windows MSVC Rust/TUI 主库 182 + properties 5 + readme_registry 3 全部通过；TUI transcript 4/4（artifact `<artifact-directory>/tui-transcript`）。GUI DPI 自动矩阵、GitLab Windows stage 继续跳过；125%/150% 人工 GUI 和 Windows Terminal 交互 artifact 保持已完成。此前默认/feature 重启 read phase 的 `data-state=null` 与首次 W3C smoke 失败均已定位并不再复现。
