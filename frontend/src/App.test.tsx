@@ -984,7 +984,7 @@ describe("快捷键配置", () => {
       },
       restore_last_input: false,
     });
-    const { user } = await setup();
+    await setup();
     const input = screen.getByTestId("input-textarea");
     // 等待可能的恢复 effect 完成
     await act(async () => {

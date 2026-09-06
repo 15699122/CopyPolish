@@ -96,7 +96,7 @@ export function useSettingsActions({
   setShortcutBindings,
   shortcutsEnabled,
   shortcutBindings,
-  restoreLastInput,
+  restoreLastInput: _restoreLastInput,
   onRestoreLastInputChange,
   scheduleFormat,
   persistSettings,
