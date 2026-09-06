@@ -40,6 +40,8 @@ export interface UseSettingsActionsOptions {
   setShortcutBindings: (bindings: ShortcutBindings) => void;
   shortcutsEnabled: boolean;
   shortcutBindings: ShortcutBindings;
+  restoreLastInput: boolean;
+  onRestoreLastInputChange: (enabled: boolean) => void;
   scheduleFormat: (
     input: string,
     enabled: string[],
@@ -67,6 +69,8 @@ export interface UseSettingsActionsResult {
   onReplacementsChange: (replacements: ReplacementPair[]) => void;
   onConversionChange: (conversion: CharacterConversion) => void;
   onApplyPreset: (preset: Preset) => void;
+  onRestoreLastInputChange: (enabled: boolean) => void;
+  onClearSavedInput: () => void;
 }
 
 /** 设置窗口动作：同步更新本地状态、触发重排并提交对应设置 patch。 */
@@ -92,6 +96,8 @@ export function useSettingsActions({
   setShortcutBindings,
   shortcutsEnabled,
   shortcutBindings,
+  restoreLastInput: _restoreLastInput,
+  onRestoreLastInputChange,
   scheduleFormat,
   persistSettings,
 }: UseSettingsActionsOptions): UseSettingsActionsResult {
@@ -333,15 +339,32 @@ export function useSettingsActions({
     ],
   );
 
+  const handleRestoreLastInputChange = useCallback(
+    (nextRestore: boolean) => {
+      onRestoreLastInputChange?.(nextRestore);
+      // 关闭“恢复上次输入”时，立即清空已保存的正文，避免旧内容残留在 rules.yaml；
+      // 开启时，当前编辑器内容作为初始已保存正文，后续由防抖持久化继续更新。
+      persistSettings({ restore_last_input: nextRestore, last_input: nextRestore ? input : "" });
+    },
+    [onRestoreLastInputChange, input, persistSettings],
+  );
+
+  const handleClearSavedInput = useCallback(() => {
+    onRestoreLastInputChange(false);
+    persistSettings({ restore_last_input: false, last_input: "" });
+  }, [onRestoreLastInputChange, persistSettings]);
+
+  /* 预设应用：将预设的规则、替换与转换映射到当前编辑器并持久化。 */
   const onApplyPreset = useCallback(
     (preset: Preset) => {
-      const nextEnabled = preset.selection.mode === "all"
-        ? rules.map((rule) => rule.key)
-        : preset.selection.mode === "defaults"
-          ? rules.filter((rule) => rule.default).map((rule) => rule.key)
-          : preset.selection.mode === "only"
-            ? preset.selection.keys.filter((key) => rules.some((rule) => rule.key === key))
-            : [];
+      const nextEnabled =
+        preset.selection.mode === "all"
+          ? rules.map((rule) => rule.key)
+          : preset.selection.mode === "defaults"
+            ? rules.filter((rule) => rule.default).map((rule) => rule.key)
+            : preset.selection.mode === "only"
+              ? preset.selection.keys.filter((key) => rules.some((rule) => rule.key === key))
+              : [];
       const nextConversion = conversionAvailable ? preset.conversion : "none";
       setEnabled(nextEnabled);
       setReplacements?.(preset.replacements);
@@ -387,5 +410,7 @@ export function useSettingsActions({
     onReplacementsChange,
     onConversionChange,
     onApplyPreset,
+    onRestoreLastInputChange: handleRestoreLastInputChange,
+    onClearSavedInput: handleClearSavedInput,
   };
 }

@@ -17,6 +17,7 @@ import { RulesSection } from "@/components/settings/RulesSection";
 import { ReplacementsSection } from "@/components/settings/ReplacementsSection";
 import { PresetsSection } from "@/components/settings/PresetsSection";
 import { OutputSection } from "@/components/settings/OutputSection";
+import { PrivacySection } from "@/components/settings/PrivacySection";
 import { SettingsFooter, type SettingsStatus } from "@/components/settings/SettingsFooter";
 import type {
   EditorFontSize,
@@ -70,6 +71,9 @@ interface SettingsDialogProps {
   onResetShortcuts: () => void;
   onReplacementsChange: (replacements: ReplacementPair[]) => void;
   onConversionChange: (conversion: CharacterConversion) => void;
+  restoreLastInput: boolean;
+  onRestoreLastInputChange: (enabled: boolean) => void;
+  onClearSavedInput: () => void;
   presets: Preset[];
   onApplyPreset: (preset: Preset) => void;
   outputMode: OutputMode;
@@ -114,6 +118,9 @@ export function SettingsDialog({
   onResetShortcuts,
   onReplacementsChange,
   onConversionChange,
+  restoreLastInput,
+  onRestoreLastInputChange,
+  onClearSavedInput,
   presets,
   onApplyPreset,
   outputMode,
@@ -176,6 +183,11 @@ export function SettingsDialog({
               layoutMode={layoutMode}
               onOutputModeChange={onOutputModeChange}
               onLayoutModeChange={onLayoutModeChange}
+            />
+            <PrivacySection
+              restoreLastInput={restoreLastInput}
+              onRestoreLastInputChange={onRestoreLastInputChange}
+              onClearSavedInput={onClearSavedInput}
             />
             <RulesSection rules={rules} enabledSet={enabledSet} onToggleRule={onToggleRule} />
           </div>

@@ -413,6 +413,7 @@ describe("App 主流程", () => {
     mocks.getUserSettings.mockResolvedValue({
       enabled: ["rule-c"],
       last_input: "上次输入",
+      restore_last_input: true,
       theme: "dark",
       font: "pingfang",
       editor_font_size: "large",
@@ -667,6 +668,7 @@ describe("App 主流程", () => {
     mocks.getUserSettings.mockResolvedValue({
       enabled: ["rule-a", "rule-b"],
       last_input: "TODO",
+      restore_last_input: true,
       theme: "system",
       font: "system",
       editor_font_size: "normal",
@@ -851,5 +853,144 @@ describe("快捷键配置", () => {
       ),
     );
     expect(screen.getByTestId("shortcut-value-format_now")).toHaveTextContent("Ctrl/Cmd + Enter");
+  });
+
+  it("默认不持久化用户正文（隐私默认关闭 restore_last_input）", async () => {
+    mockFormat((t) => t);
+    const { user } = await setup();
+    const input = screen.getByTestId("input-textarea");
+    await user.type(input, "敏感正文内容");
+    // 等待防抖持久化
+    await waitFor(() => expect(mocks.saveUserSettings).toHaveBeenCalled());
+    // 最后一次持久化调用中不应包含 last_input
+    const lastCall = mocks.saveUserSettings.mock.calls.at(-1)?.[0] as
+      | { last_input?: string }
+      | undefined;
+    expect(lastCall?.last_input).toBe("");
+  });
+
+  it("开启 restore_last_input 后持久化用户正文", async () => {
+    mockFormat((t) => t);
+    const { user } = await setup();
+    await user.click(screen.getByTestId("open-settings"));
+    await user.click(screen.getByTestId("restore-last-input"));
+    await user.click(screen.getByTestId("settings-done"));
+
+    const input = screen.getByTestId("input-textarea");
+    await user.type(input, "需要恢复的正文");
+    // 等待防抖持久化将正文写入最后一次调用（开关立即持久化的空输入在先）
+    await waitFor(
+      () => {
+        const calls = mocks.saveUserSettings.mock.calls as Array<
+          [{ last_input?: string; restore_last_input?: boolean }]
+        >;
+        const match = calls.find((c) => c[0]?.last_input === "需要恢复的正文");
+        expect(match).toBeDefined();
+        expect(match?.[0]?.restore_last_input).toBe(true);
+      },
+      { timeout: 2000 },
+    );
+  });
+
+  it("关闭 restore_last_input 会清空已保存的正文", async () => {
+    mockFormat((t) => t);
+    mocks.getUserSettings.mockResolvedValue({
+      enabled: [],
+      last_input: "之前保存的正文",
+      theme: "system",
+      font: "system",
+      editor_font_size: "normal",
+      ui_scale: "normal",
+      notices: [],
+      shortcuts: {
+        enabled: true,
+        bindings: {
+          format_now: "CtrlOrCmd+Enter",
+          copy_output: "CtrlOrCmd+Shift+KeyC",
+          open_settings: "CtrlOrCmd+Comma",
+        },
+      },
+      restore_last_input: true,
+    });
+    const { user } = await setup();
+    // 开启状态下应恢复正文
+    const input = screen.getByTestId("input-textarea");
+    await waitFor(() => expect(input).toHaveValue("之前保存的正文"));
+
+    // 关闭 restore_last_input
+    await user.click(screen.getByTestId("open-settings"));
+    await user.click(screen.getByTestId("restore-last-input"));
+    await waitFor(() => {
+      const lastCall = mocks.saveUserSettings.mock.calls.at(-1)?.[0] as
+        | { last_input?: string; restore_last_input?: boolean }
+        | undefined;
+      expect(lastCall?.restore_last_input).toBe(false);
+      expect(lastCall?.last_input).toBe("");
+    });
+  });
+
+  it("点击「清除已保存正文」按钮会关闭开关并清空正文", async () => {
+    mockFormat((t) => t);
+    mocks.getUserSettings.mockResolvedValue({
+      enabled: [],
+      old_input: "",
+      theme: "system",
+      font: "system",
+      editor_font_size: "normal",
+      ui_scale: "normal",
+      notices: [],
+      shortcuts: {
+        enabled: true,
+        bindings: {
+          format_now: "CtrlOrCmd+Enter",
+          copy_output: "CtrlOrCmd+Shift+KeyC",
+          open_settings: "CtrlOrCmd+Comma",
+        },
+      },
+      restore_last_input: true,
+    });
+    const { user } = await setup();
+    await user.click(screen.getByTestId("open-settings"));
+    expect(screen.getByTestId("clear-saved-input")).toBeInTheDocument();
+    await user.click(screen.getByTestId("clear-saved-input"));
+    await waitFor(() => {
+      const lastCall = mocks.saveUserSettings.mock.calls.at(-1)?.[0] as
+        | { last_input?: string; restore_last_input?: boolean }
+        | undefined;
+      expect(lastCall?.restore_last_input).toBe(false);
+      expect(lastCall?.last_input).toBe("");
+    });
+    // 按钮在开关关闭后应消失
+    expect(screen.queryByTestId("clear-saved-input")).not.toBeInTheDocument();
+  });
+
+  it("加载时 restore_last_input 为 false 不恢复 last_input", async () => {
+    mockFormat((t) => t);
+    mocks.getUserSettings.mockResolvedValue({
+      enabled: [],
+      last_input: "不应恢复的正文",
+      theme: "system",
+      font: "system",
+      editor_font_size: "normal",
+      ui_scale: "normal",
+      notices: [],
+      shortcuts: {
+        enabled: true,
+        bindings: {
+          format_now: "CtrlOrCmd+Enter",
+          copy_output: "CtrlOrCmd+Shift+KeyC",
+          open_settings: "CtrlOrCmd+Comma",
+        },
+      },
+      restore_last_input: false,
+    });
+    await setup();
+    const input = screen.getByTestId("input-textarea");
+    // 等待可能的恢复 effect 完成
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(input).toHaveValue("");
   });
 });
