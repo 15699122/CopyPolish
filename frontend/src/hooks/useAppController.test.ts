@@ -101,6 +101,8 @@ const mocks = vi.hoisted(() => {
       appVersion: "0.5.0-test",
       isHydrated: vi.fn(() => true),
       loadSettings: vi.fn(),
+      restoreLastInput: false,
+      setRestoreLastInput: vi.fn(),
       presets: [],
     },
     catalogOptions: undefined as unknown,
@@ -208,7 +210,13 @@ describe("useAppController", () => {
 
     expect(catalogOptions.loadSettings).toBe(mocks.settings.loadSettings);
     expect(inputOptions.scheduleFormat).toBe(mocks.formatter.scheduleFormat);
-    expect(inputOptions.schedulePersist).toBe(mocks.persistence.schedulePersist);
+    // schedulePersist 被 controller 包装用于隐私归一化（关闭恢复时强制清空 last_input），
+    // 因此检查包装行为而非引用相等：输入触发持久化后，底层收到的 patch 应被归一化。
+    const capturedSchedulePersist = inputOptions.schedulePersist as (patch: Partial<unknown>) => void;
+    capturedSchedulePersist({ last_input: "应被清除" });
+    expect((mocks.persistence.schedulePersist as ReturnType<typeof vi.fn>).mock.calls[0][0]).toMatchObject({
+      last_input: "",
+    });
 
     expect(result.current.settingsDialogProps.enabled).toEqual(["rule-a"]);
     expect(result.current.settingsDialogProps.rules).toBe(mocks.rules);
@@ -276,6 +284,7 @@ describe("useAppController", () => {
     expect(mocks.formatter.clearError).toHaveBeenCalledOnce();
     expect(mocks.persistence.schedulePersist).toHaveBeenCalledWith({
       enabled: ["rule-a"],
+      restore_last_input: false,
       last_input: "",
     });
     expect(result.current.onClear).toBe(mocks.clear.clear);

@@ -70,6 +70,9 @@ export interface SettingsDialogProps {
   onConversionChange: (conversion: CharacterConversion) => void;
   presets: Preset[];
   onApplyPreset: (preset: Preset) => void;
+  restoreLastInput: boolean;
+  onRestoreLastInputChange: (enabled: boolean) => void;
+  onClearSavedInput: () => void;
   outputMode: OutputMode;
   layoutMode: LayoutMode;
   onOutputModeChange: (mode: OutputMode) => void;
@@ -146,9 +149,21 @@ export function useAppController(): UseAppControllerResult {
   rulesRef.current = rules.rules;
 
   // ---- 6. 持久化 ----
+  // 隐私默认：未开启“恢复上次输入”时，任何持久化路径的 last_input 一律清空，
+  // 用户正文不进入 rules.yaml（后端保存入口也有同语义的强制归一化兜底）。
+  const inputRef = useRef("");
+  const sanitizePersistPatch = useCallback(
+    (patch: Partial<UserSettings> = {}): Partial<UserSettings> => ({
+      ...patch,
+      restore_last_input: settings.restoreLastInput,
+      last_input: settings.restoreLastInput ? (patch.last_input ?? inputRef.current) : "",
+    }),
+    [settings.restoreLastInput],
+  );
   const currentSettingsRef = useRef<() => UserSettings>(() => ({
     enabled: [],
     last_input: "",
+    restore_last_input: false,
     theme: "system",
     font: "system",
     editor_font_size: "normal",
@@ -175,9 +190,10 @@ export function useAppController(): UseAppControllerResult {
     conversion: effectiveConversion,
     outputMode: settings.outputMode,
     scheduleFormat: formatter.scheduleFormat,
-    schedulePersist: persistence.schedulePersist,
+    schedulePersist: (patch) => persistence.schedulePersist(sanitizePersistPatch(patch)),
   });
   setInputRef.current = input.setInput;
+  inputRef.current = input.input;
 
   // ---- 8. 设置动作 ----
   const actions = useSettingsActions({
@@ -201,6 +217,8 @@ export function useAppController(): UseAppControllerResult {
     setShortcutBindings: settings.setShortcutBindings,
     shortcutsEnabled: settings.shortcutsEnabled,
     shortcutBindings: settings.shortcutBindings,
+    restoreLastInput: settings.restoreLastInput,
+    onRestoreLastInputChange: settings.setRestoreLastInput,
     scheduleFormat: formatter.scheduleFormat,
     persistSettings: persistence.persistSettings,
   });
@@ -211,7 +229,8 @@ export function useAppController(): UseAppControllerResult {
     clearOutput: formatter.clearOutput,
     cancelFormat: formatter.cancelFormat,
     clearError: formatter.clearError,
-    persistEmptyInput: () => persistence.schedulePersist({ enabled: settings.enabled, last_input: "" }),
+    persistEmptyInput: () =>
+      persistence.schedulePersist(sanitizePersistPatch({ enabled: settings.enabled, last_input: "" })),
     durationMs: 250,
   });
 
@@ -219,6 +238,13 @@ export function useAppController(): UseAppControllerResult {
     const copiedSuccessfully = await clipboard.copy();
     if (copiedSuccessfully) clear.clear();
   }, [clear.clear, clipboard.copy]);
+
+  // 清除已保存的正文：关闭恢复开关并立即持久化，确保 rules.yaml 不再保留旧内容。
+  const clearSavedInput = useCallback(() => {
+    settings.setRestoreLastInput(false);
+    // 直接持久化，不经过 sanitizePersistPatch，因为要强制写入 restore_last_input: false
+    persistence.schedulePersist({ restore_last_input: false, last_input: "" });
+  }, [settings.setRestoreLastInput, persistence.schedulePersist]);
 
   // ---- 10. 主题/字体应用到 DOM ----
   useThemeAndFont({
@@ -314,6 +340,9 @@ export function useAppController(): UseAppControllerResult {
       onResetShortcuts: actions.onResetShortcuts,
       onReplacementsChange: actions.onReplacementsChange,
       onConversionChange: actions.onConversionChange,
+      restoreLastInput: settings.restoreLastInput,
+      onRestoreLastInputChange: actions.onRestoreLastInputChange,
+      onClearSavedInput: clearSavedInput,
       presets: rules.presets,
       onApplyPreset: actions.onApplyPreset,
       outputMode: settings.outputMode,
@@ -355,6 +384,9 @@ export function useAppController(): UseAppControllerResult {
       actions.onResetShortcuts,
       actions.onReplacementsChange,
       actions.onConversionChange,
+      settings.restoreLastInput,
+      actions.onRestoreLastInputChange,
+      clearSavedInput,
       rules.presets,
       actions.onApplyPreset,
       settings.outputMode,

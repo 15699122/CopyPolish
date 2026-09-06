@@ -180,6 +180,23 @@ pub struct UserSettings {
     /// 简繁转换模式（互斥，默认 `None`）。
     #[serde(default)]
     pub conversion: CharacterConversion,
+    /// 启动时是否恢复上次输入正文（隐私开关，默认关闭）。
+    ///
+    /// 关闭时：加载侧不得把 `last_input` 恢复到输入框；保存侧必须把
+    /// `last_input` 清空后落盘，用户正文不进入 `rules.yaml`。
+    /// `#[serde(default)]` 使旧版设置文件（无该字段）自动采用隐私默认。
+    #[serde(default)]
+    pub restore_last_input: bool,
+}
+
+/// 按隐私开关归一化设置中的用户正文：未开启恢复时清空 `last_input`。
+///
+/// 所有持久化入口（GUI command、TUI persist）在写入前必须调用，
+/// 保证正文不会在用户未显式开启“恢复上次输入”时进入设置文件。
+pub fn enforce_input_privacy(settings: &mut UserSettings) {
+    if !settings.restore_last_input {
+        settings.last_input = String::new();
+    }
 }
 
 /// 设置加载提醒类型。
@@ -629,6 +646,7 @@ mod tests {
         let settings = UserSettings {
             enabled: vec!["中英文之间需要增加空格".to_string()],
             last_input: "在LeanCloud上".to_string(),
+            restore_last_input: true,
             theme: ThemeMode::Dark,
             font: FontFamily::Pingfang,
             editor_font_size: EditorFontSize::Large,
@@ -742,6 +760,7 @@ mod tests {
         let expected = UserSettings {
             enabled: vec!["中英文之间需要增加空格".to_string()],
             last_input: "在LeanCloud上".to_string(),
+            restore_last_input: true,
             theme: ThemeMode::Light,
             font: FontFamily::System,
             editor_font_size: EditorFontSize::Normal,
@@ -807,6 +826,43 @@ mod tests {
     }
 
     #[test]
+    fn input_privacy_defaults_off_and_enforced() {
+        // 旧版 YAML 无 restore_last_input 字段：serde default 必须为 false（隐私优先）。
+        let path = temp_settings_file("input-privacy-default");
+        fs::write(&path, "enabled: []\nlast_input: '敏感正文'\n").unwrap();
+        let loaded = load_from(&path).expect("should parse");
+        assert!(!loaded.restore_last_input);
+
+        // 关闭恢复时：enforce 必须清空正文。
+        let mut settings = loaded;
+        assert_eq!(settings.last_input, "敏感正文");
+        enforce_input_privacy(&mut settings);
+        assert_eq!(settings.last_input, "");
+
+        // 开启恢复时：正文原样保留。
+        let mut opt_in = UserSettings {
+            last_input: "保留正文".to_string(),
+            restore_last_input: true,
+            ..UserSettings::default()
+        };
+        enforce_input_privacy(&mut opt_in);
+        assert_eq!(opt_in.last_input, "保留正文");
+
+        // 落盘归一化：关闭恢复保存后，文件中的 last_input 必须为空。
+        let path = temp_settings_file("input-privacy-save");
+        let mut saved = UserSettings {
+            last_input: "不应落盘".to_string(),
+            restore_last_input: false,
+            ..UserSettings::default()
+        };
+        enforce_input_privacy(&mut saved);
+        save_to(&path, &saved).expect("save should succeed");
+        let reloaded = load_from(&path).expect("reload should parse");
+        assert_eq!(reloaded.last_input, "");
+        assert!(!reloaded.restore_last_input);
+    }
+
+    #[test]
     fn old_yaml_defaults_new_display_settings() {
         let path = temp_settings_file("display-defaults");
         fs::write(&path, "enabled: []\nlast_input: ''\n").unwrap();
@@ -846,6 +902,7 @@ mod tests {
                 "简体中文使用直角引号".to_string(),
             ],
             last_input: "在LeanCloud上，花了5000元👍𠀀".to_string(),
+            restore_last_input: true,
             theme: ThemeMode::Dark,
             font: FontFamily::NotoSansCjk,
             editor_font_size: EditorFontSize::Normal,

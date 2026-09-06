@@ -200,6 +200,13 @@ export interface UserSettings {
   shortcuts: ShortcutSettings;
   replacements: ReplacementPair[];
   conversion: CharacterConversion;
+  /** 启动时是否恢复上次输入正文（隐私开关，默认关闭；与 Rust UserSettings 对应）。 */
+  restore_last_input?: boolean;
+}
+
+/** 隐私开关读取归一化：缺失/非法值一律按关闭处理（隐私优先默认）。 */
+function ensureRestoreLastInput(value: unknown): boolean {
+  return value === true;
 }
 
 export interface LoadedUserSettings extends UserSettings {
@@ -232,6 +239,7 @@ export async function getUserSettings(): Promise<LoadedUserSettings | null> {
         shortcuts: ensureShortcutSettings(parsed.shortcuts),
         replacements: ensureReplacements(parsed.replacements),
         conversion: ensureCharacterConversion(parsed.conversion),
+        restore_last_input: ensureRestoreLastInput(parsed.restore_last_input),
         notices: [],
       };
     } catch {
@@ -256,6 +264,7 @@ export async function getUserSettings(): Promise<LoadedUserSettings | null> {
     shortcuts: ensureShortcutSettings(settings.shortcuts),
     replacements: ensureReplacements(settings.replacements),
     conversion: ensureCharacterConversion(settings.conversion),
+    restore_last_input: ensureRestoreLastInput(settings.restore_last_input),
     notices: loaded.notices ?? [],
   };
 }

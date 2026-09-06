@@ -34,6 +34,8 @@ function createOptions() {
     setShortcutBindings: vi.fn(),
     shortcutsEnabled: false,
     shortcutBindings: { ...defaultBindings },
+    restoreLastInput: false,
+    onRestoreLastInputChange: vi.fn(),
     scheduleFormat: vi.fn(),
     persistSettings: vi.fn(),
   };

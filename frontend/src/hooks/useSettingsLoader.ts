@@ -55,6 +55,9 @@ export interface UseSettingsLoaderResult {
   setReplacements: (replacements: ReplacementPair[]) => void;
   conversion: CharacterConversion;
   setConversion: (conversion: CharacterConversion) => void;
+  /** 启动时恢复上次输入的隐私开关（默认关闭）。 */
+  restoreLastInput: boolean;
+  setRestoreLastInput: (enabled: boolean) => void;
   settingsLoadNotices: SettingsLoadNotice[];
   settingsPath: string | null;
   appVersion: string;
@@ -80,6 +83,7 @@ export function useSettingsLoader({
   );
   const [replacements, setReplacements] = useState<ReplacementPair[]>([]);
   const [conversion, setConversion] = useState<CharacterConversion>("none");
+  const [restoreLastInput, setRestoreLastInput] = useState(false);
   const [settingsLoadNotices, setSettingsLoadNotices] = useState<SettingsLoadNotice[]>([]);
   const [settingsPath, setSettingsPath] = useState<string | null>(null);
   const [appVersion, setAppVersion] = useState(__APP_VERSION__);
@@ -166,7 +170,10 @@ export function useSettingsLoader({
         setReplacements(saved.replacements ?? []);
         setConversion(restoredConversion);
         setSettingsLoadNotices(saved.notices ?? []);
-        if (saved.last_input) {
+        // 隐私默认：仅当用户显式开启“恢复上次输入”时才把正文放回输入框。
+        const allowRestoreInput = saved.restore_last_input === true;
+        setRestoreLastInput(allowRestoreInput);
+        if (allowRestoreInput && saved.last_input) {
           callbacksRef.current.onRestoreInput(
             saved.last_input,
             restoredEnabled,
@@ -210,6 +217,8 @@ export function useSettingsLoader({
     setReplacements,
     conversion,
     setConversion,
+    restoreLastInput,
+    setRestoreLastInput,
     settingsLoadNotices,
     settingsPath,
     appVersion,

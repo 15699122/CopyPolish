@@ -43,6 +43,7 @@ describe("useSettingsLoader", () => {
     mocks.getUserSettings.mockResolvedValue({
       enabled: ["rule-b", "unknown-rule"],
       last_input: "恢复内容",
+      restore_last_input: true,
       theme: "dark",
       font: "pingfang",
       editor_font_size: "large",
@@ -131,6 +132,7 @@ describe("useSettingsLoader", () => {
     mocks.getUserSettings.mockResolvedValue({
       enabled: ["rule-a"],
       last_input: "旧输入",
+      restore_last_input: true,
       theme: "system",
       font: "system",
       editor_font_size: "normal",
@@ -157,6 +159,7 @@ describe("useSettingsLoader", () => {
     mocks.getUserSettings.mockResolvedValue({
       enabled: ["rule-a"],
       last_input: "旧输入",
+      restore_last_input: true,
       theme: "system",
       font: "system",
       editor_font_size: "normal",

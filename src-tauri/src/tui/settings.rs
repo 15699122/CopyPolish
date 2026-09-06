@@ -95,11 +95,14 @@ pub fn load_shared(no_config: bool) -> Option<SharedConfig> {
     }
     let loaded = user_settings::load_with_status()?;
     let rules = crate::engine::default_rules();
+    // 隐私默认：未开启“恢复上次输入”时不把正文交给 TUI 输入框。
+    let mut settings = loaded.settings;
+    user_settings::enforce_input_privacy(&mut settings);
     Some(SharedConfig {
-        selection: selection_from_enabled(&loaded.settings.enabled, &rules),
-        last_input: loaded.settings.last_input,
-        replacements: loaded.settings.replacements,
-        conversion: normalize_conversion(loaded.settings.conversion),
+        selection: selection_from_enabled(&settings.enabled, &rules),
+        last_input: settings.last_input,
+        replacements: settings.replacements,
+        conversion: normalize_conversion(settings.conversion),
     })
 }
 
@@ -130,6 +133,7 @@ pub fn persist(
     settings.last_input = last_input.to_string();
     settings.replacements = replacements.to_vec();
     settings.conversion = normalize_conversion(conversion);
+    user_settings::enforce_input_privacy(&mut settings);
     user_settings::save(&settings)
 }
 

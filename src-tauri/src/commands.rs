@@ -82,6 +82,7 @@ pub fn get_settings_path() -> Result<String, String> {
 pub fn save_user_settings(settings: crate::user_settings::UserSettings) -> Result<(), String> {
     let mut settings = settings;
     settings.enabled = engine::normalize_rule_keys(&settings.enabled);
+    crate::user_settings::enforce_input_privacy(&mut settings);
     crate::user_settings::save(&settings)
 }
 
