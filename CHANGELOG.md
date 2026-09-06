@@ -19,6 +19,7 @@
 - 设置保存增加进程内并发串行化和临时文件唯一性计数器，并补充并发保存回归测试。
 - GitHub Actions 全部固定到完整 commit SHA 并保留版本注释，`ci.yml` 增加最小权限声明 `contents: read`。
 - 新增生产 CycloneDX SBOM 生成 `scripts/generate_sbom.py`：覆盖 Rust 生产依赖与 frontend 生产/开发依赖，纳入 `verify.py --profile audit` 门禁和 release workflow，作为 `sbom.json` 发布资产并在 `SHA256SUMS` 中校验。
+- 许可证清单增加 `scripts/generate_licenses.py --check` 一致性门禁，依赖锁文件变化而未重新生成 `docs/licenses.md` 时，audit 会失败。
 - Windows 原生手动确认当前设置存储加固的 reparse point/junction 拒绝与跨进程并发保存行为通过；未将未提供的命令输出、环境信息或 artifact 计数写入发布记录。
 
 ## [0.6.1] - 2026-09-06

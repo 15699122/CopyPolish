@@ -4,11 +4,11 @@
 `src-tauri/Cargo.lock` 对应的 `cargo metadata --locked`；npm 依赖来自
 `frontend/package-lock.json` 的 `packages` 条目。
 
-> 生成日期：2026-09-04；依赖升级后必须重新生成并审阅差异。
+> 生成日期：2026-09-06；依赖升级后必须重新生成并审阅差异。
 
 ## 汇总
 
-- Rust 依赖：443 条（含不同版本的同名包）；
+- Rust 依赖：431 条（含不同版本的同名包）；
 - npm 依赖：294 条；
 - 许可证字段缺失：0 条。
 
@@ -34,13 +34,13 @@
 | `CC0-1.0` | 1 |
 | `CC0-1.0 OR MIT-0 OR Apache-2.0` | 1 |
 | `ISC` | 7 |
-| `MIT` | 316 |
-| `MIT OR Apache-2.0` | 211 |
+| `MIT` | 314 |
+| `MIT OR Apache-2.0` | 203 |
 | `MIT OR Apache-2.0 OR LGPL-2.1-or-later` | 2 |
 | `MIT OR Apache-2.0 OR Zlib` | 2 |
 | `MIT OR Zlib OR Apache-2.0` | 1 |
 | `MIT-0` | 2 |
-| `MIT/Apache-2.0` | 20 |
+| `MIT/Apache-2.0` | 18 |
 | `MPL-2.0` | 29 |
 | `Unicode-3.0` | 18 |
 | `Unlicense OR MIT` | 9 |
@@ -98,8 +98,6 @@
 | `cpufeatures` | `0.2.17` | `MIT OR Apache-2.0` |
 | `crc32fast` | `1.5.0` | `MIT OR Apache-2.0` |
 | `crossbeam-channel` | `0.5.16` | `MIT OR Apache-2.0` |
-| `crossbeam-deque` | `0.8.7` | `MIT OR Apache-2.0` |
-| `crossbeam-epoch` | `0.9.20` | `MIT OR Apache-2.0` |
 | `crossbeam-utils` | `0.8.22` | `MIT OR Apache-2.0` |
 | `crypto-common` | `0.1.7` | `MIT OR Apache-2.0` |
 | `cssparser` | `0.36.0` | `MPL-2.0` |
@@ -131,7 +129,6 @@
 | `dtor-proc-macro` | `0.0.6` | `Apache-2.0 OR MIT` |
 | `dunce` | `1.0.5` | `CC0-1.0 OR MIT-0 OR Apache-2.0` |
 | `dyn-clone` | `1.0.20` | `MIT OR Apache-2.0` |
-| `either` | `1.18.0` | `MIT OR Apache-2.0` |
 | `embed-resource` | `3.0.11` | `MIT` |
 | `embed_plist` | `1.2.2` | `MIT OR Apache-2.0` |
 | `equivalent` | `1.0.2` | `Apache-2.0 OR MIT` |
@@ -176,7 +173,6 @@
 | `gtk` | `0.18.2` | `MIT` |
 | `gtk-sys` | `0.18.2` | `MIT` |
 | `gtk3-macros` | `0.18.2` | `MIT` |
-| `half` | `1.8.3` | `MIT OR Apache-2.0` |
 | `hashbrown` | `0.12.3` | `MIT OR Apache-2.0` |
 | `hashbrown` | `0.17.1` | `MIT OR Apache-2.0` |
 | `heck` | `0.4.1` | `MIT OR Apache-2.0` |
@@ -218,7 +214,6 @@
 | `jni-sys` | `0.3.1` | `MIT OR Apache-2.0` |
 | `jni-sys` | `0.4.1` | `MIT OR Apache-2.0` |
 | `jni-sys-macros` | `0.4.1` | `MIT OR Apache-2.0` |
-| `jobserver` | `0.1.35` | `MIT OR Apache-2.0` |
 | `js-sys` | `0.3.104` | `MIT OR Apache-2.0` |
 | `json-patch` | `3.0.1` | `MIT/Apache-2.0` |
 | `jsonptr` | `0.6.3` | `MIT OR Apache-2.0` |
@@ -264,7 +259,6 @@
 | `objc2-user-notifications` | `0.3.2` | `Zlib OR Apache-2.0 OR MIT` |
 | `objc2-web-kit` | `0.3.2` | `Zlib OR Apache-2.0 OR MIT` |
 | `once_cell` | `1.21.4` | `MIT OR Apache-2.0` |
-| `opencc-fmmseg` | `0.11.5` | `MIT` |
 | `option-ext` | `0.2.0` | `MPL-2.0` |
 | `pango` | `0.18.3` | `MIT` |
 | `pango-sys` | `0.18.0` | `MIT` |
@@ -297,8 +291,6 @@
 | `r-efi` | `5.3.0` | `MIT OR Apache-2.0 OR LGPL-2.1-or-later` |
 | `r-efi` | `6.0.0` | `MIT OR Apache-2.0 OR LGPL-2.1-or-later` |
 | `raw-window-handle` | `0.6.2` | `MIT OR Apache-2.0 OR Zlib` |
-| `rayon` | `1.10.0` | `MIT OR Apache-2.0` |
-| `rayon-core` | `1.12.1` | `MIT OR Apache-2.0` |
 | `redox_syscall` | `0.5.18` | `MIT` |
 | `redox_users` | `0.5.2` | `MIT` |
 | `ref-cast` | `1.0.27` | `MIT OR Apache-2.0` |
@@ -321,7 +313,6 @@
 | `semver` | `1.0.28` | `MIT OR Apache-2.0` |
 | `serde` | `1.0.229` | `MIT OR Apache-2.0` |
 | `serde-untagged` | `0.1.9` | `MIT OR Apache-2.0` |
-| `serde_cbor` | `0.11.2` | `MIT/Apache-2.0` |
 | `serde_core` | `1.0.229` | `MIT OR Apache-2.0` |
 | `serde_derive` | `1.0.229` | `MIT OR Apache-2.0` |
 | `serde_derive_internals` | `0.29.1` | `MIT OR Apache-2.0` |
@@ -492,9 +483,6 @@
 | `zerovec` | `0.11.8` | `Unicode-3.0` |
 | `zerovec-derive` | `0.11.6` | `Unicode-3.0` |
 | `zmij` | `1.0.23` | `MIT` |
-| `zstd` | `0.13.3` | `MIT` |
-| `zstd-safe` | `7.2.4` | `MIT OR Apache-2.0` |
-| `zstd-sys` | `2.0.16+zstd.1.5.7` | `MIT/Apache-2.0` |
 
 ## npm 依赖
 
@@ -621,7 +609,7 @@
 | `@testing-library/dom` | `10.4.1` | `MIT` |
 | `@testing-library/jest-dom` | `7.0.1` | `MIT` |
 | `@testing-library/react` | `16.3.2` | `MIT` |
-| `@testing-library/user-event` | `14.6.6` | `MIT` |
+| `@testing-library/user-event` | `14.6.7` | `MIT` |
 | `@tybys/wasm-util` | `0.10.2` | `MIT` |
 | `@types/aria-query` | `5.0.4` | `MIT` |
 | `@types/chai` | `5.2.3` | `MIT` |
