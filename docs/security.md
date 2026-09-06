@@ -106,6 +106,7 @@ E2E 当前存在已登记的 `GHSA-jmr9-qjv8-65gv` high 风险，来自 `extract
 - Release 只能从 `master` 的明确 tag 触发；
 - 发布前必须检查版本、tag、构建资产和 checksum；
 - Release 资产不得包含 `node_modules`、E2E 工具、设置文件、日志或测试 fixture；
+- Release 附带生产级 CycloneDX SBOM（`sbom.json`，Rust 生产依赖 + frontend 生产/develop 依赖），并在 `SHA256SUMS` 中纳入校验；
 - CI artifact 只保留调试所需的最小内容，并在结束后清理。
 
 ## 9. 安全响应

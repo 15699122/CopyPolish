@@ -295,6 +295,7 @@ def main() -> int:
             run_rust_audit()
             run_npm_audit("Frontend dependency audit", ROOT / "frontend")
             run_npm_audit("E2E dependency audit", ROOT / "e2e", load_e2e_audit_policy())
+            run("SBOM generation check", command(sys.executable, "scripts/generate_sbom.py", "--check"))
             groups = []
         for group in groups:
             for description, args_list in group:

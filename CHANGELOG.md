@@ -17,6 +17,8 @@
 - 设置加载与保存均执行资源校验，超限的设置文件会被安全拒绝，不进入格式化或持久化流程。
 - 设置存储加固：Unix 设置/备份文件使用 `0600` 私有权限，设置/备份/symlink 目标拒绝写入，临时文件使用唯一名称并在写入失败时清理。
 - 设置保存增加进程内并发串行化和临时文件唯一性计数器，并补充并发保存回归测试。
+- GitHub Actions 全部固定到完整 commit SHA 并保留版本注释，`ci.yml` 增加最小权限声明 `contents: read`。
+- 新增生产 CycloneDX SBOM 生成 `scripts/generate_sbom.py`：覆盖 Rust 生产依赖与 frontend 生产/开发依赖，纳入 `verify.py --profile audit` 门禁和 release workflow，作为 `sbom.json` 发布资产并在 `SHA256SUMS` 中校验。
 - Windows 原生手动确认当前设置存储加固的 reparse point/junction 拒绝与跨进程并发保存行为通过；未将未提供的命令输出、环境信息或 artifact 计数写入发布记录。
 
 ## [0.6.1] - 2026-09-06

@@ -211,6 +211,11 @@ jobs:
       - name: Verify full asset set (before checksum)
         run: python3 scripts/verify_release_assets.py "$RELEASE_TAG" --dist-dir dist/final --platform all
 
+      - name: Generate CycloneDX SBOM
+        run: |
+          python3 scripts/generate_sbom.py --output dist/final/sbom.json
+          python3 -c "import json,sys; d=json.load(open('dist/final/sbom.json')); assert d['bomFormat']=='CycloneDX' and d['components']; print('SBOM ok:', len(d['components']), 'components')"
+
       - name: Generate SHA256SUMS
         run: |
           cd dist/final
@@ -222,6 +227,7 @@ jobs:
             CopyPolish_linux_amd64.AppImage \
             CopyPolish-tui-windows-x64.7z \
             CopyPolish-tui-linux-x86_64.7z \
+            sbom.json \
             > SHA256SUMS
           sha256sum -c SHA256SUMS
 
@@ -291,4 +297,5 @@ jobs:
             dist/final/CopyPolish_linux_amd64.AppImage \
             dist/final/CopyPolish-tui-windows-x64.7z \
             dist/final/CopyPolish-tui-linux-x86_64.7z \
-            dist/final/SHA256SUMS
+            dist/final/SHA256SUMS \
+            dist/final/sbom.json
