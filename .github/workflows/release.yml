@@ -40,15 +40,15 @@ jobs:
     name: Validate (release gate)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
         with:
           node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659  # v1
 
       - name: Install Tauri system dependencies
         run: |
@@ -89,15 +89,15 @@ jobs:
     needs: validate
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
         with:
           node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659  # v1
 
       - name: Install build dependencies
         run: |
@@ -108,7 +108,7 @@ jobs:
         run: ./scripts/build_release_local.sh "$RELEASE_TAG"
 
       - name: Upload Linux artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: release-linux-${{ env.RELEASE_TAG }}
           path: |
@@ -124,22 +124,22 @@ jobs:
     needs: validate
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
         with:
           node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659  # v1
 
       - name: Build Windows GUI exe and TUI asset
         shell: pwsh
         run: .\scripts\build_release_local.ps1 $env:RELEASE_TAG
 
       - name: Upload Windows artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: release-windows-${{ env.RELEASE_TAG }}
           path: |
@@ -155,7 +155,7 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Download Windows artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
         with:
           name: release-windows-${{ env.RELEASE_TAG }}
           path: dist
@@ -187,16 +187,16 @@ jobs:
     needs: [build-linux, build-windows, windows-smoke]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
 
       - name: Download Linux artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
         with:
           name: release-linux-${{ env.RELEASE_TAG }}
           path: incoming/linux
 
       - name: Download Windows artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
         with:
           name: release-windows-${{ env.RELEASE_TAG }}
           path: incoming/windows
@@ -226,7 +226,7 @@ jobs:
           sha256sum -c SHA256SUMS
 
       - name: Upload full release artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: CopyPolish-${{ env.RELEASE_TAG }}-release
           path: dist/final/*
@@ -241,7 +241,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
 
       - name: Guard — tag must not exist yet
         run: |
@@ -261,7 +261,7 @@ jobs:
           exit 1
 
       - name: Download full release artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
         with:
           name: CopyPolish-${{ env.RELEASE_TAG }}-release
           path: dist/final
