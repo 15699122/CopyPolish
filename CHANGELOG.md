@@ -18,6 +18,9 @@
 - 设置存储加固：Unix 设置/备份文件使用 `0600` 私有权限，设置/备份/symlink 目标拒绝写入，临时文件使用唯一名称并在写入失败时清理。
 - 设置保存增加进程内并发串行化和临时文件唯一性计数器，并补充并发保存回归测试。
 - Windows 原生手动确认当前设置存储加固的 reparse point/junction 拒绝与跨进程并发保存行为通过；未将未提供的命令输出、环境信息或 artifact 计数写入发布记录。
+- 为 Tauri IPC 引入稳定错误协议 `CommandError { code, message }`；Rust 命令返回的错误按资源限制、设置路径/权限、引擎错误分类；前端使用固定安全消息，不向用户或诊断接口泄露原始路径、正文或底层错误。
+- 新增前端 `normalizeCommandError()` 与独立测试；新增 Rust 错误映射测试。
+- E2E 供应链风险复核：当前 WebdriverIO 9.31.5 与 @wdio/tauri-service 1.3.0 仍解析 `extract-zip@2.0.1`，小版本升级（9.31.5 → 9.31.6）未能覆盖该 advisory；`npm audit fix --force` 仅提供 WebdriverIO 8 降级，属破坏性变更，未采用。维持 `docs/decisions/e2e-audit-policy.json` 的限期风险登记（review_after 2026-10-06），在 WebdriverIO 兼容升级或 provider 替换前按季度复核。
 
 ## [0.6.1] - 2026-09-06
 
