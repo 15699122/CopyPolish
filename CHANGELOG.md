@@ -4,6 +4,11 @@
 
 ## [Unreleased]
 
+### Release policy
+
+- v0.6.2 定义为隐私、安全、依赖和供应链维护版本，不增加新功能；安全维护完成并发布前冻结 v0.7.0 功能开发。
+- 在维护者明确指定前，不构建、不发布 v0.6.2 Pre-Release 或正式版。
+
 ### Security
 
 - 新增 `docs/security.md` 安全模型，明确资产、信任边界、输入资源限制、Tauri capabilities、供应链和安全响应要求。
