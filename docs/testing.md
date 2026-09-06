@@ -480,6 +480,7 @@ Windows 100%/125%/150% DPI 人工 GUI 验证已完成；GUI DPI 自动验证已�
 - 设置快捷键控制台 runner：embedded 与标准 WebDriver 各 1/1 通过，`actWarningCount=0`。由于当前 EdgeDriver 将逗号键上报为 `code=","`，两个 artifact 均记录原生键事件诊断并通过 UI “打开设置”回退完成界面/控制台验证；不得把它表述为硬件级 `Ctrl+,` 注入已独立通过。
 - GUI DPI 自动验证已按项目决定跳过（不执行）；既有 200% artifact 仅作历史诊断记录，三档人工 GUI 验证保持完成。
 - Windows Terminal TUI artifact 已由用户确认完整交互通过；`--prepare-only` 仍可用于生成 `manifest.json`、`result.json` 和 `manual-checklist.json`，实际交互结果以用户确认的 artifact 为准。
+- 2026-09-06：用户在 Windows 原生环境手动确认当前 v0.6.2 S2-B 设置存储加固通过，覆盖 reparse point/junction 拒绝、跨进程并发保存、保存后可读性和失败路径临时文件清理。未提供完整命令输出、环境版本或 artifact 路径，因此仅作为用户确认记录，不伪造自动化计数。
 
 ### 7.15 2026-09-01 复验记录
 

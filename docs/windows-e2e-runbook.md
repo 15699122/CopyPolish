@@ -26,6 +26,7 @@ Linux、Linux/WSL 环境 环境 图形环境 和普通 Chrome 可以验证部分
 - GUI 主题/窄窗口 artifact 基础入口；
 - Windows Terminal + PowerShell 7 下的 raw-mode、规则排序、快捷键、粘贴、OSC 52、保存和重启恢复的人工回归（**单行输入场景**）；
 - TUI grapheme 编辑边界修复及 Rust/TUI 回归。
+- v0.6.2 S2-B 设置存储加固（Windows reparse point/junction 拒绝、跨进程并发保存、唯一临时文件与失败清理）已由用户在 Windows 原生环境手动验证通过；未提供具体环境版本、命令计数或 artifact 路径，因此本条只作为用户确认记录，不替代可复现 artifact。
 
 > **2026-09-01 更新**：Windows Terminal 交互复验曾发现三个**多行/自动换行显示缺陷**（详见 [windows-terminal-tui-manual.md](windows-terminal-tui-manual.md)，问题证据截图仅本地留存、测试后已按约定清理，不入库）。这三个问题已在修复版本中完成，并由用户确认通过真实 Windows Terminal 复验；该段保留为历史发现记录。
 
@@ -40,6 +41,17 @@ Linux、Linux/WSL 环境 环境 图形环境 和普通 Chrome 可以验证部分
 | Terminal 多行显示修复 | 修复自动换行后新增字符绘制位置、光标不可见和 emoji 显示（WT-TUI-001/002/003） | 源码修复已完成，Windows MSVC 166/166 通过；真实 Terminal 复验已由用户确认通过 | Rust/UI 回归通过，Windows 原生复验通过 |
 | Terminal TUI artifact | 将真实 Windows Terminal 交互和退出清理固化为输入/输出/截图/日志留证 | 已通过（依据用户确认） | 关键场景、清理和结果均已确认 |
 | GitLab Windows stage | 在 Windows runner 上重复运行 E2E 并始终上传 artifact | 跳过（不执行） | 项目决定不配置、不运行；不得记为通过 |
+
+### 1.2.2 v0.6.2 S2-B 设置存储加固确认（2026-09-06）
+
+用户已在 Windows 原生环境对当前安全维护提交 `583a2ce` 完成手动验证，并确认以下行为通过：
+
+- 设置文件、备份文件和临时文件不会因 Windows reparse point/junction 或等价链接行为而写入非预期目标；
+- 多进程/并发保存不会产生不可解析的主设置文件或备份文件；
+- 保存完成后设置可正常读取，失败路径不会留下影响后续保存的临时文件；
+- 现有 Windows 设置保存、恢复、损坏设置和 NTFS ACL 行为未被破坏。
+
+本条是用户确认状态，不虚构 Windows 命令输出、机器版本、测试计数或 artifact 路径。若后续需要审计级复现，按 §2.5.7/§2.5.8 在隔离 Windows checkout 中记录 commit、Windows/WebView2、Rust/MSVC、退出状态、artifact 和清理结果。
 
 ### 1.2.1 PR #24 Windows 验收结果（2026-09-04）
 
@@ -67,7 +79,7 @@ PR #24（`fix/settings-dialog-polish`，代码范围起点 `fa2fc1c`）修改了
 - `simplified-trad-conversion.spec.ts`：首次运行因实际使用了默认 binary 而未产生转换结果；先执行 `build:app:simplified-trad` 后，s2t/t2s 均通过（2/2）。
 - PR #24 设置页验收：主题三项等宽间距、`rules.yaml` 路径仅显示文件名并支持完整路径复制、简繁转换间距、规则 hover 示例、键盘辅助描述和窄窗口 Footer 已在 §14 的 Windows 当前 binary 复验中闭环。
 
-上述第一项属于历史失败，已由后续当前 binary 复验闭环；其余专项结果不受影响。GUI DPI 自动矩阵和 GitLab Windows 可选 stage 仍按项目决定跳过，Windows Terminal 交互 artifact 仍按用户确认标记通过。Unix-only 权限测试和 Windows MSVC 结果以 §14 的最终记录为准。
+上述第一项属于历史失败，已由后续当前 binary 复验闭环；其余专项结果不受影响。GUI DPI 自动矩阵和 GitLab Windows 可选 stage 仍按项目决定跳过，Windows Terminal 交互 artifact 仍按用户确认标记通过。Unix-only 权限测试和 Windows MSVC 结果以 §14 的最终记录为准；S2-B Windows reparse point/junction 与并发保存确认见 §1.2.2。
 
 已确认问题清单（详见 [windows-terminal-tui-manual.md](windows-terminal-tui-manual.md)）：
 
