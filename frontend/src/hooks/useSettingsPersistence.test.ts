@@ -5,7 +5,13 @@ import { useSettingsPersistence } from "./useSettingsPersistence";
 
 const mocks = vi.hoisted(() => ({ saveUserSettings: vi.fn() }));
 
-vi.mock("@/lib/tauri", () => ({ saveUserSettings: mocks.saveUserSettings }));
+vi.mock("@/lib/tauri", () => ({
+  saveUserSettings: mocks.saveUserSettings,
+  normalizeCommandError: (cause: unknown) => ({
+    code: "internal",
+    message: cause instanceof Error ? cause.message : "操作失败，请检查输入后重试。",
+  }),
+}));
 
 const settings = {
   enabled: ["rule-a"],

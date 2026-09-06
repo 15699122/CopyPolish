@@ -58,6 +58,8 @@ Rust 格式化引擎 / 设置存储
 - unknown rule key 必须安全丢弃或返回稳定错误，不得触发 panic；
 - command 错误不得泄露内部绝对路径、凭据或完整用户正文。
 
+Tauri 对外的 `format_text`、`get_settings_path` 和 `save_user_settings` 使用稳定的 `{ code, message }` 错误结构。前端只按受支持的 `code` 映射固定安全消息；未知、非对象或运行时异常统一降级为 `internal`，不向用户或 E2E 诊断暴露原始错误文本。
+
 新增限制时必须为正常值、边界值和超限值增加测试，并说明 GUI、TUI、CLI 的差异。
 
 ## 5. 设置与隐私
