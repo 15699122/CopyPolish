@@ -67,7 +67,7 @@ def table(rows: list[tuple[str, str, str]]) -> str:
     return "\n".join(lines)
 
 
-def generate(features: str = "") -> None:
+def render(features: str = "") -> str:
     rust = cargo_packages(features)
     npm = npm_packages()
     all_rows = rust + npm
@@ -99,18 +99,45 @@ def generate(features: str = "") -> None:
     if unknown:
         lines.extend(["", "## 缺失许可证字段", "", "以下条目需要在后续依赖升级或发布审阅中人工确认：", ""])
         lines.extend(f"- {source}: `{name}` `{version}`" for source, (name, version, _) in unknown)
-    OUTPUT.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return "\n".join(lines) + "\n"
+
+
+def generate(features: str = "") -> None:
+    rust = cargo_packages(features)
+    npm = npm_packages()
+    OUTPUT.write_text(render(features), encoding="utf-8")
     print(f"generated {OUTPUT.relative_to(ROOT)} ({len(rust)} Rust, {len(npm)} npm)")
+
+
+def check(features: str = "") -> None:
+    if not OUTPUT.is_file():
+        raise RuntimeError(f"{OUTPUT.relative_to(ROOT)} 不存在")
+
+    expected = render(features)
+    actual = OUTPUT.read_text(encoding="utf-8")
+    # 生成日期属于展示信息，不应让每日的审计结果因为日期变化而失配。
+    def comparable(text: str) -> str:
+        return "\n".join(
+            line if not line.startswith("> 生成日期：") else "> 生成日期：<generated>；依赖升级后必须重新生成并审阅差异。"
+            for line in text.splitlines()
+        ) + "\n"
+
+    if comparable(actual) != comparable(expected):
+        raise RuntimeError(
+            f"{OUTPUT.relative_to(ROOT)} 与当前锁文件不一致；请先运行 python3 scripts/generate_licenses.py"
+        )
+    print(f"checked {OUTPUT.relative_to(ROOT)}")
 
 
 if __name__ == "__main__":
     features = ""
+    check_only = "--check" in sys.argv
     if "--features" in sys.argv:
         index = sys.argv.index("--features")
         if index + 1 < len(sys.argv):
             features = sys.argv[index + 1]
     try:
-        generate(features)
+        check(features) if check_only else generate(features)
     except (OSError, RuntimeError, subprocess.CalledProcessError, json.JSONDecodeError) as error:
         print(f"许可证清单生成失败：{error}", file=sys.stderr)
         raise SystemExit(1)
