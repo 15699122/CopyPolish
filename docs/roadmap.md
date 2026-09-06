@@ -25,7 +25,7 @@ v0.6.2 定义为**隐私、安全、依赖和供应链维护版本**，不增加
 1. **S2-A 基线与资源边界**：合并安全审计模型和输入/设置资源限制；已完成 PR #35、PR #36，覆盖 GUI/TUI/CLI 共用请求模型、设置加载/保存和审计门禁。
 2. **S2-B 设置存储安全**：完成 Unix `0600` 私有权限、Unix symlink 拒绝、进程内并发保存串行化、原子计数器保证唯一临时文件名、临时文件失败清理和备份恢复测试；Windows reparse point/junction 与跨进程并发已由用户于 2026-09-06 在原生环境手动确认通过，审计级 artifact 复现仍按需补充。
 3. **S2-C IPC 错误边界**：建立稳定错误 code，避免错误消息泄露正文、凭据和非必要内部路径；补齐 command 级边界测试。
-4. **S2-D E2E 供应链**：继续处理 `GHSA-jmr9-qjv8-65gv`；优先升级兼容的 WebdriverIO/Tauri provider，或完成替代工具链评估。未修复前必须保留限期风险登记。
+4. **S2-D E2E 供应链**：完成复核——WebdriverIO 9.31.5 → 9.31.6 小版本升级未能覆盖 `GHSA-jmr9-qjv8-65gv`，`npm audit fix --force` 仅提供破坏性的 WebdriverIO 8 降级，均未采用；维持 `docs/decisions/e2e-audit-policy.json` 限期风险登记（review_after 2026-10-06），在兼容 WebdriverIO 升级或 provider 替换前按季度复核。
 5. **S2-E CI 与 Actions**：固定 GitHub Actions commit SHA、收紧 job permissions、校验 workflow 输入并加入 artifact/privacy scan。
 6. **S2-F 发布完整性**：生成生产 CycloneDX SBOM（`scripts/generate_sbom.py`，已接入 `verify.py --profile audit` 与 release workflow 的 assemble/发布），审查 Release 资产内容并确保 checksum/license 清单可重复生成；许可证清单现由 `scripts/generate_licenses.py --check` 纳入 audit 门禁；provenance/attestation 与签名机制留待后续评估接入。
 7. **S2-G 最终审计**：完成全量 CI、依赖审计、隐私扫描、设置安全矩阵和跨平台 smoke，形成 v0.6.2 安全维护审计报告。
