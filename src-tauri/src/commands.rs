@@ -83,6 +83,7 @@ pub fn save_user_settings(settings: crate::user_settings::UserSettings) -> Resul
     let mut settings = settings;
     settings.enabled = engine::normalize_rule_keys(&settings.enabled);
     crate::user_settings::enforce_input_privacy(&mut settings);
+    crate::user_settings::validate_user_settings(&settings)?;
     crate::user_settings::save(&settings)
 }
 
