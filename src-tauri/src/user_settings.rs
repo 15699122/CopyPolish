@@ -17,6 +17,8 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::{ErrorKind, Write};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Mutex, OnceLock};
 
 use crate::engine::{
     CharacterConversion, ReplacementPair, MAX_REPLACEMENTS, MAX_REPLACEMENT_FIELD_BYTES,
@@ -30,6 +32,9 @@ pub const SETTINGS_BACKUP_FILE_NAME: &str = "rules.yaml.bak";
 /// 设置文件解析前的最大字节数，避免异常文件导致无界内存分配。
 pub const MAX_SETTINGS_FILE_BYTES: u64 = 2 * 1024 * 1024;
 pub const MAX_SHORTCUT_BINDING_BYTES: usize = 128;
+
+static TEMPORARY_FILE_COUNTER: AtomicU64 = AtomicU64::new(0);
+static SETTINGS_SAVE_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 
 /// 由设置文件路径派生备份路径：在文件名后追加 `.bak`。
 /// 生产设置文件固定为 `rules.yaml`，派生结果即 `rules.yaml.bak`；
@@ -51,11 +56,15 @@ fn temporary_path_for(settings_path: &Path) -> PathBuf {
         .file_name()
         .and_then(|name| name.to_str())
         .unwrap_or("rules.yaml");
-    let nonce = std::time::SystemTime::now()
+    let timestamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_nanos();
-    settings_path.with_file_name(format!(".{file_name}.tmp-{}-{nonce}", std::process::id()))
+    let counter = TEMPORARY_FILE_COUNTER.fetch_add(1, Ordering::Relaxed);
+    settings_path.with_file_name(format!(
+        ".{file_name}.tmp-{}-{timestamp}-{counter}",
+        std::process::id()
+    ))
 }
 
 /// 不跟随链接检查设置写入目标。设置路径、备份路径和临时路径都必须
@@ -461,6 +470,10 @@ pub fn load_from(path: &Path) -> Option<UserSettings> {
 }
 
 pub fn save_to(path: &Path, settings: &UserSettings) -> Result<(), String> {
+    let _save_guard = SETTINGS_SAVE_LOCK
+        .get_or_init(|| Mutex::new(()))
+        .lock()
+        .map_err(|_| "settings save lock is poisoned".to_string())?;
     validate_user_settings(settings)?;
     let yaml = serde_yaml::to_string(settings)
         .map_err(|e| format!("serialize settings for {}: {e}", path.display()))?;
@@ -839,6 +852,57 @@ mod tests {
         assert_eq!(load_from(&backup), Some(first));
         let _ = fs::remove_file(&path);
         let _ = fs::remove_file(&backup);
+    }
+
+    #[test]
+    fn temporary_paths_are_unique() {
+        let path = temp_settings_file("temporary-path");
+        let first = temporary_path_for(&path);
+        let second = temporary_path_for(&path);
+        assert_ne!(first, second);
+    }
+
+    #[test]
+    fn concurrent_saves_leave_parseable_settings_and_backup() {
+        use std::sync::Arc;
+        use std::thread;
+
+        let path = Arc::new(temp_settings_file("concurrent-save"));
+        let workers: Vec<_> = (0..8)
+            .map(|index| {
+                let path = Arc::clone(&path);
+                thread::spawn(move || {
+                    let settings = UserSettings {
+                        enabled: vec![format!("rule-{index}")],
+                        restore_last_input: true,
+                        last_input: format!("内容-{index}"),
+                        ..UserSettings::default()
+                    };
+                    save_to(path.as_ref(), &settings)
+                })
+            })
+            .collect();
+
+        for worker in workers {
+            worker
+                .join()
+                .expect("concurrent save worker must not panic")
+                .expect("serialized concurrent save should succeed");
+        }
+
+        assert!(load_from(path.as_ref()).is_some());
+        assert!(load_from(&backup_path_for(path.as_ref())).is_some());
+
+        let parent = path.parent().unwrap();
+        let leftovers: Vec<_> = fs::read_dir(parent)
+            .unwrap()
+            .filter_map(Result::ok)
+            .map(|entry| entry.file_name())
+            .filter(|name| name.to_string_lossy().contains("concurrent-save"))
+            .collect();
+        assert_eq!(leftovers.len(), 2, "only settings and backup should remain");
+        let _ = fs::remove_file(path.as_ref());
+        let _ = fs::remove_file(backup_path_for(path.as_ref()));
     }
 
     #[cfg(unix)]
