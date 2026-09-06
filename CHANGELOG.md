@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-09-06
+
 ### Security
 
 - **隐私默认变更**：`restore_last_input` 默认关闭，用户输入正文不再默认持久化到 `rules.yaml`。所有持久化路径（输入防抖、设置动作、清空反馈）在开关关闭时强制清空 `last_input`；后端 `sanitize_user_settings` 提供同语义兜底。
@@ -13,7 +15,7 @@
 ### Maintenance
 
 - 将 `docs/roadmap.md` 中 2026-09 的 Windows 原生复验与收尾历史记录迁入 `docs/archive/validation/windows-2026-09.md`；roadmap 仅保留指向归档的说明。
-- 开发基线版本推进至 `0.6.1-dev.1`；发布版本管理规则见 `docs/release/manual-release.md`。
+- 前端 `tsconfig` lib 更新至 ES2022，支持 `Array.prototype.at()`。
 
 ## [0.6.0] - 2026-09-05
 
