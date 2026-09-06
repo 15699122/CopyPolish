@@ -6,7 +6,7 @@ on:
       tag:
         description: "发布 tag（如 v0.6.0）"
         required: true
-        default: v0.6.0
+        default: v0.6.1
       publish:
         description: "发布模式：true 时创建 tag 与 GitHub Release（先通过 publish=false 演练）"
         type: boolean
