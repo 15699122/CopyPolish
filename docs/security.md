@@ -94,6 +94,12 @@ python3 scripts/verify.py --profile audit
 
 E2E 当前存在已登记的 `GHSA-jmr9-qjv8-65gv` high 风险，来自 `extract-zip` 的 WebdriverIO 传递依赖链。它仅存在于开发/测试工具链，不进入生产 Release；登记详情、缓解措施和复核日期见 [e2e-audit-policy.json](decisions/e2e-audit-policy.json) 与 [wdio-transitive-dependencies.md](decisions/wdio-transitive-dependencies.md)。
 
+当前 WebdriverIO 9.31.5 / @wdio/tauri-service 1.3.0 仍解析 `extract-zip@2.0.1`。经评估：
+
+- 小版本升级（WebdriverIO 9.31.5 → 9.31.6）未能覆盖该 advisory；
+- `npm audit fix --force` 仅提供 WebdriverIO 8 降级，属破坏性变更，未采用；
+- 当前策略：维持限期风险登记（`review_after: 2026-10-06`），在兼容的 WebdriverIO 升级或 provider 替换前按季度复核。
+
 门禁规则：
 
 - Cargo 或 frontend 出现 high/critical 直接失败；
@@ -108,6 +114,7 @@ E2E 当前存在已登记的 `GHSA-jmr9-qjv8-65gv` high 风险，来自 `extract
 - Release 只能从 `master` 的明确 tag 触发；
 - 发布前必须检查版本、tag、构建资产和 checksum；
 - Release 资产不得包含 `node_modules`、E2E 工具、设置文件、日志或测试 fixture；
+- Release 附带生产级 CycloneDX SBOM（`sbom.json`，Rust 生产依赖 + frontend 生产/develop 依赖），并在 `SHA256SUMS` 中纳入校验；
 - CI artifact 只保留调试所需的最小内容，并在结束后清理。
 
 ## 9. 安全响应
