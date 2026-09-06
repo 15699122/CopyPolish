@@ -35,6 +35,46 @@ export interface BuildCapabilities {
   simplifiedTradConversion: boolean;
 }
 
+export type CommandErrorCode =
+  | "input_too_large"
+  | "too_many_rules"
+  | "too_many_replacements"
+  | "replacement_too_large"
+  | "settings_too_large"
+  | "settings_invalid"
+  | "settings_permission_denied"
+  | "settings_path_unsafe"
+  | "internal";
+
+export interface CommandError {
+  code: CommandErrorCode;
+  message: string;
+}
+
+const SAFE_COMMAND_ERROR_MESSAGES: Record<CommandErrorCode, string> = {
+  input_too_large: "输入文本超过允许大小（10 MiB）。",
+  too_many_rules: "启用的规则数量超过允许上限。",
+  too_many_replacements: "自定义替换项数量超过允许上限。",
+  replacement_too_large: "自定义替换项字段超过允许大小。",
+  settings_too_large: "设置文件超过允许大小。",
+  settings_invalid: "设置文件无效，已拒绝写入。",
+  settings_permission_denied: "没有权限保存设置文件。",
+  settings_path_unsafe: "设置路径不安全，已拒绝写入。",
+  internal: "操作失败，请检查输入后重试。",
+};
+
+/** 将 Tauri/运行时异常归一化为不泄露正文、路径或底层错误的稳定前端异常。 */
+export function normalizeCommandError(cause: unknown): CommandError {
+  if (typeof cause === "object" && cause !== null) {
+    const candidate = cause as Partial<CommandError>;
+    if (typeof candidate.code === "string" && candidate.code in SAFE_COMMAND_ERROR_MESSAGES) {
+      const code = candidate.code as CommandErrorCode;
+      return { code, message: SAFE_COMMAND_ERROR_MESSAGES[code] };
+    }
+  }
+  return { code: "internal", message: SAFE_COMMAND_ERROR_MESSAGES.internal };
+}
+
 export interface FormatRequest {
   text: string;
   selection: RuleSelection;
@@ -121,10 +161,10 @@ export async function formatText(request: FormatRequest): Promise<string> {
     if (e2e) {
       window.__COPYPOLISH_E2E__ = {
         ...window.__COPYPOLISH_E2E__,
-        lastFormatError: String(cause),
+        lastFormatError: normalizeCommandError(cause),
       };
     }
-    throw cause;
+    throw normalizeCommandError(cause);
   }
 }
 
@@ -298,7 +338,11 @@ export async function saveUserSettings(settings: UserSettings): Promise<void> {
       settingsSaveSequence: (window.__COPYPOLISH_E2E__?.settingsSaveSequence ?? 0) + 1,
     };
   }
-  await invoke("save_user_settings", { settings });
+  try {
+    await invoke("save_user_settings", { settings });
+  } catch (cause) {
+    throw normalizeCommandError(cause);
+  }
 }
 
 function ensureThemeMode(value: unknown): ThemeMode {
