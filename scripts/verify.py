@@ -26,6 +26,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 MANIFEST = ROOT / "src-tauri" / "Cargo.toml"
+E2E_AUDIT_POLICY = ROOT / "docs" / "decisions" / "e2e-audit-policy.json"
 
 
 def command(*args: str) -> list[str]:
@@ -140,6 +141,101 @@ def run_rust_audit() -> None:
         raise subprocess.CalledProcessError(1, result.args)
 
 
+def load_e2e_audit_policy() -> dict[str, dict[str, object]]:
+    try:
+        policy = json.loads(E2E_AUDIT_POLICY.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        print(f"E2E audit policy is unavailable or invalid: {error}", file=sys.stderr)
+        raise subprocess.CalledProcessError(1, ["read", str(E2E_AUDIT_POLICY)]) from error
+    if not isinstance(policy, dict) or not isinstance(policy.get("accepted_advisories"), list):
+        print("E2E audit policy must contain an accepted_advisories list", file=sys.stderr)
+        raise subprocess.CalledProcessError(1, ["read", str(E2E_AUDIT_POLICY)])
+    return {
+        item["id"]: item
+        for item in policy["accepted_advisories"]
+        if isinstance(item, dict) and isinstance(item.get("id"), str)
+    }
+
+
+def advisory_ids(vulnerability: dict[str, object]) -> set[str]:
+    ids: set[str] = set()
+    for item in vulnerability.get("via", []):
+        if isinstance(item, dict) and isinstance(item.get("url"), str):
+            url = item["url"]
+            marker = "/advisories/"
+            if marker in url:
+                ids.add(url.split(marker, 1)[1].split("/", 1)[0])
+    return ids
+
+
+def run_npm_audit(label: str, prefix: Path, policy: dict[str, dict[str, object]] | None = None) -> None:
+    print(f"== {label} ==", flush=True)
+    result = subprocess.run(
+        [
+            "npm",
+            "audit",
+            "--prefix",
+            str(prefix),
+            "--audit-level=high",
+            "--omit=optional",
+            "--ignore-scripts",
+            "--json",
+        ],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    try:
+        report = json.loads(result.stdout)
+    except json.JSONDecodeError as error:
+        if result.stderr:
+            print(result.stderr, file=sys.stderr, end="")
+        print(f"{label} returned invalid JSON; network/tool failure is not an audit pass: {error}", file=sys.stderr)
+        raise subprocess.CalledProcessError(result.returncode or 1, result.args) from error
+
+    vulnerabilities = report.get("vulnerabilities", {})
+    if not isinstance(vulnerabilities, dict):
+        raise subprocess.CalledProcessError(1, result.args)
+    high_or_critical: dict[str, dict[str, object]] = {
+        name: value
+        for name, value in vulnerabilities.items()
+        if isinstance(value, dict) and value.get("severity") in {"high", "critical"}
+    }
+    if not high_or_critical:
+        print(f"{label}: no high/critical vulnerabilities")
+        return
+    if policy is None:
+        print(f"{label}: {len(high_or_critical)} high/critical vulnerabilities", file=sys.stderr)
+        raise subprocess.CalledProcessError(1, result.args)
+
+    # npm audit 只在根 vulnerability（如 extract-zip）中包含 advisory URL，
+    # 传播到 @wdio/* 的条目通常只包含依赖名。因此先从完整报告收集根 advisory，
+    # 再确认所有 high/critical 项都由已登记的根 advisory 覆盖。
+    report_ids = {
+        advisory_id
+        for vulnerability in vulnerabilities.values()
+        if isinstance(vulnerability, dict)
+        for advisory_id in advisory_ids(vulnerability)
+    }
+    accepted = report_ids & policy.keys()
+    unresolved: list[str] = []
+    if not accepted:
+        unresolved.append(
+            "no accepted advisory id found in report (high/critical entries: "
+            + ", ".join(sorted(high_or_critical))
+            + ")"
+        )
+    elif report_ids - policy.keys():
+        unresolved.extend(f"unaccepted advisory {item}" for item in sorted(report_ids - policy.keys()))
+    if unresolved:
+        print("E2E audit has unaccepted high/critical vulnerabilities:", file=sys.stderr)
+        for item in unresolved:
+            print(f"  - {item}", file=sys.stderr)
+        raise subprocess.CalledProcessError(1, result.args)
+    print(f"{label}: {len(high_or_critical)} high/critical entries covered by {', '.join(sorted(accepted))}")
+
+
 def audit_commands() -> list[tuple[str, list[str]]]:
     return [
         (
@@ -197,6 +293,9 @@ def main() -> int:
     try:
         if args.profile == "audit":
             run_rust_audit()
+            run_npm_audit("Frontend dependency audit", ROOT / "frontend")
+            run_npm_audit("E2E dependency audit", ROOT / "e2e", load_e2e_audit_policy())
+            groups = []
         for group in groups:
             for description, args_list in group:
                 run(description, args_list)

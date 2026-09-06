@@ -66,7 +66,7 @@ CopyPolish 的文本处理**全部在本地完成**。正式桌面版的生产�
 
 - 生产构建使用 Tauri 2 + React 19 + Rust，不引入任何外部 CDN 或远程字体；
 - 依赖更新通过 Dependabot / Renovate 提示，由维护者人工审阅后合并；
-- 漏洞处理策略见 `docs/security.md`（待建立）与 `.github/dependabot.yml`。
+- 漏洞处理策略见 [security.md](security.md) 与 `.github/dependabot.yml`。
 
 ## 7. 隐私变更记录
 

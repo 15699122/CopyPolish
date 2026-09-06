@@ -25,7 +25,7 @@ span-aware 混合管线、规则注册表、阶段依赖、结构/语义 span �
 - [x] 运行当前依赖审计（`verify.py --profile audit` 口径）：frontend 生产依赖 0 漏洞；e2e 测试链在 2026-09-01 复核后报告 13 项 high，涉及 `@wdio`、`puppeteer`、`extract-zip` 等传递依赖；Cargo 0 漏洞、20 项允许的 unsound 警告（`lru` 等传递依赖）；
 - [x] 修复 e2e 测试链 `serialize-javascript` 高危告警：在 `e2e/package.json` 增加 npm `overrides` 固定到 `7.1.1`，保留 WebdriverIO 9/Mocha 10；`npm ci`、类型检查和审计验证通过，决策记录见 [decisions/wdio-serialize-javascript.md](decisions/wdio-serialize-javascript.md)。
 - [x] 修复 E2E 传递依赖 `deepmerge-ts` high 告警：在 `e2e/package.json` 增加 override 固定到 `8.0.2`，保留 WebdriverIO 9；干净安装、动态导入、类型检查和审计验证通过，记录见 [decisions/wdio-transitive-dependencies.md](decisions/wdio-transitive-dependencies.md)。
-- [ ] 持续跟随 WebdriverIO/@wdio 及浏览器工具升级，处理剩余 13 项 E2E 传递依赖 high 告警；`@puppeteer/browsers`/`extract-zip` 暂不覆盖，等待完整 provider 回归和工具链升级窗口；
+- [ ] 持续跟随 WebdriverIO/@wdio 及浏览器工具升级，处理剩余 13 项 E2E 传递依赖 high 告警；当前由 `scripts/verify.py --profile audit` 透明登记 `GHSA-jmr9-qjv8-65gv`，`@puppeteer/browsers`/`extract-zip` 暂不覆盖，等待完整 provider 回归和工具链升级窗口；
 - [x] 对 `serde_yaml`（上游 deprecated）迁移做独立 Spike：结论为**暂不迁移、保持观察**（无漏洞告警、使用面仅 2 处；若迁移首选 API 兼容的 `serde-yaml-ng` 并跑全量 round-trip 对照），记录见 [decisions/serde-yaml-migration.md](decisions/serde-yaml-migration.md)；
 - [x] 重新生成并审阅 `docs/licenses.md`（2026-09-01：生成脚本改为读取 `frontend/package-lock.json` 的完整 `packages` 条目；Rust 431 条、npm 294 条、许可证字段缺失 0 条；重复生成结果稳定）。
 
@@ -89,6 +89,7 @@ span-aware 混合管线、规则注册表、阶段依赖、结构/语义 span �
 
 ## P2：发布持续维护
 
+- [x] 将 Rust、frontend 和 E2E 依赖审计统一纳入 `scripts/verify.py --profile audit`；E2E 已接受风险必须登记在 [decisions/e2e-audit-policy.json](decisions/e2e-audit-policy.json)，未登记 high/critical 或审计网络/JSON 失败仍阻断。
 - [ ] 持续执行依赖审计、许可证清单更新和工具链升级 Runbook。
 
 ## 规则扩展准入

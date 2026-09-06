@@ -4,6 +4,11 @@
 
 ## [Unreleased]
 
+### Security
+
+- 新增 `docs/security.md` 安全模型，明确资产、信任边界、输入资源限制、Tauri capabilities、供应链和安全响应要求。
+- `scripts/verify.py --profile audit` 现在同时审计 Rust、frontend 和 E2E 依赖；E2E 已接受风险必须通过机器可读的 `docs/decisions/e2e-audit-policy.json` 登记，网络失败、非法 JSON 或未登记 high/critical 均不会被视为通过。
+
 ## [0.6.1] - 2026-09-06
 
 ### Security
