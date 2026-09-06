@@ -2,6 +2,12 @@
 
 本 Runbook 用于升级开发工具链、运行时和直接依赖。目标是让升级可审阅、可回滚，且不把临时构建工作区或生产凭据带入提交。
 
+## 0. v0.6.2 安全维护周期约束
+
+当前 `0.6.2-dev.1` 属于安全维护开发周期。该周期只允许隐私、安全、依赖、供应链、测试门禁和发布完整性改动；不得借升级提交引入新用户功能或新排版规则。v0.6.2 完成安全维护审计前，冻结 v0.7.0 功能开发。
+
+除非维护者明确指定，升级和维护工作不得触发 v0.6.2 Pre-Release 或正式版构建/发布。任何发布操作必须另行按照 [release/manual-release.md](release/manual-release.md) 执行，并先满足 roadmap 中的 v0.6.2 发布门槛。
+
 ## 1. 升级原则
 
 - 一次只处理一个主题：Node、Rust、前端依赖、Rust 依赖或 Tauri/React 联动升级；
@@ -114,6 +120,15 @@ npm run tauri -- build --no-bundle --ci
 - `docs/licenses.md` 是否出现许可证缺失或不允许的许可证；
 - 前端测试 warning、Vite 配置 warning 和 Tauri 构建 warning 是否可解释；
 - 构建脚本是否仍从正确目录调用 Tauri CLI，且没有把参数错误转交给 Cargo。
+
+v0.6.2 安全维护完成前，还必须审阅：
+
+- 设置文件权限、symlink/reparse point、并发保存和备份恢复；
+- IPC 错误是否泄露正文、凭据或非必要内部路径；
+- E2E advisory 策略是否仍有负责人和到期日期；
+- Actions 是否固定到 commit SHA 且 job 权限最小化；
+- SBOM、provenance、checksum、license 和 Release 资产是否与生产范围一致；
+- 测试 artifact、日志和临时设置是否通过隐私扫描。
 
 ## 7. 回滚与失败处理
 

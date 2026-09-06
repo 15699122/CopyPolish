@@ -14,6 +14,37 @@
 
 span-aware 混合管线、规则注册表、阶段依赖、结构/语义 span 和 UTF-8 安全 TextEdit 已落地；桌面 GUI 与 TUI 共用 Rust 引擎和 `rules.yaml`。Windows 原生验证（E2E、设置损坏/ACL、GUI DPI 人工三档、Windows Terminal TUI 交互）均已完成或按项目决策跳过；默认构建重启 spec 已按 capability=false 语义修正并完成验证，记录见 [windows-e2e-runbook.md](windows-e2e-runbook.md) 与归档。标准 W3C provider 已于 2026-09-01 收敛为兼容性 smoke（`specs/w3c/smoke.spec.ts`），不再与 embedded provider 并行跑完整回归。
 
+## v0.6.2 维护版本范围（功能冻结）
+
+v0.6.2 定义为**隐私、安全、依赖和供应链维护版本**，不增加用户功能、不新增排版规则、不改变现有规则默认行为。除非维护者明确指定，当前不得构建或发布 v0.6.2 Pre-Release/正式版。
+
+在 v0.6.2 安全维护完成并发布前，v0.7.0 的新功能开发冻结；不得提前实现格式化 diff/撤销、规则搜索、用户预设、PDF/CAJ 清洗、正则替换或其它产品功能。
+
+### v0.6.2 维护阶段
+
+1. **S2-A 基线与资源边界**：合并安全审计模型和输入/设置资源限制；已完成 PR #35、PR #36，覆盖 GUI/TUI/CLI 共用请求模型、设置加载/保存和审计门禁。
+2. **S2-B 设置存储安全**：完成 Unix 私有权限、symlink/reparse point 防护、唯一临时文件名、并发保存和备份恢复测试。
+3. **S2-C IPC 错误边界**：建立稳定错误 code，避免错误消息泄露正文、凭据和非必要内部路径；补齐 command 级边界测试。
+4. **S2-D E2E 供应链**：继续处理 `GHSA-jmr9-qjv8-65gv`；优先升级兼容的 WebdriverIO/Tauri provider，或完成替代工具链评估。未修复前必须保留限期风险登记。
+5. **S2-E CI 与 Actions**：固定 GitHub Actions commit SHA、收紧 job permissions、校验 workflow 输入并加入 artifact/privacy scan。
+6. **S2-F 发布完整性**：生成生产 SBOM，接入 provenance/attestation，审查 Release 资产内容并确保 checksum/license 清单可重复生成。
+7. **S2-G 最终审计**：完成全量 CI、依赖审计、隐私扫描、设置安全矩阵和跨平台 smoke，形成 v0.6.2 安全维护审计报告。
+
+### v0.6.2 发布门槛
+
+- 生产依赖无未解释的 high/critical 漏洞；
+- 用户正文默认不落盘，主文件、备份、临时文件和测试 artifact 均不泄露正文；
+- IPC、格式化请求和设置文件均有资源边界；
+- 设置权限、symlink、并发和备份恢复行为完成验证；
+- E2E advisory 已修复，或有负责人、缓解措施和明确到期日期的正式风险接受；
+- Actions SHA、job 权限、SBOM、provenance、checksum、license 和 Release 资产检查完成；
+- 完成一次独立的 v0.6.2 安全维护审计；
+- 维护者明确指定前，不创建 v0.6.2 tag、不构建、不发布。
+
+### v0.7.0 启动条件
+
+仅在 v0.6.2 安全维护完成并按发布门槛发布后，才允许从 `dev` 启动 `v0.7.0-dev.1`，再恢复新功能开发。
+
 ## P0：仓库卫生与事实来源收敛
 
 - [x] 增加统一的安全清理入口（`scripts/clean.py`，白名单删除 `src-tauri/target/`、`frontend/dist/`、`src-tauri/gen/`、`scripts/__pycache__/`、`e2e/artifacts/` 与 `e2e/settings-*`，支持 `--dry-run`/`--deep`）；
@@ -90,7 +121,7 @@ span-aware 混合管线、规则注册表、阶段依赖、结构/语义 span �
 ## P2：发布持续维护
 
 - [x] 将 Rust、frontend 和 E2E 依赖审计统一纳入 `scripts/verify.py --profile audit`；E2E 已接受风险必须登记在 [decisions/e2e-audit-policy.json](decisions/e2e-audit-policy.json)，未登记 high/critical 或审计网络/JSON 失败仍阻断。
-- [ ] 持续执行依赖审计、许可证清单更新和工具链升级 Runbook。
+- [ ] 持续执行依赖审计、许可证清单更新和工具链升级 Runbook；该维护项属于 v0.6.2 安全维护周期，完成前不启动 v0.7.0 功能开发。
 
 ## 规则扩展准入
 
