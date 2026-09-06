@@ -7,18 +7,19 @@
 
 ## 当前落地状态
 
-密钥管理文件已从个人 Cline 配置仓库迁入本项目：
+仓库只提交**示例模板**，真实文件仅保存在维护者本地（与 `.gitignore` 和 `scripts/security_check.py` 的追踪检查一致）：
 
-- `.sops.yaml` 已提交，仅包含 age 公钥接收者；
-- `secrets/tokens.env` 已提交，业务变量值保持 SOPS 加密；
+- `.sops.yaml.example` 已提交；本地的 `.sops.yaml`（仅包含 age 公钥接收者）不得提交；
+- `secrets/tokens.env.example` 已提交；本地加密的 `secrets/tokens.env`（业务变量值保持 SOPS 加密）不得提交；
 - `scripts/load_tokens.sh` 已提交并保持可执行权限（`755`）；
 - 个人配置仓库不再持有本项目的这些凭据文件。
 
-当前加密文件包含 GitLab 运维所需变量（变量名可见，变量值不可见）：
+本地加密文件包含 GitLab 运维所需变量（变量名可见，变量值不可见）：
 `GITLAB_DEPLOY_TOKEN`、`GITLAB_PAT`、`GITLAB_PROJECT_TOKEN`、`GITLAB_DEPLOY_USER`。
 
 使用前需要本机安装 `sops`，并持有与 `.sops.yaml` 接收者匹配的 age 私钥。CI 内置的 `CI_JOB_TOKEN`、GitLab MCP OAuth 凭据和 GitHub Release 凭据不写入该文件。
-- `.sops.yaml` — 配置；声明 age 接收者（`age1...` **公钥**）以及需要加密的文件。
+
+- `.sops.yaml` — 本地配置；声明 age 接收者（`age1...` **公钥**）以及需要加密的文件；从 `.sops.yaml.example` 复制，**不得提交**。
 
 ## 工作原理
 

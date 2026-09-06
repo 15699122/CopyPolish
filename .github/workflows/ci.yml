@@ -6,9 +6,10 @@ on:
   pull_request:
     branches: [dev, master]
 
-# 决策记录：GitHub Actions 暂时禁用（账户计费阻塞），常规验证与 Release 构建由
-# GitLab tag pipeline 承担。每个 job 由仓库 Variable ACTIONS_ENABLED 守卫；
-# 解除阻塞后在仓库 Settings > Variables 将 ACTIONS_ENABLED 设为 true 即可恢复。
+# 决策记录：早期因账户计费问题暂时禁用过 GitHub Actions；现已恢复启用，
+# 常规分支 CI 在 GitHub Actions 上运行。每个 job 仍由仓库 Variable
+# ACTIONS_ENABLED 守卫，可在仓库 Settings > Variables 中随时启停。
+# 跨平台 Release 构建见 .github/workflows/release.yml（手动两阶段触发）。
 
 concurrency:
   group: ci-${{ github.ref }}
