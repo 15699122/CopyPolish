@@ -64,7 +64,7 @@ Rust 格式化引擎 / 设置存储
 
 - `restore_last_input` 缺失时默认为 `false`。
 - 开关关闭时，保存前必须将 `last_input` 归一化为空字符串。
-- 设置写入使用临时文件、同步和原子替换，并保留可恢复备份。
+- 设置写入使用进程内串行锁、唯一临时文件、`0600` 私有权限（Unix）、目录同步和原子替换，并保留可恢复备份；设置、备份和临时目标为 symlink 时拒绝写入。Windows reparse point/junction 与跨进程并发行为已由用户于 2026-09-06 手动确认，完整复现仍需保留 Windows 环境和 artifact 证据。
 - 用户可在设置 → 隐私中清除已保存正文；详细用户说明见 [privacy.md](privacy.md)。
 - 设置文件不得作为诊断日志、测试 artifact 或 Release 资产上传。
 
@@ -124,7 +124,7 @@ E2E 当前存在已登记的 `GHSA-jmr9-qjv8-65gv` high 风险，来自 `extract
 
 进入 v0.7.0 前必须完成：
 
-- 设置权限、symlink/reparse point、并发写入和备份恢复验证；
+- 设置权限、symlink/reparse point、并发写入和备份恢复验证（Unix 自动化与 Windows 用户确认已完成；如需审计级证据仍需补齐原生 artifact）；
 - IPC 稳定错误 code 与资源边界测试；
 - E2E advisory 修复或限期风险接受复核；
 - GitHub Actions SHA 固定、权限审查和 workflow 输入校验；
