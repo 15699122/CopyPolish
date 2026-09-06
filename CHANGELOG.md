@@ -8,6 +8,7 @@
 
 ### Maintenance
 
+- 将 `docs/roadmap.md` 中 2026-09 的 Windows 原生复验与收尾历史记录迁入 `docs/archive/validation/windows-2026-09.md`；roadmap 仅保留指向归档的说明。
 - 开发基线版本推进至 `0.6.1-dev.1`；发布版本管理规则见 `docs/release/manual-release.md`。
 
 ## [0.6.0] - 2026-09-05
