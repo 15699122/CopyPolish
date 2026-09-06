@@ -1,0 +1,294 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "发布 tag（如 v0.6.0）"
+        required: true
+        default: v0.6.0
+      publish:
+        description: "发布模式：true 时创建 tag 与 GitHub Release（先通过 publish=false 演练）"
+        type: boolean
+        default: false
+
+# 决策记录：GitHub Actions Release workflow（docs/release/manual-release.md §8.1）。
+# 两阶段手动设计：publish=false 只构建与校验七项资产 + SHA256SUMS（不创建 tag/Release）；
+# publish=true 在全部校验通过后由 publish job 创建 annotated tag 并发布 latest Release。
+# 不交叉编译：Windows 资产在 windows-latest，Linux 资产在 ubuntu-latest。
+# 资产清单与校验逻辑复用 scripts/verify_release_assets.py（单一事实来源）。
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ inputs.tag }}
+  cancel-in-progress: false
+
+env:
+  RELEASE_TAG: ${{ inputs.tag }}
+  # Windows runner 的 Python 默认 cp1252，中文输出会触发 UnicodeEncodeError；
+  # 强制 UTF-8（对 Linux 无影响）。
+  PYTHONUTF8: "1"
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  validate:
+    name: Validate (release gate)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+
+      - name: Install Tauri system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf p7zip-full
+
+      - name: Sync and check version
+        run: |
+          python3 scripts/prepare_release_version.py "$RELEASE_TAG"
+          python3 scripts/check_version.py "$RELEASE_TAG"
+
+      - name: Release gate (verify.py --profile release)
+        run: python3 scripts/verify.py --profile release --tag "$RELEASE_TAG"
+
+      - name: E2E typecheck
+        run: |
+          npm ci --prefix e2e
+          npm run typecheck --prefix e2e
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+
+      - name: Dependency audit
+        run: python3 scripts/verify.py --profile audit
+
+      - name: Simplified/Traditional feature checks
+        run: |
+          cargo clippy \
+            --manifest-path src-tauri/Cargo.toml \
+            --features simplified-trad-conversion \
+            --all-targets -- -D warnings
+          cargo test \
+            --manifest-path src-tauri/Cargo.toml \
+            --features simplified-trad-conversion
+
+  build-linux:
+    name: Build Linux assets
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf p7zip-full
+
+      - name: Build Linux GUI bundles and TUI asset
+        run: ./scripts/build_release_local.sh "$RELEASE_TAG"
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-linux-${{ env.RELEASE_TAG }}
+          path: |
+            dist/CopyPolish_linux_amd64.deb
+            dist/CopyPolish-linux-x86_64.rpm
+            dist/CopyPolish_linux_amd64.AppImage
+            dist/CopyPolish-tui-linux-x86_64.7z
+          if-no-files-found: error
+          retention-days: 7
+
+  build-windows:
+    name: Build Windows assets
+    needs: validate
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+
+      - name: Build Windows GUI exe and TUI asset
+        shell: pwsh
+        run: .\scripts\build_release_local.ps1 $env:RELEASE_TAG
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-windows-${{ env.RELEASE_TAG }}
+          path: |
+            dist/CopyPolish.exe
+            dist/CopyPolish-windows-x64.7z
+            dist/CopyPolish-tui-windows-x64.7z
+          if-no-files-found: error
+          retention-days: 7
+
+  windows-smoke:
+    name: Windows smoke (launch built exe)
+    needs: build-windows
+    runs-on: windows-latest
+    steps:
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-windows-${{ env.RELEASE_TAG }}
+          path: dist
+
+      - name: Extract portable archive
+        shell: pwsh
+        run: |
+          7z x dist/CopyPolish-windows-x64.7z -o"$env:RUNNER_TEMP\smoke" -y
+          if ($LASTEXITCODE -ne 0) { Write-Error "7z 解压失败" }
+
+      - name: Launch and probe CopyPolish.exe
+        shell: pwsh
+        run: |
+          $exe = Join-Path $env:RUNNER_TEMP "smoke\CopyPolish.exe"
+          $proc = Start-Process -FilePath $exe -PassThru
+          Start-Sleep -Seconds 60
+          if ($proc.HasExited) {
+            Write-Error "CopyPolish.exe 在 60 秒内退出（退出码 $($proc.ExitCode)）——smoke 失败"
+          }
+          Start-Sleep -Seconds 10
+          if ($proc.HasExited) {
+            Write-Error "CopyPolish.exe 在观察期内崩溃退出——smoke 失败"
+          }
+          Write-Host "smoke 通过：进程存活 70 秒"
+          Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+
+  assemble:
+    name: Assemble full asset set + SHA256SUMS
+    needs: [build-linux, build-windows, windows-smoke]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Linux artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-linux-${{ env.RELEASE_TAG }}
+          path: incoming/linux
+
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-windows-${{ env.RELEASE_TAG }}
+          path: incoming/windows
+
+      - name: Assemble dist/final
+        run: |
+          mkdir -p dist/final
+          cp incoming/linux/* dist/final/
+          cp incoming/windows/* dist/final/
+          ls -l dist/final
+
+      - name: Verify full asset set (before checksum)
+        run: python3 scripts/verify_release_assets.py "$RELEASE_TAG" --dist-dir dist/final --platform all
+
+      - name: Generate SHA256SUMS
+        run: |
+          cd dist/final
+          sha256sum \
+            CopyPolish.exe \
+            CopyPolish-windows-x64.7z \
+            CopyPolish_linux_amd64.deb \
+            CopyPolish-linux-x86_64.rpm \
+            CopyPolish_linux_amd64.AppImage \
+            CopyPolish-tui-windows-x64.7z \
+            CopyPolish-tui-linux-x86_64.7z \
+            > SHA256SUMS
+          sha256sum -c SHA256SUMS
+
+      - name: Upload full release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CopyPolish-${{ env.RELEASE_TAG }}-release
+          path: dist/final/*
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish tag + GitHub Release
+    needs: assemble
+    if: ${{ inputs.publish }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Guard — tag must not exist yet
+        run: |
+          if git ls-remote --exit-code --tags origin "refs/tags/${RELEASE_TAG}"; then
+            echo "tag ${RELEASE_TAG} 已存在，拒绝覆盖发布" >&2
+            exit 1
+          fi
+          case "$RELEASE_TAG" in
+            v[0-9]*.[0-9]*.[0-9]*) : ;;
+            *) echo "tag 必须严格匹配 vX.Y.Z: ${RELEASE_TAG}" >&2; exit 1 ;;
+          esac
+
+      - name: Guard — publish only from master
+        if: ${{ github.ref_name != 'master' }}
+        run: |
+          echo "publish=true 仅允许在 master 分支执行（当前: ${{ github.ref_name }}）" >&2
+          exit 1
+
+      - name: Download full release artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: CopyPolish-${{ env.RELEASE_TAG }}-release
+          path: dist/final
+
+      - name: Re-verify checksums
+        run: cd dist/final && sha256sum -c SHA256SUMS
+
+      - name: Create annotated tag and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$RELEASE_TAG" -m "Release ${RELEASE_TAG}"
+          git push origin "refs/tags/${RELEASE_TAG}"
+
+      - name: Create GitHub Release (latest)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$RELEASE_TAG" \
+            --title "$RELEASE_TAG" \
+            --notes-file docs/archive/releases/v0.6.0.md \
+            --latest \
+            dist/final/CopyPolish.exe \
+            dist/final/CopyPolish-windows-x64.7z \
+            dist/final/CopyPolish_linux_amd64.deb \
+            dist/final/CopyPolish-linux-x86_64.rpm \
+            dist/final/CopyPolish_linux_amd64.AppImage \
+            dist/final/CopyPolish-tui-windows-x64.7z \
+            dist/final/CopyPolish-tui-linux-x86_64.7z \
+            dist/final/SHA256SUMS
