@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+## [Unreleased]
+
+### Maintenance
+
+- 开发基线版本推进至 `0.6.1-dev.1`；发布版本管理规则见 `docs/release/manual-release.md`。
+
 ## [0.6.0] - 2026-09-05
 
 ### Added
