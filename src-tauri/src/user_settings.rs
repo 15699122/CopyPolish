@@ -15,7 +15,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::io::Write;
+use std::io::{ErrorKind, Write};
 use std::path::{Path, PathBuf};
 
 use crate::engine::{
@@ -42,6 +42,66 @@ pub(crate) fn backup_path_for(settings_path: &Path) -> PathBuf {
         .unwrap_or_default();
     name.push(".bak");
     settings_path.with_file_name(name)
+}
+
+/// 为设置保存生成进程/时间唯一的临时路径，避免多个进程共享固定
+/// `rules.yaml.tmp` 时互相覆盖或误操作未知文件。
+fn temporary_path_for(settings_path: &Path) -> PathBuf {
+    let file_name = settings_path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("rules.yaml");
+    let nonce = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    settings_path.with_file_name(format!(".{file_name}.tmp-{}-{nonce}", std::process::id()))
+}
+
+/// 不跟随链接检查设置写入目标。设置路径、备份路径和临时路径都必须
+/// 是普通文件或尚不存在；否则拒绝操作，避免把内容写到非预期目标。
+fn reject_symlink(path: &Path, label: &str) -> Result<(), String> {
+    match fs::symlink_metadata(path) {
+        Ok(metadata) if metadata.file_type().is_symlink() => Err(format!(
+            "{label} path must not be a symbolic link: {}",
+            path.display()
+        )),
+        Ok(_) => Ok(()),
+        Err(error) if error.kind() == ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(format!(
+            "inspect {label} path {} failed: {error}",
+            path.display()
+        )),
+    }
+}
+
+#[cfg(unix)]
+fn set_private_permissions(file: &fs::File, path: &Path) -> Result<(), String> {
+    use std::os::unix::fs::PermissionsExt;
+    file.set_permissions(fs::Permissions::from_mode(0o600))
+        .map_err(|error| {
+            format!(
+                "set private permissions on {} failed: {error}",
+                path.display()
+            )
+        })
+}
+
+#[cfg(not(unix))]
+fn set_private_permissions(_file: &fs::File, _path: &Path) -> Result<(), String> {
+    Ok(())
+}
+
+#[cfg(unix)]
+fn sync_directory(dir: &Path) -> Result<(), String> {
+    fs::File::open(dir)
+        .and_then(|file| file.sync_all())
+        .map_err(|error| format!("sync settings directory {} failed: {error}", dir.display()))
+}
+
+#[cfg(not(unix))]
+fn sync_directory(_dir: &Path) -> Result<(), String> {
+    Ok(())
 }
 /// 旧版设置文件名（JSON，仅用于一次性迁移读取）。
 pub const LEGACY_SETTINGS_FILE_NAME: &str = "ccw-formatter-settings.json";
@@ -422,36 +482,53 @@ pub fn save_to(path: &Path, settings: &UserSettings) -> Result<(), String> {
         ));
     }
 
-    let tmp_path = path.with_extension("yaml.tmp");
-    let mut file = fs::File::create(&tmp_path).map_err(|e| {
-        format!(
-            "create temporary settings file {} failed; target settings file is {}; directory is {}: {e}",
-            tmp_path.display(),
-            path.display(),
-            dir.display()
-        )
-    })?;
-    file.write_all(yaml.as_bytes()).map_err(|e| {
-        format!(
-            "write temporary settings file {} failed; target settings file is {}: {e}",
+    reject_symlink(path, "settings")?;
+    let backup_path = backup_path_for(path);
+    reject_symlink(&backup_path, "settings backup")?;
+    let tmp_path = temporary_path_for(path);
+    reject_symlink(&tmp_path, "temporary settings")?;
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&tmp_path)
+        .map_err(|error| {
+            format!(
+                "create temporary settings file {} failed; target settings file is {}; directory is {}; error: {error}",
+                tmp_path.display(),
+                path.display(),
+                dir.display()
+            )
+        })?;
+    if let Err(error) = set_private_permissions(&file, &tmp_path) {
+        drop(file);
+        let _ = fs::remove_file(&tmp_path);
+        return Err(error);
+    }
+    if let Err(error) = file.write_all(yaml.as_bytes()) {
+        drop(file);
+        let _ = fs::remove_file(&tmp_path);
+        return Err(format!(
+            "write temporary settings file {} failed; target settings file is {}: {error}",
             tmp_path.display(),
             path.display()
-        )
-    })?;
-    file.sync_all().map_err(|e| {
-        format!(
-            "flush temporary settings file {} failed; target settings file is {}: {e}",
+        ));
+    }
+    if let Err(error) = file.sync_all() {
+        drop(file);
+        let _ = fs::remove_file(&tmp_path);
+        return Err(format!(
+            "flush temporary settings file {} failed; target settings file is {}: {error}",
             tmp_path.display(),
             path.display()
-        )
-    })?;
+        ));
+    }
     drop(file);
 
     // 先保留当前有效文件，再替换主文件。若备份轮换失败，主文件仍保持不变。
     let mut backup_moved = false;
-    let backup_path = backup_path_for(path);
     if path.exists() {
         if backup_path.exists() {
+            reject_symlink(&backup_path, "settings backup")?;
             fs::remove_file(&backup_path).map_err(|e| {
                 format!(
                     "remove previous settings backup {} failed; target settings file is {}: {e}",
@@ -467,7 +544,18 @@ pub fn save_to(path: &Path, settings: &UserSettings) -> Result<(), String> {
                 backup_path.display()
             )
         })?;
+        if let Err(error) = set_private_permissions(
+            &fs::File::open(&backup_path).map_err(|e| {
+                format!("open settings backup {} failed: {e}", backup_path.display())
+            })?,
+            &backup_path,
+        ) {
+            let _ = fs::rename(&backup_path, path);
+            let _ = fs::remove_file(&tmp_path);
+            return Err(error);
+        }
         backup_moved = true;
+        sync_directory(dir)?;
     }
 
     if let Err(error) = fs::rename(&tmp_path, path) {
@@ -482,6 +570,7 @@ pub fn save_to(path: &Path, settings: &UserSettings) -> Result<(), String> {
             dir.display()
         ));
     }
+    sync_directory(dir)?;
     Ok(())
 }
 
@@ -750,6 +839,81 @@ mod tests {
         assert_eq!(load_from(&backup), Some(first));
         let _ = fs::remove_file(&path);
         let _ = fs::remove_file(&backup);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn settings_and_backup_files_use_private_permissions() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let path = temp_settings_file("private-permissions");
+        let backup = backup_path_for(&path);
+        save_to(&path, &UserSettings::default()).expect("first save should succeed");
+        assert_eq!(
+            fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+
+        save_to(&path, &UserSettings::default()).expect("second save should succeed");
+        assert_eq!(
+            fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+        assert_eq!(
+            fs::metadata(&backup).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+
+        let leftovers: Vec<_> = fs::read_dir(path.parent().unwrap())
+            .unwrap()
+            .filter_map(Result::ok)
+            .map(|entry| entry.file_name())
+            .filter(|name| name.to_string_lossy().contains("private-permissions"))
+            .collect();
+        assert_eq!(leftovers.len(), 2, "only settings and backup should remain");
+        let _ = fs::remove_file(&path);
+        let _ = fs::remove_file(&backup);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn symlinked_settings_target_is_rejected_without_modifying_target() {
+        use std::os::unix::fs::symlink;
+
+        let path = temp_settings_file("symlink-target");
+        let target = temp_settings_file("symlink-target-real");
+        fs::write(&target, "sentinel").unwrap();
+        symlink(&target, &path).unwrap();
+
+        let error = save_to(&path, &UserSettings::default()).expect_err("symlink must be rejected");
+        assert!(error.contains("must not be a symbolic link"));
+        assert_eq!(fs::read_to_string(&target).unwrap(), "sentinel");
+
+        let _ = fs::remove_file(&path);
+        let _ = fs::remove_file(&target);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn symlinked_backup_target_is_rejected_without_modifying_existing_settings() {
+        use std::os::unix::fs::symlink;
+
+        let path = temp_settings_file("symlink-backup");
+        let backup = backup_path_for(&path);
+        let target = temp_settings_file("symlink-backup-real");
+        save_to(&path, &UserSettings::default()).expect("first save should succeed");
+        fs::write(&target, "sentinel").unwrap();
+        symlink(&target, &backup).unwrap();
+
+        let error =
+            save_to(&path, &UserSettings::default()).expect_err("backup symlink must be rejected");
+        assert!(error.contains("settings backup path must not be a symbolic link"));
+        assert!(path.is_file());
+        assert_eq!(fs::read_to_string(&target).unwrap(), "sentinel");
+
+        let _ = fs::remove_file(&path);
+        let _ = fs::remove_file(&backup);
+        let _ = fs::remove_file(&target);
     }
 
     #[test]
