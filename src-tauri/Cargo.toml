@@ -1,6 +1,6 @@
 [package]
 name = "chinese-copywriting-formatter"
-version = "0.6.0-pre5"
+version = "0.6.0"
 description = "文案净排（CopyPolish）—— 本地桌面端中文文案排版工具"
 authors = ["CopyPolish"]
 edition = "2021"
