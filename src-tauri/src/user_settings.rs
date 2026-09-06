@@ -18,12 +18,18 @@ use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use crate::engine::{CharacterConversion, ReplacementPair};
+use crate::engine::{
+    CharacterConversion, ReplacementPair, MAX_REPLACEMENTS, MAX_REPLACEMENT_FIELD_BYTES,
+    MAX_RULE_SELECTION_KEYS,
+};
 
 /// 用户设置文件名（exe 同目录，YAML 格式）。
 pub const SETTINGS_FILE_NAME: &str = "rules.yaml";
 /// 设置备份文件名；主文件损坏时作为最后一次有效保存的恢复来源。
 pub const SETTINGS_BACKUP_FILE_NAME: &str = "rules.yaml.bak";
+/// 设置文件解析前的最大字节数，避免异常文件导致无界内存分配。
+pub const MAX_SETTINGS_FILE_BYTES: u64 = 2 * 1024 * 1024;
+pub const MAX_SHORTCUT_BINDING_BYTES: usize = 128;
 
 /// 由设置文件路径派生备份路径：在文件名后追加 `.bak`。
 /// 生产设置文件固定为 `rules.yaml`，派生结果即 `rules.yaml.bak`；
@@ -199,6 +205,42 @@ pub fn enforce_input_privacy(settings: &mut UserSettings) {
     }
 }
 
+/// 校验用户设置资源规模。保存入口和文件序列化入口都应调用，避免
+/// 恶意/损坏调用方通过设置文件制造无界的内存或磁盘增长。
+pub fn validate_user_settings(settings: &UserSettings) -> Result<(), String> {
+    if settings.enabled.len() > MAX_RULE_SELECTION_KEYS {
+        return Err(format!(
+            "enabled rules exceed the {} key limit",
+            MAX_RULE_SELECTION_KEYS
+        ));
+    }
+    if settings.replacements.len() > MAX_REPLACEMENTS {
+        return Err(format!(
+            "replacements exceed the {} item limit",
+            MAX_REPLACEMENTS
+        ));
+    }
+    for pair in &settings.replacements {
+        if pair.from.len() > MAX_REPLACEMENT_FIELD_BYTES
+            || pair.to.len() > MAX_REPLACEMENT_FIELD_BYTES
+        {
+            return Err(format!(
+                "replacement fields exceed the {} KiB limit",
+                MAX_REPLACEMENT_FIELD_BYTES / 1024
+            ));
+        }
+    }
+    for binding in settings.shortcuts.bindings.values() {
+        if binding.len() > MAX_SHORTCUT_BINDING_BYTES {
+            return Err(format!(
+                "shortcut bindings exceed the {} byte limit",
+                MAX_SHORTCUT_BINDING_BYTES
+            ));
+        }
+    }
+    Ok(())
+}
+
 /// 设置加载提醒类型。
 #[derive(Serialize, Clone, Copy, Debug, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -348,11 +390,18 @@ pub fn uses_app_data_fallback() -> bool {
 
 /// 从指定路径读取 YAML 设置；文件缺失或解析失败时返回 None（调用方自行回落默认值）。
 pub fn load_from(path: &Path) -> Option<UserSettings> {
+    let metadata = fs::metadata(path).ok()?;
+    if !metadata.is_file() || metadata.len() > MAX_SETTINGS_FILE_BYTES {
+        return None;
+    }
     let text = fs::read_to_string(path).ok()?;
-    serde_yaml::from_str(&text).ok()
+    let settings = serde_yaml::from_str(&text).ok()?;
+    validate_user_settings(&settings).ok()?;
+    Some(settings)
 }
 
 pub fn save_to(path: &Path, settings: &UserSettings) -> Result<(), String> {
+    validate_user_settings(settings)?;
     let yaml = serde_yaml::to_string(settings)
         .map_err(|e| format!("serialize settings for {}: {e}", path.display()))?;
     let dir = path
@@ -878,6 +927,38 @@ mod tests {
         fs::write(&path, "not json {{{\"").unwrap();
         assert_eq!(load_from(&path), None);
         let _ = fs::remove_file(&path);
+    }
+
+    #[test]
+    fn oversized_settings_are_rejected_before_use() {
+        let path = temp_settings_file("oversized-file");
+        fs::write(&path, "x".repeat((MAX_SETTINGS_FILE_BYTES + 1) as usize)).unwrap();
+        assert_eq!(load_from(&path), None);
+        let _ = fs::remove_file(&path);
+
+        let path = temp_settings_file("oversized-replacements");
+        let settings = UserSettings {
+            replacements: vec![ReplacementPair::default(); MAX_REPLACEMENTS + 1],
+            ..UserSettings::default()
+        };
+        fs::write(&path, serde_yaml::to_string(&settings).unwrap()).unwrap();
+        assert_eq!(load_from(&path), None);
+        let _ = fs::remove_file(&path);
+    }
+
+    #[test]
+    fn oversized_shortcut_binding_is_rejected() {
+        let settings = UserSettings {
+            shortcuts: ShortcutSettings {
+                bindings: std::collections::BTreeMap::from([(
+                    "format_now".to_string(),
+                    "x".repeat(MAX_SHORTCUT_BINDING_BYTES + 1),
+                )]),
+                ..ShortcutSettings::default()
+            },
+            ..UserSettings::default()
+        };
+        assert!(validate_user_settings(&settings).is_err());
     }
 
     #[test]

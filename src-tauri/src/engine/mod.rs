@@ -34,7 +34,8 @@ pub(crate) mod unit_lexicon;
 
 pub use model::{
     CharacterConversion, FormatRequest, Preset, ReplacementPair, RuleExample, RuleKind, RuleMeta,
-    RuleRisk, RuleSelection,
+    RuleRisk, RuleSelection, MAX_FORMAT_INPUT_BYTES, MAX_REPLACEMENTS, MAX_REPLACEMENT_FIELD_BYTES,
+    MAX_RULE_SELECTION_KEYS,
 };
 pub use pipeline::format_text;
 #[cfg(feature = "profile-stages")]

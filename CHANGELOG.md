@@ -8,6 +8,8 @@
 
 - 新增 `docs/security.md` 安全模型，明确资产、信任边界、输入资源限制、Tauri capabilities、供应链和安全响应要求。
 - `scripts/verify.py --profile audit` 现在同时审计 Rust、frontend 和 E2E 依赖；E2E 已接受风险必须通过机器可读的 `docs/decisions/e2e-audit-policy.json` 登记，网络失败、非法 JSON 或未登记 high/critical 均不会被视为通过。
+- 为 GUI、TUI 和 CLI 共用的格式化请求增加资源限制：正文最多 10 MiB、规则 key 最多 500 个、替换最多 200 项且每个字段最多 16 KiB；设置文件最多 2 MiB，快捷键绑定最多 128 字节。
+- 设置加载与保存均执行资源校验，超限的设置文件会被安全拒绝，不进入格式化或持久化流程。
 
 ## [0.6.1] - 2026-09-06
 

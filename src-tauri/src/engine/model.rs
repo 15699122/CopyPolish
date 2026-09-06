@@ -131,6 +131,100 @@ pub struct FormatRequest {
     pub conversion: CharacterConversion,
 }
 
+/// 格式化请求的资源上限。限制在共享引擎边界执行，覆盖 GUI、TUI 和 CLI。
+pub const MAX_FORMAT_INPUT_BYTES: usize = 10 * 1024 * 1024;
+pub const MAX_RULE_SELECTION_KEYS: usize = 500;
+pub const MAX_REPLACEMENTS: usize = 200;
+pub const MAX_REPLACEMENT_FIELD_BYTES: usize = 16 * 1024;
+
+impl FormatRequest {
+    /// 校验请求资源规模，避免异常调用方造成无界内存/CPU 消耗。
+    pub fn validate(&self) -> Result<(), String> {
+        if self.text.len() > MAX_FORMAT_INPUT_BYTES {
+            return Err(format!(
+                "input text exceeds the {} MiB limit",
+                MAX_FORMAT_INPUT_BYTES / (1024 * 1024)
+            ));
+        }
+        if let RuleSelection::Only { keys } = &self.selection {
+            if keys.len() > MAX_RULE_SELECTION_KEYS {
+                return Err(format!(
+                    "rule selection exceeds the {} key limit",
+                    MAX_RULE_SELECTION_KEYS
+                ));
+            }
+        }
+        if self.replacements.len() > MAX_REPLACEMENTS {
+            return Err(format!(
+                "replacements exceed the {} item limit",
+                MAX_REPLACEMENTS
+            ));
+        }
+        for pair in &self.replacements {
+            if pair.from.len() > MAX_REPLACEMENT_FIELD_BYTES
+                || pair.to.len() > MAX_REPLACEMENT_FIELD_BYTES
+            {
+                return Err(format!(
+                    "replacement fields exceed the {} KiB limit",
+                    MAX_REPLACEMENT_FIELD_BYTES / 1024
+                ));
+            }
+        }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn format_request_rejects_oversized_resources() {
+        let mut request = FormatRequest {
+            text: "x".repeat(MAX_FORMAT_INPUT_BYTES + 1),
+            ..Default::default()
+        };
+        assert!(request.validate().is_err());
+
+        request.text.clear();
+        request.replacements = vec![ReplacementPair::default(); MAX_REPLACEMENTS + 1];
+        assert!(request.validate().is_err());
+
+        request.replacements.clear();
+        request.replacements.push(ReplacementPair {
+            from: "x".repeat(MAX_REPLACEMENT_FIELD_BYTES + 1),
+            ..Default::default()
+        });
+        assert!(request.validate().is_err());
+
+        request.replacements.clear();
+        request.selection = RuleSelection::Only {
+            keys: vec!["rule".to_string(); MAX_RULE_SELECTION_KEYS + 1],
+        };
+        assert!(request.validate().is_err());
+    }
+
+    #[test]
+    fn format_request_accepts_resource_limits() {
+        let request = FormatRequest {
+            text: "x".repeat(MAX_FORMAT_INPUT_BYTES),
+            replacements: vec![
+                ReplacementPair {
+                    from: "a".repeat(MAX_REPLACEMENT_FIELD_BYTES),
+                    to: "b".repeat(MAX_REPLACEMENT_FIELD_BYTES),
+                    active: true,
+                };
+                MAX_REPLACEMENTS
+            ],
+            selection: RuleSelection::Only {
+                keys: vec!["rule".to_string(); MAX_RULE_SELECTION_KEYS],
+            },
+            ..Default::default()
+        };
+        assert!(request.validate().is_ok());
+    }
+}
+
 impl Default for FormatRequest {
     fn default() -> Self {
         Self {
