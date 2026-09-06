@@ -5,7 +5,10 @@ declare const __APP_VERSION__: string;
 interface CopyPolishE2EDiagnostics {
   lastFormatRequest?: unknown;
   lastFormatResult?: string;
-  lastFormatError?: string;
+  lastFormatError?: {
+    code: string;
+    message: string;
+  };
   lastSettingsSave?: unknown;
   settingsSaveSequence?: number;
   buildCapabilities?: {
