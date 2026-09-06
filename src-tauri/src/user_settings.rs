@@ -1,8 +1,10 @@
 // user_settings.rs
 // =============================================================================
-// 用户设置持久化：保存在「可执行文件所在目录」下的 rules.yaml（YAML 格式）。
-// Windows 便携版运行后在 exe 相同目录生成 rules.yaml；目录不可写时向前端返回
-// 带路径的明确错误，便于用户把便携版放到可写目录。
+// 用户设置持久化（ADR：docs/decisions/settings-storage-policy.md 方案 B）。
+// 默认保存在「可执行文件所在目录」下的 rules.yaml（YAML 格式）；
+// exe 目录不可写时，启动时一次性决策回退到平台应用数据目录
+// （Windows %APPDATA%\CopyPolish、Linux/macOS ~/.config/CopyPolish），
+// 并通过 UsingAppDataFallback 提醒前端展示实际生效路径。
 //
 // 迁移：若 rules.yaml 不存在但同目录存在旧版 ccw-formatter-settings.json，
 // 自动读取旧 JSON 并转换写入新的 rules.yaml。
