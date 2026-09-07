@@ -26,7 +26,7 @@
 | Unicode | grapheme、emoji、组合符、CJK Ext-B | Unicode 数据/工具链升级回归 |
 | 全角/半角转换 | `text.halfwidth-digits` 与 `text.halfwidth-ascii` 的职责边界、全角空格/NFKC 反例和结构保护 | 补充真实来源语料后评估更多字符类别 |
 | 单位和数学 | 有限词典、复合单位、数学边界 | 按真实语料扩展词典 |
-| 自定义替换、简繁转换与工作流预设 | Rust 请求/设置/预设 fixture；GUI 与 TUI 组件/事件交互、添加/编辑/启停/删除/转换选择、预设加载与应用、设置加载、持久化、请求透传、实时重排、快捷键立即排版和旧设置兼容；默认与 `simplified-trad-conversion` feature 构建覆盖；embedded GUI E2E 已覆盖保存、替换输出、重启恢复及 feature 下双向真实转换 | CLI 参数 |
+| 自定义替换、简繁转换与工作流预设 | Rust 请求/设置/预设 fixture；GUI 与 TUI 组件/事件交互、添加/编辑/启停/删除/转换选择、预设加载与应用、设置加载、持久化、请求透传、实时重排、快捷键立即排版和旧设置兼容；默认与 `simplified-trad-conversion` feature 构建覆盖；embedded GUI E2E 已覆盖保存、替换输出、重启恢复及 feature 下双向真实转换 | CLI `--preset` 参数（自定义替换与简繁转换参数当前不实现） |
 | 设置 | Rust Windows 测试 16/16；旧版本 Windows GUI 与 PR #24 当前设置页已完成保存、重启恢复、损坏 fixture、ACL 保存失败及视觉/DPI/窄窗口回归；损坏设置、重启恢复和 NTFS ACL 已在两个 provider 自动化通过；统一 artifact、受控失败 probe 和 GUI 主题/窄窗口 artifact 已实现 | PR #24 的主题三项间距、`rules.yaml` 路径悬停/复制、简繁转换间距、规则 hover 示例、键盘焦点和窄窗口 Footer 已在 2026-09-04 Windows 原生 checkout 验证；默认/feature restart 均 2/2；三档 DPI 自动矩阵仍跳过；GitLab Windows stage 仍跳过 |
 | 前端状态 | 防抖、竞态、错误、主题、字体、快捷键以及替换/转换设置透传 | 真实 IPC E2E |
 | 输出模式、布局与统计 | 实时/手动模式切换、手动模式显式排版、自动/左右/上下布局、Unicode code point 输入输出统计、设置加载与持久化 | 真实窗口尺寸矩阵 |

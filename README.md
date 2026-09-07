@@ -199,7 +199,7 @@ copypolish-tui --input article.md --output formatted.md --rules all
 copypolish-tui --help
 ```
 
-非交互模式常用参数：`--rules <all|defaults|none>` 覆盖规则集；`--enable <key>` / `--disable <key>` 微调单条规则；`--no-config` 完全跳过共享设置。交互界面支持多行编辑、实时预览、规则开关、复制输出（OSC 52，依赖终端支持）、替换/字符转换请求设置和工作流预设。按 `Ctrl+E`（非输入区也可用 `e`）打开请求设置面板；按 `Ctrl+P`（非输入区也可用 `p`）打开预设面板，使用 `↑/↓` 选择、Enter 应用。默认构建会将不可用的 T2S/S2T 归一化为“不转换”，启用 `simplified-trad-conversion` feature 的 TUI 才执行真实转换。终端模块和开发命令详见 [docs/architecture.md](docs/architecture.md) 与 [docs/development.md](docs/development.md)。
+非交互模式常用参数：`--rules <all|defaults|none>` 覆盖规则集；`--enable <key>` / `--disable <key>` 微调单条规则；`--preset <copywriting|pdf-cleaning|technical-docs>` 应用内置预设作为基础规则选择（随后仍可用 `--rules`/`--enable`/`--disable` 微调，当前不展开自定义替换与简繁转换）；`--no-config` 完全跳过共享设置。交互界面支持多行编辑、实时预览、规则开关、复制输出（OSC 52，依赖终端支持）、替换/字符转换请求设置和工作流预设。按 `Ctrl+E`（非输入区也可用 `e`）打开请求设置面板；按 `Ctrl+P`（非输入区也可用 `p`）打开预设面板，使用 `↑/↓` 选择、Enter 应用。默认构建会将不可用的 T2S/S2T 归一化为“不转换”，启用 `simplified-trad-conversion` feature 的 TUI 才执行真实转换。终端模块和开发命令详见 [docs/architecture.md](docs/architecture.md) 与 [docs/development.md](docs/development.md)。
 
 ## 开发文档
 

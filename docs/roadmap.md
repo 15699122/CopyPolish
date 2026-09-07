@@ -98,6 +98,10 @@ v0.6.2 已发布，当前开发基线为 `0.7.0-dev.1`，新功能开发已恢�
 - [x] 增加康熙部首修复：采用 Unicode 17.0.0 `UnicodeData.txt` 的 214 项兼容分解映射，默认关闭并记录数据来源；
 - [ ] 增加结构感知的 PDF 段内软换行修复和 CJK 内部异常空格清理：默认关闭；当前仅完成未经真实 PDF/CAJ 语料验收的 `cleanup.cjk-internal-space` 保守试实现，段内软换行、多栏顺序及正式 CJK 空格验收仍待真实语料、人工标注和失败率基线；
 
+## P1：CLI 非交互模式补齐（v0.7.0 优先）
+
+- [ ] 增加非交互 CLI 的 `--preset <copywriting|pdf-cleaning|technical-docs>` 参数：复用内置预设展开为统一 `FormatRequest`，与 `--rules`/`--enable`/`--disable` 组合时，预设作为基础、显式规则参数在其上微调；自定义字面量替换与简繁转换参数当前不实现，因此 `--preset` 仅展开规则选择，不含替换与转换。
+
 ## P1：字符转换与用户工作流
 
 - [x] 完成全角 ASCII 转半角 Spike/实现：不使用全文 NFKC；新增默认关闭的 `text.halfwidth-ascii`，仅转换全角 ASCII 字母/标点，全角数字继续由 `text.halfwidth-digits` 负责，并通过现有结构保护跳过链接、代码、公式和化学式；

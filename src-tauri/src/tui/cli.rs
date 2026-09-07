@@ -29,6 +29,7 @@ pub struct Cli {
     pub rules_mode: Option<RulesMode>,
     pub enable: Vec<String>,
     pub disable: Vec<String>,
+    pub preset: Option<String>,
     pub no_config: bool,
     pub help: bool,
 }
@@ -57,12 +58,19 @@ pub fn usage() -> &'static str {
   --enable <key>        在基础集之上追加启用规则（可多次使用）
   --disable <key>       从基础集移除规则（可多次使用）
 
+工作流预设：
+  --preset <copywriting|pdf-cleaning|technical-docs>
+                         应用内置预设作为基础规则选择；随后仍可用
+                         --rules/--enable/--disable 进行微调。当前不展开
+                         自定义替换与简繁转换。
+
 其它：
   --no-config           不读取也不写入共享的 rules.yaml
   --help, -h            显示本帮助
 
 示例：
   printf '在LeanCloud上，花了5000元' | copypolish-tui --stdin --no-config
+  copypolish-tui --input article.md --output formatted.md --preset pdf-cleaning
 "
 }
 
@@ -103,6 +111,7 @@ pub fn parse(args: &[String]) -> Result<Cli, String> {
             "--disable" => cli
                 .disable
                 .push(take_value("--disable", values.next())?.to_string()),
+            "--preset" => cli.preset = Some(take_value("--preset", values.next())?.to_string()),
             "--no-config" => cli.no_config = true,
             "--help" | "-h" => cli.help = true,
             other => return Err(format!("未知参数：{other}（使用 --help 查看用法）")),
@@ -124,12 +133,13 @@ pub fn unknown_filter_keys(cli: &Cli, rules: &[RuleMeta]) -> Vec<String> {
 
 /// 构建本次运行使用的 `RuleSelection`。
 ///
-/// 基础集优先级：显式 `--rules` > 共享设置的规则选择 > 默认规则；
+/// 基础集优先级：显式 `--rules` > `--preset` > 共享设置的规则选择 > 默认规则；
 /// 然后依序应用 `--disable` 与 `--enable`，最终归一化为规范形式。
 pub fn build_selection(
     cli: &Cli,
     rules: &[RuleMeta],
     shared: Option<crate::engine::RuleSelection>,
+    preset_selection: Option<crate::engine::RuleSelection>,
 ) -> crate::engine::RuleSelection {
     let mut keys: BTreeSet<String> = match cli.rules_mode {
         Some(RulesMode::All) => rules.iter().map(|rule| rule.key.clone()).collect(),
@@ -139,8 +149,12 @@ pub fn build_selection(
             .map(|rule| rule.key.clone())
             .collect(),
         Some(RulesMode::None) => BTreeSet::new(),
-        None => shared
+        None => preset_selection
             .map(|selection| settings::expand_selection(&selection, rules))
+            .or_else(|| {
+                shared
+                    .map(|selection| settings::expand_selection(&selection, rules))
+            })
             .unwrap_or_else(|| {
                 rules
                     .iter()
@@ -180,7 +194,21 @@ fn run_once(cli: &Cli) -> Result<(), String> {
     } else {
         settings::load_shared(false).map(|config| config.selection)
     };
-    let selection = build_selection(cli, &rules, shared);
+    let preset_selection = match &cli.preset {
+        Some(preset_key) => {
+            let preset = crate::engine::presets()
+                .into_iter()
+                .find(|preset| preset.key == *preset_key)
+                .ok_or_else(|| {
+                    format!(
+                        "未知预设：{preset_key}（可选：copywriting、pdf-cleaning、technical-docs）"
+                    )
+                })?;
+            Some(preset.selection)
+        }
+        None => None,
+    };
+    let selection = build_selection(cli, &rules, shared, preset_selection);
 
     let text = if cli.stdin {
         let mut buffer = String::new();
@@ -200,6 +228,7 @@ fn run_once(cli: &Cli) -> Result<(), String> {
         selection,
         ..Default::default()
     };
+
     let output = crate::engine::format_text(&request)?;
 
     if let Some(path) = &cli.output {
@@ -248,6 +277,8 @@ mod tests {
             "k1",
             "--disable",
             "k2",
+            "--preset",
+            "pdf-cleaning",
             "--no-config",
         ]);
         assert!(cli.stdin);
@@ -256,6 +287,7 @@ mod tests {
         assert_eq!(cli.rules_mode, Some(RulesMode::All));
         assert_eq!(cli.enable, vec!["k1".to_string()]);
         assert_eq!(cli.disable, vec!["k2".to_string()]);
+        assert_eq!(cli.preset.as_deref(), Some("pdf-cleaning"));
         assert!(cli.no_config);
         assert!(!cli.help);
     }
@@ -282,7 +314,7 @@ mod tests {
     fn rules_mode_overrides_shared_selection() {
         let rules = crate::engine::default_rules();
         let shared = RuleSelection::None;
-        match build_selection(&flags(&["--rules", "all"]), &rules, Some(shared)) {
+        match build_selection(&flags(&["--rules", "all"]), &rules, Some(shared), None) {
             RuleSelection::All => {}
             other => panic!("expected All, got {other:?}"),
         }
@@ -291,7 +323,7 @@ mod tests {
     #[test]
     fn no_mode_no_shared_falls_back_to_defaults() {
         let rules = crate::engine::default_rules();
-        match build_selection(&flags(&[]), &rules, None) {
+        match build_selection(&flags(&[]), &rules, None, None) {
             RuleSelection::Defaults => {}
             other => panic!("expected Defaults, got {other:?}"),
         }
@@ -301,7 +333,7 @@ mod tests {
     fn shared_selection_is_used_without_explicit_mode() {
         let rules = crate::engine::default_rules();
         // 共享为“全部关闭”时保持 None，而不是回落默认规则。
-        match build_selection(&flags(&[]), &rules, Some(RuleSelection::None)) {
+        match build_selection(&flags(&[]), &rules, Some(RuleSelection::None), None) {
             RuleSelection::None => {}
             other => panic!("expected None, got {other:?}"),
         }
@@ -317,9 +349,52 @@ mod tests {
             args.push("--disable".to_string());
             args.push(key.clone());
         }
-        match build_selection(&parse(&args).unwrap(), &rules, None) {
+        match build_selection(&parse(&args).unwrap(), &rules, None, None) {
             RuleSelection::None => {}
             other => panic!("expected None, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn preset_provides_base_selection_when_no_explicit_rules_mode() {
+        let rules = crate::engine::default_rules();
+        let preset_selection = crate::engine::presets()
+            .into_iter()
+            .find(|preset| preset.key == "pdf-cleaning")
+            .map(|preset| preset.selection);
+        match build_selection(
+            &flags(&["--preset", "pdf-cleaning"]),
+            &rules,
+            None,
+            preset_selection,
+        ) {
+            RuleSelection::Only { keys } => {
+                assert!(!keys.is_empty(), "pdf-cleaning preset should enable rules");
+            }
+            other => panic!("expected Only, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn enable_disable_adjust_preset_base_set() {
+        let rules = crate::engine::default_rules();
+        let preset_selection = crate::engine::presets()
+            .into_iter()
+            .find(|preset| preset.key == "copywriting")
+            .map(|preset| preset.selection);
+        match build_selection(
+            &flags(&["--preset", "copywriting", "--enable", "cleanup.reference-square"]),
+            &rules,
+            None,
+            preset_selection,
+        ) {
+            RuleSelection::Only { keys } => {
+                assert!(
+                    keys.contains(&"cleanup.reference-square".to_string()),
+                    "should include explicitly enabled rule"
+                );
+            }
+            other => panic!("expected Only, got {other:?}"),
         }
     }
 
@@ -384,6 +459,38 @@ mod tests {
         ]);
         let error = run_once(&cli).expect_err("missing file must fail");
         assert!(error.contains("读取输入文件"), "got: {error}");
+        assert_eq!(run_non_interactive(&cli), 1);
+    }
+
+    #[test]
+    fn run_once_applies_preset_selection_to_formatting() {
+        let input_path = temp_cli_file("preset-input");
+        let output_path = temp_cli_file("preset-output");
+        fs::write(&input_path, "在LeanCloud上，花了5000元").expect("write input fixture");
+
+        let cli = flags(&[
+            "--input",
+            &*input_path.to_string_lossy(),
+            "--output",
+            &*output_path.to_string_lossy(),
+            "--preset",
+            "copywriting",
+            "--no-config",
+        ]);
+        assert_eq!(run_once(&cli), Ok(()));
+
+        let formatted = fs::read_to_string(&output_path).expect("output file exists");
+        assert_eq!(formatted.trim(), "在 LeanCloud 上，花了 5000 元");
+
+        let _ = fs::remove_file(&input_path);
+        let _ = fs::remove_file(&output_path);
+    }
+
+    #[test]
+    fn run_once_reports_unknown_preset() {
+        let cli = flags(&["--stdin", "--preset", "nonexistent", "--no-config"]);
+        let error = run_once(&cli).expect_err("unknown preset must fail");
+        assert!(error.contains("未知预设"), "got: {error}");
         assert_eq!(run_non_interactive(&cli), 1);
     }
 }
