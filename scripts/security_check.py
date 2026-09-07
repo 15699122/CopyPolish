@@ -19,6 +19,7 @@ import re
 import shutil
 import subprocess
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
 
@@ -52,6 +53,32 @@ IGNORED_PATHS = {
 }
 
 
+@dataclass(frozen=True)
+class Finding:
+    """脱敏后的扫描发现。
+
+    设计约束（对应 CodeQL py/clear-text-logging-sensitive-data 告警）：
+    Finding 只允许包含仓库相对路径、行号和凭据类型标签，
+    绝不保存被匹配的源行内容、凭据原文或其任何派生字符串。
+    """
+
+    path: str
+    line_number: int
+    kind: str
+
+
+def classify_line(line: str) -> str | None:
+    """仅判断该行是否匹配某个凭据模式。
+
+    返回静态类型标签或不返回任何内容；被检查的行内容本身
+    不会进入返回值，也不会被调用方保留。
+    """
+    for label, pattern in SECRET_PATTERNS:
+        if pattern.search(line) is not None:
+            return label
+    return None
+
+
 def run(command: list[str]) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         command,
@@ -75,8 +102,8 @@ def is_binary(data: bytes) -> bool:
     return b"\0" in data
 
 
-def scan_plaintext_secrets() -> list[str]:
-    findings: list[str] = []
+def scan_plaintext_secrets() -> list[Finding]:
+    findings: list[Finding] = []
     for path in tracked_files():
         relative = path.relative_to(REPO_ROOT).as_posix()
         if relative in IGNORED_PATHS or not path.is_file():
@@ -86,10 +113,20 @@ def scan_plaintext_secrets() -> list[str]:
             continue
         text = data.decode("utf-8", errors="replace")
         for line_number, line in enumerate(text.splitlines(), start=1):
-            for label, pattern in SECRET_PATTERNS:
-                if pattern.search(line):
-                    findings.append(f"{relative}:{line_number}: {label}")
+            kind = classify_line(line)
+            if kind is not None:
+                # 只保留脱敏字段；匹配行内容在此处被丢弃。
+                findings.append(Finding(path=relative, line_number=line_number, kind=kind))
     return findings
+
+
+def format_findings(findings: list[Finding]) -> list[str]:
+    """将 Finding 渲染为诊断文本。
+
+    输入只能是 Finding 结构，保证凭据原文不可能通过该路径
+    进入 stdout/stderr。
+    """
+    return [f"{finding.path}:{finding.line_number}: {finding.kind}" for finding in findings]
 
 
 def validate_sops_structure() -> list[str]:
@@ -161,7 +198,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    errors = scan_plaintext_secrets()
+    errors = format_findings(scan_plaintext_secrets())
     tracked_secrets = run(["git", "ls-files", "--error-unmatch", "secrets/tokens.env"])
     if tracked_secrets.returncode == 0:
         errors.append("secrets/tokens.env must not be tracked; keep it local and use secrets/tokens.env.example")
