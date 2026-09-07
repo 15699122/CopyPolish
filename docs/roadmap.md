@@ -56,6 +56,8 @@ v0.6.2 定义为**隐私、安全、依赖和供应链维护版本**，不增加
 - [x] 运行当前依赖审计（`verify.py --profile audit` 口径）：frontend 生产依赖 0 漏洞；e2e 测试链在 2026-09-01 复核后报告 13 项 high，涉及 `@wdio`、`puppeteer`、`extract-zip` 等传递依赖；Cargo 0 漏洞、20 项允许的 unsound 警告（`lru` 等传递依赖）；
 - [x] 修复 e2e 测试链 `serialize-javascript` 高危告警：在 `e2e/package.json` 增加 npm `overrides` 固定到 `7.1.1`，保留 WebdriverIO 9/Mocha 10；`npm ci`、类型检查和审计验证通过，决策记录见 [decisions/wdio-serialize-javascript.md](decisions/wdio-serialize-javascript.md)。
 - [x] 修复 E2E 传递依赖 `deepmerge-ts` high 告警：在 `e2e/package.json` 增加 override 固定到 `8.0.2`，保留 WebdriverIO 9；干净安装、动态导入、类型检查和审计验证通过，记录见 [decisions/wdio-transitive-dependencies.md](decisions/wdio-transitive-dependencies.md)。
+- [x] 处置 Dependabot `lru` low 告警（GHSA-rhfx-m35p-ff5j）：随 ratatui 0.29.0 → 0.30.2（配套 crossterm 0.28 → 0.29）升级消除，lockfile 中 `lru` 已达 0.18.4（≥0.16.3 修复版）；Rust 全量验证（含 TUI feature clippy/test/build 与性能门禁）与 audit 通过。Windows Terminal 原生 TUI 交互回归仍需在发布演练时按既有 Runbook 复验。
+- [x] 处置 Dependabot `glib` medium 告警（GHSA-wrw7-89jp-8q8g）：修复版本 0.20.0 需要 Tauri/Wry GTK 0.20 代系迁移，超出 v0.6.2 安全维护边界；建立限期风险接受（owner maintainers，复核期限 2026-12-31），见 [decisions/glib-0.18-soundness-risk.md](decisions/glib-0.18-soundness-risk.md)。
 - [ ] 持续跟随 WebdriverIO/@wdio 及浏览器工具升级，处理剩余 13 项 E2E 传递依赖 high 告警；当前由 `scripts/verify.py --profile audit` 透明登记 `GHSA-jmr9-qjv8-65gv`，`@puppeteer/browsers`/`extract-zip` 暂不覆盖，等待完整 provider 回归和工具链升级窗口；
 - [x] 对 `serde_yaml`（上游 deprecated）迁移做独立 Spike：结论为**暂不迁移、保持观察**（无漏洞告警、使用面仅 2 处；若迁移首选 API 兼容的 `serde-yaml-ng` 并跑全量 round-trip 对照），记录见 [decisions/serde-yaml-migration.md](decisions/serde-yaml-migration.md)；
 - [x] 重新生成并审阅 `docs/licenses.md`（2026-09-01：生成脚本改为读取 `frontend/package-lock.json` 的完整 `packages` 条目；Rust 431 条、npm 294 条、许可证字段缺失 0 条；重复生成结果稳定）。
