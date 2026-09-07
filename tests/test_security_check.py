@@ -31,7 +31,7 @@ CANARIES = {
     "GitHub fine-grained token": "github_pat_" + "Aa1Bb2Cc3Dd4Ee5Ff6Gg7",
     "AWS access key": "AKIA" + "IOSFODNN7EXAMPLE",
     "age private key": "AGE-SECRET-KEY-" + "1QQQQQQQQQQQQQQQQQQQQQQQQ",
-    "private key block": "-----BEGIN RSA PRIVATE KEY-----",
+    "private key block": "-----BEGIN " + "RSA " + "PRIVATE KEY-----",
     "plain GitLab credential assignment": "GITLAB_PAT=" + "supersecretvalue123",
 }
 
