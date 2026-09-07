@@ -14,13 +14,13 @@
 
 span-aware 混合管线、规则注册表、阶段依赖、结构/语义 span 和 UTF-8 安全 TextEdit 已落地；桌面 GUI 与 TUI 共用 Rust 引擎和 `rules.yaml`。Windows 原生验证（E2E、设置损坏/ACL、GUI DPI 人工三档、Windows Terminal TUI 交互）均已完成或按项目决策跳过；默认构建重启 spec 已按 capability=false 语义修正并完成验证，记录见 [windows-e2e-runbook.md](windows-e2e-runbook.md) 与归档。标准 W3C provider 已于 2026-09-01 收敛为兼容性 smoke（`specs/w3c/smoke.spec.ts`），不再与 embedded provider 并行跑完整回归。
 
-## v0.6.2 维护版本范围（功能冻结）
+## v0.6.2 维护版本（已发布）
 
-v0.6.2 定义为**隐私、安全、依赖和供应链维护版本**，不增加用户功能、不新增排版规则、不改变现有规则默认行为。除非维护者明确指定，当前不得构建或发布 v0.6.2 Pre-Release/正式版。
+v0.6.2 是**隐私、安全、依赖和供应链维护版本**，不增加用户功能、不新增排版规则、不改变现有规则默认行为。该版本已于 **2026-09-07** 正式发布，tag 指向 `master` 的 `0.6.2` commit，GitHub Release 同步上线。
 
-在 v0.6.2 安全维护完成并发布前，v0.7.0 的新功能开发冻结；不得提前实现格式化 diff/撤销、规则搜索、用户预设、PDF/CAJ 清洗、正则替换或其它产品功能。
+当前开发基线已提升为 `0.7.0-dev.1`，v0.7.0 功能开发恢复。本节仅保留历史维护阶段与验收记录，不再作为当前功能冻结依据。
 
-### v0.6.2 维护阶段
+### v0.6.2 维护阶段（历史）
 
 1. **S2-A 基线与资源边界**：合并安全审计模型和输入/设置资源限制；已完成 PR #35、PR #36，覆盖 GUI/TUI/CLI 共用请求模型、设置加载/保存和审计门禁。
 2. **S2-B 设置存储安全**：完成 Unix `0600` 私有权限、Unix symlink 拒绝、进程内并发保存串行化、原子计数器保证唯一临时文件名、临时文件失败清理和备份恢复测试；Windows reparse point/junction、跨进程并发和当前维护版本 Windows 平台验证已由用户于 **2026-09-07** 在原生环境确认通过。未提供具体机器版本、命令计数或 artifact 路径；如需审计级复现，按 Runbook 补充脱敏证据。
@@ -57,7 +57,7 @@ Linux/WSL 只负责预检和可移植验证，不能替代 Windows WebView2、MS
 
 ### v0.7.0 启动条件
 
-仅在 v0.6.2 安全维护完成并按发布门槛发布后，才允许从 `dev` 启动 `v0.7.0-dev.1`，再恢复新功能开发。
+v0.6.2 已发布，当前开发基线为 `0.7.0-dev.1`，新功能开发已恢复。后续功能按本文件中的优先级推进。
 
 ## P0：仓库卫生与事实来源收敛
 
@@ -137,7 +137,7 @@ Linux/WSL 只负责预检和可移植验证，不能替代 Windows WebView2、MS
 ## P2：发布持续维护
 
 - [x] 将 Rust、frontend 和 E2E 依赖审计统一纳入 `scripts/verify.py --profile audit`；E2E 已接受风险必须登记在 [decisions/e2e-audit-policy.json](decisions/e2e-audit-policy.json)，未登记 high/critical 或审计网络/JSON 失败仍阻断。
-- [ ] 持续执行依赖审计、许可证清单更新和工具链升级 Runbook；该维护项属于 v0.6.2 安全维护周期，完成前不启动 v0.7.0 功能开发。
+- [x] 持续执行依赖审计、许可证清单更新和工具链升级 Runbook；v0.6.2 安全维护周期已结束，该维护项转为 v0.7.0 持续维护。
 
 ## 规则扩展准入
 
