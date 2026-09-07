@@ -100,7 +100,14 @@ v0.6.2 已发布，当前开发基线为 `0.7.0-dev.1`，新功能开发已恢�
 
 ## P1：CLI 非交互模式补齐（v0.7.0 优先）
 
-- [ ] 增加非交互 CLI 的 `--preset <copywriting|pdf-cleaning|technical-docs>` 参数：复用内置预设展开为统一 `FormatRequest`，与 `--rules`/`--enable`/`--disable` 组合时，预设作为基础、显式规则参数在其上微调；自定义字面量替换与简繁转换参数当前不实现，因此 `--preset` 仅展开规则选择，不含替换与转换。
+- [x] 增加非交互 CLI 的 `--preset <copywriting|pdf-cleaning|technical-docs>` 参数：复用内置预设展开为统一 `FormatRequest`，与 `--rules`/`--enable`/`--disable` 组合时，预设作为基础、显式规则参数在其上微调；自定义字面量替换与简繁转换参数当前不实现，因此 `--preset` 仅展开规则选择，不含替换与转换。
+
+## P1：来源文本清洗语料框架与评测基线
+
+- [x] 建立本地语料收集规范（`docs/source-corpus-spec.md`）和评测脚本（`scripts/evaluate_corpus.py`），支持 TP/FP/FN 统计与误改率计算。
+- [ ] 收集至少 20 条真实脱敏 PDF/CAJ/Zotero 语料（覆盖单栏/多栏/表格/公式），放入 `src-tauri/tests/fixtures/corpus-local/`（不提交仓库）。
+- [ ] 基于真实语料完成 `cleanup.cjk-internal-space` 的正式验收，误改率 < 2%。
+- [ ] 根据语料结果决定是否进入段内软换行实现（Go/No-Go 决策）。
 
 ## P1：字符转换与用户工作流
 
