@@ -21,6 +21,7 @@
 - 新增生产 CycloneDX SBOM 生成 `scripts/generate_sbom.py`：覆盖 Rust 生产依赖与 frontend 生产/开发依赖，纳入 `verify.py --profile audit` 门禁和 release workflow，作为 `sbom.json` 发布资产并在 `SHA256SUMS` 中校验。
 - 许可证清单增加 `scripts/generate_licenses.py --check` 一致性门禁，依赖锁文件变化而未重新生成 `docs/licenses.md` 时，audit 会失败。
 - Windows 原生手动确认当前设置存储加固的 reparse point/junction 拒绝与跨进程并发保存行为通过；未将未提供的命令输出、环境信息或 artifact 计数写入发布记录。
+- 重构 `scripts/security_check.py` 的扫描结果数据流：命中凭据的源行内容不再进入诊断输出，`Finding` 仅携带仓库相对路径、行号和凭据类型标签，并新增防泄露回归测试（`tests/test_security_check.py`），消除 CodeQL `py/clear-text-logging-sensitive-data` 告警。
 - 发布完整性强化：Release workflow 新增 `expected_sha` 输入（`publish=true` 必须与演练批准的 commit 一致，防止发布漂移）、发布说明文件改为按 tag 动态选择 `docs/archive/releases/<tag>.md` 且在 validate 阶段校验存在；assemble 阶段生成 `sbom.json` 与 `SHA256SUMS` 后执行统一终验（`verify_release_assets.py --include-metadata`），校验 CycloneDX 格式、SBOM 组件与版本一致性、checksum 覆盖完整性/格式/路径安全与摘要匹配；新增 14 项发布资产校验回归测试。
 - 为 Tauri IPC 引入稳定错误协议 `CommandError { code, message }`；Rust 命令返回的错误按资源限制、设置路径/权限、引擎错误分类；前端使用固定安全消息，不向用户或诊断接口泄露原始路径、正文或底层错误。
 - 新增前端 `normalizeCommandError()` 与独立测试；新增 Rust 错误映射测试。
