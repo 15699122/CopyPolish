@@ -78,6 +78,20 @@ v0.6.0 RC/正式版的 Windows 执行顺序、命令、artifact、清理和失�
 
 Linux/WSL 仍应执行 `checks`、`frontend`、`rust`、`audit`、E2E typecheck 和业务语义回归，但这些结果不能替代上述 Windows 原生门禁。
 
+### 2.3 当前 Windows 执行顺序
+
+当 roadmap、S2-G 审计或发布候选 commit 要求刷新 Windows 证据时，必须在同一个 Windows 原生 checkout 中按以下顺序执行，不能混用旧 binary 与新 artifact：
+
+1. 记录 commit 和工具链基线，建立隔离 `COPYPOLISH_E2E_ARTIFACT_DIR`/`COPYPOLISH_E2E_SETTINGS_DIR`；
+2. `npm ci --prefix frontend`、`npm ci --prefix e2e`、`npm run typecheck --prefix e2e`；
+3. `npm run build:app --prefix e2e` 后运行默认 embedded `selection-and-persistence.spec.ts`；
+4. `npm run build:app:simplified-trad --prefix e2e` 后运行 `simplified-trad-conversion.spec.ts`；
+5. `npm run build:app:webdriver --prefix e2e` 后运行 W3C smoke；
+6. 在 Windows MSVC 上执行 `cargo test --manifest-path src-tauri/Cargo.toml --features tui`，再进行必要的 Windows Terminal 交互人工复验；
+7. 运行设置损坏、ACL/reparse point、并发/备份恢复和发布资产 Windows smoke，记录退出码、通过计数、artifact manifest 和清理结果。
+
+只有当前 binary 的每一步都完成且 `finished > 0`、失败数为 0，才能将结果计入 v0.6.2 门禁；`exitCode=0` 但 `finished=0` 必须记录为 runner 未完成。详细命令、失败诊断和清理要求以 [windows-e2e-runbook.md §2.5](windows-e2e-runbook.md) 为准。
+
 ## 3. 常用命令
 
 ```bash

@@ -41,6 +41,20 @@ v0.6.2 定义为**隐私、安全、依赖和供应链维护版本**，不增加
 - 完成一次独立的 v0.6.2 安全维护审计；
 - 维护者明确指定前，不创建 v0.6.2 tag、不构建、不发布。
 
+### v0.6.2 当前必须在 Windows 原生环境执行的步骤
+
+Linux/WSL 只负责预检和可移植验证，不能替代 Windows WebView2、MSVC、NTFS、DPI、系统剪贴板或 Windows Terminal 证据。发布前必须在同一个干净的 Windows 原生 checkout、当前待发布 commit 和当前构建产物上，按 [Windows 原生 E2E 与交互留证 Runbook §2.5](windows-e2e-runbook.md) 串行执行：
+
+1. 记录 commit、Windows/PowerShell/Node/Rust MSVC/WebView2/Windows Terminal/字体/DPI 基线，并建立隔离的 artifact 与设置目录；
+2. 执行 `npm ci`、E2E typecheck，构建当前默认 embedded binary，运行 `selection-and-persistence.spec.ts`（3/3）；
+3. 构建 `simplified-trad-conversion` feature binary，运行双向转换 spec（2/2）；
+4. 构建并运行标准 W3C provider smoke；
+5. 在 Windows MSVC 上运行 `cargo test --features tui`，并完成 Windows Terminal raw-mode、粘贴、OSC 52、保存/退出/重启和必要的多行/emoji 交互复验；
+6. 复验设置损坏、NTFS ACL/reparse point、备份恢复、并发保存和失败清理；将脱敏 artifact、退出码、测试计数和清理结果保留在本地审计位置，不入库；
+7. 若本轮构建发布资产，则在 Windows 上构建并启动便携版/TUI，执行 Windows smoke 和 `verify_release_assets.py --platform windows`；最终跨平台资产合并与 `SHA256SUMS` 仍按发布 Runbook 执行。
+
+GUI DPI 自动矩阵和 GitLab Windows 可选 E2E stage 按项目决定跳过，不计作通过；三档 DPI 人工检查和既有 Windows Terminal 交互结果只在当前 commit、工具链或诊断范围变化时按需复跑。
+
 ### v0.7.0 启动条件
 
 仅在 v0.6.2 安全维护完成并按发布门槛发布后，才允许从 `dev` 启动 `v0.7.0-dev.1`，再恢复新功能开发。

@@ -98,6 +98,18 @@ CopyPolish-windows-x64.7z
 
 不生成任何安装器（WiX MSI 无法处理中文产品名，且产品定位为免安装便携版）。
 
+### 6.1 Windows 发布前必须执行的原生验收
+
+Windows 资产构建完成后，不能只依据 Linux/WSL 构建成功或 `.7z` 文件存在来放行。必须在同一 Windows 主机、同一发布 worktree 和当前版本的产物上：
+
+1. 启动 `CopyPolish.exe`，完成一次真实格式化、设置保存/重启恢复、剪贴板和退出检查；
+2. 启动 `CopyPolish-tui.exe`，在 Windows Terminal + PowerShell 7 中完成 raw-mode、粘贴、Unicode/emoji、OSC 52、保存/退出和必要的多行输入检查；
+3. 确认 Windows 资产没有混入测试 fixture、`node_modules`、设置文件、日志或 E2E artifact；
+4. 使用 `python3 scripts/verify_release_assets.py <tag> --dist-dir dist/windows --platform windows` 校验版本、文件名、Windows 资产和 `.7z` 根目录，再在最终汇总目录执行 `--platform all` 与 `sha256sum -c SHA256SUMS`；
+5. 保存脱敏的版本、commit、工具链、启动/smoke 结果和 checksum 摘要；原始设置、正文、截图和日志留在本地受控目录，测试后清理。
+
+上述验收必须使用当前发布 worktree 构建的 binary；旧版本或旧 artifact 不能替代当前候选版本。GUI DPI、设置 ACL/reparse point 和完整 E2E 的详细步骤见 [windows-e2e-runbook.md §2.5](../windows-e2e-runbook.md)。
+
 ## 7. WSL + Windows 主机编译器构建 Windows Release
 
 ### 7.1 方案边界
