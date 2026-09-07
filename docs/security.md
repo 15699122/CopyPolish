@@ -133,10 +133,24 @@ E2E 当前存在已登记的 `GHSA-jmr9-qjv8-65gv` high 风险，来自 `extract
 
 进入 v0.7.0 前必须完成：
 
-- 设置权限、symlink/reparse point、并发写入和备份恢复验证（Unix 自动化与 Windows 用户确认已完成；如需审计级证据仍需补齐原生 artifact）；
+- 设置权限、symlink/reparse point、并发写入和备份恢复验证（Unix 自动化与 Windows 用户确认已于 2026-09-07 完成；具体 Windows 机器版本、命令计数和 artifact 路径未提供，如需审计级复现仍需按 Runbook 补充脱敏原生 artifact）；
 - IPC 稳定错误 code 与资源边界测试；
 - E2E advisory 修复或限期风险接受复核；
 - GitHub Actions SHA 固定、权限审查和 workflow 输入校验；
 - 生产 SBOM、provenance/attestation、checksum、许可证和 Release 资产检查；
 - 隐私 artifact 扫描和跨平台 smoke；
 - 一次完整、可追溯的 v0.6.2 安全维护审计。
+
+### 10.1 当前 Windows 原生验证入口
+
+以下步骤必须在 Windows 原生桌面、可交互的 Windows Terminal + PowerShell 7 会话中执行；WSL、Linux GUI、普通浏览器预览和无桌面的服务 runner 不能替代这些证据：
+
+1. 按 [Windows 原生 E2E 与交互留证 Runbook §2.5](windows-e2e-runbook.md) 建立当前 commit 的隔离 checkout、临时设置目录和 artifact 目录，并记录 Windows、WebView2、Node、Rust MSVC、PowerShell、Windows Terminal、字体、DPI 和窗口基线；
+2. 构建当前默认 embedded binary，运行设置/替换完整回归；再构建 `simplified-trad-conversion` feature binary，验证 s2t/t2s 双向真实输出；
+3. 运行标准 W3C smoke 和 Windows MSVC `cargo test --features tui`；
+4. 复验 NTFS ACL/reparse point、并发保存、备份恢复、失败清理和设置文件权限；设置、备份、临时文件和 artifact 不得包含真实正文或凭据；
+5. 在真实 Windows Terminal 中复验 raw-mode、规则面板、Unicode/emoji、粘贴、OSC 52、保存/退出/重启，并保留最小化、脱敏的结果摘要；
+6. 若执行发布资产构建，在 Windows 上启动当前便携版和 TUI，校验 `.7z` 根目录、旁置 DLL、Windows smoke 和 `verify_release_assets.py --platform windows`；
+7. 测试后按 Runbook 清理进程、临时设置、artifact 和 staging，远程只记录结论，不上传正文、日志或设置文件。
+
+**2026-09-07 状态**：用户已确认当前维护版本的 Windows 原生验证完成，覆盖本节列出的 Windows 安全和发布前步骤。该确认不包含未提供的机器版本、命令计数或 artifact 路径。已完成的人工 DPI/Terminal 项目无需重复记为未完成；GUI DPI 自动矩阵与 GitLab Windows 可选 E2E stage 仍按项目决定跳过。任何代码、工具链、发布 commit 或诊断范围变化，都必须基于新 binary 重新留证。
