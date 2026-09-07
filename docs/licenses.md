@@ -608,7 +608,7 @@
 | `@tauri-apps/plugin-log` | `2.9.0` | `MIT OR Apache-2.0` |
 | `@testing-library/dom` | `10.4.1` | `MIT` |
 | `@testing-library/jest-dom` | `7.0.1` | `MIT` |
-| `@testing-library/react` | `16.3.2` | `MIT` |
+| `@testing-library/react` | `16.3.3` | `MIT` |
 | `@testing-library/user-event` | `14.6.7` | `MIT` |
 | `@tybys/wasm-util` | `0.10.2` | `MIT` |
 | `@types/aria-query` | `5.0.4` | `MIT` |
@@ -617,7 +617,7 @@
 | `@types/estree` | `1.0.9` | `MIT` |
 | `@types/node` | `24.13.3` | `MIT` |
 | `@types/react` | `19.2.18` | `MIT` |
-| `@types/react-dom` | `19.2.4` | `MIT` |
+| `@types/react-dom` | `19.2.7` | `MIT` |
 | `@typescript/typescript-aix-ppc64` | `7.0.2` | `Apache-2.0` |
 | `@typescript/typescript-darwin-arm64` | `7.0.2` | `Apache-2.0` |
 | `@typescript/typescript-darwin-x64` | `7.0.2` | `Apache-2.0` |
@@ -638,7 +638,7 @@
 | `@typescript/typescript-sunos-x64` | `7.0.2` | `Apache-2.0` |
 | `@typescript/typescript-win32-arm64` | `7.0.2` | `Apache-2.0` |
 | `@typescript/typescript-win32-x64` | `7.0.2` | `Apache-2.0` |
-| `@vitejs/plugin-react` | `6.1.0` | `MIT` |
+| `@vitejs/plugin-react` | `6.1.1` | `MIT` |
 | `@vitest/expect` | `4.1.11` | `MIT` |
 | `@vitest/mocker` | `4.1.11` | `MIT` |
 | `@vitest/pretty-format` | `4.1.11` | `MIT` |

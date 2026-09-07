@@ -44,6 +44,13 @@ def cargo_packages() -> list[dict]:
     return metadata.get("packages", [])
 
 
+def app_component() -> dict[str, str]:
+    for package in cargo_packages():
+        if package.get("name") == APP_PACKAGE and package.get("source") is None:
+            return {"name": APP_PACKAGE, "version": str(package.get("version", ""))}
+    raise ValueError(f"local application package not found: {APP_PACKAGE}")
+
+
 def npm_packages() -> list[tuple[str, str, bool]]:
     lock = json.loads(FRONTEND_LOCKFILE.read_text(encoding="utf-8"))
     packages = lock.get("packages", {})
@@ -65,6 +72,7 @@ def npm_packages() -> list[tuple[str, str, bool]]:
 
 
 def build_doc() -> dict:
+    application = app_component()
     components: list[dict] = []
     seen: set[tuple[str, str]] = set()
     for pkg in cargo_packages():
@@ -107,6 +115,11 @@ def build_doc() -> dict:
         "version": BOM_VERSION,
         "metadata": {
             "timestamp": fmt(datetime.now(tz=timezone.utc)),
+            "component": {
+                "type": "application",
+                "name": application["name"],
+                "version": application["version"],
+            },
             "tools": [{"vendor": "CopyPolish", "name": "generate_sbom.py", "version": "1.0"}],
         },
         "components": components,
