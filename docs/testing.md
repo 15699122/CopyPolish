@@ -78,6 +78,8 @@ v0.6.0 RC/正式版的 Windows 执行顺序、命令、artifact、清理和失�
 
 Linux/WSL 仍应执行 `checks`、`frontend`、`rust`、`audit`、E2E typecheck 和业务语义回归，但这些结果不能替代上述 Windows 原生门禁。
 
+**2026-09-07 当前维护版本状态**：用户已确认按 Windows Runbook 完成当前 Windows 平台验证，覆盖默认 embedded、简繁 feature、W3C smoke、设置恢复/损坏/ACL/reparse point、MSVC/TUI、Windows Terminal 交互和发布前 Windows smoke。未提供具体机器版本、命令计数或 artifact 路径，因此本条只记录用户确认，不虚构可复现细节；如需审计级复现，仍按 `windows-e2e-runbook.md §2.5` 记录脱敏 artifact、退出码、通过计数和清理结果。
+
 ### 2.3 当前 Windows 执行顺序
 
 当 roadmap、S2-G 审计或发布候选 commit 要求刷新 Windows 证据时，必须在同一个 Windows 原生 checkout 中按以下顺序执行，不能混用旧 binary 与新 artifact：

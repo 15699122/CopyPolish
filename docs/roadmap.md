@@ -23,7 +23,7 @@ v0.6.2 定义为**隐私、安全、依赖和供应链维护版本**，不增加
 ### v0.6.2 维护阶段
 
 1. **S2-A 基线与资源边界**：合并安全审计模型和输入/设置资源限制；已完成 PR #35、PR #36，覆盖 GUI/TUI/CLI 共用请求模型、设置加载/保存和审计门禁。
-2. **S2-B 设置存储安全**：完成 Unix `0600` 私有权限、Unix symlink 拒绝、进程内并发保存串行化、原子计数器保证唯一临时文件名、临时文件失败清理和备份恢复测试；Windows reparse point/junction 与跨进程并发已由用户于 2026-09-06 在原生环境手动确认通过，审计级 artifact 复现仍按需补充。
+2. **S2-B 设置存储安全**：完成 Unix `0600` 私有权限、Unix symlink 拒绝、进程内并发保存串行化、原子计数器保证唯一临时文件名、临时文件失败清理和备份恢复测试；Windows reparse point/junction、跨进程并发和当前维护版本 Windows 平台验证已由用户于 **2026-09-07** 在原生环境确认通过。未提供具体机器版本、命令计数或 artifact 路径；如需审计级复现，按 Runbook 补充脱敏证据。
 3. **S2-C IPC 错误边界**：已完成稳定错误 code、前端安全消息归一化和 Rust 映射测试；剩余 Tauri 原生 command 级 E2E 边界复验与跨平台错误展示验收。
 4. **S2-D E2E 供应链**：完成复核——WebdriverIO 9.31.5 → 9.31.6 小版本升级未能覆盖 `GHSA-jmr9-qjv8-65gv`，`npm audit fix --force` 仅提供破坏性的 WebdriverIO 8 降级，均未采用；维持 `docs/decisions/e2e-audit-policy.json` 限期风险登记（review_after 2026-10-06），在兼容 WebdriverIO 升级或 provider 替换前按季度复核。
 5. **S2-E CI 与 Actions**：固定 GitHub Actions commit SHA、收紧 job permissions、校验 workflow 输入并加入 artifact/privacy scan。
@@ -53,7 +53,7 @@ Linux/WSL 只负责预检和可移植验证，不能替代 Windows WebView2、MS
 6. 复验设置损坏、NTFS ACL/reparse point、备份恢复、并发保存和失败清理；将脱敏 artifact、退出码、测试计数和清理结果保留在本地审计位置，不入库；
 7. 若本轮构建发布资产，则在 Windows 上构建并启动便携版/TUI，执行 Windows smoke 和 `verify_release_assets.py --platform windows`；最终跨平台资产合并与 `SHA256SUMS` 仍按发布 Runbook 执行。
 
-GUI DPI 自动矩阵和 GitLab Windows 可选 E2E stage 按项目决定跳过，不计作通过；三档 DPI 人工检查和既有 Windows Terminal 交互结果只在当前 commit、工具链或诊断范围变化时按需复跑。
+**当前状态（2026-09-07）**：用户已确认上述当前维护版本 Windows 平台验证完成。该确认覆盖当前发布前流程，但未提供具体机器版本、命令计数或 artifact 路径；因此不补写不存在的复现细节。GUI DPI 自动矩阵和 GitLab Windows 可选 E2E stage 按项目决定跳过，不计作通过；三档 DPI 人工检查和既有 Windows Terminal 交互结果只在当前 commit、工具链或诊断范围变化时按需复跑。
 
 ### v0.7.0 启动条件
 

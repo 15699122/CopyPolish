@@ -133,7 +133,7 @@ E2E 当前存在已登记的 `GHSA-jmr9-qjv8-65gv` high 风险，来自 `extract
 
 进入 v0.7.0 前必须完成：
 
-- 设置权限、symlink/reparse point、并发写入和备份恢复验证（Unix 自动化与 Windows 用户确认已完成；如需审计级证据仍需补齐原生 artifact）；
+- 设置权限、symlink/reparse point、并发写入和备份恢复验证（Unix 自动化与 Windows 用户确认已于 2026-09-07 完成；具体 Windows 机器版本、命令计数和 artifact 路径未提供，如需审计级复现仍需按 Runbook 补充脱敏原生 artifact）；
 - IPC 稳定错误 code 与资源边界测试；
 - E2E advisory 修复或限期风险接受复核；
 - GitHub Actions SHA 固定、权限审查和 workflow 输入校验；
@@ -153,4 +153,4 @@ E2E 当前存在已登记的 `GHSA-jmr9-qjv8-65gv` high 风险，来自 `extract
 6. 若执行发布资产构建，在 Windows 上启动当前便携版和 TUI，校验 `.7z` 根目录、旁置 DLL、Windows smoke 和 `verify_release_assets.py --platform windows`；
 7. 测试后按 Runbook 清理进程、临时设置、artifact 和 staging，远程只记录结论，不上传正文、日志或设置文件。
 
-已完成的人工 DPI/Terminal 项目无需重复记为未完成；GUI DPI 自动矩阵与 GitLab Windows 可选 E2E stage 仍按项目决定跳过。任何代码、工具链、发布 commit 或诊断范围变化，都必须基于新 binary 重新留证。
+**2026-09-07 状态**：用户已确认当前维护版本的 Windows 原生验证完成，覆盖本节列出的 Windows 安全和发布前步骤。该确认不包含未提供的机器版本、命令计数或 artifact 路径。已完成的人工 DPI/Terminal 项目无需重复记为未完成；GUI DPI 自动矩阵与 GitLab Windows 可选 E2E stage 仍按项目决定跳过。任何代码、工具链、发布 commit 或诊断范围变化，都必须基于新 binary 重新留证。
