@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { saveUserSettings, type UserSettings } from "@/lib/tauri";
+import { normalizeCommandError, saveUserSettings, type UserSettings } from "@/lib/tauri";
 
 export type SettingsStatus = "idle" | "saving" | "saved" | "error";
 
@@ -51,7 +51,7 @@ export function useSettingsPersistence({
       .catch((cause) => {
         if (saveSequenceRef.current !== sequence) return;
         setSettingsStatus("error");
-        setSettingsError(String(cause));
+        setSettingsError(normalizeCommandError(cause).message);
       });
   }, [cancelScheduledPersist]);
 

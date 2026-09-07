@@ -58,6 +58,10 @@ vi.mock("@/lib/tauri", () => ({
   saveUserSettings: mocks.saveUserSettings,
   getAppVersion: mocks.getAppVersion,
   getBuildCapabilities: mocks.getBuildCapabilities,
+  normalizeCommandError: (cause: unknown) => ({
+    code: "internal",
+    message: cause instanceof Error ? cause.message : "操作失败，请检查输入后重试。",
+  }),
   DEFAULT_SHORTCUT_SETTINGS: {
     enabled: true,
     bindings: {

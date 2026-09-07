@@ -4,6 +4,31 @@
 
 ## [Unreleased]
 
+### Release policy
+
+- v0.6.2 定义为隐私、安全、依赖和供应链维护版本，不增加新功能；安全维护完成并发布前冻结 v0.7.0 功能开发。
+- 在维护者明确指定前，不构建、不发布 v0.6.2 Pre-Release 或正式版。
+
+### Security
+
+- 新增 `docs/security.md` 安全模型，明确资产、信任边界、输入资源限制、Tauri capabilities、供应链和安全响应要求。
+- `scripts/verify.py --profile audit` 现在同时审计 Rust、frontend 和 E2E 依赖；E2E 已接受风险必须通过机器可读的 `docs/decisions/e2e-audit-policy.json` 登记，网络失败、非法 JSON 或未登记 high/critical 均不会被视为通过。
+- 为 GUI、TUI 和 CLI 共用的格式化请求增加资源限制：正文最多 10 MiB、规则 key 最多 500 个、替换最多 200 项且每个字段最多 16 KiB；设置文件最多 2 MiB，快捷键绑定最多 128 字节。
+- 设置加载与保存均执行资源校验，超限的设置文件会被安全拒绝，不进入格式化或持久化流程。
+- 设置存储加固：Unix 设置/备份文件使用 `0600` 私有权限，设置/备份/symlink 目标拒绝写入，临时文件使用唯一名称并在写入失败时清理。
+- 设置保存增加进程内并发串行化和临时文件唯一性计数器，并补充并发保存回归测试。
+- GitHub Actions 全部固定到完整 commit SHA 并保留版本注释，`ci.yml` 增加最小权限声明 `contents: read`。
+- 新增生产 CycloneDX SBOM 生成 `scripts/generate_sbom.py`：覆盖 Rust 生产依赖与 frontend 生产/开发依赖，纳入 `verify.py --profile audit` 门禁和 release workflow，作为 `sbom.json` 发布资产并在 `SHA256SUMS` 中校验。
+- 许可证清单增加 `scripts/generate_licenses.py --check` 一致性门禁，依赖锁文件变化而未重新生成 `docs/licenses.md` 时，audit 会失败。
+- Windows 原生手动确认当前设置存储加固的 reparse point/junction 拒绝与跨进程并发保存行为通过；未将未提供的命令输出、环境信息或 artifact 计数写入发布记录。
+- 重构 `scripts/security_check.py` 的扫描结果数据流：命中凭据的源行内容不再进入诊断输出，`Finding` 仅携带仓库相对路径、行号和凭据类型标签，并新增防泄露回归测试（`tests/test_security_check.py`），消除 CodeQL `py/clear-text-logging-sensitive-data` 告警。
+- TUI 依赖升级：`ratatui` 0.29.0 → 0.30.2（配套 `crossterm` 0.28 → 0.29），lockfile 中传递依赖 `lru` 升至 0.18.4，消除 Dependabot `lru` low 告警（GHSA-rhfx-m35p-ff5j）；Rust 全量验证（含 TUI feature）与 audit 通过。
+- 登记 Dependabot `glib 0.18.5` medium 告警（GHSA-wrw7-89jp-8q8g）的限期风险接受（不可达性评估 + 复核期限 2026-12-31），见 `docs/decisions/glib-0.18-soundness-risk.md`。
+- 发布完整性强化：Release workflow 新增 `expected_sha` 输入（`publish=true` 必须与演练批准的 commit 一致，防止发布漂移）、发布说明文件改为按 tag 动态选择 `docs/archive/releases/<tag>.md` 且在 validate 阶段校验存在；assemble 阶段生成 `sbom.json` 与 `SHA256SUMS` 后执行统一终验（`verify_release_assets.py --include-metadata`），校验 CycloneDX 格式、SBOM 组件与版本一致性、checksum 覆盖完整性/格式/路径安全与摘要匹配；新增 14 项发布资产校验回归测试。
+- 为 Tauri IPC 引入稳定错误协议 `CommandError { code, message }`；Rust 命令返回的错误按资源限制、设置路径/权限、引擎错误分类；前端使用固定安全消息，不向用户或诊断接口泄露原始路径、正文或底层错误。
+- 新增前端 `normalizeCommandError()` 与独立测试；新增 Rust 错误映射测试。
+- E2E 供应链风险复核：当前 WebdriverIO 9.31.5 与 @wdio/tauri-service 1.3.0 仍解析 `extract-zip@2.0.1`，小版本升级（9.31.5 → 9.31.6）未能覆盖该 advisory；`npm audit fix --force` 仅提供 WebdriverIO 8 降级，属破坏性变更，未采用。维持 `docs/decisions/e2e-audit-policy.json` 的限期风险登记（review_after 2026-10-06），在 WebdriverIO 兼容升级或 provider 替换前按季度复核。
+
 ## [0.6.1] - 2026-09-06
 
 ### Security

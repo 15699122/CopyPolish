@@ -27,6 +27,7 @@ use opencc_fmmseg::{OpenCC, OpenccConfig};
 
 /// 格式化文本的正式入口。
 pub fn format_text(req: &FormatRequest) -> Result<String, String> {
+    req.validate()?;
     format_text_impl(req)
 }
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { formatText, type CharacterConversion, type ReplacementPair, type RuleSelection } from "@/lib/tauri";
+import { formatText, normalizeCommandError, type CharacterConversion, type ReplacementPair, type RuleSelection } from "@/lib/tauri";
 
 const NORMAL_DEBOUNCE_MS = 160;
 const LONG_TEXT_DEBOUNCE_MS = 450;
@@ -61,7 +61,7 @@ export function useFormatter({ getSelection }: UseFormatterOptions): UseFormatte
 
   const clearOutput = useCallback(() => setOutput(""), []);
   const clearError = useCallback(() => setError(null), []);
-  const reportError = useCallback((cause: unknown) => setError(String(cause)), []);
+  const reportError = useCallback((cause: unknown) => setError(normalizeCommandError(cause).message), []);
 
   const scheduleFormat = useCallback(
     (nextInput: string, enabled: string[], delayOverride?: number, options: FormatOptions = {}) => {
@@ -85,7 +85,7 @@ export function useFormatter({ getSelection }: UseFormatterOptions): UseFormatte
             setError(null);
           }
         } catch (cause) {
-          if (sequenceRef.current === sequence) setError(String(cause));
+          if (sequenceRef.current === sequence) setError(normalizeCommandError(cause).message);
         } finally {
           if (sequenceRef.current === sequence) setIsFormatting(false);
         }

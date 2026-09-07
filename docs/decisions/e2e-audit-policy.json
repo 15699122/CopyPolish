@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "scope": "e2e-development-dependencies-only",
+  "accepted_advisories": [
+    {
+      "id": "GHSA-jmr9-qjv8-65gv",
+      "severity": "high",
+      "package": "extract-zip",
+      "affected_range": "<=2.0.1",
+      "dependency_chain": "@wdio/utils -> @puppeteer/browsers -> extract-zip",
+      "reason": "The compatible WebdriverIO 9/Tauri provider toolchain still resolves extract-zip 2.0.1. npm's available automatic fix is a breaking WebdriverIO 8 downgrade.",
+      "scope": "E2E tooling; not included in production application or release assets",
+      "mitigations": [
+        "E2E runs use trusted repository-controlled inputs and CI artifacts are not treated as production data",
+        "npm install and audit commands use --ignore-scripts where applicable",
+        "The E2E audit fails for any high/critical advisory not explicitly listed here"
+      ],
+      "owner": "CopyPolish maintainers",
+      "review_after": "2026-10-06",
+      "tracking": "docs/decisions/wdio-transitive-dependencies.md"
+    }
+  ]
+}

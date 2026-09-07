@@ -90,7 +90,7 @@ provider 回归和 `npm audit`。
   不将本次网络失败记为审计通过，也未执行 `npm audit fix --force`；
 - `cargo audit --file src-tauri/Cargo.lock --json` 返回 0 个漏洞、21 个允许的 warning；
 - `python3 scripts/generate_licenses.py --features simplified-trad-conversion` 已重新生成
-  `docs/licenses.md`：Rust 443 条、npm 294 条、许可证字段缺失 0 条。
+-  `docs/licenses.md`：Rust 431 条、npm 294 条、许可证字段缺失 0 条。
 
 同时修正 `scripts/verify.py --profile audit`，使 Cargo 审计显式读取
 `src-tauri/Cargo.lock`，避免从仓库根目录执行时误报缺少锁文件。由于 E2E advisory

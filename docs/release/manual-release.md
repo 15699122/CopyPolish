@@ -98,6 +98,18 @@ CopyPolish-windows-x64.7z
 
 不生成任何安装器（WiX MSI 无法处理中文产品名，且产品定位为免安装便携版）。
 
+### 6.1 Windows 发布前必须执行的原生验收
+
+Windows 资产构建完成后，不能只依据 Linux/WSL 构建成功或 `.7z` 文件存在来放行。必须在同一 Windows 主机、同一发布 worktree 和当前版本的产物上：
+
+1. 启动 `CopyPolish.exe`，完成一次真实格式化、设置保存/重启恢复、剪贴板和退出检查；
+2. 启动 `CopyPolish-tui.exe`，在 Windows Terminal + PowerShell 7 中完成 raw-mode、粘贴、Unicode/emoji、OSC 52、保存/退出和必要的多行输入检查；
+3. 确认 Windows 资产没有混入测试 fixture、`node_modules`、设置文件、日志或 E2E artifact；
+4. 使用 `python3 scripts/verify_release_assets.py <tag> --dist-dir dist/windows --platform windows` 校验版本、文件名、Windows 资产和 `.7z` 根目录，再在最终汇总目录执行 `--platform all` 与 `sha256sum -c SHA256SUMS`；
+5. 保存脱敏的版本、commit、工具链、启动/smoke 结果和 checksum 摘要；原始设置、正文、截图和日志留在本地受控目录，测试后清理。
+
+上述验收必须使用当前发布 worktree 构建的 binary；旧版本或旧 artifact 不能替代当前候选版本。GUI DPI、设置 ACL/reparse point 和完整 E2E 的详细步骤见 [windows-e2e-runbook.md §2.5](../windows-e2e-runbook.md)。
+
 ## 7. WSL + Windows 主机编译器构建 Windows Release
 
 ### 7.1 方案边界
@@ -248,7 +260,7 @@ CopyPolish_linux_amd64.AppImage
 
 ### 8.1 发布资产来源
 
-当前标准流程由 GitLab tag pipeline 或分平台本地构建产生并汇总全部七项平台资产（桌面版五项 + TUI 独立资产两项）及 `SHA256SUMS`。维护者下载后执行完整校验，再使用 GitHub CLI 或 GitHub Releases 页面完成公开 Release；上传前不得将不完整资产集标记为正式版。仓库变量 `ACTIONS_ENABLED` 的实际状态以 GitHub 仓库设置为准。
+当前标准流程由 GitLab tag pipeline 或分平台本地构建产生并汇总全部七项平台资产（桌面版五项 + TUI 独立资产两项）、生产 SBOM（`sbom.json`）及 `SHA256SUMS`。维护者下载后执行完整校验，再使用 GitHub CLI 或 GitHub Releases 页面完成公开 Release；上传前不得将不完整资产集标记为正式版。仓库变量 `ACTIONS_ENABLED` 的实际状态以 GitHub 仓库设置为准。
 
 自 v0.6.0 起，GitHub Actions 亦提供正式 Release 构建（`.github/workflows/release.yml`，`workflow_dispatch` 两阶段手动触发）。推荐流程：
 
@@ -381,7 +393,7 @@ Get-FileHash dist\CopyPolish.exe, dist\CopyPolish-windows-x64.7z, `
 # sha256sum -c dist/SHA256SUMS
 ```
 
-最终完整发布集必须包含七项资产和一个校验文件：
+最终完整发布集必须包含七项资产、一个 SBOM 和一个校验文件：
 
 ```text
 CopyPolish.exe
@@ -391,8 +403,11 @@ CopyPolish-linux-x86_64.rpm
 CopyPolish_linux_amd64.AppImage
 CopyPolish-tui-windows-x64.7z
 CopyPolish-tui-linux-x86_64.7z
+sbom.json
 SHA256SUMS
 ```
+
+`sbom.json`（CycloneDX）由 `python3 scripts/generate_sbom.py --output sbom.json` 生成，纳入 `SHA256SUMS` 并可独立校验。如通过 GitHub Actions Release workflow 组装，则上述 SBOM 会自动生成并一并上传。
 
 记录测试结论后，关闭 CopyPolish、WDIO、Node 和 TUI 进程，确认测试端口、临时设置目录、ACL deny 和 staging 已清理。截图、日志、page source、设置 fixture 和构建目录只保留在本地审计位置，不提交、不上传仓库。
 
@@ -445,7 +460,7 @@ gh release create vX.Y.Z-preN \
 ## 11. 发布后复核与回滚原则
 
 - [ ] tag、Release 标题、应用内版本三者一致（预发布带 pre 后缀）；
-- [ ] 七个资产齐全且命名正确（桌面版五项 + TUI 两项）；`SHA256SUMS` 也已上传；
+- [ ] 七个资产齐全且命名正确（桌面版五项 + TUI 两项）；`sbom.json` 与 `SHA256SUMS` 也已上传；
 - [ ] 正式版标记 latest，预发布标记 prerelease 且不占用 latest；
 - [ ] Release Notes 已人工审阅并与本次改动范围一致；
 - [ ] Windows 资产已从 GitLab 下载并完成 SHA256 校验，Windows 10/11 真机验收已完成；

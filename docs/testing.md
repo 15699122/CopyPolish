@@ -78,6 +78,22 @@ v0.6.0 RC/正式版的 Windows 执行顺序、命令、artifact、清理和失�
 
 Linux/WSL 仍应执行 `checks`、`frontend`、`rust`、`audit`、E2E typecheck 和业务语义回归，但这些结果不能替代上述 Windows 原生门禁。
 
+**2026-09-07 当前维护版本状态**：用户已确认按 Windows Runbook 完成当前 Windows 平台验证，覆盖默认 embedded、简繁 feature、W3C smoke、设置恢复/损坏/ACL/reparse point、MSVC/TUI、Windows Terminal 交互和发布前 Windows smoke。未提供具体机器版本、命令计数或 artifact 路径，因此本条只记录用户确认，不虚构可复现细节；如需审计级复现，仍按 `windows-e2e-runbook.md §2.5` 记录脱敏 artifact、退出码、通过计数和清理结果。
+
+### 2.3 当前 Windows 执行顺序
+
+当 roadmap、S2-G 审计或发布候选 commit 要求刷新 Windows 证据时，必须在同一个 Windows 原生 checkout 中按以下顺序执行，不能混用旧 binary 与新 artifact：
+
+1. 记录 commit 和工具链基线，建立隔离 `COPYPOLISH_E2E_ARTIFACT_DIR`/`COPYPOLISH_E2E_SETTINGS_DIR`；
+2. `npm ci --prefix frontend`、`npm ci --prefix e2e`、`npm run typecheck --prefix e2e`；
+3. `npm run build:app --prefix e2e` 后运行默认 embedded `selection-and-persistence.spec.ts`；
+4. `npm run build:app:simplified-trad --prefix e2e` 后运行 `simplified-trad-conversion.spec.ts`；
+5. `npm run build:app:webdriver --prefix e2e` 后运行 W3C smoke；
+6. 在 Windows MSVC 上执行 `cargo test --manifest-path src-tauri/Cargo.toml --features tui`，再进行必要的 Windows Terminal 交互人工复验；
+7. 运行设置损坏、ACL/reparse point、并发/备份恢复和发布资产 Windows smoke，记录退出码、通过计数、artifact manifest 和清理结果。
+
+只有当前 binary 的每一步都完成且 `finished > 0`、失败数为 0，才能将结果计入 v0.6.2 门禁；`exitCode=0` 但 `finished=0` 必须记录为 runner 未完成。详细命令、失败诊断和清理要求以 [windows-e2e-runbook.md §2.5](windows-e2e-runbook.md) 为准。
+
 ## 3. 常用命令
 
 ```bash
@@ -480,6 +496,7 @@ Windows 100%/125%/150% DPI 人工 GUI 验证已完成；GUI DPI 自动验证已�
 - 设置快捷键控制台 runner：embedded 与标准 WebDriver 各 1/1 通过，`actWarningCount=0`。由于当前 EdgeDriver 将逗号键上报为 `code=","`，两个 artifact 均记录原生键事件诊断并通过 UI “打开设置”回退完成界面/控制台验证；不得把它表述为硬件级 `Ctrl+,` 注入已独立通过。
 - GUI DPI 自动验证已按项目决定跳过（不执行）；既有 200% artifact 仅作历史诊断记录，三档人工 GUI 验证保持完成。
 - Windows Terminal TUI artifact 已由用户确认完整交互通过；`--prepare-only` 仍可用于生成 `manifest.json`、`result.json` 和 `manual-checklist.json`，实际交互结果以用户确认的 artifact 为准。
+- 2026-09-06：用户在 Windows 原生环境手动确认当前 v0.6.2 S2-B 设置存储加固通过，覆盖 reparse point/junction 拒绝、跨进程并发保存、保存后可读性和失败路径临时文件清理。未提供完整命令输出、环境版本或 artifact 路径，因此仅作为用户确认记录，不伪造自动化计数。
 
 ### 7.15 2026-09-01 复验记录
 

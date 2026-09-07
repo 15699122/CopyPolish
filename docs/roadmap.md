@@ -14,6 +14,51 @@
 
 span-aware 混合管线、规则注册表、阶段依赖、结构/语义 span 和 UTF-8 安全 TextEdit 已落地；桌面 GUI 与 TUI 共用 Rust 引擎和 `rules.yaml`。Windows 原生验证（E2E、设置损坏/ACL、GUI DPI 人工三档、Windows Terminal TUI 交互）均已完成或按项目决策跳过；默认构建重启 spec 已按 capability=false 语义修正并完成验证，记录见 [windows-e2e-runbook.md](windows-e2e-runbook.md) 与归档。标准 W3C provider 已于 2026-09-01 收敛为兼容性 smoke（`specs/w3c/smoke.spec.ts`），不再与 embedded provider 并行跑完整回归。
 
+## v0.6.2 维护版本范围（功能冻结）
+
+v0.6.2 定义为**隐私、安全、依赖和供应链维护版本**，不增加用户功能、不新增排版规则、不改变现有规则默认行为。除非维护者明确指定，当前不得构建或发布 v0.6.2 Pre-Release/正式版。
+
+在 v0.6.2 安全维护完成并发布前，v0.7.0 的新功能开发冻结；不得提前实现格式化 diff/撤销、规则搜索、用户预设、PDF/CAJ 清洗、正则替换或其它产品功能。
+
+### v0.6.2 维护阶段
+
+1. **S2-A 基线与资源边界**：合并安全审计模型和输入/设置资源限制；已完成 PR #35、PR #36，覆盖 GUI/TUI/CLI 共用请求模型、设置加载/保存和审计门禁。
+2. **S2-B 设置存储安全**：完成 Unix `0600` 私有权限、Unix symlink 拒绝、进程内并发保存串行化、原子计数器保证唯一临时文件名、临时文件失败清理和备份恢复测试；Windows reparse point/junction、跨进程并发和当前维护版本 Windows 平台验证已由用户于 **2026-09-07** 在原生环境确认通过。未提供具体机器版本、命令计数或 artifact 路径；如需审计级复现，按 Runbook 补充脱敏证据。
+3. **S2-C IPC 错误边界**：已完成稳定错误 code、前端安全消息归一化和 Rust 映射测试；剩余 Tauri 原生 command 级 E2E 边界复验与跨平台错误展示验收。
+4. **S2-D E2E 供应链**：完成复核——WebdriverIO 9.31.5 → 9.31.6 小版本升级未能覆盖 `GHSA-jmr9-qjv8-65gv`，`npm audit fix --force` 仅提供破坏性的 WebdriverIO 8 降级，均未采用；维持 `docs/decisions/e2e-audit-policy.json` 限期风险登记（review_after 2026-10-06），在兼容 WebdriverIO 升级或 provider 替换前按季度复核。
+5. **S2-E CI 与 Actions**：固定 GitHub Actions commit SHA、收紧 job permissions、校验 workflow 输入并加入 artifact/privacy scan。
+6. **S2-F 发布完整性**：生成生产 CycloneDX SBOM（`scripts/generate_sbom.py`，已接入 `verify.py --profile audit` 与 release workflow 的 assemble/发布），审查 Release 资产内容并确保 checksum/license 清单可重复生成；许可证清单现由 `scripts/generate_licenses.py --check` 纳入 audit 门禁；provenance/attestation 与签名机制留待后续评估接入。
+7. **S2-G 最终审计**：完成全量 CI、依赖审计、隐私扫描、设置安全矩阵和跨平台 smoke，形成 v0.6.2 安全维护审计报告。
+
+### v0.6.2 发布门槛
+
+- 生产依赖无未解释的 high/critical 漏洞；
+- 用户正文默认不落盘，主文件、备份、临时文件和测试 artifact 均不泄露正文；
+- IPC、格式化请求和设置文件均有资源边界；
+- 设置权限、symlink、并发和备份恢复行为完成验证；
+- E2E advisory 已修复，或有负责人、缓解措施和明确到期日期的正式风险接受；
+- Actions SHA、job 权限、SBOM、provenance、checksum、license 和 Release 资产检查完成；
+- 完成一次独立的 v0.6.2 安全维护审计；
+- 维护者明确指定前，不创建 v0.6.2 tag、不构建、不发布。
+
+### v0.6.2 当前必须在 Windows 原生环境执行的步骤
+
+Linux/WSL 只负责预检和可移植验证，不能替代 Windows WebView2、MSVC、NTFS、DPI、系统剪贴板或 Windows Terminal 证据。发布前必须在同一个干净的 Windows 原生 checkout、当前待发布 commit 和当前构建产物上，按 [Windows 原生 E2E 与交互留证 Runbook §2.5](windows-e2e-runbook.md) 串行执行：
+
+1. 记录 commit、Windows/PowerShell/Node/Rust MSVC/WebView2/Windows Terminal/字体/DPI 基线，并建立隔离的 artifact 与设置目录；
+2. 执行 `npm ci`、E2E typecheck，构建当前默认 embedded binary，运行 `selection-and-persistence.spec.ts`（3/3）；
+3. 构建 `simplified-trad-conversion` feature binary，运行双向转换 spec（2/2）；
+4. 构建并运行标准 W3C provider smoke；
+5. 在 Windows MSVC 上运行 `cargo test --features tui`，并完成 Windows Terminal raw-mode、粘贴、OSC 52、保存/退出/重启和必要的多行/emoji 交互复验；
+6. 复验设置损坏、NTFS ACL/reparse point、备份恢复、并发保存和失败清理；将脱敏 artifact、退出码、测试计数和清理结果保留在本地审计位置，不入库；
+7. 若本轮构建发布资产，则在 Windows 上构建并启动便携版/TUI，执行 Windows smoke 和 `verify_release_assets.py --platform windows`；最终跨平台资产合并与 `SHA256SUMS` 仍按发布 Runbook 执行。
+
+**当前状态（2026-09-07）**：用户已确认上述当前维护版本 Windows 平台验证完成。该确认覆盖当前发布前流程，但未提供具体机器版本、命令计数或 artifact 路径；因此不补写不存在的复现细节。GUI DPI 自动矩阵和 GitLab Windows 可选 E2E stage 按项目决定跳过，不计作通过；三档 DPI 人工检查和既有 Windows Terminal 交互结果只在当前 commit、工具链或诊断范围变化时按需复跑。
+
+### v0.7.0 启动条件
+
+仅在 v0.6.2 安全维护完成并按发布门槛发布后，才允许从 `dev` 启动 `v0.7.0-dev.1`，再恢复新功能开发。
+
 ## P0：仓库卫生与事实来源收敛
 
 - [x] 增加统一的安全清理入口（`scripts/clean.py`，白名单删除 `src-tauri/target/`、`frontend/dist/`、`src-tauri/gen/`、`scripts/__pycache__/`、`e2e/artifacts/` 与 `e2e/settings-*`，支持 `--dry-run`/`--deep`）；
@@ -25,7 +70,9 @@ span-aware 混合管线、规则注册表、阶段依赖、结构/语义 span �
 - [x] 运行当前依赖审计（`verify.py --profile audit` 口径）：frontend 生产依赖 0 漏洞；e2e 测试链在 2026-09-01 复核后报告 13 项 high，涉及 `@wdio`、`puppeteer`、`extract-zip` 等传递依赖；Cargo 0 漏洞、20 项允许的 unsound 警告（`lru` 等传递依赖）；
 - [x] 修复 e2e 测试链 `serialize-javascript` 高危告警：在 `e2e/package.json` 增加 npm `overrides` 固定到 `7.1.1`，保留 WebdriverIO 9/Mocha 10；`npm ci`、类型检查和审计验证通过，决策记录见 [decisions/wdio-serialize-javascript.md](decisions/wdio-serialize-javascript.md)。
 - [x] 修复 E2E 传递依赖 `deepmerge-ts` high 告警：在 `e2e/package.json` 增加 override 固定到 `8.0.2`，保留 WebdriverIO 9；干净安装、动态导入、类型检查和审计验证通过，记录见 [decisions/wdio-transitive-dependencies.md](decisions/wdio-transitive-dependencies.md)。
-- [ ] 持续跟随 WebdriverIO/@wdio 及浏览器工具升级，处理剩余 13 项 E2E 传递依赖 high 告警；`@puppeteer/browsers`/`extract-zip` 暂不覆盖，等待完整 provider 回归和工具链升级窗口；
+- [x] 处置 Dependabot `lru` low 告警（GHSA-rhfx-m35p-ff5j）：随 ratatui 0.29.0 → 0.30.2（配套 crossterm 0.28 → 0.29）升级消除，lockfile 中 `lru` 已达 0.18.4（≥0.16.3 修复版）；Rust 全量验证（含 TUI feature clippy/test/build 与性能门禁）与 audit 通过。Windows Terminal 原生 TUI 交互回归仍需在发布演练时按既有 Runbook 复验。
+- [x] 处置 Dependabot `glib` medium 告警（GHSA-wrw7-89jp-8q8g）：修复版本 0.20.0 需要 Tauri/Wry GTK 0.20 代系迁移，超出 v0.6.2 安全维护边界；建立限期风险接受（owner maintainers，复核期限 2026-12-31），见 [decisions/glib-0.18-soundness-risk.md](decisions/glib-0.18-soundness-risk.md)。
+- [ ] 持续跟随 WebdriverIO/@wdio 及浏览器工具升级，处理剩余 13 项 E2E 传递依赖 high 告警；当前由 `scripts/verify.py --profile audit` 透明登记 `GHSA-jmr9-qjv8-65gv`，`@puppeteer/browsers`/`extract-zip` 暂不覆盖，等待完整 provider 回归和工具链升级窗口；
 - [x] 对 `serde_yaml`（上游 deprecated）迁移做独立 Spike：结论为**暂不迁移、保持观察**（无漏洞告警、使用面仅 2 处；若迁移首选 API 兼容的 `serde-yaml-ng` 并跑全量 round-trip 对照），记录见 [decisions/serde-yaml-migration.md](decisions/serde-yaml-migration.md)；
 - [x] 重新生成并审阅 `docs/licenses.md`（2026-09-01：生成脚本改为读取 `frontend/package-lock.json` 的完整 `packages` 条目；Rust 431 条、npm 294 条、许可证字段缺失 0 条；重复生成结果稳定）。
 
@@ -89,7 +136,8 @@ span-aware 混合管线、规则注册表、阶段依赖、结构/语义 span �
 
 ## P2：发布持续维护
 
-- [ ] 持续执行依赖审计、许可证清单更新和工具链升级 Runbook。
+- [x] 将 Rust、frontend 和 E2E 依赖审计统一纳入 `scripts/verify.py --profile audit`；E2E 已接受风险必须登记在 [decisions/e2e-audit-policy.json](decisions/e2e-audit-policy.json)，未登记 high/critical 或审计网络/JSON 失败仍阻断。
+- [ ] 持续执行依赖审计、许可证清单更新和工具链升级 Runbook；该维护项属于 v0.6.2 安全维护周期，完成前不启动 v0.7.0 功能开发。
 
 ## 规则扩展准入
 

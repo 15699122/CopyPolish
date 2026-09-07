@@ -9,6 +9,10 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/lib/tauri", () => ({
   formatText: mocks.formatText,
+  normalizeCommandError: (cause: unknown) => ({
+    code: "internal",
+    message: cause instanceof Error ? cause.message : "操作失败，请检查输入后重试。",
+  }),
 }));
 
 const getSelection = (enabled: string[]) => ({ mode: "only" as const, keys: enabled });

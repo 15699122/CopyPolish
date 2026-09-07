@@ -15,15 +15,26 @@
 
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::io::Write;
+use std::io::{ErrorKind, Write};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Mutex, OnceLock};
 
-use crate::engine::{CharacterConversion, ReplacementPair};
+use crate::engine::{
+    CharacterConversion, ReplacementPair, MAX_REPLACEMENTS, MAX_REPLACEMENT_FIELD_BYTES,
+    MAX_RULE_SELECTION_KEYS,
+};
 
 /// 用户设置文件名（exe 同目录，YAML 格式）。
 pub const SETTINGS_FILE_NAME: &str = "rules.yaml";
 /// 设置备份文件名；主文件损坏时作为最后一次有效保存的恢复来源。
 pub const SETTINGS_BACKUP_FILE_NAME: &str = "rules.yaml.bak";
+/// 设置文件解析前的最大字节数，避免异常文件导致无界内存分配。
+pub const MAX_SETTINGS_FILE_BYTES: u64 = 2 * 1024 * 1024;
+pub const MAX_SHORTCUT_BINDING_BYTES: usize = 128;
+
+static TEMPORARY_FILE_COUNTER: AtomicU64 = AtomicU64::new(0);
+static SETTINGS_SAVE_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 
 /// 由设置文件路径派生备份路径：在文件名后追加 `.bak`。
 /// 生产设置文件固定为 `rules.yaml`，派生结果即 `rules.yaml.bak`；
@@ -36,6 +47,70 @@ pub(crate) fn backup_path_for(settings_path: &Path) -> PathBuf {
         .unwrap_or_default();
     name.push(".bak");
     settings_path.with_file_name(name)
+}
+
+/// 为设置保存生成进程/时间唯一的临时路径，避免多个进程共享固定
+/// `rules.yaml.tmp` 时互相覆盖或误操作未知文件。
+fn temporary_path_for(settings_path: &Path) -> PathBuf {
+    let file_name = settings_path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("rules.yaml");
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    let counter = TEMPORARY_FILE_COUNTER.fetch_add(1, Ordering::Relaxed);
+    settings_path.with_file_name(format!(
+        ".{file_name}.tmp-{}-{timestamp}-{counter}",
+        std::process::id()
+    ))
+}
+
+/// 不跟随链接检查设置写入目标。设置路径、备份路径和临时路径都必须
+/// 是普通文件或尚不存在；否则拒绝操作，避免把内容写到非预期目标。
+fn reject_symlink(path: &Path, label: &str) -> Result<(), String> {
+    match fs::symlink_metadata(path) {
+        Ok(metadata) if metadata.file_type().is_symlink() => Err(format!(
+            "{label} path must not be a symbolic link: {}",
+            path.display()
+        )),
+        Ok(_) => Ok(()),
+        Err(error) if error.kind() == ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(format!(
+            "inspect {label} path {} failed: {error}",
+            path.display()
+        )),
+    }
+}
+
+#[cfg(unix)]
+fn set_private_permissions(file: &fs::File, path: &Path) -> Result<(), String> {
+    use std::os::unix::fs::PermissionsExt;
+    file.set_permissions(fs::Permissions::from_mode(0o600))
+        .map_err(|error| {
+            format!(
+                "set private permissions on {} failed: {error}",
+                path.display()
+            )
+        })
+}
+
+#[cfg(not(unix))]
+fn set_private_permissions(_file: &fs::File, _path: &Path) -> Result<(), String> {
+    Ok(())
+}
+
+#[cfg(unix)]
+fn sync_directory(dir: &Path) -> Result<(), String> {
+    fs::File::open(dir)
+        .and_then(|file| file.sync_all())
+        .map_err(|error| format!("sync settings directory {} failed: {error}", dir.display()))
+}
+
+#[cfg(not(unix))]
+fn sync_directory(_dir: &Path) -> Result<(), String> {
+    Ok(())
 }
 /// 旧版设置文件名（JSON，仅用于一次性迁移读取）。
 pub const LEGACY_SETTINGS_FILE_NAME: &str = "ccw-formatter-settings.json";
@@ -199,6 +274,42 @@ pub fn enforce_input_privacy(settings: &mut UserSettings) {
     }
 }
 
+/// 校验用户设置资源规模。保存入口和文件序列化入口都应调用，避免
+/// 恶意/损坏调用方通过设置文件制造无界的内存或磁盘增长。
+pub fn validate_user_settings(settings: &UserSettings) -> Result<(), String> {
+    if settings.enabled.len() > MAX_RULE_SELECTION_KEYS {
+        return Err(format!(
+            "enabled rules exceed the {} key limit",
+            MAX_RULE_SELECTION_KEYS
+        ));
+    }
+    if settings.replacements.len() > MAX_REPLACEMENTS {
+        return Err(format!(
+            "replacements exceed the {} item limit",
+            MAX_REPLACEMENTS
+        ));
+    }
+    for pair in &settings.replacements {
+        if pair.from.len() > MAX_REPLACEMENT_FIELD_BYTES
+            || pair.to.len() > MAX_REPLACEMENT_FIELD_BYTES
+        {
+            return Err(format!(
+                "replacement fields exceed the {} KiB limit",
+                MAX_REPLACEMENT_FIELD_BYTES / 1024
+            ));
+        }
+    }
+    for binding in settings.shortcuts.bindings.values() {
+        if binding.len() > MAX_SHORTCUT_BINDING_BYTES {
+            return Err(format!(
+                "shortcut bindings exceed the {} byte limit",
+                MAX_SHORTCUT_BINDING_BYTES
+            ));
+        }
+    }
+    Ok(())
+}
+
 /// 设置加载提醒类型。
 #[derive(Serialize, Clone, Copy, Debug, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -348,11 +459,22 @@ pub fn uses_app_data_fallback() -> bool {
 
 /// 从指定路径读取 YAML 设置；文件缺失或解析失败时返回 None（调用方自行回落默认值）。
 pub fn load_from(path: &Path) -> Option<UserSettings> {
+    let metadata = fs::metadata(path).ok()?;
+    if !metadata.is_file() || metadata.len() > MAX_SETTINGS_FILE_BYTES {
+        return None;
+    }
     let text = fs::read_to_string(path).ok()?;
-    serde_yaml::from_str(&text).ok()
+    let settings = serde_yaml::from_str(&text).ok()?;
+    validate_user_settings(&settings).ok()?;
+    Some(settings)
 }
 
 pub fn save_to(path: &Path, settings: &UserSettings) -> Result<(), String> {
+    let _save_guard = SETTINGS_SAVE_LOCK
+        .get_or_init(|| Mutex::new(()))
+        .lock()
+        .map_err(|_| "settings save lock is poisoned".to_string())?;
+    validate_user_settings(settings)?;
     let yaml = serde_yaml::to_string(settings)
         .map_err(|e| format!("serialize settings for {}: {e}", path.display()))?;
     let dir = path
@@ -373,36 +495,53 @@ pub fn save_to(path: &Path, settings: &UserSettings) -> Result<(), String> {
         ));
     }
 
-    let tmp_path = path.with_extension("yaml.tmp");
-    let mut file = fs::File::create(&tmp_path).map_err(|e| {
-        format!(
-            "create temporary settings file {} failed; target settings file is {}; directory is {}: {e}",
-            tmp_path.display(),
-            path.display(),
-            dir.display()
-        )
-    })?;
-    file.write_all(yaml.as_bytes()).map_err(|e| {
-        format!(
-            "write temporary settings file {} failed; target settings file is {}: {e}",
+    reject_symlink(path, "settings")?;
+    let backup_path = backup_path_for(path);
+    reject_symlink(&backup_path, "settings backup")?;
+    let tmp_path = temporary_path_for(path);
+    reject_symlink(&tmp_path, "temporary settings")?;
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&tmp_path)
+        .map_err(|error| {
+            format!(
+                "create temporary settings file {} failed; target settings file is {}; directory is {}; error: {error}",
+                tmp_path.display(),
+                path.display(),
+                dir.display()
+            )
+        })?;
+    if let Err(error) = set_private_permissions(&file, &tmp_path) {
+        drop(file);
+        let _ = fs::remove_file(&tmp_path);
+        return Err(error);
+    }
+    if let Err(error) = file.write_all(yaml.as_bytes()) {
+        drop(file);
+        let _ = fs::remove_file(&tmp_path);
+        return Err(format!(
+            "write temporary settings file {} failed; target settings file is {}: {error}",
             tmp_path.display(),
             path.display()
-        )
-    })?;
-    file.sync_all().map_err(|e| {
-        format!(
-            "flush temporary settings file {} failed; target settings file is {}: {e}",
+        ));
+    }
+    if let Err(error) = file.sync_all() {
+        drop(file);
+        let _ = fs::remove_file(&tmp_path);
+        return Err(format!(
+            "flush temporary settings file {} failed; target settings file is {}: {error}",
             tmp_path.display(),
             path.display()
-        )
-    })?;
+        ));
+    }
     drop(file);
 
     // 先保留当前有效文件，再替换主文件。若备份轮换失败，主文件仍保持不变。
     let mut backup_moved = false;
-    let backup_path = backup_path_for(path);
     if path.exists() {
         if backup_path.exists() {
+            reject_symlink(&backup_path, "settings backup")?;
             fs::remove_file(&backup_path).map_err(|e| {
                 format!(
                     "remove previous settings backup {} failed; target settings file is {}: {e}",
@@ -418,7 +557,18 @@ pub fn save_to(path: &Path, settings: &UserSettings) -> Result<(), String> {
                 backup_path.display()
             )
         })?;
+        if let Err(error) = set_private_permissions(
+            &fs::File::open(&backup_path).map_err(|e| {
+                format!("open settings backup {} failed: {e}", backup_path.display())
+            })?,
+            &backup_path,
+        ) {
+            let _ = fs::rename(&backup_path, path);
+            let _ = fs::remove_file(&tmp_path);
+            return Err(error);
+        }
         backup_moved = true;
+        sync_directory(dir)?;
     }
 
     if let Err(error) = fs::rename(&tmp_path, path) {
@@ -433,6 +583,7 @@ pub fn save_to(path: &Path, settings: &UserSettings) -> Result<(), String> {
             dir.display()
         ));
     }
+    sync_directory(dir)?;
     Ok(())
 }
 
@@ -704,6 +855,132 @@ mod tests {
     }
 
     #[test]
+    fn temporary_paths_are_unique() {
+        let path = temp_settings_file("temporary-path");
+        let first = temporary_path_for(&path);
+        let second = temporary_path_for(&path);
+        assert_ne!(first, second);
+    }
+
+    #[test]
+    fn concurrent_saves_leave_parseable_settings_and_backup() {
+        use std::sync::Arc;
+        use std::thread;
+
+        let path = Arc::new(temp_settings_file("concurrent-save"));
+        let workers: Vec<_> = (0..8)
+            .map(|index| {
+                let path = Arc::clone(&path);
+                thread::spawn(move || {
+                    let settings = UserSettings {
+                        enabled: vec![format!("rule-{index}")],
+                        restore_last_input: true,
+                        last_input: format!("内容-{index}"),
+                        ..UserSettings::default()
+                    };
+                    save_to(path.as_ref(), &settings)
+                })
+            })
+            .collect();
+
+        for worker in workers {
+            worker
+                .join()
+                .expect("concurrent save worker must not panic")
+                .expect("serialized concurrent save should succeed");
+        }
+
+        assert!(load_from(path.as_ref()).is_some());
+        assert!(load_from(&backup_path_for(path.as_ref())).is_some());
+
+        let parent = path.parent().unwrap();
+        let leftovers: Vec<_> = fs::read_dir(parent)
+            .unwrap()
+            .filter_map(Result::ok)
+            .map(|entry| entry.file_name())
+            .filter(|name| name.to_string_lossy().contains("concurrent-save"))
+            .collect();
+        assert_eq!(leftovers.len(), 2, "only settings and backup should remain");
+        let _ = fs::remove_file(path.as_ref());
+        let _ = fs::remove_file(backup_path_for(path.as_ref()));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn settings_and_backup_files_use_private_permissions() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let path = temp_settings_file("private-permissions");
+        let backup = backup_path_for(&path);
+        save_to(&path, &UserSettings::default()).expect("first save should succeed");
+        assert_eq!(
+            fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+
+        save_to(&path, &UserSettings::default()).expect("second save should succeed");
+        assert_eq!(
+            fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+        assert_eq!(
+            fs::metadata(&backup).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+
+        let leftovers: Vec<_> = fs::read_dir(path.parent().unwrap())
+            .unwrap()
+            .filter_map(Result::ok)
+            .map(|entry| entry.file_name())
+            .filter(|name| name.to_string_lossy().contains("private-permissions"))
+            .collect();
+        assert_eq!(leftovers.len(), 2, "only settings and backup should remain");
+        let _ = fs::remove_file(&path);
+        let _ = fs::remove_file(&backup);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn symlinked_settings_target_is_rejected_without_modifying_target() {
+        use std::os::unix::fs::symlink;
+
+        let path = temp_settings_file("symlink-target");
+        let target = temp_settings_file("symlink-target-real");
+        fs::write(&target, "sentinel").unwrap();
+        symlink(&target, &path).unwrap();
+
+        let error = save_to(&path, &UserSettings::default()).expect_err("symlink must be rejected");
+        assert!(error.contains("must not be a symbolic link"));
+        assert_eq!(fs::read_to_string(&target).unwrap(), "sentinel");
+
+        let _ = fs::remove_file(&path);
+        let _ = fs::remove_file(&target);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn symlinked_backup_target_is_rejected_without_modifying_existing_settings() {
+        use std::os::unix::fs::symlink;
+
+        let path = temp_settings_file("symlink-backup");
+        let backup = backup_path_for(&path);
+        let target = temp_settings_file("symlink-backup-real");
+        save_to(&path, &UserSettings::default()).expect("first save should succeed");
+        fs::write(&target, "sentinel").unwrap();
+        symlink(&target, &backup).unwrap();
+
+        let error =
+            save_to(&path, &UserSettings::default()).expect_err("backup symlink must be rejected");
+        assert!(error.contains("settings backup path must not be a symbolic link"));
+        assert!(path.is_file());
+        assert_eq!(fs::read_to_string(&target).unwrap(), "sentinel");
+
+        let _ = fs::remove_file(&path);
+        let _ = fs::remove_file(&backup);
+        let _ = fs::remove_file(&target);
+    }
+
+    #[test]
     fn corrupt_primary_recovers_from_backup_with_status() {
         let dir = std::env::temp_dir().join(format!(
             "ccw-settings-recover-{}-{}",
@@ -878,6 +1155,38 @@ mod tests {
         fs::write(&path, "not json {{{\"").unwrap();
         assert_eq!(load_from(&path), None);
         let _ = fs::remove_file(&path);
+    }
+
+    #[test]
+    fn oversized_settings_are_rejected_before_use() {
+        let path = temp_settings_file("oversized-file");
+        fs::write(&path, "x".repeat((MAX_SETTINGS_FILE_BYTES + 1) as usize)).unwrap();
+        assert_eq!(load_from(&path), None);
+        let _ = fs::remove_file(&path);
+
+        let path = temp_settings_file("oversized-replacements");
+        let settings = UserSettings {
+            replacements: vec![ReplacementPair::default(); MAX_REPLACEMENTS + 1],
+            ..UserSettings::default()
+        };
+        fs::write(&path, serde_yaml::to_string(&settings).unwrap()).unwrap();
+        assert_eq!(load_from(&path), None);
+        let _ = fs::remove_file(&path);
+    }
+
+    #[test]
+    fn oversized_shortcut_binding_is_rejected() {
+        let settings = UserSettings {
+            shortcuts: ShortcutSettings {
+                bindings: std::collections::BTreeMap::from([(
+                    "format_now".to_string(),
+                    "x".repeat(MAX_SHORTCUT_BINDING_BYTES + 1),
+                )]),
+                ..ShortcutSettings::default()
+            },
+            ..UserSettings::default()
+        };
+        assert!(validate_user_settings(&settings).is_err());
     }
 
     #[test]
