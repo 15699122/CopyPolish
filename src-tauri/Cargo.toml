@@ -49,7 +49,7 @@ regex = "1"
 unicode-segmentation = "1.12"
 # 简繁转换（可选，见 `simplified-trad-conversion` feature）。
 # opencc-fmmseg：MIT，OpenCC 词典 + FMM 分词，内置压缩词典、无运行时 I/O。
-opencc-fmmseg = { version = "0.11.5", optional = true }
+opencc-fmmseg = { version = "0.12.0", optional = true }
 
 # Ratatui 终端界面仅在 `--features tui` 时编译，不影响默认 Tauri 构建。
 ratatui = { version = "0.30", optional = true }
