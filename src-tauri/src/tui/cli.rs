@@ -151,10 +151,7 @@ pub fn build_selection(
         Some(RulesMode::None) => BTreeSet::new(),
         None => preset_selection
             .map(|selection| settings::expand_selection(&selection, rules))
-            .or_else(|| {
-                shared
-                    .map(|selection| settings::expand_selection(&selection, rules))
-            })
+            .or_else(|| shared.map(|selection| settings::expand_selection(&selection, rules)))
             .unwrap_or_else(|| {
                 rules
                     .iter()
@@ -383,7 +380,12 @@ mod tests {
             .find(|preset| preset.key == "copywriting")
             .map(|preset| preset.selection);
         match build_selection(
-            &flags(&["--preset", "copywriting", "--enable", "cleanup.reference-square"]),
+            &flags(&[
+                "--preset",
+                "copywriting",
+                "--enable",
+                "cleanup.reference-square",
+            ]),
             &rules,
             None,
             preset_selection,
