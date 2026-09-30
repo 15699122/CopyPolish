@@ -1,0 +1,42 @@
+# 复制为受控本地 manifest.yaml；不要填入未经许可的原文或个人信息。
+schema: pdf-caj-corpus-v1
+created_at: "YYYY-MM-DD"
+operator: "<initials>"
+retention: "<local policy>"
+samples:
+  - id: "pdf-single-column-001"
+    source_type: "pdf"
+    source_path: "<local controlled path>"
+    source_hash_sha256: "<sha256>"
+    license_or_redaction: "<permission or redaction record>"
+    extraction_tool: "<reader and version>"
+    extraction_date: "YYYY-MM-DD"
+    multi_column: false
+    language_mix: ["zh", "en", "number"]
+    structures: ["paragraph", "heading", "list", "header-footer"]
+    expected_line_actions: {merge: 0, keep: 0, unknown: 0}
+    cjk_space_cases: {remove: 0, keep: 0, protected: 0}
+    text_file_local: "<controlled local path>"
+    annotation_file_local: "<controlled local path>"
+    notes: "<failure reason or ambiguity>"
+  - id: "pdf-multi-column-001"
+    source_type: "pdf"
+    source_path: "<local controlled path>"
+    source_hash_sha256: "<sha256>"
+    license_or_redaction: "<permission or redaction record>"
+    extraction_tool: "<reader and version>"
+    extraction_date: "YYYY-MM-DD"
+    multi_column: true
+    expected_reading_order: "<manual description>"
+    text_file_local: "<controlled local path>"
+    annotation_file_local: "<controlled local path>"
+  - id: "caj-copy-001"
+    source_type: "cajviewer-copy"
+    source_path: "<local controlled path or no file retained>"
+    source_hash_sha256: "<hash of permitted source or copied text>"
+    license_or_redaction: "<permission or redaction record>"
+    extraction_tool: "CAJViewer <version>"
+    extraction_date: "YYYY-MM-DD"
+    language_mix: ["zh", "en", "number", "formula", "table"]
+    text_file_local: "<controlled local path>"
+    annotation_file_local: "<controlled local path>"

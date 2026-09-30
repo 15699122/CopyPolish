@@ -73,3 +73,5 @@
 - 不把合成基线标记为真实语料通过；
 - 保持路线图待办，直到真实语料和失败基线齐备；
 - 若后续实现，优先以两个独立、默认关闭的规则进入 `RulePhase::Cleanup`，并复用现有 span/TextEdit 管线。
+
+2026-09-08 已完成真实语料验收的准备工作：新增 [`docs/acceptance/pdf-caj/`](../acceptance/pdf-caj/)，包含许可/hash/来源 manifest 和逐条行边界、CJK 空格标注模板。模板不包含原始 PDF/CAJ；真实原件须留在 Windows 本地受控目录。
