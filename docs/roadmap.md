@@ -156,20 +156,37 @@ span-aware 混合管线、规则注册表、阶段依赖、结构/语义 span �
 
   YAML 解析校验通过（`ci.yml` 3 个 job、`release.yml` 6 个 job 结构完整）。
 
-- [ ] 在集成分支执行 `publish=false` 发布演练，验证 checkout、Node 初始化、Linux/Windows 构建、Windows 自动 smoke、artifact 上传/下载/汇总与哈希校验；
-- [ ] 组合演练成功后按序合并，每步确认基线与必需检查；合并后对最终基线**再次演练**，确保验证基线与交付基线一致。
+- [x] 在集成分支执行 `publish=false` 发布演练，验证 checkout、Node 初始化、Linux/Windows 构建、Windows 自动 smoke、artifact 上传/下载/汇总与哈希校验；
+- [x] 组合演练成功后按序合并，每步确认基线与必需检查；合并后对最终基线**再次演练**，确保验证基线与交付基线一致。
+
+  **合并结果**（均 squash 合入 `dev`，每步 CI 三项 SUCCESS）：
+
+  | PR | 内容 | 合并 commit |
+  | --- | --- | --- |
+  | #86 | GUI 中文布局与排版 | `217779c` |
+  | #65 | `actions/checkout` 4.4.0 → 7.0.1 | `b95e93b` |
+  | #69 | `actions/upload-artifact` 4.6.2 → 7.0.1 | `ae14a72` |
+  | #67 | `actions/download-artifact` 4.3.0 → 8.0.1 | `ba1f7e0` |
+  | #64 | `actions/setup-node` 4.4.0 → 7.0.0 | `c8d5709` |
+  | #87 | 预发布支持（见阶段三） | `dcab73c` |
+
+  #64 与 #65 在 `ci.yml` Frontend job 修改同一 `checkout` 行而冲突，按「新版本优先」解决为 `checkout` v7.0.1 + `setup-node` v7.0.0。
+
+  **组合演练**：`integrate/actions-bumps` 分支 run **36689011567**（tag `v0.7.0-pre1`，`publish=false`）——validate / build-linux / build-windows / windows-smoke / assemble 全部 `success`，publish `skipped`；产出 `CopyPolish-v0.7.0-pre1-release`、`release-linux-v0.7.0-pre1`、`release-windows-v0.7.0-pre1` 三个 artifact。
+
+  **最终基线复验**：全部合并后对 `dev` 的 `dcab73c` 再次执行同一演练，run **36693479446** 同样五阶段全部 `success`，产出完整资产。**验证基线与交付基线一致**。
 
 ### 阶段三：预发布支持
 
-- [ ] `release.yml` 支持预发布：严格区分 `vX.Y.Z`（`--latest`）与 `vX.Y.Z-preN`（`--prerelease` 且不占用 latest），替换宽松 shell 通配符版本判断；
-- [ ] 保留 `publish=false` 演练模式、分支限制与最小权限；发布时要求非空 `expected_sha` 并严格核对 HEAD；
-- [ ] 补充版本/发布脚本测试，覆盖 `0.7.0-pre1` 在 `frontend/package.json`、`package-lock.json`、`src-tauri/tauri.conf.json`、`Cargo.toml`、`Cargo.lock` 与资产元数据中的一致性；
-- [ ] 新增 `docs/archive/releases/v0.7.0-pre1.md` 发布说明（新 GUI、依赖更新、测试范围、已知限制、残余安全风险、简繁转换构建能力），不擅自改变正式发布资产的 feature 配置。
+- [x] `release.yml` 支持预发布：严格区分 `vX.Y.Z`（`--latest`）与 `vX.Y.Z-preN`（`--prerelease` 且不占用 latest），替换宽松 shell 通配符版本判断（PR #87，commit `dcab73c`）；
+- [x] 保留 `publish=false` 演练模式、分支限制与最小权限；发布时要求非空 `expected_sha` 并严格核对 HEAD（同上，`expected_sha` 由可选改为必填）；
+- [x] 补充版本/发布脚本测试，覆盖 `0.7.0-pre1` 在 `frontend/package.json`、`package-lock.json`、`src-tauri/tauri.conf.json`、`Cargo.toml`、`Cargo.lock` 与资产元数据中的一致性：新增 `tests/test_release_prerelease.py`（8 项），全量 `python3 -m unittest discover -s tests` 共 32 项通过；实际演练中 `prepare_release_version.py` + `check_version.py` 在 CI 内同步并校验 `0.7.0-pre1`；
+- [x] 新增 `docs/archive/releases/v0.7.0-pre1.md` 发布说明（新 GUI、依赖更新、测试范围、已知限制、残余安全风险、简繁转换构建能力），未擅自改变正式发布资产的 feature 配置。
 
 ### 阶段四：最终候选验证
 
-- [ ] 在独立发布工作区执行 `python3 scripts/verify.py --profile release --tag v0.7.0-pre1`、`--profile feature`、`--profile audit` 与 `npm run typecheck --prefix e2e`；
-- [ ] 按项目分支流程将候选整合至 `master`，对**最终候选 SHA**执行完整演练；
+- [x] 在独立发布工作区执行 `python3 scripts/verify.py --profile release --tag v0.7.0-pre1`、`--profile feature`、`--profile audit` 与 `npm run typecheck --prefix e2e`；其中 release / feature / audit 已在 release workflow 的 validate job 内对 `v0.7.0-pre1` 实际执行通过（run 36693479446），E2E typecheck 亦在同一 job 通过；本地另执行 `--profile audit`、`--profile checks` 与全量 unittest（32 项）通过；
+- [ ] 按项目分支流程将候选整合至 `master`，对**最终候选 SHA**执行完整演练；**当前尚未执行**：候选仍在 `dev`（`dcab73c`），等待 Windows 验证结果后决定是否推进 `master`；
 - [ ] 集中 Windows 验证：`P0` 原生构建、资产校验、候选 GUI/TUI 启动 smoke、发布上传/下载链路；`P1` 中文 GUI 分类与布局、真实剪贴板、DPI/缩放、窗口控制、设置持久化、转换能力与 TUI 交互回归；`P2` 主题、字体与长文本视觉复核；
 - [ ] 汇总 `PASS / FAIL / BLOCKED / NOT RUN`，给出「可发布」或「仍被哪些门禁阻塞」的明确结论。
 

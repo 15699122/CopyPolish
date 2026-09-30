@@ -103,10 +103,12 @@ Computer Use / GUI automation 不可用导致的**无法执行**不是功能失�
 | Q4 | GUI 中文布局与排版（WebView2/DPI/窗口控制/剪贴板） | `WINDOWS_VERIFICATION_PENDING` | P1 | 否 |
 | Q5 | 简繁转换 feature 构建（opencc-fmmseg 0.12.x） | `WINDOWS_VERIFICATION_PENDING` | P1 | 否 |
 | Q6 | Tauri 运行时与 CLI 补丁升级（#85、#79） | `WINDOWS_VERIFICATION_PENDING` | P1 | 否 |
-| Q7 | 发布链路 Actions 跨主版本升级（#69、#67、#65、#64） | `WINDOWS_VERIFICATION_PENDING` | P2 | 否 |
+| Q7 | 发布链路 Actions 跨主版本升级（#69、#67、#65、#64） | `LINUX_VERIFIED`（发布链路已在 CI 实测） | P2 | 否 |
 | Q8 | v0.7.0-pre1 发布候选资产与上传/下载链路 | `WINDOWS_VERIFICATION_PENDING` | P0 | 否 |
 
 当前无 `WINDOWS_VERIFICATION_BLOCKING` 项。Q5–Q7 于 2026-09-30 开放 PR 评估后新增，Q8 于同日 `v0.7.0-pre1` 发布准备阶段新增；计划见 `docs/roadmap.md`「P0：v0.7.0-pre1 发布准备」。
+
+**Q7 状态说明（2026-09-30）**：四个 Actions PR（#65、#64、#69、#67）已 squash 合并到 `dev`，组合演练 run **36689011567** 与最终基线复验 run **36693479446** 均在 GitHub Actions 上实际执行，`validate → build-linux → build-windows → windows-smoke → assemble` 全部 `success`，artifact 上传、跨平台下载与汇总链路均产出完整资产。因此发布链路的**自动化部分已取得真实执行证据**，不再依赖普通 PR CI 推断；仍保留本项以记录 Windows 资产在真实环境的人工复核。
 
 #### Q1 — `--preset` 非交互 CLI 行为
 
