@@ -121,9 +121,43 @@ span-aware 混合管线、规则注册表、阶段依赖、结构/语义 span �
 - [x] 复核低风险依赖 PR（#83、#81、#84、#82）并在合并后确认剩余 PR 状态：四项均已 squash 合并到 `dev`；
 - [x] Tauri 相关 PR（#85、#79）汇总原生构建、打包与运行验证项：两项均已 rebase 到最新 `dev`、CI 通过并合并；原生构建与打包验证仍归入 [validation/windows.md](validation/windows.md) Q6；
 - [x] #80（opencc-fmmseg 0.12.1）：确认 manifest `0.12.0` 约束与 lockfile `0.12.1` 一致（此前「版本不一致」结论不成立），以 `--features simplified-trad-conversion` 执行 clippy 与测试通过后合并；
-- [ ] #65、#64 更新基线后重跑 CI：两项已 rebase 到最新 `dev` 且 CI 全部通过，**暂不合并**，等待 `release.yml` 实际执行验证；
-- [ ] #69、#67 联合验证发布链路上传/下载组合：两项已 rebase 且 CI 通过，**暂不合并**，与 #65、#64 一并等待发布链路验证；
+- [x] #65、#64 更新基线后重跑 CI：两项已 rebase 到最新 `dev` 且 CI 全部通过；
+- [x] #69、#67 联合验证发布链路上传/下载组合：见「P0：v0.7.0-pre1 发布准备」；
 - [ ] 全部相关 GUI 与 Tauri 变更合并后，执行**一次集中 Windows 原生验证**，不按 PR 交替切换平台。
+
+## P0：v0.7.0-pre1 发布准备（进行中）
+
+本节记录 PR #86、#64、#65、#67、#69 的合并计划、必要安全审计与 `v0.7.0-pre1` 发布候选准备。**完成「准备」不等于授权发布**；实际 `publish=true` 与公开 Release 需在最终候选的构建与 Windows 验证通过后另行确认。
+
+### 阶段一：安全审计
+
+- [x] 在最终依赖基线上重新执行 `python3 scripts/verify.py --profile audit`，取新鲜结果，不沿用历史输出（`--profile audit` 通过：Rust 0 漏洞、前端 0 high/critical、E2E 残余 2 个已登记 advisory、SBOM 716 组件、许可证清单一致）
+- [x] 核实前端 `undici` 等告警是否随依赖升级实际消除：确认 `npm audit --prefix frontend` 为 0 vulnerabilities，`undici@8.11.2` 实际消除，**不沿用此前「缓存旧结果」的未验证解释**
+- [x] 分别核实 E2E `extract-zip` 的两个 advisory（GHSA-jmr9-qjv8-65gv、GHSA-7pqw-9j4j-h8q3）：影响范围、可用修复版本、依赖链与可利用条件：`extract-zip@2.0.1` 已是 npm latest，两个 advisory 均无 patched version
+- [x] 复核 Rust `glib`（GHSA-wrw7-89jp-8q8g）与 [decisions/glib-0.18-soundness-risk.md](decisions/glib-0.18-soundness-risk.md) 的暴露范围（Linux 桌面构建路径，Windows/macOS 不涉及）：维持既有限期接受（复核期限 2026-12-31），确认仅影响 Linux GUI 资产
+- [x] 无兼容修复时，在 [decisions/e2e-audit-policy.json](decisions/e2e-audit-policy.json) 与 [decisions/wdio-transitive-dependencies.md](decisions/wdio-transitive-dependencies.md) 登记**有期限、范围明确**的风险接受；不得为使审计变绿而扩大忽略范围或降级 WebdriverIO：另以同 major 版本区间 override 修复 `undici`/`brace-expansion`/`ip-address`（消除 14 个新 advisory）；`extract-zip` 的 GHSA-7pqw-9j4j-h8q3 新增限期登记，期限 2026-10-06
+- [x] 审计结果区分：已修复 / 已接受的残余风险 / 仍阻塞发布的问题。
+
+### 阶段二：合并 PR
+
+- [ ] **#86**：复核最终差异、检查状态与冲突后合并到 `dev`，不使用管理员绕过；Windows GUI 验证保持 `WINDOWS_VERIFICATION_PENDING`；
+- [ ] **#65 → #64 → #69 → #67**：先在基于最新 `dev` 的临时集成分支上组合四项改动，核对官方升级说明、runner 要求、输入参数、artifact 名称/路径/权限与下载语义；
+- [ ] 在集成分支执行 `publish=false` 发布演练，验证 checkout、Node 初始化、Linux/Windows 构建、Windows 自动 smoke、artifact 上传/下载/汇总与哈希校验；
+- [ ] 组合演练成功后按序合并，每步确认基线与必需检查；合并后对最终基线**再次演练**，确保验证基线与交付基线一致。
+
+### 阶段三：预发布支持
+
+- [ ] `release.yml` 支持预发布：严格区分 `vX.Y.Z`（`--latest`）与 `vX.Y.Z-preN`（`--prerelease` 且不占用 latest），替换宽松 shell 通配符版本判断；
+- [ ] 保留 `publish=false` 演练模式、分支限制与最小权限；发布时要求非空 `expected_sha` 并严格核对 HEAD；
+- [ ] 补充版本/发布脚本测试，覆盖 `0.7.0-pre1` 在 `frontend/package.json`、`package-lock.json`、`src-tauri/tauri.conf.json`、`Cargo.toml`、`Cargo.lock` 与资产元数据中的一致性；
+- [ ] 新增 `docs/archive/releases/v0.7.0-pre1.md` 发布说明（新 GUI、依赖更新、测试范围、已知限制、残余安全风险、简繁转换构建能力），不擅自改变正式发布资产的 feature 配置。
+
+### 阶段四：最终候选验证
+
+- [ ] 在独立发布工作区执行 `python3 scripts/verify.py --profile release --tag v0.7.0-pre1`、`--profile feature`、`--profile audit` 与 `npm run typecheck --prefix e2e`；
+- [ ] 按项目分支流程将候选整合至 `master`，对**最终候选 SHA**执行完整演练；
+- [ ] 集中 Windows 验证：`P0` 原生构建、资产校验、候选 GUI/TUI 启动 smoke、发布上传/下载链路；`P1` 中文 GUI 分类与布局、真实剪贴板、DPI/缩放、窗口控制、设置持久化、转换能力与 TUI 交互回归；`P2` 主题、字体与长文本视觉复核；
+- [ ] 汇总 `PASS / FAIL / BLOCKED / NOT RUN`，给出「可发布」或「仍被哪些门禁阻塞」的明确结论。
 
 ## P2：E2E 收敛
 

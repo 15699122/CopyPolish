@@ -104,8 +104,9 @@ Computer Use / GUI automation 不可用导致的**无法执行**不是功能失�
 | Q5 | 简繁转换 feature 构建（opencc-fmmseg 0.12.x） | `WINDOWS_VERIFICATION_PENDING` | P1 | 否 |
 | Q6 | Tauri 运行时与 CLI 补丁升级（#85、#79） | `WINDOWS_VERIFICATION_PENDING` | P1 | 否 |
 | Q7 | 发布链路 Actions 跨主版本升级（#69、#67、#65、#64） | `WINDOWS_VERIFICATION_PENDING` | P2 | 否 |
+| Q8 | v0.7.0-pre1 发布候选资产与上传/下载链路 | `WINDOWS_VERIFICATION_PENDING` | P0 | 否 |
 
-当前无 `P0` 项，无 `WINDOWS_VERIFICATION_BLOCKING` 项。Q5–Q7 于 2026-09-30 开放 PR 评估后新增，评估过程见 `docs/roadmap.md`「P0：开放 PR 评估修复」。
+当前无 `WINDOWS_VERIFICATION_BLOCKING` 项。Q5–Q7 于 2026-09-30 开放 PR 评估后新增，Q8 于同日 `v0.7.0-pre1` 发布准备阶段新增；计划见 `docs/roadmap.md`「P0：v0.7.0-pre1 发布准备」。
 
 #### Q1 — `--preset` 非交互 CLI 行为
 
