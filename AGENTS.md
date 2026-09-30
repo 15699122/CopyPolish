@@ -33,6 +33,7 @@
 | 文档 / 密钥 / diff 检查 | `python3 scripts/verify.py --profile checks` |
 | 前端依赖 + Vitest + 构建 | `python3 scripts/verify.py --profile frontend` |
 | Rust fmt/clippy/test + TUI + 性能门禁 | `python3 scripts/verify.py --profile rust` |
+| 可选 feature（简繁转换）clippy/test/build | `python3 scripts/verify.py --profile feature` |
 | 依赖安全审计 | `python3 scripts/verify.py --profile audit` |
 | 与常规 CI 对齐 | `python3 scripts/verify.py --profile ci` |
 | E2E 类型检查 | `npm run typecheck --prefix e2e` |

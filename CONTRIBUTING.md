@@ -63,6 +63,9 @@ python3 scripts/verify.py --profile frontend
 # Rust、TUI 和性能门禁
 python3 scripts/verify.py --profile rust
 
+# 可选 feature（简繁转换）检查
+python3 scripts/verify.py --profile feature
+
 # 依赖安全审计
 python3 scripts/verify.py --profile audit
 

@@ -93,7 +93,7 @@ Computer Use / GUI automation 不可用导致的**无法执行**不是功能失�
 
 优先级：`P0`（必须验证，失败意味着任务不能完成）、`P1`（重要的平台兼容性验证）、`P2`（建议验证，但不阻塞主要功能）。
 
-### 4.2 当前队列（截至 2026-09-15）
+### 4.2 当前队列（截至 2026-09-30）
 
 | ID | 验证项 | 状态 | 优先级 | 阻塞后续 Linux 开发 |
 | --- | --- | --- | --- | --- |
@@ -101,8 +101,11 @@ Computer Use / GUI automation 不可用导致的**无法执行**不是功能失�
 | Q2 | Windows Terminal 原生 TUI 交互复验 | `WINDOWS_VERIFICATION_PENDING` | P1 | 否 |
 | Q3 | 发布前 Windows 资产与启动 smoke（GUI + TUI） | `WINDOWS_VERIFICATION_PENDING` | P1 | 否 |
 | Q4 | GUI 中文布局与排版（WebView2/DPI/窗口控制/剪贴板） | `WINDOWS_VERIFICATION_PENDING` | P1 | 否 |
+| Q5 | 简繁转换 feature 构建（opencc-fmmseg 0.12.x） | `WINDOWS_VERIFICATION_PENDING` | P1 | 否 |
+| Q6 | Tauri 运行时与 CLI 补丁升级（#85、#79） | `WINDOWS_VERIFICATION_PENDING` | P1 | 否 |
+| Q7 | 发布链路 Actions 跨主版本升级（#69、#67、#65、#64） | `WINDOWS_VERIFICATION_PENDING` | P2 | 否 |
 
-当前无 `P0` 项，无 `WINDOWS_VERIFICATION_BLOCKING` 项。
+当前无 `P0` 项，无 `WINDOWS_VERIFICATION_BLOCKING` 项。Q5–Q7 于 2026-09-30 开放 PR 评估后新增，评估过程见 `docs/roadmap.md`「P0：开放 PR 评估修复」。
 
 #### Q1 — `--preset` 非交互 CLI 行为
 
@@ -142,6 +145,35 @@ Computer Use / GUI automation 不可用导致的**无法执行**不是功能失�
 - exact behavior to verify：默认与最小窗口下左右对照与窄屏堆叠正常；实时/手动模式标题与立即排版动作正确；设置六个分类可切换且焦点可用；浅色/深色主题、80%–125% 界面缩放、中文与中英文混排无溢出；复制结果/复制并清空/清空输入语义保持；
 - prerequisite：Windows 原生 checkout，并执行 `npm run build:app --prefix e2e` 构建当前 GUI；
 - expected result：界面行为与 Linux 验证一致；出现 Computer Use 不可用时按 §4.5 标记 `BLOCKED`，进入人工队列复核。
+
+#### Q5 — 简繁转换 feature 构建（opencc-fmmseg 0.12.x）
+
+- related change：开放 PR #80（`opencc-fmmseg` 0.12.0 → 0.12.1）；`dev` 已由 #73 将依赖升级至 0.12.0；
+- relevant files / modules：`src-tauri/Cargo.toml`、`src-tauri/Cargo.lock`、`scripts/verify.py`、简繁转换相关 Rust 模块；
+- why Windows validation is required：`simplified-trad-conversion` 是可选 feature，`scripts/verify.py` 的 Rust 步骤只覆盖 default 与 `tui`，常规 CI 绿灯不覆盖该 feature；该 feature 引入 `zstd` 等 native 编译，Windows MSVC 与默认 Linux 构建的编译结果可能不同；
+- exact behavior to verify：以 `--features simplified-trad-conversion` 构建 Tauri 应用与 TUI；在 GUI 中确认 capability 为 true、`t2s` / `s2t` 选项可用且输出正确；确认默认构建仍 capability 为 false 且选项禁用；
+- prerequisite：Windows 原生 checkout，可用的 Rust MSVC 工具链；已执行启用该 feature 的 `cargo test`；
+- expected result：feature 构建编译通过且转换输出正确；默认构建行为不变；不出现 native 链接或运行时错误；
+- 备注：需先在 Linux 侧为该 feature 建立可执行的验证入口，否则本项无法在 Windows 上给出有效结论。
+
+#### Q6 — Tauri 运行时与 CLI 补丁升级（#85、#79）
+
+- related change：开放 PR #85（`@tauri-apps/cli` 2.11.4 → 2.11.5）、#79（Rust `tauri` 2.11.5 → 2.11.6）；
+- relevant files / modules：`frontend/package-lock.json`、`src-tauri/Cargo.lock`、Tauri 打包配置；
+- why Windows validation is required：Tauri 打包、MSVC 构建、WebView2 宿主行为与前端单测覆盖范围不同，补丁版本也可能在 Windows 侧引入差异；
+- exact behavior to verify：Windows 原生 `cargo build` 与 Tauri 打包成功；应用启动、WebView2 加载、窗口控制与剪贴板行为正常；
+- prerequisite：Windows 原生 checkout 与 MSVC 工具链；
+- expected result：构建与运行行为与升级前一致。
+
+#### Q7 — 发布链路 Actions 跨主版本升级（#69、#67、#65、#64）
+
+- related change：开放 PR #69（upload-artifact 4.6.2 → 7.0.1）、#67（download-artifact 4.3.0 → 8.0.1）、#65（checkout 4.4.0 → 7.0.1）、#64（setup-node 4.4.0 → 7.0.0）；
+- relevant files / modules：`.github/workflows/ci.yml`、`.github/workflows/release.yml`；
+- why Windows validation is required：这四个 PR 修改发布工作流，普通 PR CI 只覆盖 `ci.yml`，不执行 `release.yml` 的资产上传、跨平台下载与汇总；跨主版本升级的 artifact 行为差异只能在真实发布流程中暴露；
+- exact behavior to verify：Linux 与 Windows 资产分别上传成功；Windows smoke 步骤能下载对应资产；汇总步骤能取得完整发布 artifact 且哈希校验通过；
+- prerequisite：候选 tag 与发布流程执行权限；
+- expected result：上传、下载、汇总链路全部成功，资产完整；
+- 备注：这四个 PR 当前 CI 的 Rust 失败由既有 `cli.rs` rustfmt 问题引起（已由 #77 在 `dev` 修复），**不能据此判断 Actions 升级本身有问题**；需更新基线并重跑 CI 后再评估，且必须验证 `release.yml` 实际执行。
 
 ### 4.3 集中验证计划（Windows Validation Preparation 输出）
 

@@ -102,6 +102,27 @@ span-aware 混合管线、规则注册表、阶段依赖、结构/语义 span �
 
 - [x] 确认存储策略 ADR（[decisions/settings-storage-policy.md](decisions/settings-storage-policy.md)）并按方案 B 落地：exe 目录优先，不可写时回退平台应用数据目录并提示 `UsingAppDataFallback`；TUI/GUI 共用；6 项决策单测覆盖（同目录优先/双位置并存/只读回退/均不可读/探针/legacy 固定）。
 
+## P0：开放 PR 评估修复（进行中）
+
+本节记录对仓库全部开放 PR 的评估结论与后续修复计划。评估范围为 12 个开放 PR（含 1 个功能 PR 与 11 个 Dependabot PR）。
+
+### 评估结论要点
+
+- **#86（GUI 中文布局）存在两处必须修复的问题**：设置分类化后，现有 GUI E2E 未同步分类切换，导致 `selection-and-persistence`、`restart-settings`、`gui-visual-artifacts` 等 spec 访问未挂载控件；且设置底栏「恢复默认」在非规则分类仍调用规则恢复回调，语义误导。
+- **#80（opencc-fmmseg 0.12.1）无版本不一致问题**：该 PR 分支的 `Cargo.toml` 已为 `0.12.0` 且与 `Cargo.lock` 一致，`dev` 已通过 #73 升级到 0.12.0。此前评估基于落后分支得出的「manifest/lock 不一致」结论不成立。
+- **#80 的真实缺口是验证覆盖**：`scripts/verify.py` 的 Rust 步骤覆盖 default 与 `tui`，不覆盖 `simplified-trad-conversion`，因此 CI 绿灯不能证明简繁转换链路可用。
+- **#69 / #67 / #65 / #64（Actions 跨主版本升级）CI 失败的直接原因是既有 `cli.rs` rustfmt 不合规**，而非 Actions 新版本本身；`dev` 已由 #77 修复该格式问题，这四个 PR 需更新基线后重新验证。
+
+### 修复计划
+
+- [x] #86：新增 E2E 设置分类切换辅助函数，更新所有跨分类访问的 spec（`selection-and-persistence`、`restart-settings`、`gui-visual-artifacts`、`simplified-trad-conversion`），并验证关闭重开设置时的分类状态行为；
+- [x] #86：非规则分类移除底栏「恢复默认」，或在实现分类级恢复后使用明确命名的独立回调，禁止复用规则恢复回调（已改为「恢复默认规则」且仅在规则分类渲染）；
+- [x] #80：为 `simplified-trad-conversion` feature 补充 Linux 可执行的构建/测试验证入口（新增 `--profile feature`），并登记 Windows 原生转换回归到集中验证队列（Q5）；
+- [ ] 复核低风险依赖 PR（#83、#81、#84、#82）并在合并后确认剩余 PR 状态；
+- [ ] Tauri 相关 PR（#85、#79）汇总原生构建、打包与运行验证项；
+- [ ] #65、#64 更新基线后重跑 CI；#69、#67 联合验证发布链路上传/下载组合；
+- [ ] 全部相关 GUI 与 Tauri 变更合并后，执行**一次集中 Windows 原生验证**，不按 PR 交替切换平台。
+
 ## P2：E2E 收敛
 
 - [x] Embedded provider 保留完整回归；标准 W3C provider 缩减为兼容性 smoke（session、主窗口、一次真实格式化、一次设置保存、退出清理）；`specs/w3c/smoke.spec.ts` 已建立，`wdio.webdriver.conf.ts` 与 `run-webdriver-specs.ts` 已同步指向 `specs/w3c/`，`package.json` 中各 `:webdriver` 专项脚本已移除。

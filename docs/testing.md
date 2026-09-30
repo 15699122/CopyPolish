@@ -100,6 +100,7 @@ Linux/WSL 仍应执行 `checks`、`frontend`、`rust`、`audit`、E2E typecheck 
 python3 scripts/verify.py --profile checks
 python3 scripts/verify.py --profile frontend
 python3 scripts/verify.py --profile rust
+python3 scripts/verify.py --profile feature
 python3 scripts/verify.py --profile audit
 ```
 

@@ -80,11 +80,12 @@ TUI 只负责交互状态和展示，格式化行为必须复用 `engine::format
 python3 scripts/verify.py --profile checks
 python3 scripts/verify.py --profile frontend
 python3 scripts/verify.py --profile rust
+python3 scripts/verify.py --profile feature
 python3 scripts/verify.py --profile audit
 python3 scripts/verify.py --profile ci
 ```
 
-`rust` profile 包含 Rust 默认/TUI 检查和性能门禁；`frontend` profile 包含 `npm ci`、Vitest 和前端构建；`checks` 包含 diff、密钥/SOPS 和 Markdown 链接检查；`audit` 执行 npm/Cargo 依赖审计。发布验证使用 `release` profile，必须在隔离 worktree 中执行，见 [release/manual-release.md](release/manual-release.md)。
+`rust` profile 包含 Rust 默认/TUI 检查和性能门禁；`feature` profile 覆盖可选 `simplified-trad-conversion` feature 的 clippy、测试与 TUI 构建；`frontend` profile 包含 `npm ci`、Vitest 和前端构建；`checks` 包含 diff、密钥/SOPS 和 Markdown 链接检查；`audit` 执行 npm/Cargo 依赖审计。发布验证使用 `release` profile，必须在隔离 worktree 中执行，见 [release/manual-release.md](release/manual-release.md)。
 
 ## 工程约束
 
