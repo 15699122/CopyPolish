@@ -265,10 +265,25 @@ CopyPolish_linux_amd64.AppImage
 自 v0.6.0 起，GitHub Actions 亦提供正式 Release 构建（`.github/workflows/release.yml`，`workflow_dispatch` 两阶段手动触发）。推荐流程：
 
 1. **演练**：在 `master` 上手动运行 Release workflow，`publish=false`——依次执行 validate → build-linux → build-windows → windows-smoke → assemble，产出七项资产与 `SHA256SUMS` 的 workflow artifact（保留 7 天），不创建 tag/Release；
-2. **发布**：演练通过后在 `master` 上再次手动运行，`publish=true`——publish job 校验 tag 不存在且严格匹配 `vX.Y.Z`、复核 checksum 后创建 annotated tag 并以 `docs/archive/releases/vX.Y.Z.md` 为 Notes 发布 latest Release；
+2. **发布**：演练通过后在 `master` 上再次手动运行，`publish=true`——publish job 校验 tag 不存在且严格匹配 `vX.Y.Z` 或 `vX.Y.Z-preN`、要求非空 `expected_sha`、复核 checksum，随后创建 annotated tag 并以 `docs/archive/releases/<tag>.md` 为 Notes 发布 Release。预发布 tag 自动标记 `--prerelease --latest=false`，正式版标记 `--latest`；
 3. 维护者仍应从 GitHub Release 重新下载全部资产并执行 `sha256sum -c SHA256SUMS` 复核（见 §11）。
 
-publish job 仅允许在 `master` 分支执行；资产清单与校验逻辑复用 `scripts/verify_release_assets.py`，与本地/GitLab 构建一致。
+publish job 仅允许在 `master` 分支执行；`expected_sha` 在 `publish=true` 时为**必填**，缺失即拒绝发布（防止绕过演练批准直接发布）。资产清单与校验逻辑复用 `scripts/verify_release_assets.py`，与本地/GitLab 构建一致。
+
+### 8.2 预发布与正式版的差异
+
+| 维度 | 正式版 `vX.Y.Z` | 预发布 `vX.Y.Z-preN` |
+| --- | --- | --- |
+| tag 格式 | `vX.Y.Z` | `vX.Y.Z-preN`（后缀允许字母、数字、点、连字符） |
+| Release 标记 | `--latest` | `--prerelease --latest=false` |
+| 是否占用 latest | 是 | **否** |
+| 发布说明 | `docs/archive/releases/<tag>.md`（必需） | 同左（必需） |
+| `expected_sha` | 必填 | 必填 |
+
+tag 守卫使用严格正则 `^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$`。**不要**改回
+`v[0-9]*.[0-9]*.[0-9]*` 这类 shell 通配符：它会误接受 `v1x2y3`、`v1.2.3-` 等非法 tag，
+且无法可靠区分正式版与预发布版。相关回归由 `tests/test_release_prerelease.py` 覆盖，
+与本仓库其他 Python 测试一样用 `python3 -m unittest discover -s tests` 运行。
 
 TUI 资产与桌面版共享同一 Release、tag、SHA256SUMS 与发布方式，命名遵循相同规范：
 
