@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Check, Copy, Eraser } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -37,6 +36,11 @@ export default function App() {
     lastFormatDuration,
     input,
     onInputChange,
+    onFormatNow,
+    outputMode,
+    layoutMode,
+    onOutputModeChange,
+    onLayoutModeChange,
     copied,
     copyOutput,
     copyAndClear,
@@ -48,6 +52,10 @@ export default function App() {
     onClose,
     onHeaderMouseDown,
   } = useAppController();
+  const manualMode = outputMode === "manual";
+  const inputChars = Array.from(input).length;
+  const outputChars = Array.from(output).length;
+  const resultTitle = manualMode ? "排版结果（手动）" : "排版结果（实时）";
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background text-foreground">
@@ -116,6 +124,43 @@ export default function App() {
         </div>
       )}
 
+      {/* 操作模式与布局：紧凑工具条，内容区保持主导 */}
+      <div
+        className="flex flex-wrap items-center gap-x-5 gap-y-2 border-b px-5 py-2"
+        data-testid="workspace-toolbar"
+      >
+        <label className="prose-helper flex items-center gap-2 text-muted-foreground">
+          <span className="shrink-0 font-medium">输出模式</span>
+          <select
+            value={outputMode}
+            onChange={(event) => onOutputModeChange(event.target.value as typeof outputMode)}
+            data-testid="output-mode-toolbar"
+            aria-label="输出模式"
+            className="h-8 rounded-md border border-input bg-background px-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <option value="realtime">实时输出</option>
+            <option value="manual">手动输出</option>
+          </select>
+        </label>
+        <label className="prose-helper flex items-center gap-2 text-muted-foreground">
+          <span className="shrink-0 font-medium">编辑区布局</span>
+          <select
+            value={layoutMode}
+            onChange={(event) => onLayoutModeChange(event.target.value as typeof layoutMode)}
+            data-testid="layout-mode-toolbar"
+            aria-label="输入输出布局"
+            className="h-8 rounded-md border border-input bg-background px-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <option value="auto">自动布局</option>
+            <option value="horizontal">左右对照</option>
+            <option value="vertical">上下排列</option>
+          </select>
+        </label>
+        <p className="prose-helper min-w-40 flex-1 text-muted-foreground">
+          {manualMode ? "手动模式不会自动刷新，请点击结果区“立即排版”。" : "实时模式会在输入或设置变化后自动排版。"}
+        </p>
+      </div>
+
       {/* 主体：左右双栏，小窗口上下堆叠 */}
       <main
         className="min-h-0 flex-1"
@@ -133,14 +178,30 @@ export default function App() {
           ].join(" ")}
           data-testid="editor-layout"
         >
-        <Card className="flex h-full min-h-0 min-w-0 flex-col">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">原始文案</CardTitle>
-            <CardDescription className="text-xs">
-              输入或粘贴需要规范化的中文文案，结果会实时生成
-            </CardDescription>
+        <Card className="flex h-full min-h-0 min-w-0 flex-col shadow-none">
+          <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0 px-5 pb-2 pt-4">
+            <div className="min-w-0 space-y-1">
+              <CardTitle className="prose-title">原始文本</CardTitle>
+              <CardDescription className="prose-helper">
+                输入或粘贴中文原文，{manualMode ? "手动模式下需要主动触发排版" : "排版结果会跟随输入自动更新"}
+              </CardDescription>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              data-testid="clear-input"
+              onClick={onClear}
+              className="shrink-0"
+            >
+              {cleared ? (
+                <Check className="h-4 w-4 text-green-600" />
+              ) : (
+                <Eraser className="h-4 w-4" />
+              )}
+              清空输入
+            </Button>
           </CardHeader>
-          <CardContent className="flex min-h-0 flex-1">
+          <CardContent className="flex min-h-0 flex-1 px-5">
             <Textarea
               className="editor-text min-h-0 flex-1 resize-none placeholder:text-muted-foreground/50"
               placeholder="请在这里粘贴或输入文字"
@@ -150,46 +211,62 @@ export default function App() {
               onChange={(e) => onInputChange(e.target.value)}
             />
           </CardContent>
-          <div className="px-6 pb-3 text-xs text-muted-foreground" data-testid="input-stats">
-            输入：{Array.from(input).length} 字符
+          <div className="prose-stats px-5 pb-3 pt-2 text-muted-foreground" data-testid="input-stats">
+            输入：{inputChars} 字符
           </div>
         </Card>
 
-        <Card className="flex h-full min-h-0 min-w-0 flex-col">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">规范化结果（实时）</CardTitle>
-            <CardDescription className="text-xs">
-              {error ? (
-                <span className="text-destructive" aria-live="assertive">排版出错：{error}</span>
-              ) : isFormatting ? (
-                <span data-testid="formatting-status" aria-live="polite">正在排版…</span>
-              ) : input.length >= LONG_TEXT_THRESHOLD ? (
-                <span data-testid="long-text-status" aria-live="polite">
-                  文本较长，处理可能需要更长时间
-                  {lastFormatDuration !== null && lastFormatDuration >= SLOW_FORMAT_THRESHOLD_MS
-                    ? ` · 最近一次耗时 ${lastFormatDuration} ms`
-                    : ""}
-                </span>
-              ) : lastFormatDuration !== null && lastFormatDuration >= SLOW_FORMAT_THRESHOLD_MS ? (
-                <span data-testid="format-duration" aria-live="polite">
-                  最近一次排版耗时 {lastFormatDuration} ms
-                </span>
-              ) : (
-                "由规则引擎生成"
-              )}
-            </CardDescription>
+        <Card className="flex h-full min-h-0 min-w-0 flex-col shadow-none">
+          <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0 px-5 pb-2 pt-4">
+            <div className="min-w-0 space-y-1">
+              <CardTitle className="prose-title">{resultTitle}</CardTitle>
+              <CardDescription className="prose-helper">
+                {error ? (
+                  <span className="text-destructive" aria-live="assertive">排版出错：{error}</span>
+                ) : isFormatting ? (
+                  <span data-testid="formatting-status" aria-live="polite">正在排版…</span>
+                ) : input.length >= LONG_TEXT_THRESHOLD ? (
+                  <span data-testid="long-text-status" aria-live="polite">
+                    文本较长，处理可能需要更长时间
+                    {lastFormatDuration !== null && lastFormatDuration >= SLOW_FORMAT_THRESHOLD_MS
+                      ? ` · 最近一次耗时 ${lastFormatDuration} ms`
+                      : ""}
+                  </span>
+                ) : lastFormatDuration !== null && lastFormatDuration >= SLOW_FORMAT_THRESHOLD_MS ? (
+                  <span data-testid="format-duration" aria-live="polite">
+                    最近一次排版耗时 {lastFormatDuration} ms
+                  </span>
+                ) : manualMode ? (
+                  "手动模式需要主动触发排版"
+                ) : (
+                  "由规则引擎生成"
+                )}
+              </CardDescription>
+            </div>
+            {manualMode && (
+              <Button
+                variant="outline"
+                size="sm"
+                data-testid="format-now"
+                onClick={onFormatNow}
+                disabled={!input}
+                className="shrink-0"
+              >
+                立即排版
+              </Button>
+            )}
           </CardHeader>
-          <CardContent className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <CardContent className="flex min-h-0 min-w-0 flex-1 flex-col px-5">
             <div
               className="relative min-h-0 w-full flex-1 overflow-auto rounded-md border border-input bg-background px-3 py-2 shadow-sm"
               data-testid="output-scroller"
             >
               {!output && !error && (
                 <div
-                  className="pointer-events-none absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-muted-foreground"
+                  className="prose-helper pointer-events-none absolute inset-0 flex items-center justify-center p-6 text-center text-muted-foreground"
                   data-testid="output-empty-state"
                 >
-                  输入内容后，这里将实时显示规范化结果
+                  {manualMode ? "输入内容后，点击右上角“立即排版”生成结果" : "输入内容后，这里会自动显示排版结果"}
                 </div>
               )}
               <pre
@@ -200,39 +277,19 @@ export default function App() {
               </pre>
             </div>
           </CardContent>
-          <div className="px-6 pb-3 text-xs text-muted-foreground" data-testid="output-stats">
-            输出：{Array.from(output).length} 字符
+          <div className="prose-stats px-5 pb-3 pt-2 text-muted-foreground" data-testid="output-stats">
+            输出：{outputChars} 字符
           </div>
         </Card>
         </div>
       </main>
 
-      {/* 操作栏 */}
-      <footer className="flex items-center gap-2 border-t px-6 py-4">
+      {/* 操作栏：设置与说明在左，复制动作在右并保留原语义 */}
+      <footer className="flex flex-wrap items-center gap-2 border-t px-5 py-3">
         <SettingsDialog {...settingsDialogProps} />
         <HelpDialog open={helpOpen} onOpenChange={setHelpOpen} />
 
-        <Button variant="outline" size="sm" data-testid="clear-input" onClick={onClear}>
-          {cleared ? (
-            <Check className="h-4 w-4 text-green-600" />
-          ) : (
-            <Eraser className="h-4 w-4" />
-          )}
-          清除输入
-        </Button>
-
-        <div className="ml-auto">
-          <Button size="sm" data-testid="copy-output" onClick={copyOutput} disabled={!output} aria-label="复制结果">
-            {copied ? (
-              <>
-                <Check className="h-4 w-4 text-green-600" />
-                已复制
-              </>
-            ) : (
-              <Copy className="h-4 w-4" />
-            )}
-            复制结果
-          </Button>
+        <div className="ml-auto flex flex-wrap items-center gap-2">
           <Button
             variant="outline"
             size="sm"
@@ -243,6 +300,19 @@ export default function App() {
           >
             <Copy className="h-4 w-4" />
             复制并清空
+          </Button>
+          <Button size="sm" data-testid="copy-output" onClick={copyOutput} disabled={!output}>
+            {copied ? (
+              <>
+                <Check className="h-4 w-4" />
+                已复制
+              </>
+            ) : (
+              <>
+                <Copy className="h-4 w-4" />
+                复制结果
+              </>
+            )}
           </Button>
           <span className="sr-only" aria-live="polite" data-testid="copy-status">
             {copied ? "已复制" : ""}

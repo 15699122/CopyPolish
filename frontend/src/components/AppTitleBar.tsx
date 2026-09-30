@@ -24,20 +24,20 @@ export function AppTitleBar({
   onToggleMaximize,
   onClose,
 }: AppTitleBarProps) {
+  const subtitle = tauri
+    ? `本地排版 · 保护 LaTeX / Markdown 结构 · ${referenceName}`
+    : "浏览器预览 · 内置回退排版";
+
   return (
     <header
-      className="flex select-none items-center justify-between border-b px-6 py-3"
+      className="flex select-none items-center justify-between gap-4 border-b px-5 py-2.5"
       data-testid="title-bar"
       onMouseDown={onMouseDown}
       onDoubleClick={onDoubleClick}
     >
-      <div className="min-w-0 space-y-1.5">
-        <h1 className="text-xl font-bold leading-none">{appName}</h1>
-        <p className="text-xs leading-relaxed text-muted-foreground">
-          {tauri
-            ? `实时保护 LaTeX / Markdown 结构 · ${referenceName}`
-            : "浏览器预览模式 · 内置回退排版"}
-        </p>
+      <div className="flex min-w-0 items-baseline gap-3">
+        <h1 className="shrink-0 text-lg font-bold leading-none tracking-wide">{appName}</h1>
+        <p className="prose-helper min-w-0 truncate text-muted-foreground">{subtitle}</p>
       </div>
       {tauri && (
         <div

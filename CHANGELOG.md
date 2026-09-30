@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- GUI 中文布局与排版（v0.7.0）已在 Linux 完成实现与验证：主界面改为“原始文本 → 排版结果”双区布局，输出模式与布局可在顶部切换，手动模式提供“立即排版”；设置窗口改为按任务分类导航，规则批量操作只在规则分类出现；标题、说明与统计采用统一的中文字号与行距令牌。Windows 原生渲染、DPI 与剪贴板验证仍为 `WINDOWS_VERIFICATION_PENDING`，见 `docs/validation/windows.md` 队列 Q4。
+
 ### Release policy
 
 - v0.6.2 已于 **2026-09-07** 正式发布，tag 指向 `master` 的 `0.6.2` commit，GitHub Release 同步上线。
