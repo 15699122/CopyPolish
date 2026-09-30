@@ -6,7 +6,12 @@
 
 ### Added
 
+- 新增 `python3 scripts/verify.py --profile feature`，覆盖此前无常规 CI 覆盖的 `simplified-trad-conversion` 可选 feature（clippy、测试与 TUI 构建）；依赖该 feature 的升级必须执行此 profile。
 - GUI 中文布局与排版（v0.7.0）已在 Linux 完成实现与验证：主界面改为“原始文本 → 排版结果”双区布局，输出模式与布局可在顶部切换，手动模式提供“立即排版”；设置窗口改为按任务分类导航，规则批量操作只在规则分类出现；标题、说明与统计采用统一的中文字号与行距令牌。Windows 原生渲染、DPI 与剪贴板验证仍为 `WINDOWS_VERIFICATION_PENDING`，见 `docs/validation/windows.md` 队列 Q4。
+
+### Fixed
+
+- 修复设置分类化引入的两个问题：非规则分类不再显示会误改排版规则的「恢复默认」（改为仅在规则分类显示「恢复默认规则」），并为 GUI E2E 增加设置分类切换辅助，确保跨分类控件测试在控件挂载后再访问。
 
 ### Release policy
 

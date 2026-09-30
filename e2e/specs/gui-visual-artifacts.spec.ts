@@ -3,6 +3,7 @@ import {
   writeArtifactJson,
 } from "../support/artifacts.js";
 import { assertAppDidNotPolluteRepository, waitForApp } from "../support/app.js";
+import { openSettingsCategory } from "../support/settings-categories.js";
 
 const enabled = process.env.COPYPOLISH_E2E_VISUAL_ARTIFACTS === "1";
 const artifactDir = process.env.COPYPOLISH_E2E_ARTIFACT_DIR;
@@ -57,7 +58,8 @@ describe("CopyPolish GUI 视觉 artifact", () => {
 
     await recordState("main-normal", "initial", "main");
 
-    await $("[data-testid=\"open-settings\"]").click();
+    // 主题控件位于「外观显示」分类，需先切换分类再操作。
+    await openSettingsCategory("appearance");
     const systemTheme = await $("[data-testid=\"theme-system\"]");
     if (await systemTheme.getAttribute("data-state") === "checked") {
       await systemTheme.click();
@@ -85,7 +87,8 @@ describe("CopyPolish GUI 视觉 artifact", () => {
     await browser.setWindowSize(420, 700);
     await recordState("main-narrow", "dark", "main");
 
-    await $("[data-testid=\"open-settings\"]").click();
+    // 窄窗口下分类导航切换为顶部横向布局，data-testid 保持一致。
+    await openSettingsCategory("appearance");
     await recordState("settings-narrow", "dark", "settings");
     await $("[data-testid=\"settings-done\"]").click();
     await browser.setWindowSize(originalSize.width, originalSize.height);

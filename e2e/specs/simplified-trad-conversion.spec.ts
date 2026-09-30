@@ -1,5 +1,6 @@
 import { assertAppDidNotPolluteRepository, waitForApp } from "../support/app.js";
 import { readSettings } from "../support/settings.js";
+import { openSettingsCategory, switchSettingsCategory } from "../support/settings-categories.js";
 
 async function selectConversion(value: "t2s" | "s2t"): Promise<void> {
   await browser.execute((nextValue) => {
@@ -48,7 +49,8 @@ async function waitForSavedSequence(previousSequence: number): Promise<void> {
 }
 
 async function prepareConversion(value: "t2s" | "s2t"): Promise<void> {
-  await $("[data-testid=\"open-settings\"]").click();
+  // 全不选属于「排版规则」分类，简繁转换属于「替换与转换」分类。
+  await openSettingsCategory("rules");
   const selectNone = await $("[data-testid=\"select-none\"]");
   await selectNone.waitForDisplayed({ timeout: 10_000 });
   const beforeRuleSave = Number((await browser.execute(() =>
@@ -59,6 +61,7 @@ async function prepareConversion(value: "t2s" | "s2t"): Promise<void> {
   const beforeConversionSave = Number((await browser.execute(() =>
     (window as Window & { __COPYPOLISH_E2E__?: Record<string, unknown> }).__COPYPOLISH_E2E__?.settingsSaveSequence ?? 0,
   ))) || 0;
+  await switchSettingsCategory("transform");
   await selectConversion(value);
   await waitForSavedConversion(value, beforeConversionSave);
   await $("[data-testid=\"settings-done\"]").click();

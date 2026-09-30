@@ -101,7 +101,7 @@ export function SettingsFooter({
         </div>
 
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-2" data-testid="settings-actions">
-          {showRuleActions ? (
+          {showRuleActions && (
             <>
               <span className="prose-helper mr-1 text-muted-foreground" data-testid="rules-enabled-count">
                 {enabledCount !== undefined && rulesCount !== undefined
@@ -110,10 +110,8 @@ export function SettingsFooter({
               </span>
               <Button variant="outline" size="sm" data-testid="select-all" onClick={() => onSetAll(true)}>全选</Button>
               <Button variant="outline" size="sm" data-testid="select-none" onClick={() => onSetAll(false)}>全不选</Button>
-              <Button variant="secondary" size="sm" data-testid="reset-defaults" onClick={onResetDefaults}>恢复默认</Button>
+              <Button variant="secondary" size="sm" data-testid="reset-defaults" onClick={onResetDefaults}>恢复默认规则</Button>
             </>
-          ) : (
-            <Button variant="secondary" size="sm" data-testid="reset-defaults" onClick={onResetDefaults}>恢复默认</Button>
           )}
           <Button size="sm" data-testid="settings-done" onClick={() => onOpenChange(false)}>完成</Button>
         </div>

@@ -362,13 +362,71 @@ describe("App 主流程", () => {
     // 辅助按钮与完成按钮均存在。
     expect(screen.getByTestId("select-all")).toBeInTheDocument();
     expect(screen.getByTestId("select-none")).toBeInTheDocument();
-    expect(screen.getByTestId("reset-defaults")).toBeInTheDocument();
+    expect(screen.getByTestId("reset-defaults")).toHaveTextContent("恢复默认规则");
     expect(screen.getByTestId("settings-done")).toBeInTheDocument();
     // 设置文件位于底部左侧区域，完成按钮仍位于右侧操作区内。
     const actionRow = screen.getByTestId("settings-actions").parentElement;
     expect(actionRow).not.toBeNull();
     expect(screen.getByTestId("settings-actions")).toContainElement(screen.getByTestId("settings-done"));
     expect(screen.getByTestId("settings-actions")).toHaveClass("flex-wrap", "items-center");
+  });
+
+  it("设置分类切换会卸载其他分类内容，且规则批量操作仅在规则分类可见", async () => {
+    mockFormat((t) => t);
+    const { user } = await setup();
+    await openSettingsCategory(user, "rules");
+
+    // 规则分类：规则复选框与批量操作都可见。
+    expect(screen.getByTestId("rule-rule-a")).toBeInTheDocument();
+    expect(screen.getByTestId("select-all")).toBeInTheDocument();
+    expect(screen.getByTestId("reset-defaults")).toBeInTheDocument();
+    // 转换控件属于“替换与转换”，此时不应挂载。
+    expect(screen.queryByTestId("conversion-select")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("theme-system")).not.toBeInTheDocument();
+
+    // 切换到替换与转换：规则复选框与规则批量操作卸载，转换控件挂载。
+    await user.click(screen.getByTestId("settings-category-transform"));
+    expect(screen.getByTestId("conversion-select")).toBeInTheDocument();
+    expect(screen.queryByTestId("rule-rule-a")).not.toBeInTheDocument();
+    // 非规则分类不提供规则批量操作，避免“恢复默认”误改规则。
+    expect(screen.queryByTestId("select-all")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("select-none")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("reset-defaults")).not.toBeInTheDocument();
+
+    // 切换到外观显示：主题控件挂载，仍无规则批量操作。
+    await user.click(screen.getByTestId("settings-category-appearance"));
+    expect(screen.getByTestId("theme-system")).toBeInTheDocument();
+    expect(screen.queryByTestId("conversion-select")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("reset-defaults")).not.toBeInTheDocument();
+
+    // 回到规则分类：批量操作恢复可用。
+    await user.click(screen.getByTestId("settings-category-rules"));
+    expect(screen.getByTestId("select-all")).toBeInTheDocument();
+    expect(screen.getByTestId("rule-rule-a")).toBeInTheDocument();
+  });
+
+  it("非规则分类点击底栏不会触发规则恢复", async () => {
+    mockFormat((t) => t);
+    const { user } = await setup();
+    await openSettingsCategory(user, "rules");
+    await user.click(screen.getByTestId("select-none"));
+    await waitFor(() =>
+      expect(mocks.saveUserSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ enabled: [] }),
+      ),
+    );
+    vi.mocked(mocks.saveUserSettings).mockClear();
+
+    // 切到隐私分类：底栏只剩“完成”，不存在恢复默认入口。
+    await user.click(screen.getByTestId("settings-category-privacy"));
+    expect(screen.queryByTestId("reset-defaults")).not.toBeInTheDocument();
+    expect(screen.getByTestId("restore-last-input")).toBeInTheDocument();
+
+    await user.click(screen.getByTestId("settings-done"));
+    // 未发生规则启用集变更。
+    expect(mocks.saveUserSettings).not.toHaveBeenCalledWith(
+      expect.objectContaining({ enabled: ["rule-a", "rule-b"] }),
+    );
   });
 
   it("设置弹窗中开关规则会立即持久化用户设置", async () => {
