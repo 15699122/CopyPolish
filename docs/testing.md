@@ -490,32 +490,8 @@ Windows 100%/125%/150% DPI 人工 GUI 验证已完成；GUI DPI 自动验证已�
 - 密钥扫描通过；
 - 涉及规则、设置、Tauri 或发布时已完成相应额外验证。
 
-### 7.14 2026-09-01 自动化补充结果
+## 已完成的历史验证记录
 
-- E2E TypeScript 类型检查通过。
-- 设置快捷键控制台 runner：embedded 与标准 WebDriver 各 1/1 通过，`actWarningCount=0`。由于当前 EdgeDriver 将逗号键上报为 `code=","`，两个 artifact 均记录原生键事件诊断并通过 UI “打开设置”回退完成界面/控制台验证；不得把它表述为硬件级 `Ctrl+,` 注入已独立通过。
-- GUI DPI 自动验证已按项目决定跳过（不执行）；既有 200% artifact 仅作历史诊断记录，三档人工 GUI 验证保持完成。
-- Windows Terminal TUI artifact 已由用户确认完整交互通过；`--prepare-only` 仍可用于生成 `manifest.json`、`result.json` 和 `manual-checklist.json`，实际交互结果以用户确认的 artifact 为准。
-- 2026-09-06：用户在 Windows 原生环境手动确认当前 v0.6.2 S2-B 设置存储加固通过，覆盖 reparse point/junction 拒绝、跨进程并发保存、保存后可读性和失败路径临时文件清理。未提供完整命令输出、环境版本或 artifact 路径，因此仅作为用户确认记录，不伪造自动化计数。
+2026-09 的 Windows 原生复验、修复、S2-B 设置存储加固与最终 spec 修正记录已迁入 [archive/validation/windows-2026-09.md](archive/validation/windows-2026-09.md)。当前 Windows 自动验证无待闭环失败，后续仅在相关代码、工具链或诊断范围变化时按 [windows-e2e-runbook.md](windows-e2e-runbook.md) 复跑；Windows Terminal 交互、三档 DPI 人工 GUI 与 TUI transcript 已有既有通过记录，仅在范围变化时按需复验。
 
-### 7.15 2026-09-01 复验记录
-
-- ACL fixture 保留路径已修复：先解除 deny ACE，再复制 `settings-fixture`，最后删除临时目录；embedded/WebDriver 测试均通过，保留目录包含 `rules.yaml`，权限恢复和清理完成。
-- GUI DPI 自动验证已决定跳过，不再切换 Windows 显示设置或重新执行目标矩阵。
-- 早期普通命令会话运行完整 Windows Terminal TUI artifact 时因缺 `WT_SESSION` 按设计退出；`--prepare-only` 可生成手动清单。用户随后在真实 Windows Terminal 完成 WT-TUI-001/002/003 真实终端复验和完整交互 artifact，并确认通过。
-
-### 7.16 2026-09-03 Windows 原生复验结果
-
-本轮 Windows 原生环境 checkout 使用 WebView2 152.0.4191.53 串行执行。`selection-and-persistence.spec.ts` 3/3、设置重启 2/2、损坏设置 3/3、NTFS ACL 1/1、GUI 视觉 artifact 1/1、设置快捷键 1/1、TUI transcript 4/4 通过；Windows MSVC `cargo test --features tui` 为 166 passed/0 failed；前端单测为 70/70，E2E typecheck 通过。简繁 feature 在当前修复 binary 上为 2/2（s2t、t2s），标准 W3C smoke 为 2/2；本节早先的 1/2 和未完成记录属于同日较早的旧 binary/runner 结果，仅保留在历史日志中，不覆盖最终结果。GUI DPI 自动矩阵和 GitLab Windows stage 继续跳过；125%/150% GUI 人工验证及 Windows Terminal 交互 artifact 保持已完成。
-
-### 7.17 2026-09-03 提交 6687c13 Windows capability 刷新
-
-在 Windows 原生隔离 checkout 上重新执行当前提交 `6687c1390c633385cfd02135cf3072f4d18f94a9`：Node 24.19.0、Rust 1.98.0 `x86_64-pc-windows-msvc`；frontend/e2e `npm ci` 和 E2E typecheck 均退出码 0。默认 embedded `selection-and-persistence.spec.ts` 为 3/3，确认 capability=false、T2S/S2T 禁用并归一化为 `none`；feature embedded `simplified-trad-conversion.spec.ts` 为 2/2，确认 capability=true、s2t/t2s 真实输出；Windows MSVC `cargo test --features tui` 为 167 passed/0 failed；W3C smoke 为 2/2，随机 localhost 端口，artifact（exitCode=0）、`finished=1`、`passed=1`、`failed=0`。本轮没有把 npm 警告或 WDIO 清理 mock store warning 计为失败；隔离 checkout 与生成物已清理。
-### 7.18 2026-09-04 当前 checkout Windows 复验
-
-源文件与文档已同步到 Windows 原生隔离 checkout，随后串行复验：前端 101/101、E2E typecheck、默认 embedded selection 3/3、简繁 feature 2/2，WebDriver/W3C smoke 2/2，Windows MSVC `cargo test --features tui` 182/182，损坏设置三个 fixture 3/3，NTFS ACL 1/1，GUI 视觉 artifact 1/1，设置快捷键控制台 1/1，TUI transcript 4/4。GUI DPI 自动矩阵和 GitLab Windows stage 继续跳过；125%/150% 人工 GUI 与 Windows Terminal 交互 artifact 保持已完成。
-
-历史记录：`test:restart-settings` 在默认 binary 下曾因旧 spec 在 `restart-settings.spec.ts:53` 强制注入并等待 `t2s` 而失败。当前 spec 已按 capability 分支修正，且 2026-09-04 Windows 原生最终复验中默认与 feature 的 write/read 均为 2/2；该历史失败不影响已通过的损坏设置、ACL、feature 转换、W3C、TUI transcript 和 Rust 回归。
-### 7.19 2026-09-04 spec 修正后的 Windows 最终复验
-
-重启恢复 spec 排除 `rule-card-*` 容器后，在 Windows 原生环境 Windows 原生 checkout 完成最终验证：前端 101/101、E2E typecheck、默认 embedded selection 3/3、默认重启 write/read 2/2、简繁 feature 重启 write/read 2/2、feature 转换 2/2、损坏设置 3/3、NTFS ACL 1/1、GUI 视觉 artifact 1/1、设置快捷键 1/1、W3C smoke 重跑 2/2、Windows MSVC Rust/TUI 主库 182 + properties 5 + readme_registry 3 全部通过；TUI transcript 4/4（artifact `<artifact-directory>/tui-transcript`）。GUI DPI 自动矩阵、GitLab Windows stage 继续跳过；125%/150% 人工 GUI 和 Windows Terminal 交互 artifact 保持已完成。此前默认/feature 重启 read phase 的 `data-state=null` 与首次 W3C smoke 失败均已定位并不再复现。
+真实 PDF/CAJ 验收准备模板位于 [`docs/acceptance/pdf-caj/`](acceptance/pdf-caj/)。目录不包含原始 PDF/CAJ；取得许可或完成脱敏后，按 manifest 与 annotation 模板建立受控本地样本，再进行文本输入验收。
