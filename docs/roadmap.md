@@ -118,9 +118,11 @@ span-aware 混合管线、规则注册表、阶段依赖、结构/语义 span �
 - [x] #86：新增 E2E 设置分类切换辅助函数，更新所有跨分类访问的 spec（`selection-and-persistence`、`restart-settings`、`gui-visual-artifacts`、`simplified-trad-conversion`），并验证关闭重开设置时的分类状态行为；
 - [x] #86：非规则分类移除底栏「恢复默认」，或在实现分类级恢复后使用明确命名的独立回调，禁止复用规则恢复回调（已改为「恢复默认规则」且仅在规则分类渲染）；
 - [x] #80：为 `simplified-trad-conversion` feature 补充 Linux 可执行的构建/测试验证入口（新增 `--profile feature`），并登记 Windows 原生转换回归到集中验证队列（Q5）；
-- [ ] 复核低风险依赖 PR（#83、#81、#84、#82）并在合并后确认剩余 PR 状态；
-- [ ] Tauri 相关 PR（#85、#79）汇总原生构建、打包与运行验证项；
-- [ ] #65、#64 更新基线后重跑 CI；#69、#67 联合验证发布链路上传/下载组合；
+- [x] 复核低风险依赖 PR（#83、#81、#84、#82）并在合并后确认剩余 PR 状态：四项均已 squash 合并到 `dev`；
+- [x] Tauri 相关 PR（#85、#79）汇总原生构建、打包与运行验证项：两项均已 rebase 到最新 `dev`、CI 通过并合并；原生构建与打包验证仍归入 [validation/windows.md](validation/windows.md) Q6；
+- [x] #80（opencc-fmmseg 0.12.1）：确认 manifest `0.12.0` 约束与 lockfile `0.12.1` 一致（此前「版本不一致」结论不成立），以 `--features simplified-trad-conversion` 执行 clippy 与测试通过后合并；
+- [ ] #65、#64 更新基线后重跑 CI：两项已 rebase 到最新 `dev` 且 CI 全部通过，**暂不合并**，等待 `release.yml` 实际执行验证；
+- [ ] #69、#67 联合验证发布链路上传/下载组合：两项已 rebase 且 CI 通过，**暂不合并**，与 #65、#64 一并等待发布链路验证；
 - [ ] 全部相关 GUI 与 Tauri 变更合并后，执行**一次集中 Windows 原生验证**，不按 PR 交替切换平台。
 
 ## P2：E2E 收敛
