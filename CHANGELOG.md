@@ -7,6 +7,8 @@
 ### Added
 
 - 新增 `python3 scripts/verify.py --profile feature`，覆盖此前无常规 CI 覆盖的 `simplified-trad-conversion` 可选 feature（clippy、测试与 TUI 构建）；依赖该 feature 的升级必须执行此 profile。
+- Release workflow 支持预发布：正式版 `vX.Y.Z` 标记 `--latest`，含预发布后缀的 tag（如 `v0.7.0-pre1`）标记 `--prerelease --latest=false` 而不占用 latest；tag 守卫改用严格正则，替换原先会误接受 `v1x2y3`、`v1.2.3-` 的 shell 通配符；`publish=true` 时 `expected_sha` 改为必填，防止绕过演练批准直接发布。新增 `tests/test_release_prerelease.py` 覆盖这些门禁。
+- 新增 `docs/archive/releases/v0.7.0-pre1.md` 预发布说明。
 - GUI 中文布局与排版（v0.7.0）已在 Linux 完成实现与验证：主界面改为“原始文本 → 排版结果”双区布局，输出模式与布局可在顶部切换，手动模式提供“立即排版”；设置窗口改为按任务分类导航，规则批量操作只在规则分类出现；标题、说明与统计采用统一的中文字号与行距令牌。Windows 原生渲染、DPI 与剪贴板验证仍为 `WINDOWS_VERIFICATION_PENDING`，见 `docs/validation/windows.md` 队列 Q4。
 
 ### Fixed

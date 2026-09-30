@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "发布 tag（如 v0.6.2）"
+        description: "发布 tag（正式版 v0.7.0 或预发布 v0.7.0-pre1）"
         required: true
         default: v0.6.2
       publish:
@@ -12,13 +12,15 @@ on:
         type: boolean
         default: false
       expected_sha:
-        description: "演练批准的 master commit SHA（publish=true 时必须与当前 HEAD 一致，防止发布漂移）"
+        description: "演练批准的 master commit SHA（publish=true 时必填，且必须与当前 HEAD 一致，防止发布漂移）"
         required: false
         default: ""
 
 # 决策记录：GitHub Actions Release workflow（docs/release/manual-release.md §8.1）。
 # 两阶段手动设计：publish=false 只构建与校验七项资产 + SHA256SUMS（不创建 tag/Release）；
-# publish=true 在全部校验通过后由 publish job 创建 annotated tag 并发布 latest Release。
+# publish=true 在全部校验通过后由 publish job 创建 annotated tag 并发布 Release。
+# 正式版 vX.Y.Z 标记 latest；含预发布后缀的 tag（如 v0.7.0-pre1）标记 prerelease
+# 且不占用 latest（docs/release/manual-release.md §4）。
 # 不交叉编译：Windows 资产在 windows-latest，Linux 资产在 ubuntu-latest。
 # 资产清单与校验逻辑复用 scripts/verify_release_assets.py（单一事实来源）。
 
@@ -275,16 +277,19 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
-      - name: Guard — tag must not exist yet
+      - name: Guard — tag must not exist yet and must be a strict semver tag
         run: |
           if git ls-remote --exit-code --tags origin "refs/tags/${RELEASE_TAG}"; then
             echo "tag ${RELEASE_TAG} 已存在，拒绝覆盖发布" >&2
             exit 1
           fi
-          case "$RELEASE_TAG" in
-            v[0-9]*.[0-9]*.[0-9]*) : ;;
-            *) echo "tag 必须严格匹配 vX.Y.Z: ${RELEASE_TAG}" >&2; exit 1 ;;
-          esac
+          # 严格匹配 vX.Y.Z 或 vX.Y.Z-preN（预发布后缀只允许字母、数字、点、连字符）。
+          # 不使用 v[0-9]*.[0-9]*.[0-9]* 这类 shell 通配符：它会接受 v1x2y3、
+          # v1.2.3- 之类的非法 tag，且无法可靠区分正式版与预发布版。
+          if ! printf '%s' "$RELEASE_TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
+            echo "tag 必须严格匹配 vX.Y.Z 或 vX.Y.Z-preN: ${RELEASE_TAG}" >&2
+            exit 1
+          fi
 
       - name: Guard — publish only from master
         if: ${{ github.ref_name != 'master' }}
@@ -292,8 +297,14 @@ jobs:
           echo "publish=true 仅允许在 master 分支执行（当前: ${{ github.ref_name }}）" >&2
           exit 1
 
+      - name: Guard — expected_sha is required when publishing
+        if: ${{ inputs.expected_sha == '' }}
+        run: |
+          echo "publish=true 必须提供 expected_sha（演练批准的 master commit SHA）" >&2
+          echo "缺少该值将失去发布漂移防护，拒绝发布。" >&2
+          exit 1
+
       - name: Guard — HEAD must match approved commit (expected_sha)
-        if: ${{ inputs.expected_sha != '' }}
         run: |
           head_sha="$(git rev-parse HEAD)"
           if [ "$head_sha" != "${{ inputs.expected_sha }}" ]; then
@@ -321,14 +332,24 @@ jobs:
           git tag -a "$RELEASE_TAG" -m "Release ${RELEASE_TAG}"
           git push origin "refs/tags/${RELEASE_TAG}"
 
-      - name: Create GitHub Release (latest)
+      - name: Create GitHub Release (latest for stable, prerelease otherwise)
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ env.RELEASE_TAG }}
         run: |
+          # docs/release/manual-release.md §4：正式版 vX.Y.Z 标记 latest；
+          # 含预发布后缀的 tag 必须标记 prerelease 且**不占用 latest**。
+          # 不能对预发布使用 --latest，否则会覆盖上一个稳定版。
+          release_flags=(--title "$RELEASE_TAG" --notes-file "docs/archive/releases/${RELEASE_TAG}.md")
+          if [[ "$RELEASE_TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+- ]]; then
+            echo "检测到预发布 tag: $RELEASE_TAG —— 标记为 prerelease，不占用 latest"
+            release_flags+=(--prerelease --latest=false)
+          else
+            echo "检测到稳定版 tag: $RELEASE_TAG —— 标记为 latest"
+            release_flags+=(--latest)
+          fi
           gh release create "$RELEASE_TAG" \
-            --title "$RELEASE_TAG" \
-            --notes-file "docs/archive/releases/${RELEASE_TAG}.md" \
-            --latest \
+            "${release_flags[@]}" \
             dist/final/CopyPolish.exe \
             dist/final/CopyPolish-windows-x64.7z \
             dist/final/CopyPolish_linux_amd64.deb \
