@@ -140,8 +140,22 @@ span-aware 混合管线、规则注册表、阶段依赖、结构/语义 span �
 
 ### 阶段二：合并 PR
 
-- [ ] **#86**：复核最终差异、检查状态与冲突后合并到 `dev`，不使用管理员绕过；Windows GUI 验证保持 `WINDOWS_VERIFICATION_PENDING`；
-- [ ] **#65 → #64 → #69 → #67**：先在基于最新 `dev` 的临时集成分支上组合四项改动，核对官方升级说明、runner 要求、输入参数、artifact 名称/路径/权限与下载语义；
+- [x] **#86**：复核最终差异、检查状态与冲突后合并到 `dev`，不使用管理员绕过；Windows GUI 验证保持 `WINDOWS_VERIFICATION_PENDING`（已于 2026-09-30 squash 合并，三项 CI 检查 SUCCESS）；
+- [x] **#65 → #64 → #69 → #67**：先在基于最新 `dev` 的临时集成分支上组合四项改动，核对官方升级说明、runner 要求、输入参数、artifact 名称/路径/权限与下载语义。
+
+  组合分支 `integrate/actions-bumps` 合并四项时，`#65` 与 `#64` 在 `ci.yml` 的 Frontend job 产生冲突（修改同一 `checkout` 行），已按「新版本优先」取 `checkout` v7.0.1 + `setup-node` v7.0.0 解决，无冲突残留。
+
+  逐版本核对官方 release notes 的结论：
+
+  | Action | 升级 | 关键变更 | 对本仓库的影响 |
+  | --- | --- | --- | --- |
+  | `actions/checkout` | v4.4.0 → v7.0.1 | v5 持久化凭据改为独立文件；v6 要求 Node 24；v7 阻断 `pull_request_target` / `workflow_run` 的 fork checkout 并迁移 ESM | 全部使用 GitHub 托管 runner（`ubuntu-latest` / `windows-latest`），仓库无 `pull_request_target` / `workflow_run` 触发，**不受影响** |
+  | `actions/setup-node` | v4.4.0 → v7.0.0 | v5–v6 转向 Node 24；v7 迁移 ESM、升级 `@actions/cache` 到 5.1.0，并**移除 dummy `NODE_AUTH_TOKEN` 导出** | 三个 job 仅用 `node-version-file` + `cache: npm`，仓库未使用 `NODE_AUTH_TOKEN` / `registry-url` / `always-auth`，**不受影响** |
+  | `actions/upload-artifact` | v4.6.2 → v7.0.1 | v5–v6 转向 Node 24；v7 新增 `archive: false` 直传并迁移 ESM | 三处调用仍用 `name` + `path` + `retention-days: 7`，未使用新增的 `archive` 参数，输入语义未变 |
+  | `actions/download-artifact` | v4.3.0 → v8.0.1 | v5 修正按 ID 单artifact下载的路径不一致；v6–v7 转向 Node 24；v8 默认在哈希不匹配时报错，并新增 `skip-decompress` | 四处调用**全部按 `name` 下载**（非 `artifact-ids`），v5 的路径变更不适用；下载物均为 zip 资产，v8 的跳过解压逻辑不影响；v8 的哈希失败即报错属于**更严格**的安全默认值，符合发布门禁需求 |
+
+  YAML 解析校验通过（`ci.yml` 3 个 job、`release.yml` 6 个 job 结构完整）。
+
 - [ ] 在集成分支执行 `publish=false` 发布演练，验证 checkout、Node 初始化、Linux/Windows 构建、Windows 自动 smoke、artifact 上传/下载/汇总与哈希校验；
 - [ ] 组合演练成功后按序合并，每步确认基线与必需检查；合并后对最终基线**再次演练**，确保验证基线与交付基线一致。
 
