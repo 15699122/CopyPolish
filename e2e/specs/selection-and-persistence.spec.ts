@@ -6,6 +6,7 @@ import {
   waitForApp,
 } from "../support/app.js";
 import { readSettings } from "../support/settings.js";
+import { openSettingsCategory, switchSettingsCategory } from "../support/settings-categories.js";
 
 describe("CopyPolish 真实设置链路", () => {
   before(async () => {
@@ -44,17 +45,21 @@ describe("CopyPolish 真实设置链路", () => {
   });
 
   it("默认构建真实 GUI 保存替换项并拒绝不可用简繁转换", async () => {
-    await $("[data-testid=\"open-settings\"]").click();
+    // 替换与转换控件位于「替换与转换」分类，需先切换再操作。
+    await openSettingsCategory("transform");
     const addReplacement = await $("[data-testid=\"replacement-add\"]");
     await addReplacement.waitForDisplayed({ timeout: 10_000 });
     await expect($("[data-testid=\"conversion-select\"]")).toHaveValue("none");
     await expect($("[data-testid=\"conversion-select\"] option[value=\"t2s\"]")).toBeDisabled();
     await expect($("[data-testid=\"conversion-select\"] option[value=\"s2t\"]")).toBeDisabled();
+    // 全选/恢复默认规则属于「排版规则」分类的操作。
+    await switchSettingsCategory("rules");
     await $("[data-testid=\"select-all\"]").click();
     await browser.waitUntil(
       async () => (await (await $("[data-testid=\"settings-status\"]")).getText()) === "设置已保存",
       { timeout: 10_000, timeoutMsg: "恢复默认规则选择保存未完成" },
     );
+    await switchSettingsCategory("transform");
     await addReplacement.click();
 
     await $("[data-testid=\"replacement-from-0\"]").setValue("TODO");

@@ -11,7 +11,10 @@ describe("SettingsFooter", () => {
 
   const WIN_PATH = "C:\\src\\CopyPolish\\rules.yaml";
 
-  function renderFooter(settingsPath: string | null = null) {
+  function renderFooter(
+    settingsPath: string | null = null,
+    ruleActions?: { showRuleActions: boolean; enabledCount?: number; rulesCount?: number },
+  ) {
     return render(
       <SettingsFooter
         appVersion="0.6.0-test"
@@ -19,6 +22,7 @@ describe("SettingsFooter", () => {
         settingsError={null}
         settingsLoadNotices={[]}
         settingsPath={settingsPath}
+        {...ruleActions}
         onSetAll={onSetAll}
         onResetDefaults={onResetDefaults}
         onOpenChange={onOpenChange}
@@ -62,5 +66,30 @@ describe("SettingsFooter", () => {
     renderFooter(null);
     expect(screen.queryByTestId("settings-path")).not.toBeInTheDocument();
     expect(screen.getByTestId("settings-version")).toHaveTextContent("版本 0.6.0-test");
+  });
+
+  it("规则分类显示批量操作与启用计数，并使用明确的恢复默认规则文案", () => {
+    renderFooter(null, { showRuleActions: true, enabledCount: 12, rulesCount: 30 });
+    expect(screen.getByTestId("select-all")).toBeInTheDocument();
+    expect(screen.getByTestId("select-none")).toBeInTheDocument();
+    expect(screen.getByTestId("reset-defaults")).toHaveTextContent("恢复默认规则");
+    expect(screen.getByTestId("rules-enabled-count")).toHaveTextContent("已启用 12/30 条");
+  });
+
+  it("非规则分类不渲染规则批量操作，避免恢复默认误改规则", () => {
+    renderFooter(null, { showRuleActions: false });
+    expect(screen.queryByTestId("select-all")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("select-none")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("reset-defaults")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("rules-enabled-count")).not.toBeInTheDocument();
+    // 完成按钮在所有分类都可用。
+    expect(screen.getByTestId("settings-done")).toBeInTheDocument();
+  });
+
+  it("规则分类点击恢复默认只触发规则恢复回调", () => {
+    renderFooter(null, { showRuleActions: true });
+    fireEvent.click(screen.getByTestId("reset-defaults"));
+    expect(onResetDefaults).toHaveBeenCalledTimes(1);
+    expect(onSetAll).not.toHaveBeenCalled();
   });
 });

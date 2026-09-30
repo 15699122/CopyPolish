@@ -6,6 +6,7 @@
 
 用法：
     python3 scripts/verify.py --profile rust
+    python3 scripts/verify.py --profile feature
     python3 scripts/verify.py --profile frontend
     python3 scripts/verify.py --profile checks
     python3 scripts/verify.py --profile security
@@ -82,6 +83,69 @@ def rust_commands() -> list[tuple[str, list[str]]]:
         (
             "Performance gate",
             command(sys.executable, "scripts/check_performance.py"),
+        ),
+    ]
+
+
+def feature_commands() -> list[tuple[str, list[str]]]:
+    """可选 feature 的构建与测试。
+
+    `simplified-trad-conversion` 引入 opencc-fmmseg 与 native(zstd) 编译，
+    默认构建与 `tui` 都不覆盖它。依赖升级（例如 opencc-fmmseg 0.11.x →
+    0.12.x）后必须执行本 profile，否则常规 CI 绿灯不能证明简繁转换链路可用。
+    """
+    manifest = str(MANIFEST)
+    features = ["simplified-trad-conversion"]
+    return [
+        (
+            "Rust clippy (simplified-trad-conversion)",
+            command(
+                "cargo",
+                "clippy",
+                "--manifest-path",
+                manifest,
+                "--features",
+                ",".join(features),
+                "--all-targets",
+                "--",
+                "-D",
+                "warnings",
+            ),
+        ),
+        (
+            "Rust test (simplified-trad-conversion)",
+            command(
+                "cargo",
+                "test",
+                "--manifest-path",
+                manifest,
+                "--features",
+                ",".join(features),
+            ),
+        ),
+        (
+            "Rust test (simplified-trad-conversion + tui)",
+            command(
+                "cargo",
+                "test",
+                "--manifest-path",
+                manifest,
+                "--features",
+                ",".join([*features, "tui"]),
+            ),
+        ),
+        (
+            "TUI build (simplified-trad-conversion + tui)",
+            command(
+                "cargo",
+                "build",
+                "--manifest-path",
+                manifest,
+                "--features",
+                ",".join([*features, "tui"]),
+                "--bin",
+                "copypolish-tui",
+            ),
         ),
     ]
 
@@ -258,7 +322,7 @@ def main() -> int:
     parser.add_argument(
         "--profile",
         required=True,
-        choices=("rust", "frontend", "checks", "security", "audit", "ci", "release"),
+        choices=("rust", "feature", "frontend", "checks", "security", "audit", "ci", "release"),
         help="要执行的验证集合",
     )
     parser.add_argument("--tag", help="发布 tag；仅 release profile 使用")
@@ -272,6 +336,8 @@ def main() -> int:
     groups: list[list[tuple[str, list[str]]]]
     if args.profile == "rust":
         groups = [rust_commands()]
+    elif args.profile == "feature":
+        groups = [feature_commands()]
     elif args.profile == "frontend":
         groups = [frontend_commands()]
     elif args.profile == "checks":

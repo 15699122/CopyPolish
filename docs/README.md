@@ -1,6 +1,6 @@
 # 文档导航
 
-根目录 [README.md](../README.md) 面向使用者；`docs/` 面向维护者。文档按“当前事实、操作手册、开发计划、历史归档”分层，避免把已经完成的发布进度混入长期文档。
+根目录 [README.md](../README.md) 面向使用者；`docs/` 面向维护者。代理与自动化工具的工作约定（事实来源优先级、平台边界和 Windows 平台验证流程）见根目录 [../AGENTS.md](../AGENTS.md)。文档按“当前事实、操作手册、开发计划、历史归档”分层，避免把已经完成的发布进度混入长期文档。
 
 ## 推荐阅读顺序
 
@@ -28,7 +28,9 @@
 22. [decisions/pdf-soft-wrap-spike.md](decisions/pdf-soft-wrap-spike.md)：PDF/CAJ 段内软换行与 CJK 内部空格 Spike 基线。
 23. [source-corpus-spec.md](source-corpus-spec.md)：来源文本清洗语料收集、脱敏、标注与评测规范。
 24. [decisions/fullwidth-ascii.md](decisions/fullwidth-ascii.md)：全角 ASCII 转半角的有限映射、职责边界和 NFKC 限制。
-24. [archive/decisions/e2e-provider-selection.md](archive/decisions/e2e-provider-selection.md)：E2E provider 选型决策（已归档，仅保留选型依据）。
+25. [archive/decisions/e2e-provider-selection.md](archive/decisions/e2e-provider-selection.md)：E2E provider 选型决策（已归档，仅保留选型依据）；
+26. [validation/windows.md](validation/windows.md)：Windows 平台验证队列、验证清单、状态标记与每次结果记录；
+27. [development/cross-platform-validation.md](development/cross-platform-validation.md)：跨平台开发与 Windows 验证工作流、状态模型、同步规则、延后验证机制与 Computer Use 故障处理。
 
 ## 文档职责
 
@@ -36,9 +38,11 @@
 | --- | --- | --- |
 | `../README.md` | 用户功能、规则、使用方式、限制和下载说明 | 用户可见行为变化时 |
 | `../CONTRIBUTING.md` | 分支、提交、PR、验证和完成标准 | 开发流程变化时 |
+| `../AGENTS.md` | 代理工作约定：事实来源优先级、平台边界、跨平台验证流程、延后验证与 Computer Use 故障处理 | 代理流程、平台门禁或验证流程变化时 |
 | `architecture.md` | 当前架构、模块边界和修改入口 | 架构变化时 |
 | `testing.md` | 测试策略、功能映射和测试规范 | 测试结构或门禁变化时 |
 | `development.md` | 开发快速入口、工具链、命令和工程约束 | 工具链或常用命令变化时 |
+| `development/cross-platform-validation.md` | 跨平台开发与 Windows 验证工作流、验证状态模型、同步规则、延后验证机制与 Computer Use 故障处理 | 验证流程、状态模型、同步、延后验证或 Computer Use 处理规则变化时 |
 | `roadmap.md` | 尚未完成的开发工作及其验收标准 | 优先级或任务状态变化时 |
 | `release/manual-release.md` | 与版本无关、可重复执行的发布步骤 | 发布流程、脚本或资产变化时 |
 | `secrets-management.md` | 加密凭据、接收者、轮换与灾难恢复 | 凭据结构或恢复流程变化时 |
@@ -53,6 +57,7 @@
 | `decisions/wdio-transitive-dependencies.md` | E2E 传递依赖的局部修复、兼容性评估和剩余告警 | E2E 依赖升级或审计结果变化时 |
 | `e2e-development.md` | 真实 Tauri GUI E2E 的实现、测试和跨平台环境边界 | E2E 工程或桌面验证流程变化时 |
 | `windows-e2e-runbook.md` | 必须依赖 Windows 原生环境的 DPI、Terminal 交互和 GitLab Windows E2E 留证流程 | Windows 验证矩阵、artifact 或 Windows runner 流程变化时 |
+| `validation/windows.md` | Windows 平台验证队列、验证清单与每次验证的结果记录 | 每次 Windows 平台验证后，或验证清单 / 队列变化时 |
 | `benchmarks/icu4x-spike.md` | ICU4X 技术验证、成本数据和依赖决策 | Spike 重新测量或依赖决策变化时 |
 | `benchmarks/` | 可重复测量的方法和结果 | 基准重新测量时 |
 | `archive/` | 已完成版本的计划、验收和历史决策 | 只追加必要更正，不承载新任务 |

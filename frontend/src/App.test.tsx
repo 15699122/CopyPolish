@@ -97,6 +97,15 @@ async function setup() {
   return { user };
 }
 
+/** 打开设置弹窗并切换到指定分类（设置已按任务分类重构）。 */
+async function openSettingsCategory(
+  user: ReturnType<typeof userEvent.setup>,
+  category: string,
+) {
+  await user.click(screen.getByTestId("open-settings"));
+  await user.click(screen.getByTestId(`settings-category-${category}`));
+}
+
 beforeEach(() => {
   Object.defineProperty(navigator, "clipboard", {
     configurable: true,
@@ -191,7 +200,7 @@ describe("App 主流程", () => {
     );
     expect(input).toHaveClass("editor-text", "placeholder:text-muted-foreground/50");
     expect(screen.getByTestId("output-empty-state")).toHaveTextContent(
-      "输入内容后，这里将实时显示规范化结果",
+      "输入内容后，这里会自动显示排版结果",
     );
   });
 
@@ -279,17 +288,22 @@ describe("App 主流程", () => {
     const dialog = screen.getByTestId("settings-dialog");
     expect(dialog).toBeVisible();
     expect(dialog).toHaveClass(
-      "h-[min(680px,calc(100vh-2rem))]",
-      "w-[min(560px,calc(100vw-2rem))]",
+      "h-[min(720px,calc(100vh-2rem))]",
+      "w-[min(760px,calc(100vw-2rem))]",
       "max-h-[calc(100vh-2rem)]",
       "max-w-[calc(100vw-2rem)]",
       "sm:min-h-130",
-      "sm:min-w-120",
+      "sm:min-w-150",
     );
-        // 标题栏标题与说明之间保持明确间距。
-    expect(screen.getByText(APP_NAME).parentElement).toHaveClass("space-y-1.5");
-    expect(screen.getByText("设置 — 排版规则")).toBeVisible();
-    expect(screen.getByText("主题")).toBeVisible();
+    // 标题栏标题与说明采用同一行基线对齐的长单行布局。
+    expect(screen.getByText(APP_NAME).parentElement).toHaveClass("items-baseline");
+    expect(screen.getByTestId("settings-dialog")).toContainElement(
+      screen.getByRole("heading", { name: "设置" }),
+    );
+    // 默认展示“排版规则”分类，分类导航与滚动区同时存在。
+    expect(screen.getByTestId("settings-category-nav")).toBeInTheDocument();
+    expect(screen.getByTestId("settings-category-rules")).toHaveAttribute("aria-current", "true");
+    expect(screen.getByText(/^排版规则：/)).toBeVisible();
     expect(screen.getByTestId("settings-scroll-area")).toBeInTheDocument();
     expect(screen.queryByTestId("settings-drag-region")).not.toBeInTheDocument();
     expect(screen.queryByTestId("settings-resize-handle")).not.toBeInTheDocument();
@@ -313,20 +327,7 @@ describe("App 主流程", () => {
     expect(screen.getByTestId("settings-version")).toHaveTextContent("版本 0.5.0-test");
     expect(screen.getByTestId("settings-footer")).toHaveClass("px-4", "py-4", "sm:px-6");
     expect(screen.getByTestId("settings-actions")).toBeInTheDocument();
-    // 主题：跟随系统为勾选框，浅色/深色为单选项（默认勾选跟随时禁用）。
-    expect(screen.getByTestId("theme-options")).toBeInTheDocument();
-    expect(screen.getByTestId("theme-options")).toHaveClass("grid-cols-3");
-    expect(screen.getByTestId("theme-options").children).toHaveLength(3);
-    expect(screen.getByTestId("theme-system")).toBeInTheDocument();
-    expect(screen.getByTestId("theme-system")).toHaveAttribute("role", "checkbox");
-    expect(screen.getByTestId("theme-system")).toBeChecked();
-    expect(screen.getByTestId("theme-light")).toBeDisabled();
-    expect(screen.getByTestId("theme-dark")).toBeDisabled();
-    expect(screen.getByTestId("font-settings")).toBeInTheDocument();
-    expect(screen.getByTestId("font-select")).toHaveValue("system");
-    expect(screen.getByTestId("reset-font")).toBeInTheDocument();
-    expect(screen.getByTestId("editor-font-size-select")).toHaveValue("normal");
-    expect(screen.getByTestId("ui-scale-select")).toHaveValue("normal");
+    // 规则分类：展示规则分组说明，风险标注与展示顺序保持不变。
     expect(screen.getByText("中英文之间增加空格")).toBeVisible();
     expect(screen.getByText("在中文与拉丁字母之间增加空格。")).toBeVisible();
     const safeRule = screen.getByTestId("rule-rule-a").parentElement;
@@ -340,16 +341,92 @@ describe("App 主流程", () => {
     const defaultRule = screen.getByTestId("rule-rule-a");
     const disputedRule = screen.getByTestId("rule-rule-c");
     expect(defaultRule.compareDocumentPosition(disputedRule) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // 外观显示分类：主题为跟随系统勾选框，浅色/深色为单选项（默认勾选跟随时禁用）。
+    await user.click(screen.getByTestId("settings-category-appearance"));
+    expect(screen.getByText("主题")).toBeVisible();
+    expect(screen.getByTestId("theme-options")).toBeInTheDocument();
+    expect(screen.getByTestId("theme-options")).toHaveClass("grid-cols-3");
+    expect(screen.getByTestId("theme-options").children).toHaveLength(3);
+    expect(screen.getByTestId("theme-system")).toBeInTheDocument();
+    expect(screen.getByTestId("theme-system")).toHaveAttribute("role", "checkbox");
+    expect(screen.getByTestId("theme-system")).toBeChecked();
+    expect(screen.getByTestId("theme-light")).toBeDisabled();
+    expect(screen.getByTestId("theme-dark")).toBeDisabled();
+    expect(screen.getByTestId("font-settings")).toBeInTheDocument();
+    expect(screen.getByTestId("font-select")).toHaveValue("system");
+    expect(screen.getByTestId("reset-font")).toBeInTheDocument();
+    expect(screen.getByTestId("editor-font-size-select")).toHaveValue("normal");
+    expect(screen.getByTestId("ui-scale-select")).toHaveValue("normal");
+    // 规则批量操作只在“排版规则”分类出现，避免看起来作用于整个设置窗口。
+    await user.click(screen.getByTestId("settings-category-rules"));
     // 辅助按钮与完成按钮均存在。
     expect(screen.getByTestId("select-all")).toBeInTheDocument();
     expect(screen.getByTestId("select-none")).toBeInTheDocument();
-    expect(screen.getByTestId("reset-defaults")).toBeInTheDocument();
+    expect(screen.getByTestId("reset-defaults")).toHaveTextContent("恢复默认规则");
     expect(screen.getByTestId("settings-done")).toBeInTheDocument();
     // 设置文件位于底部左侧区域，完成按钮仍位于右侧操作区内。
     const actionRow = screen.getByTestId("settings-actions").parentElement;
     expect(actionRow).not.toBeNull();
     expect(screen.getByTestId("settings-actions")).toContainElement(screen.getByTestId("settings-done"));
     expect(screen.getByTestId("settings-actions")).toHaveClass("flex-wrap", "items-center");
+  });
+
+  it("设置分类切换会卸载其他分类内容，且规则批量操作仅在规则分类可见", async () => {
+    mockFormat((t) => t);
+    const { user } = await setup();
+    await openSettingsCategory(user, "rules");
+
+    // 规则分类：规则复选框与批量操作都可见。
+    expect(screen.getByTestId("rule-rule-a")).toBeInTheDocument();
+    expect(screen.getByTestId("select-all")).toBeInTheDocument();
+    expect(screen.getByTestId("reset-defaults")).toBeInTheDocument();
+    // 转换控件属于“替换与转换”，此时不应挂载。
+    expect(screen.queryByTestId("conversion-select")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("theme-system")).not.toBeInTheDocument();
+
+    // 切换到替换与转换：规则复选框与规则批量操作卸载，转换控件挂载。
+    await user.click(screen.getByTestId("settings-category-transform"));
+    expect(screen.getByTestId("conversion-select")).toBeInTheDocument();
+    expect(screen.queryByTestId("rule-rule-a")).not.toBeInTheDocument();
+    // 非规则分类不提供规则批量操作，避免“恢复默认”误改规则。
+    expect(screen.queryByTestId("select-all")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("select-none")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("reset-defaults")).not.toBeInTheDocument();
+
+    // 切换到外观显示：主题控件挂载，仍无规则批量操作。
+    await user.click(screen.getByTestId("settings-category-appearance"));
+    expect(screen.getByTestId("theme-system")).toBeInTheDocument();
+    expect(screen.queryByTestId("conversion-select")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("reset-defaults")).not.toBeInTheDocument();
+
+    // 回到规则分类：批量操作恢复可用。
+    await user.click(screen.getByTestId("settings-category-rules"));
+    expect(screen.getByTestId("select-all")).toBeInTheDocument();
+    expect(screen.getByTestId("rule-rule-a")).toBeInTheDocument();
+  });
+
+  it("非规则分类点击底栏不会触发规则恢复", async () => {
+    mockFormat((t) => t);
+    const { user } = await setup();
+    await openSettingsCategory(user, "rules");
+    await user.click(screen.getByTestId("select-none"));
+    await waitFor(() =>
+      expect(mocks.saveUserSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ enabled: [] }),
+      ),
+    );
+    vi.mocked(mocks.saveUserSettings).mockClear();
+
+    // 切到隐私分类：底栏只剩“完成”，不存在恢复默认入口。
+    await user.click(screen.getByTestId("settings-category-privacy"));
+    expect(screen.queryByTestId("reset-defaults")).not.toBeInTheDocument();
+    expect(screen.getByTestId("restore-last-input")).toBeInTheDocument();
+
+    await user.click(screen.getByTestId("settings-done"));
+    // 未发生规则启用集变更。
+    expect(mocks.saveUserSettings).not.toHaveBeenCalledWith(
+      expect.objectContaining({ enabled: ["rule-a", "rule-b"] }),
+    );
   });
 
   it("设置弹窗中开关规则会立即持久化用户设置", async () => {
@@ -438,6 +515,8 @@ describe("App 主流程", () => {
     expect(screen.getByTestId("rule-rule-a")).not.toBeChecked();
     // 主题被正确恢复到深色。
     expect(document.documentElement).toHaveAttribute("data-theme", "dark");
+    // 外观显示分类恢复上次保存的字体、字号与界面缩放。
+    await user.click(screen.getByTestId("settings-category-appearance"));
     expect(screen.getByTestId("font-select")).toHaveValue("pingfang");
     expect(screen.getByTestId("editor-font-size-select")).toHaveValue("large");
     expect(screen.getByTestId("ui-scale-select")).toHaveValue("small");
@@ -446,7 +525,7 @@ describe("App 主流程", () => {
   it("主题切换会立即应用并持久化", async () => {
     mockFormat((t) => t);
     const { user } = await setup();
-    await user.click(screen.getByTestId("open-settings"));
+    await openSettingsCategory(user, "appearance");
 
     // 默认勾选“跟随系统”，浅色/深色被禁用；先取消跟随时自动按系统偏好（mock 为浅色）切换。
     await user.click(screen.getByTestId("theme-system"));
@@ -495,7 +574,7 @@ describe("App 主流程", () => {
       })),
     });
     const { user } = await setup();
-    await user.click(screen.getByTestId("open-settings"));
+    await openSettingsCategory(user, "appearance");
 
     await user.click(screen.getByTestId("theme-system"));
     expect(document.documentElement).toHaveAttribute("data-theme", "dark");
@@ -518,7 +597,7 @@ describe("App 主流程", () => {
 
   it("字体切换与恢复默认会立即应用并持久化", async () => {
     const { user } = await setup();
-    await user.click(screen.getByTestId("open-settings"));
+    await openSettingsCategory(user, "appearance");
 
     await user.selectOptions(screen.getByTestId("font-select"), "pingfang");
     expect(screen.getByTestId("font-select")).toHaveValue("pingfang");
@@ -541,7 +620,7 @@ describe("App 主流程", () => {
 
   it("字号和缩放下拉框切换会立即应用并持久化", async () => {
     const { user } = await setup();
-    await user.click(screen.getByTestId("open-settings"));
+    await openSettingsCategory(user, "appearance");
 
     // 输入框与输出框共享同一字号入口。
     expect(screen.getByTestId("input-textarea")).toHaveClass("editor-text");
@@ -586,7 +665,7 @@ describe("App 主流程", () => {
   it("输出模式、布局和输入输出统计可用且手动模式不自动刷新", async () => {
     mockFormat((t) => `格式化(${t})`);
     const { user } = await setup();
-    await user.click(screen.getByTestId("open-settings"));
+    await openSettingsCategory(user, "output");
     await user.selectOptions(screen.getByTestId("output-mode-select"), "manual");
     await user.selectOptions(screen.getByTestId("layout-mode-select"), "vertical");
     await user.click(screen.getByTestId("settings-done"));
@@ -631,7 +710,7 @@ describe("App 主流程", () => {
     await user.type(screen.getByTestId("input-textarea"), "TODO");
     await waitFor(() => expect(screen.getByTestId("output-text")).toHaveTextContent("格式化(TODO)"));
 
-    await user.click(screen.getByTestId("open-settings"));
+    await openSettingsCategory(user, "transform");
     await waitFor(() => expect(screen.getByText("当前构建已包含简繁转换能力。")).toBeInTheDocument());
     await waitFor(() => expect(screen.getByTestId("replacement-add")).toBeEnabled());
     await user.click(screen.getByTestId("replacement-add"));
@@ -702,7 +781,7 @@ describe("App 主流程", () => {
       }),
     );
 
-    await user.click(screen.getByTestId("open-settings"));
+    await openSettingsCategory(user, "transform");
     expect(screen.getByTestId("replacement-from-0")).toHaveValue("TODO");
     expect(screen.getByTestId("replacement-to-0")).toHaveValue("待办");
     expect(screen.getByTestId("replacement-active-0")).not.toBeChecked();
@@ -726,7 +805,7 @@ describe("快捷键配置", () => {
     );
 
     // 打开设置并关闭总开关。
-    await user.click(screen.getByTestId("open-settings"));
+    await openSettingsCategory(user, "shortcuts");
     const toggle = screen.getByTestId("shortcuts-toggle");
     expect(toggle).toBeChecked();
     await user.click(toggle);
@@ -786,7 +865,7 @@ describe("快捷键配置", () => {
     const input = screen.getByTestId("input-textarea");
     await user.type(input, "abc");
 
-    await user.click(screen.getByTestId("open-settings"));
+    await openSettingsCategory(user, "shortcuts");
     const editButton = screen.getByTestId("shortcut-edit-format_now");
     expect(screen.getByTestId("shortcut-value-format_now")).toHaveTextContent("Ctrl/Cmd + Enter");
     await user.click(editButton);
@@ -844,7 +923,7 @@ describe("快捷键配置", () => {
       },
     });
     const { user } = await setup();
-    await user.click(screen.getByTestId("open-settings"));
+    await openSettingsCategory(user, "shortcuts");
     await user.click(screen.getByTestId("reset-shortcuts"));
     await waitFor(() =>
       expect(mocks.saveUserSettings).toHaveBeenCalledWith(
@@ -876,7 +955,7 @@ describe("快捷键配置", () => {
   it("开启 restore_last_input 后持久化用户正文", async () => {
     mockFormat((t) => t);
     const { user } = await setup();
-    await user.click(screen.getByTestId("open-settings"));
+    await openSettingsCategory(user, "privacy");
     await user.click(screen.getByTestId("restore-last-input"));
     await user.click(screen.getByTestId("settings-done"));
 
@@ -922,7 +1001,7 @@ describe("快捷键配置", () => {
     await waitFor(() => expect(input).toHaveValue("之前保存的正文"));
 
     // 关闭 restore_last_input
-    await user.click(screen.getByTestId("open-settings"));
+    await openSettingsCategory(user, "privacy");
     await user.click(screen.getByTestId("restore-last-input"));
     await waitFor(() => {
       const lastCall = mocks.saveUserSettings.mock.calls.at(-1)?.[0] as
@@ -954,7 +1033,7 @@ describe("快捷键配置", () => {
       restore_last_input: true,
     });
     const { user } = await setup();
-    await user.click(screen.getByTestId("open-settings"));
+    await openSettingsCategory(user, "privacy");
     expect(screen.getByTestId("clear-saved-input")).toBeInTheDocument();
     await user.click(screen.getByTestId("clear-saved-input"));
     await waitFor(() => {

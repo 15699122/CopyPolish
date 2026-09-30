@@ -89,6 +89,11 @@ export interface UseAppControllerResult {
   lastFormatDuration: number | null;
   input: string;
   onInputChange: (input: string) => void;
+  onFormatNow: () => void;
+  outputMode: OutputMode;
+  layoutMode: LayoutMode;
+  onOutputModeChange: (mode: OutputMode) => void;
+  onLayoutModeChange: (mode: LayoutMode) => void;
   copied: boolean;
   copyOutput: () => void;
   copyAndClear: () => Promise<void>;
@@ -258,14 +263,23 @@ export function useAppController(): UseAppControllerResult {
   const windowControls = useWindowControls({ onError: formatter.reportError });
 
   // ---- 12. 快捷键 ----
+  const formatNow = useCallback(() => {
+    formatter.scheduleFormat(input.input, settings.enabled, 0, {
+      replacements: settings.replacements,
+      conversion: effectiveConversion,
+    });
+  }, [
+    effectiveConversion,
+    formatter.scheduleFormat,
+    input.input,
+    settings.enabled,
+    settings.replacements,
+  ]);
+
   useShortcuts({
     enabled: settings.shortcutsEnabled,
     bindings: settings.shortcutBindings,
-    onFormatNow: () =>
-      formatter.scheduleFormat(input.input, settings.enabled, 0, {
-        replacements: settings.replacements,
-        conversion: effectiveConversion,
-      }),
+    onFormatNow: formatNow,
     onCopyOutput: clipboard.copy,
     onOpenSettings: () => dialog.onOpenChange(true),
   });
@@ -406,6 +420,11 @@ export function useAppController(): UseAppControllerResult {
     lastFormatDuration: formatter.lastFormatDuration,
     input: input.input,
     onInputChange: input.onInputChange,
+    onFormatNow: formatNow,
+    outputMode: settings.outputMode,
+    layoutMode: settings.layoutMode,
+    onOutputModeChange: actions.onOutputModeChange,
+    onLayoutModeChange: actions.onLayoutModeChange,
     copied: clipboard.copied,
     copyOutput: clipboard.copy,
     copyAndClear,

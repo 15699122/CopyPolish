@@ -4,10 +4,25 @@
 
 ## [Unreleased]
 
+### Added
+
+- 新增 `python3 scripts/verify.py --profile feature`，覆盖此前无常规 CI 覆盖的 `simplified-trad-conversion` 可选 feature（clippy、测试与 TUI 构建）；依赖该 feature 的升级必须执行此 profile。
+- GUI 中文布局与排版（v0.7.0）已在 Linux 完成实现与验证：主界面改为“原始文本 → 排版结果”双区布局，输出模式与布局可在顶部切换，手动模式提供“立即排版”；设置窗口改为按任务分类导航，规则批量操作只在规则分类出现；标题、说明与统计采用统一的中文字号与行距令牌。Windows 原生渲染、DPI 与剪贴板验证仍为 `WINDOWS_VERIFICATION_PENDING`，见 `docs/validation/windows.md` 队列 Q4。
+
+### Fixed
+
+- 修复设置分类化引入的两个问题：非规则分类不再显示会误改排版规则的「恢复默认」（改为仅在规则分类显示「恢复默认规则」），并为 GUI E2E 增加设置分类切换辅助，确保跨分类控件测试在控件挂载后再访问。
+
+### Security
+
+- 修复 E2E 工具链的传递依赖漏洞：对 `undici`（6.x/7.x 两条依赖线）、`brace-expansion`（1.x/2.x）与 `ip-address` 使用**同 major 版本区间**的 `overrides` 升级到修复版本，E2E 审计 advisory 从 16 个降为 2 个；override 后 `npm ci`、E2E typecheck 与关键包动态导入均通过。
+- `extract-zip` 的 GHSA-7pqw-9j4j-h8q3 新增为限期风险接受（复核期限 2026-10-06）。该包 2.0.1 已是 npm 当前 latest，两个 advisory 均无 patched version，唯一自动修复是破坏性的 WebdriverIO 8 降级；风险范围限于 E2E 工具链，不进入生产应用与发布资产。详见 [decisions/e2e-audit-policy.json](docs/decisions/e2e-audit-policy.json) 与 [decisions/wdio-transitive-dependencies.md](docs/decisions/wdio-transitive-dependencies.md) §7。
+
 ### Release policy
 
 - v0.6.2 已于 **2026-09-07** 正式发布，tag 指向 `master` 的 `0.6.2` commit，GitHub Release 同步上线。
 - 当前开发基线已提升为 `0.7.0-dev.1`，v0.7.0 功能开发恢复。后续功能计划见 [roadmap.md](docs/roadmap.md)。
+- `v0.7.0-pre1` 发布准备进行中，计划见 [roadmap.md](docs/roadmap.md)「P0：v0.7.0-pre1 发布准备」；Windows 验证队列见 [validation/windows.md](docs/validation/windows.md) Q8。准备完成不等于授权发布。
 
 ## [0.6.2] - 2026-09-07
 

@@ -10,10 +10,14 @@
 import type { FontFamily } from "./tauri";
 
 export const FONT_FAMILY_STACKS: Record<FontFamily, string> = {
-  system: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-  "microsoft-yahei": '"Microsoft YaHei", "微软雅黑", system-ui, sans-serif',
-  pingfang: '"PingFang SC", "苹方", system-ui, sans-serif',
-  "noto-sans-cjk": '"Noto Sans CJK SC", "Source Han Sans SC", system-ui, sans-serif',
-  simsun: 'SimSun, "宋体", serif',
-  simhei: 'SimHei, "黑体", system-ui, sans-serif',
+  system:
+    'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif',
+  "microsoft-yahei":
+    '"Microsoft YaHei", "微软雅黑", "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", system-ui, sans-serif',
+  pingfang:
+    '"PingFang SC", "苹方", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif',
+  "noto-sans-cjk":
+    '"Noto Sans CJK SC", "Source Han Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif',
+  simsun: 'SimSun, "宋体", "Noto Serif CJK SC", serif',
+  simhei: 'SimHei, "黑体", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif',
 };

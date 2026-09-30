@@ -14,50 +14,14 @@
 
 span-aware 混合管线、规则注册表、阶段依赖、结构/语义 span 和 UTF-8 安全 TextEdit 已落地；桌面 GUI 与 TUI 共用 Rust 引擎和 `rules.yaml`。Windows 原生验证（E2E、设置损坏/ACL、GUI DPI 人工三档、Windows Terminal TUI 交互）均已完成或按项目决策跳过；默认构建重启 spec 已按 capability=false 语义修正并完成验证，记录见 [windows-e2e-runbook.md](windows-e2e-runbook.md) 与归档。标准 W3C provider 已于 2026-09-01 收敛为兼容性 smoke（`specs/w3c/smoke.spec.ts`），不再与 embedded provider 并行跑完整回归。
 
-## v0.6.2 维护版本（已发布）
+## 版本与维护历史
 
-v0.6.2 是**隐私、安全、依赖和供应链维护版本**，不增加用户功能、不新增排版规则、不改变现有规则默认行为。该版本已于 **2026-09-07** 正式发布，tag 指向 `master` 的 `0.6.2` commit，GitHub Release 同步上线。
-
-当前开发基线已提升为 `0.7.0-dev.1`，v0.7.0 功能开发恢复。本节仅保留历史维护阶段与验收记录，不再作为当前功能冻结依据。
-
-### v0.6.2 维护阶段（历史）
-
-1. **S2-A 基线与资源边界**：合并安全审计模型和输入/设置资源限制；已完成 PR #35、PR #36，覆盖 GUI/TUI/CLI 共用请求模型、设置加载/保存和审计门禁。
-2. **S2-B 设置存储安全**：完成 Unix `0600` 私有权限、Unix symlink 拒绝、进程内并发保存串行化、原子计数器保证唯一临时文件名、临时文件失败清理和备份恢复测试；Windows reparse point/junction、跨进程并发和当前维护版本 Windows 平台验证已由用户于 **2026-09-07** 在原生环境确认通过。未提供具体机器版本、命令计数或 artifact 路径；如需审计级复现，按 Runbook 补充脱敏证据。
-3. **S2-C IPC 错误边界**：已完成稳定错误 code、前端安全消息归一化和 Rust 映射测试；剩余 Tauri 原生 command 级 E2E 边界复验与跨平台错误展示验收。
-4. **S2-D E2E 供应链**：完成复核——WebdriverIO 9.31.5 → 9.31.6 小版本升级未能覆盖 `GHSA-jmr9-qjv8-65gv`，`npm audit fix --force` 仅提供破坏性的 WebdriverIO 8 降级，均未采用；维持 `docs/decisions/e2e-audit-policy.json` 限期风险登记（review_after 2026-10-06），在兼容 WebdriverIO 升级或 provider 替换前按季度复核。
-5. **S2-E CI 与 Actions**：固定 GitHub Actions commit SHA、收紧 job permissions、校验 workflow 输入并加入 artifact/privacy scan。
-6. **S2-F 发布完整性**：生成生产 CycloneDX SBOM（`scripts/generate_sbom.py`，已接入 `verify.py --profile audit` 与 release workflow 的 assemble/发布），审查 Release 资产内容并确保 checksum/license 清单可重复生成；许可证清单现由 `scripts/generate_licenses.py --check` 纳入 audit 门禁；provenance/attestation 与签名机制留待后续评估接入。
-7. **S2-G 最终审计**：完成全量 CI、依赖审计、隐私扫描、设置安全矩阵和跨平台 smoke，形成 v0.6.2 安全维护审计报告。
-
-### v0.6.2 发布门槛
-
-- 生产依赖无未解释的 high/critical 漏洞；
-- 用户正文默认不落盘，主文件、备份、临时文件和测试 artifact 均不泄露正文；
-- IPC、格式化请求和设置文件均有资源边界；
-- 设置权限、symlink、并发和备份恢复行为完成验证；
-- E2E advisory 已修复，或有负责人、缓解措施和明确到期日期的正式风险接受；
-- Actions SHA、job 权限、SBOM、provenance、checksum、license 和 Release 资产检查完成；
-- 完成一次独立的 v0.6.2 安全维护审计；
-- 维护者明确指定前，不创建 v0.6.2 tag、不构建、不发布。
-
-### v0.6.2 当前必须在 Windows 原生环境执行的步骤
-
-Linux/WSL 只负责预检和可移植验证，不能替代 Windows WebView2、MSVC、NTFS、DPI、系统剪贴板或 Windows Terminal 证据。发布前必须在同一个干净的 Windows 原生 checkout、当前待发布 commit 和当前构建产物上，按 [Windows 原生 E2E 与交互留证 Runbook §2.5](windows-e2e-runbook.md) 串行执行：
-
-1. 记录 commit、Windows/PowerShell/Node/Rust MSVC/WebView2/Windows Terminal/字体/DPI 基线，并建立隔离的 artifact 与设置目录；
-2. 执行 `npm ci`、E2E typecheck，构建当前默认 embedded binary，运行 `selection-and-persistence.spec.ts`（3/3）；
-3. 构建 `simplified-trad-conversion` feature binary，运行双向转换 spec（2/2）；
-4. 构建并运行标准 W3C provider smoke；
-5. 在 Windows MSVC 上运行 `cargo test --features tui`，并完成 Windows Terminal raw-mode、粘贴、OSC 52、保存/退出/重启和必要的多行/emoji 交互复验；
-6. 复验设置损坏、NTFS ACL/reparse point、备份恢复、并发保存和失败清理；将脱敏 artifact、退出码、测试计数和清理结果保留在本地审计位置，不入库；
-7. 若本轮构建发布资产，则在 Windows 上构建并启动便携版/TUI，执行 Windows smoke 和 `verify_release_assets.py --platform windows`；最终跨平台资产合并与 `SHA256SUMS` 仍按发布 Runbook 执行。
-
-**当前状态（2026-09-07）**：用户已确认上述当前维护版本 Windows 平台验证完成。该确认覆盖当前发布前流程，但未提供具体机器版本、命令计数或 artifact 路径；因此不补写不存在的复现细节。GUI DPI 自动矩阵和 GitLab Windows 可选 E2E stage 按项目决定跳过，不计作通过；三档 DPI 人工检查和既有 Windows Terminal 交互结果只在当前 commit、工具链或诊断范围变化时按需复跑。
-
-### v0.7.0 启动条件
-
-v0.6.2 已发布，当前开发基线为 `0.7.0-dev.1`，新功能开发已恢复。后续功能按本文件中的优先级推进。
+- v0.6.2 是隐私、安全、依赖和供应链维护版本，已于 **2026-09-07** 正式发布，tag 指向 `master` 的 `0.6.2` commit。当前开发基线已提升为 `0.7.0-dev.1`。
+- 详细维护阶段、发布门槛、Windows 原生验收步骤与已完成的验证记录见：
+  - [archive/releases/v0.6.2.md](archive/releases/v0.6.2.md)
+  - [archive/validation/windows-2026-09.md](archive/validation/windows-2026-09.md)
+  - [release/manual-release.md](release/manual-release.md)
+  - [windows-e2e-runbook.md](windows-e2e-runbook.md)
 
 ## P0：仓库卫生与事实来源收敛
 
@@ -125,9 +89,75 @@ v0.6.2 已发布，当前开发基线为 `0.7.0-dev.1`，新功能开发已恢�
 - [x] 增加复制后的显式动作（保留/复制并清空），不使用窗口失焦自动复制或自动清空；复制失败时不清空内容；
 - [x] 增加静态帮助和首次使用提示，明确高风险清洗规则、结构保护和浏览器演示模式边界；首次提示状态仅保存在前端 localStorage，不改变 Rust/TUI 设置。
 
+## P1：GUI 中文布局与排版（v0.7.0 进行中）
+
+- [x] 按中文阅读习惯重排主界面：保留“原始文本 → 排版结果”工作流，突出编辑区层级，统一标题/正文/辅助说明字号与行距；
+- [x] 将设置长列表改为按任务分类（排版规则、替换与转换、编辑与输出、外观显示、快捷键、隐私与存储），规则批量操作放回规则分类；
+- [x] 修正模式相关文案：主界面标题、说明与空状态跟随实时/手动输出模式，不再固定宣称实时生成；
+- [x] 优化操作位置与反馈：输入区对应清空动作，结果区对应复制动作，主操作使用明确的复制成功状态；
+- [ ] 覆盖默认窗口（920×720）与最小窗口（800×600）、窄屏堆叠、浅色/深色主题、80%–125% 界面缩放与中英文混排渲染检查（Linux 侧已通过 Vitest 回归，渲染验收待 Windows 原生执行）；
+- [x] 补充组件回归测试并执行 `frontend` + `checks` 验证；Windows 原生（WebView2/DPI/窗口控制/剪贴板）进入集中验证队列 Q4。
+
 ## P1：设置存储策略决策
 
 - [x] 确认存储策略 ADR（[decisions/settings-storage-policy.md](decisions/settings-storage-policy.md)）并按方案 B 落地：exe 目录优先，不可写时回退平台应用数据目录并提示 `UsingAppDataFallback`；TUI/GUI 共用；6 项决策单测覆盖（同目录优先/双位置并存/只读回退/均不可读/探针/legacy 固定）。
+
+## P0：开放 PR 评估修复（进行中）
+
+本节记录对仓库全部开放 PR 的评估结论与后续修复计划。评估范围为 12 个开放 PR（含 1 个功能 PR 与 11 个 Dependabot PR）。
+
+### 评估结论要点
+
+- **#86（GUI 中文布局）存在两处必须修复的问题**：设置分类化后，现有 GUI E2E 未同步分类切换，导致 `selection-and-persistence`、`restart-settings`、`gui-visual-artifacts` 等 spec 访问未挂载控件；且设置底栏「恢复默认」在非规则分类仍调用规则恢复回调，语义误导。
+- **#80（opencc-fmmseg 0.12.1）无版本不一致问题**：该 PR 分支的 `Cargo.toml` 已为 `0.12.0` 且与 `Cargo.lock` 一致，`dev` 已通过 #73 升级到 0.12.0。此前评估基于落后分支得出的「manifest/lock 不一致」结论不成立。
+- **#80 的真实缺口是验证覆盖**：`scripts/verify.py` 的 Rust 步骤覆盖 default 与 `tui`，不覆盖 `simplified-trad-conversion`，因此 CI 绿灯不能证明简繁转换链路可用。
+- **#69 / #67 / #65 / #64（Actions 跨主版本升级）CI 失败的直接原因是既有 `cli.rs` rustfmt 不合规**，而非 Actions 新版本本身；`dev` 已由 #77 修复该格式问题，这四个 PR 需更新基线后重新验证。
+
+### 修复计划
+
+- [x] #86：新增 E2E 设置分类切换辅助函数，更新所有跨分类访问的 spec（`selection-and-persistence`、`restart-settings`、`gui-visual-artifacts`、`simplified-trad-conversion`），并验证关闭重开设置时的分类状态行为；
+- [x] #86：非规则分类移除底栏「恢复默认」，或在实现分类级恢复后使用明确命名的独立回调，禁止复用规则恢复回调（已改为「恢复默认规则」且仅在规则分类渲染）；
+- [x] #80：为 `simplified-trad-conversion` feature 补充 Linux 可执行的构建/测试验证入口（新增 `--profile feature`），并登记 Windows 原生转换回归到集中验证队列（Q5）；
+- [x] 复核低风险依赖 PR（#83、#81、#84、#82）并在合并后确认剩余 PR 状态：四项均已 squash 合并到 `dev`；
+- [x] Tauri 相关 PR（#85、#79）汇总原生构建、打包与运行验证项：两项均已 rebase 到最新 `dev`、CI 通过并合并；原生构建与打包验证仍归入 [validation/windows.md](validation/windows.md) Q6；
+- [x] #80（opencc-fmmseg 0.12.1）：确认 manifest `0.12.0` 约束与 lockfile `0.12.1` 一致（此前「版本不一致」结论不成立），以 `--features simplified-trad-conversion` 执行 clippy 与测试通过后合并；
+- [x] #65、#64 更新基线后重跑 CI：两项已 rebase 到最新 `dev` 且 CI 全部通过；
+- [x] #69、#67 联合验证发布链路上传/下载组合：见「P0：v0.7.0-pre1 发布准备」；
+- [ ] 全部相关 GUI 与 Tauri 变更合并后，执行**一次集中 Windows 原生验证**，不按 PR 交替切换平台。
+
+## P0：v0.7.0-pre1 发布准备（进行中）
+
+本节记录 PR #86、#64、#65、#67、#69 的合并计划、必要安全审计与 `v0.7.0-pre1` 发布候选准备。**完成「准备」不等于授权发布**；实际 `publish=true` 与公开 Release 需在最终候选的构建与 Windows 验证通过后另行确认。
+
+### 阶段一：安全审计
+
+- [x] 在最终依赖基线上重新执行 `python3 scripts/verify.py --profile audit`，取新鲜结果，不沿用历史输出（`--profile audit` 通过：Rust 0 漏洞、前端 0 high/critical、E2E 残余 2 个已登记 advisory、SBOM 716 组件、许可证清单一致）
+- [x] 核实前端 `undici` 等告警是否随依赖升级实际消除：确认 `npm audit --prefix frontend` 为 0 vulnerabilities，`undici@8.11.2` 实际消除，**不沿用此前「缓存旧结果」的未验证解释**
+- [x] 分别核实 E2E `extract-zip` 的两个 advisory（GHSA-jmr9-qjv8-65gv、GHSA-7pqw-9j4j-h8q3）：影响范围、可用修复版本、依赖链与可利用条件：`extract-zip@2.0.1` 已是 npm latest，两个 advisory 均无 patched version
+- [x] 复核 Rust `glib`（GHSA-wrw7-89jp-8q8g）与 [decisions/glib-0.18-soundness-risk.md](decisions/glib-0.18-soundness-risk.md) 的暴露范围（Linux 桌面构建路径，Windows/macOS 不涉及）：维持既有限期接受（复核期限 2026-12-31），确认仅影响 Linux GUI 资产
+- [x] 无兼容修复时，在 [decisions/e2e-audit-policy.json](decisions/e2e-audit-policy.json) 与 [decisions/wdio-transitive-dependencies.md](decisions/wdio-transitive-dependencies.md) 登记**有期限、范围明确**的风险接受；不得为使审计变绿而扩大忽略范围或降级 WebdriverIO：另以同 major 版本区间 override 修复 `undici`/`brace-expansion`/`ip-address`（消除 14 个新 advisory）；`extract-zip` 的 GHSA-7pqw-9j4j-h8q3 新增限期登记，期限 2026-10-06
+- [x] 审计结果区分：已修复 / 已接受的残余风险 / 仍阻塞发布的问题。
+
+### 阶段二：合并 PR
+
+- [ ] **#86**：复核最终差异、检查状态与冲突后合并到 `dev`，不使用管理员绕过；Windows GUI 验证保持 `WINDOWS_VERIFICATION_PENDING`；
+- [ ] **#65 → #64 → #69 → #67**：先在基于最新 `dev` 的临时集成分支上组合四项改动，核对官方升级说明、runner 要求、输入参数、artifact 名称/路径/权限与下载语义；
+- [ ] 在集成分支执行 `publish=false` 发布演练，验证 checkout、Node 初始化、Linux/Windows 构建、Windows 自动 smoke、artifact 上传/下载/汇总与哈希校验；
+- [ ] 组合演练成功后按序合并，每步确认基线与必需检查；合并后对最终基线**再次演练**，确保验证基线与交付基线一致。
+
+### 阶段三：预发布支持
+
+- [ ] `release.yml` 支持预发布：严格区分 `vX.Y.Z`（`--latest`）与 `vX.Y.Z-preN`（`--prerelease` 且不占用 latest），替换宽松 shell 通配符版本判断；
+- [ ] 保留 `publish=false` 演练模式、分支限制与最小权限；发布时要求非空 `expected_sha` 并严格核对 HEAD；
+- [ ] 补充版本/发布脚本测试，覆盖 `0.7.0-pre1` 在 `frontend/package.json`、`package-lock.json`、`src-tauri/tauri.conf.json`、`Cargo.toml`、`Cargo.lock` 与资产元数据中的一致性；
+- [ ] 新增 `docs/archive/releases/v0.7.0-pre1.md` 发布说明（新 GUI、依赖更新、测试范围、已知限制、残余安全风险、简繁转换构建能力），不擅自改变正式发布资产的 feature 配置。
+
+### 阶段四：最终候选验证
+
+- [ ] 在独立发布工作区执行 `python3 scripts/verify.py --profile release --tag v0.7.0-pre1`、`--profile feature`、`--profile audit` 与 `npm run typecheck --prefix e2e`；
+- [ ] 按项目分支流程将候选整合至 `master`，对**最终候选 SHA**执行完整演练；
+- [ ] 集中 Windows 验证：`P0` 原生构建、资产校验、候选 GUI/TUI 启动 smoke、发布上传/下载链路；`P1` 中文 GUI 分类与布局、真实剪贴板、DPI/缩放、窗口控制、设置持久化、转换能力与 TUI 交互回归；`P2` 主题、字体与长文本视觉复核；
+- [ ] 汇总 `PASS / FAIL / BLOCKED / NOT RUN`，给出「可发布」或「仍被哪些门禁阻塞」的明确结论。
 
 ## P2：E2E 收敛
 

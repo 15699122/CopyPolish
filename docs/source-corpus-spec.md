@@ -75,3 +75,8 @@ python3 scripts/evaluate_corpus.py \
 - 每个 FP 案例都有明确原因与修复方案
 - Markdown/HTML/LaTeX/URL/邮箱/代码/化学式零结构破坏
 - 换行风格保持
+
+
+## 7. 2026-09-08 准备阶段 smoke
+
+已在 E 盘 Windows TUI binary 上运行 corpus-local/00-cjk-internal-space.example.yaml 评测框架 smoke：2 条合成样本，TP=1、FP=0、FN=1，accuracy=0.5、fp_rate=0.0。该结果仅验证脚本、YAML 格式和 binary 调用链，不是 PDF/CAJ 真实语料验收；真实语料仍需按本规范收集、许可/脱敏和人工标注。

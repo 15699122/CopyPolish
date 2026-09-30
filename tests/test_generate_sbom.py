@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -11,6 +12,14 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent.parent
+
+
+def current_cargo_version() -> str:
+    cargo_toml = (ROOT / "src-tauri" / "Cargo.toml").read_text(encoding="utf-8")
+    match = re.search(r'^version\s*=\s*"([^"]+)"\s*$', cargo_toml, re.MULTILINE)
+    if match is None:
+        raise AssertionError("src-tauri/Cargo.toml is missing a package version")
+    return match.group(1)
 
 
 class GenerateSbomTest(unittest.TestCase):
@@ -28,7 +37,7 @@ class GenerateSbomTest(unittest.TestCase):
             document = json.loads(output.read_text(encoding="utf-8"))
             component = document["metadata"]["component"]
             self.assertEqual(component["name"], "chinese-copywriting-formatter")
-            self.assertEqual(component["version"], "0.6.2-dev.1")
+            self.assertEqual(component["version"], current_cargo_version())
 
     def test_check_mode_still_validates_generated_document(self) -> None:
         result = subprocess.run(

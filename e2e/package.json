@@ -22,7 +22,12 @@
   },
   "overrides": {
     "deepmerge-ts": "8.0.2",
-    "serialize-javascript": "7.1.1"
+    "serialize-javascript": "7.1.1",
+    "ip-address": "10.7.2",
+    "undici@>=6.25.0 <6.28.1": "6.28.1",
+    "undici@>=7.0.0 <7.29.1": "7.29.1",
+    "brace-expansion@>=1.0.0 <1.1.21": "1.1.21",
+    "brace-expansion@>=2.0.0 <2.1.7": "2.1.7"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",

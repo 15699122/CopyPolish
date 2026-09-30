@@ -1,6 +1,6 @@
 # E2E 传递依赖修复记录
 
-> **状态**：部分 Accepted（2026-09-03）。`deepmerge-ts` 与 `serialize-javascript` 已通过 override 修复；
+> **状态**：部分 Accepted（2026-09-30 复核，见 §7）。`deepmerge-ts`、`serialize-javascript`、`undici`、`brace-expansion`、`ip-address` 已通过 override 修复；
 > `@puppeteer/browsers`/`extract-zip` 仍受上游依赖链阻塞，保留后续评估。
 
 ## 1. 当前依赖链
@@ -71,10 +71,44 @@ provider 回归和 `npm audit`。
 可接受的 WebdriverIO 9 升级或 `extract-zip` 修复版本，未修改 `e2e/package.json`
 或 `e2e/package-lock.json`，也未将路线图中的持续维护项标记为完成。
 
-下一次可落地升级必须满足至少一个条件：WebdriverIO 工具链发布兼容的
-`@puppeteer/browsers` 3.x 约束；`extract-zip` 发布修复版本；或项目决定迁移到
-不再引入该依赖的完整 provider/toolchain，并在 embedded/W3C、Windows 和许可证
-检查全部通过后单独提交。
+## 7. 2026-09-30 维护复核（v0.7.0-pre1 发布准备）
+
+本次复核在 `v0.7.0-pre1` 发布准备阶段重新执行审计，取得以下**新鲜结果**（不沿用 2026-09-03/09-04 的历史输出）：
+
+- 前端：`npm audit --prefix frontend` 报告 **0 vulnerabilities**；此前的 `undici` 告警已随 jsdom 升级到 `undici@8.11.2` 实际消除。
+- E2E：审计一度报告 16 个 advisory，其中 **14 个是新暴露且有兼容修复版本**的问题，根因是传递依赖长期未跟进：
+
+| 根包 | 受影响范围 | 处置 |
+| --- | --- | --- |
+| `undici` | `6.28.0`（经 `webdriver`）、`7.29.0`（经 `cheerio`） | 按版本区间 override 到同 major 修复版 `6.28.1` / `7.29.1` |
+| `brace-expansion` | `1.1.18`、`2.1.4` | 按版本区间 override 到 `1.1.21` / `2.1.7` |
+| `ip-address` | `10.7.0`（经 `@puppeteer/browsers → proxy-agent → socks`） | override 到 `10.7.2` |
+| `extract-zip` | `2.0.1` | **无修复版本**，登记限期风险接受 |
+
+`undici` 与 `brace-expansion` 各有两条依赖线且 major 不同，因此使用
+`undici@>=6.25.0 <6.28.1` 这类带版本区间的 override 键，避免跨 major 强制提升。
+这些 override 全部落在同一 major 内，不改变 WebdriverIO 预期实现。
+
+override 后验证结果：
+
+- `npm install --package-lock-only --ignore-scripts` 与 `npm ci --ignore-scripts` 成功；
+- `npm run typecheck`（`tsc --noEmit`）通过；
+- `@wdio/cli`、`@wdio/utils`、`@wdio/config`、`webdriverio`、`@puppeteer/browsers`、
+  `cheerio`、`socks`、`@wdio/tauri-service` 均可正常动态导入；
+- 审计从 16 个 advisory 降为 **2 个**，仅剩 `extract-zip` 的
+  GHSA-jmr9-qjv8-65gv 与 GHSA-7pqw-9j4j-h8q3。
+
+`extract-zip@2.0.1` 已是 npm 当前 latest（`npm view extract-zip version`），
+两个 advisory 的 `range` 均为 `<=2.0.1`，**没有 patched version**；npm 唯一给出的
+自动修复仍是降级 `@wdio/local-runner@8.14.6`（breaking）。因此新增
+GHSA-7pqw-9j4j-h8q3 到 [e2e-audit-policy.json](e2e-audit-policy.json)，
+与既有登记同理由、同复核期限（2026-10-06），并补充「只处理工具链下载的归档、
+不接受用户提供归档」这一可利用性限定。
+
+`@puppeteer/browsers@3.2.1` 的跨 major override 仍然不采用，理由与第 3 节一致。
+
+下一次复核仍以「WebdriverIO 发布兼容的 `@puppeteer/browsers` 3.x 约束」或
+「`extract-zip` 发布修复版本」为落地条件。
 
 ## 6. 2026-09-04 维护复核
 

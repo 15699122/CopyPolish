@@ -5,6 +5,7 @@ import {
   waitForApp,
 } from "../support/app.js";
 import { readSettings } from "../support/settings.js";
+import { openSettingsCategory, switchSettingsCategory } from "../support/settings-categories.js";
 
 const phase = process.env.COPYPOLISH_E2E_RESTART_PHASE;
 
@@ -35,7 +36,7 @@ describe(`CopyPolish 设置重启恢复：${phase}`, () => {
       await input.setValue(source);
       await formatText(source);
 
-      await $("[data-testid=\"open-settings\"]").click();
+      await openSettingsCategory("rules");
       const selectNone = await $("[data-testid=\"select-none\"]");
       await selectNone.waitForDisplayed({ timeout: 10_000 });
       await selectNone.click();
@@ -47,6 +48,8 @@ describe(`CopyPolish 设置重启恢复：${phase}`, () => {
         { timeout: 10_000, timeoutMsg: "第一次启动的设置保存未完成" },
       );
 
+      // 替换与转换控件位于「替换与转换」分类。
+      await switchSettingsCategory("transform");
       await $("[data-testid=\"replacement-add\"]").click();
       await $("[data-testid=\"replacement-from-0\"]").setValue("LeanCloud");
       await $("[data-testid=\"replacement-to-0\"]").setValue("LeanCloud服务");
@@ -86,7 +89,7 @@ describe(`CopyPolish 设置重启恢复：${phase}`, () => {
       { timeout: 10_000, timeoutMsg: "第二次启动未恢复最近输入" },
     );
 
-    await $("[data-testid=\"open-settings\"]").click();
+    await openSettingsCategory("rules");
     await browser.waitUntil(
       async () => {
         const rules = await $$('[data-testid^="rule-"]:not([data-testid^="rule-card-"])');
@@ -98,6 +101,8 @@ describe(`CopyPolish 设置重启恢复：${phase}`, () => {
     for (const rule of rules) {
       expect(await rule.getAttribute("data-state")).toBe("unchecked");
     }
+    // 替换与转换控件位于「替换与转换」分类，需切换后再断言。
+    await switchSettingsCategory("transform");
     expect(await $("[data-testid=\"replacement-from-0\"]").getValue()).toBe("LeanCloud");
     expect(await $("[data-testid=\"replacement-to-0\"]").getValue()).toBe("LeanCloud服务");
     expect(await $("[data-testid=\"replacement-active-0\"]").getAttribute("data-state")).toBe("checked");

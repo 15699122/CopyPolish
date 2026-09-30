@@ -30,6 +30,35 @@
   --editor-font-size: 14px;
   --editor-line-height: 1.7;
   --app-ui-scale: 1;
+  --workspace-section-gap: 1.5rem;
+  --workspace-helper-line-height: 1.7;
+}
+
+/*
+ * 中文阅读排版层级：标题、操作区说明、统计信息共用同一套字号与行距，
+ * 避免组件各自声明 12px/14px 造成层级漂移。
+ */
+.prose-title {
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.6;
+  letter-spacing: 0.01em;
+}
+
+.prose-subtitle {
+  font-size: 0.8125rem;
+  line-height: 1.7;
+}
+
+.prose-helper {
+  font-size: 0.8125rem;
+  line-height: var(--workspace-helper-line-height);
+}
+
+.prose-stats {
+  font-size: 0.75rem;
+  line-height: 1.6;
+  font-variant-numeric: tabular-nums;
 }
 
 :root[data-theme="dark"] {

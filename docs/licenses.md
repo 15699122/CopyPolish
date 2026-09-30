@@ -4,12 +4,12 @@
 `src-tauri/Cargo.lock` 对应的 `cargo metadata --locked`；npm 依赖来自
 `frontend/package-lock.json` 的 `packages` 条目。
 
-> 生成日期：2026-09-07；依赖升级后必须重新生成并审阅差异。
+> 生成日期：2026-09-30；依赖升级后必须重新生成并审阅差异。
 
 ## 汇总
 
 - Rust 依赖：431 条（含不同版本的同名包）；
-- npm 依赖：294 条；
+- npm 依赖：285 条；
 - 许可证字段缺失：0 条。
 
 | 许可证字段 | 数量 |
@@ -34,7 +34,7 @@
 | `CC0-1.0` | 1 |
 | `CC0-1.0 OR MIT-0 OR Apache-2.0` | 1 |
 | `ISC` | 7 |
-| `MIT` | 314 |
+| `MIT` | 305 |
 | `MIT OR Apache-2.0` | 203 |
 | `MIT OR Apache-2.0 OR LGPL-2.1-or-later` | 2 |
 | `MIT OR Apache-2.0 OR Zlib` | 2 |
@@ -350,7 +350,7 @@
 | `tao` | `0.35.3` | `Apache-2.0` |
 | `tao-macros` | `0.1.4` | `MIT OR Apache-2.0` |
 | `target-lexicon` | `0.12.16` | `Apache-2.0 WITH LLVM-exception` |
-| `tauri` | `2.11.5` | `Apache-2.0 OR MIT` |
+| `tauri` | `2.11.6` | `Apache-2.0 OR MIT` |
 | `tauri-build` | `2.6.3` | `Apache-2.0 OR MIT` |
 | `tauri-codegen` | `2.6.3` | `Apache-2.0 OR MIT` |
 | `tauri-macros` | `2.6.3` | `Apache-2.0 OR MIT` |
@@ -489,18 +489,18 @@
 | 包 | 版本 | 许可证 |
 |---|---:|---|
 | `@adobe/css-tools` | `4.5.0` | `MIT` |
-| `@asamuzakjp/css-color` | `6.0.7` | `MIT` |
-| `@asamuzakjp/dom-selector` | `8.3.2` | `MIT` |
+| `@asamuzakjp/css-color` | `7.0.1` | `MIT` |
+| `@asamuzakjp/dom-selector` | `9.2.1` | `MIT` |
 | `@babel/code-frame` | `7.29.7` | `MIT` |
 | `@babel/helper-validator-identifier` | `7.29.7` | `MIT` |
 | `@babel/runtime` | `7.29.7` | `MIT` |
 | `@bramus/specificity` | `2.4.2` | `MIT` |
 | `@csstools/color-helpers` | `6.1.1` | `MIT-0` |
-| `@csstools/css-calc` | `3.3.0` | `MIT` |
-| `@csstools/css-color-parser` | `4.2.0` | `MIT` |
+| `@csstools/css-calc` | `3.4.0` | `MIT` |
+| `@csstools/css-color-parser` | `4.2.3` | `MIT` |
 | `@csstools/css-parser-algorithms` | `4.0.0` | `MIT` |
-| `@csstools/css-syntax-patches-for-csstree` | `1.1.8` | `MIT-0` |
-| `@csstools/css-tokenizer` | `4.0.0` | `MIT` |
+| `@csstools/css-syntax-patches-for-csstree` | `1.1.14` | `MIT-0` |
+| `@csstools/css-tokenizer` | `4.0.1` | `MIT` |
 | `@emnapi/core` | `1.11.1` | `MIT` |
 | `@emnapi/runtime` | `1.11.1` | `MIT` |
 | `@emnapi/wasi-threads` | `1.2.2` | `MIT` |
@@ -534,10 +534,10 @@
 | `@jridgewell/gen-mapping` | `0.3.13` | `MIT` |
 | `@jridgewell/remapping` | `2.3.5` | `MIT` |
 | `@jridgewell/resolve-uri` | `3.1.2` | `MIT` |
-| `@jridgewell/sourcemap-codec` | `1.5.5` | `MIT` |
+| `@jridgewell/sourcemap-codec` | `1.6.0` | `MIT` |
 | `@jridgewell/trace-mapping` | `0.3.31` | `MIT` |
 | `@napi-rs/wasm-runtime` | `1.1.4` | `MIT` |
-| `@oxc-project/types` | `0.146.0` | `MIT` |
+| `@oxc-project/types` | `0.150.0` | `MIT` |
 | `@radix-ui/number` | `1.1.3` | `MIT` |
 | `@radix-ui/primitive` | `1.1.7` | `MIT` |
 | `@radix-ui/react-checkbox` | `1.3.11` | `MIT` |
@@ -560,23 +560,22 @@
 | `@radix-ui/react-use-effect-event` | `0.0.5` | `MIT` |
 | `@radix-ui/react-use-layout-effect` | `1.1.4` | `MIT` |
 | `@radix-ui/react-use-size` | `1.1.4` | `MIT` |
-| `@rolldown/binding-android-arm-eabi` | `1.2.5` | `MIT` |
-| `@rolldown/binding-android-arm64` | `1.2.5` | `MIT` |
-| `@rolldown/binding-darwin-arm64` | `1.2.5` | `MIT` |
-| `@rolldown/binding-darwin-x64` | `1.2.5` | `MIT` |
-| `@rolldown/binding-freebsd-x64` | `1.2.5` | `MIT` |
-| `@rolldown/binding-linux-arm-gnueabihf` | `1.2.5` | `MIT` |
-| `@rolldown/binding-linux-arm64-gnu` | `1.2.5` | `MIT` |
-| `@rolldown/binding-linux-arm64-musl` | `1.2.5` | `MIT` |
-| `@rolldown/binding-linux-ppc64-gnu` | `1.2.5` | `MIT` |
-| `@rolldown/binding-linux-s390x-gnu` | `1.2.5` | `MIT` |
-| `@rolldown/binding-linux-x64-gnu` | `1.2.5` | `MIT` |
-| `@rolldown/binding-linux-x64-musl` | `1.2.5` | `MIT` |
-| `@rolldown/binding-openharmony-arm64` | `1.2.5` | `MIT` |
-| `@rolldown/binding-win32-arm64-msvc` | `1.2.5` | `MIT` |
-| `@rolldown/binding-win32-x64-msvc` | `1.2.5` | `MIT` |
+| `@rolldown/binding-android-arm-eabi` | `1.2.9` | `MIT` |
+| `@rolldown/binding-android-arm64` | `1.2.9` | `MIT` |
+| `@rolldown/binding-darwin-arm64` | `1.2.9` | `MIT` |
+| `@rolldown/binding-darwin-x64` | `1.2.9` | `MIT` |
+| `@rolldown/binding-freebsd-x64` | `1.2.9` | `MIT` |
+| `@rolldown/binding-linux-arm-gnueabihf` | `1.2.9` | `MIT` |
+| `@rolldown/binding-linux-arm64-gnu` | `1.2.9` | `MIT` |
+| `@rolldown/binding-linux-arm64-musl` | `1.2.9` | `MIT` |
+| `@rolldown/binding-linux-ppc64-gnu` | `1.2.9` | `MIT` |
+| `@rolldown/binding-linux-s390x-gnu` | `1.2.9` | `MIT` |
+| `@rolldown/binding-linux-x64-gnu` | `1.2.9` | `MIT` |
+| `@rolldown/binding-linux-x64-musl` | `1.2.9` | `MIT` |
+| `@rolldown/binding-openharmony-arm64` | `1.2.9` | `MIT` |
+| `@rolldown/binding-win32-arm64-msvc` | `1.2.9` | `MIT` |
+| `@rolldown/binding-win32-x64-msvc` | `1.2.9` | `MIT` |
 | `@rolldown/pluginutils` | `1.0.1` | `MIT` |
-| `@standard-schema/spec` | `1.1.0` | `MIT` |
 | `@tailwindcss/node` | `4.3.3` | `MIT` |
 | `@tailwindcss/oxide` | `4.3.3` | `MIT` |
 | `@tailwindcss/oxide-android-arm64` | `4.3.3` | `MIT` |
@@ -593,19 +592,19 @@
 | `@tailwindcss/oxide-win32-x64-msvc` | `4.3.3` | `MIT` |
 | `@tailwindcss/vite` | `4.3.3` | `MIT` |
 | `@tauri-apps/api` | `2.11.1` | `Apache-2.0 OR MIT` |
-| `@tauri-apps/cli` | `2.11.4` | `Apache-2.0 OR MIT` |
-| `@tauri-apps/cli-darwin-arm64` | `2.11.4` | `Apache-2.0 OR MIT` |
-| `@tauri-apps/cli-darwin-x64` | `2.11.4` | `Apache-2.0 OR MIT` |
-| `@tauri-apps/cli-linux-arm-gnueabihf` | `2.11.4` | `Apache-2.0 OR MIT` |
-| `@tauri-apps/cli-linux-arm64-gnu` | `2.11.4` | `Apache-2.0 OR MIT` |
-| `@tauri-apps/cli-linux-arm64-musl` | `2.11.4` | `Apache-2.0 OR MIT` |
-| `@tauri-apps/cli-linux-riscv64-gnu` | `2.11.4` | `Apache-2.0 OR MIT` |
-| `@tauri-apps/cli-linux-x64-gnu` | `2.11.4` | `Apache-2.0 OR MIT` |
-| `@tauri-apps/cli-linux-x64-musl` | `2.11.4` | `Apache-2.0 OR MIT` |
-| `@tauri-apps/cli-win32-arm64-msvc` | `2.11.4` | `Apache-2.0 OR MIT` |
-| `@tauri-apps/cli-win32-ia32-msvc` | `2.11.4` | `Apache-2.0 OR MIT` |
-| `@tauri-apps/cli-win32-x64-msvc` | `2.11.4` | `Apache-2.0 OR MIT` |
-| `@tauri-apps/plugin-log` | `2.9.0` | `MIT OR Apache-2.0` |
+| `@tauri-apps/cli` | `2.11.5` | `Apache-2.0 OR MIT` |
+| `@tauri-apps/cli-darwin-arm64` | `2.11.5` | `Apache-2.0 OR MIT` |
+| `@tauri-apps/cli-darwin-x64` | `2.11.5` | `Apache-2.0 OR MIT` |
+| `@tauri-apps/cli-linux-arm-gnueabihf` | `2.11.5` | `Apache-2.0 OR MIT` |
+| `@tauri-apps/cli-linux-arm64-gnu` | `2.11.5` | `Apache-2.0 OR MIT` |
+| `@tauri-apps/cli-linux-arm64-musl` | `2.11.5` | `Apache-2.0 OR MIT` |
+| `@tauri-apps/cli-linux-riscv64-gnu` | `2.11.5` | `Apache-2.0 OR MIT` |
+| `@tauri-apps/cli-linux-x64-gnu` | `2.11.5` | `Apache-2.0 OR MIT` |
+| `@tauri-apps/cli-linux-x64-musl` | `2.11.5` | `Apache-2.0 OR MIT` |
+| `@tauri-apps/cli-win32-arm64-msvc` | `2.11.5` | `Apache-2.0 OR MIT` |
+| `@tauri-apps/cli-win32-ia32-msvc` | `2.11.5` | `Apache-2.0 OR MIT` |
+| `@tauri-apps/cli-win32-x64-msvc` | `2.11.5` | `Apache-2.0 OR MIT` |
+| `@tauri-apps/plugin-log` | `2.9.1` | `MIT OR Apache-2.0` |
 | `@testing-library/dom` | `10.4.1` | `MIT` |
 | `@testing-library/jest-dom` | `7.0.1` | `MIT` |
 | `@testing-library/react` | `16.3.3` | `MIT` |
@@ -615,9 +614,9 @@
 | `@types/chai` | `5.2.3` | `MIT` |
 | `@types/deep-eql` | `4.0.2` | `MIT` |
 | `@types/estree` | `1.0.9` | `MIT` |
-| `@types/node` | `24.13.3` | `MIT` |
-| `@types/react` | `19.2.18` | `MIT` |
-| `@types/react-dom` | `19.2.7` | `MIT` |
+| `@types/node` | `26.6.2` | `MIT` |
+| `@types/react` | `19.3.0` | `MIT` |
+| `@types/react-dom` | `19.3.0` | `MIT` |
 | `@typescript/typescript-aix-ppc64` | `7.0.2` | `Apache-2.0` |
 | `@typescript/typescript-darwin-arm64` | `7.0.2` | `Apache-2.0` |
 | `@typescript/typescript-darwin-x64` | `7.0.2` | `Apache-2.0` |
@@ -639,29 +638,23 @@
 | `@typescript/typescript-win32-arm64` | `7.0.2` | `Apache-2.0` |
 | `@typescript/typescript-win32-x64` | `7.0.2` | `Apache-2.0` |
 | `@vitejs/plugin-react` | `6.1.1` | `MIT` |
-| `@vitest/expect` | `4.1.11` | `MIT` |
-| `@vitest/mocker` | `4.1.11` | `MIT` |
-| `@vitest/pretty-format` | `4.1.11` | `MIT` |
-| `@vitest/runner` | `4.1.11` | `MIT` |
-| `@vitest/snapshot` | `4.1.11` | `MIT` |
-| `@vitest/spy` | `4.1.11` | `MIT` |
-| `@vitest/utils` | `4.1.11` | `MIT` |
+| `@vitest/mocker` | `5.0.1` | `MIT` |
+| `@vitest/spy` | `5.0.1` | `MIT` |
 | `@wdio/logger` | `9.29.1` | `MIT` |
-| `@wdio/native-spy` | `1.2.0` | `MIT` |
-| `@wdio/native-utils` | `2.6.0` | `MIT` |
-| `@wdio/tauri-plugin` | `1.3.0` | `MIT` |
+| `@wdio/native-spy` | `1.3.0` | `MIT` |
+| `@wdio/native-utils` | `2.7.0` | `MIT` |
+| `@wdio/tauri-plugin` | `1.4.0` | `MIT` |
 | `ansi-regex` | `5.0.1` | `MIT` |
 | `ansi-regex` | `6.3.0` | `MIT` |
 | `ansi-styles` | `5.2.0` | `MIT` |
 | `aria-hidden` | `1.2.6` | `MIT` |
 | `aria-query` | `5.3.0` | `Apache-2.0` |
 | `assertion-error` | `2.0.1` | `MIT` |
-| `bidi-js` | `1.0.3` | `MIT` |
+| `bidi-js` | `1.1.0` | `MIT` |
 | `chai` | `6.2.2` | `MIT` |
 | `chalk` | `5.6.2` | `MIT` |
 | `class-variance-authority` | `0.7.1` | `Apache-2.0` |
 | `clsx` | `2.1.1` | `MIT` |
-| `convert-source-map` | `2.0.0` | `MIT` |
 | `css-tree` | `3.2.1` | `MIT` |
 | `css.escape` | `1.5.1` | `MIT` |
 | `csstype` | `3.2.3` | `MIT` |
@@ -684,12 +677,12 @@
 | `fsevents` | `2.3.3` | `MIT` |
 | `get-nonce` | `1.0.1` | `MIT` |
 | `graceful-fs` | `4.2.11` | `ISC` |
-| `html-encoding-sniffer` | `6.0.0` | `MIT` |
+| `html-encoding-sniffer` | `7.0.0` | `MIT` |
 | `indent-string` | `4.0.0` | `MIT` |
 | `is-potential-custom-element-name` | `1.0.1` | `MIT` |
 | `jiti` | `2.7.0` | `MIT` |
 | `js-tokens` | `4.0.0` | `MIT` |
-| `jsdom` | `30.0.1` | `MIT` |
+| `jsdom` | `30.1.1` | `MIT` |
 | `json5` | `2.2.3` | `MIT` |
 | `lightningcss` | `1.32.0` | `MPL-2.0` |
 | `lightningcss` | `1.33.0` | `MPL-2.0` |
@@ -717,24 +710,24 @@
 | `lightningcss-win32-x64-msvc` | `1.33.0` | `MPL-2.0` |
 | `loglevel` | `1.9.2` | `MIT` |
 | `loglevel-plugin-prefix` | `0.8.4` | `MIT` |
-| `lru-cache` | `11.5.2` | `BlueOak-1.0.0` |
-| `lucide-react` | `1.33.0` | `ISC` |
+| `lru-cache` | `11.5.3` | `BlueOak-1.0.0` |
+| `lucide-react` | `1.48.0` | `ISC` |
 | `lz-string` | `1.5.0` | `MIT` |
 | `magic-string` | `0.30.21` | `MIT` |
+| `magic-string` | `1.4.1` | `MIT` |
 | `mdn-data` | `2.27.1` | `CC0-1.0` |
 | `min-indent` | `1.0.1` | `MIT` |
 | `ms` | `2.1.3` | `MIT` |
-| `nanoid` | `3.3.18` | `MIT` |
+| `nanoid` | `3.3.19` | `MIT` |
 | `obug` | `2.1.4` | `MIT` |
 | `parse5` | `8.0.1` | `MIT` |
-| `pathe` | `2.0.3` | `MIT` |
 | `picocolors` | `1.1.1` | `ISC` |
-| `picomatch` | `4.0.5` | `MIT` |
-| `postcss` | `8.5.26` | `MIT` |
+| `picomatch` | `4.0.7` | `MIT` |
+| `postcss` | `8.5.28` | `MIT` |
 | `pretty-format` | `27.5.1` | `MIT` |
 | `punycode` | `2.3.1` | `MIT` |
-| `react` | `19.2.8` | `MIT` |
-| `react-dom` | `19.2.8` | `MIT` |
+| `react` | `19.3.0` | `MIT` |
+| `react-dom` | `19.3.0` | `MIT` |
 | `react-is` | `17.0.2` | `MIT` |
 | `react-remove-scroll` | `2.7.2` | `MIT` |
 | `react-remove-scroll-bar` | `2.3.8` | `MIT` |
@@ -742,10 +735,10 @@
 | `redent` | `3.0.0` | `MIT` |
 | `require-from-string` | `2.0.2` | `MIT` |
 | `ret` | `0.5.0` | `MIT` |
-| `rolldown` | `1.2.5` | `MIT` |
+| `rolldown` | `1.2.9` | `MIT` |
 | `safe-regex2` | `5.1.1` | `MIT` |
 | `saxes` | `6.0.0` | `ISC` |
-| `scheduler` | `0.27.0` | `MIT` |
+| `scheduler` | `0.28.0` | `MIT` |
 | `siginfo` | `2.0.0` | `ISC` |
 | `smol-toml` | `1.8.0` | `BSD-3-Clause` |
 | `source-map-js` | `1.2.1` | `BSD-3-Clause` |
@@ -753,31 +746,29 @@
 | `std-env` | `4.2.0` | `MIT` |
 | `strip-ansi` | `7.2.0` | `MIT` |
 | `strip-indent` | `3.0.0` | `MIT` |
-| `symbol-tree` | `3.2.4` | `MIT` |
-| `tailwind-merge` | `3.6.0` | `MIT` |
+| `tailwind-merge` | `3.7.0` | `MIT` |
 | `tailwindcss` | `4.3.3` | `MIT` |
 | `tapable` | `2.3.3` | `MIT` |
-| `tinybench` | `2.9.0` | `MIT` |
+| `tinybench` | `6.1.4` | `MIT` |
 | `tinyexec` | `1.3.0` | `MIT` |
 | `tinyglobby` | `0.2.17` | `MIT` |
-| `tinyrainbow` | `3.1.1` | `MIT` |
 | `tldts` | `7.4.10` | `MIT` |
 | `tldts-core` | `7.4.10` | `MIT` |
 | `tough-cookie` | `6.0.2` | `BSD-3-Clause` |
 | `tr46` | `6.0.0` | `MIT` |
 | `tslib` | `2.8.1` | `0BSD` |
 | `typescript` | `7.0.2` | `Apache-2.0` |
-| `undici` | `8.10.0` | `MIT` |
-| `undici-types` | `7.18.2` | `MIT` |
+| `undici` | `8.11.2` | `MIT` |
+| `undici-types` | `8.9.0` | `MIT` |
 | `use-callback-ref` | `1.3.3` | `MIT` |
 | `use-sidecar` | `1.1.3` | `MIT` |
-| `vite` | `8.2.2` | `MIT` |
-| `vitest` | `4.1.11` | `MIT` |
-| `w3c-xmlserializer` | `5.0.0` | `MIT` |
+| `vite` | `8.3.0` | `MIT` |
+| `vitest` | `5.0.1` | `MIT` |
+| `w3c-xmlserializer` | `6.0.0` | `MIT` |
 | `webidl-conversions` | `8.0.1` | `BSD-2-Clause` |
 | `whatwg-mimetype` | `5.0.0` | `MIT` |
 | `whatwg-url` | `16.0.1` | `MIT` |
-| `whatwg-url` | `17.1.0` | `MIT` |
+| `whatwg-url` | `17.1.2` | `MIT` |
 | `why-is-node-running` | `2.3.0` | `MIT` |
 | `xml-name-validator` | `5.0.0` | `Apache-2.0` |
 | `xmlchars` | `2.2.0` | `MIT` |
