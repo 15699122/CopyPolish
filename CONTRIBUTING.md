@@ -49,7 +49,22 @@ npm run tauri --prefix frontend -- dev
 8. 测试产生的本地 artifact（截图、日志、临时设置、`e2e/artifacts/`）在结果记录到文档或 `CHANGELOG.md` 后用 `python3 scripts/clean.py --generated` 清理，不入库、不上传远程；
 9. 提交 Pull Request。
 
-## 4. 验证分级
+## 4. Terminal Execution Rules
+
+- 所有 shell 命令必须以非交互方式运行，并应确定性地结束、直接返回 stdout/stderr；不要调用交互式分页器（如 `less`、`more`）、交互式 Git 命令、由 Git 打开的编辑器，或需要键盘输入的命令；
+- 对可能调用分页器的 Git 命令，必须显式禁用分页器，例如 `git --no-pager show ...`、`git --no-pager diff ...` 和 `git --no-pager log ...`；
+- 不需要完整输出时，使用有界或摘要形式的 Git 输出，避免将大量 diff 输出回传并增加 token 和 terminal parsing 压力。例如：
+
+  ```bash
+  git --no-pager log -20 --oneline
+  git --no-pager show --stat <commit>
+  git --no-pager diff --stat
+  git --no-pager diff --name-status
+  ```
+
+- 如果终端中看起来命令已经完成，但 Cline 仍报告命令正在运行，应将其视为终端集成问题，不要反复重新运行该命令。
+
+## 5. 验证分级
 
 统一入口是 `scripts/verify.py`：
 
@@ -81,7 +96,7 @@ python3 scripts/verify.py --profile ci
 - 依赖升级：`rust`、`frontend`、`audit`、许可证清单生成和 `checks`；
 - 发布：在隔离发布工作区执行 `python3 scripts/verify.py --profile release --tag vX.Y.Z`。
 
-## 5. 代码和规则约定
+## 6. 代码和规则约定
 
 - 前端只能通过 `frontend/src/lib/tauri.ts` 访问 Tauri command，不在组件或 hook 中直接调用 `invoke`；
 - Rust `engine` 是格式化行为的唯一事实来源；
@@ -91,7 +106,7 @@ python3 scripts/verify.py --profile ci
 - 不用宽泛字母正则替代有限语义词典；
 - 设置读写测试使用唯一临时目录，不写入仓库根目录的 `rules.yaml`。
 
-## 6. Commit 规范
+## 7. Commit 规范
 
 使用 Conventional Commits 风格：
 
@@ -109,7 +124,7 @@ chore: ...
 
 一个提交只包含一个逻辑主题。依赖升级、行为变更、纯格式化和文档整理不要无理由混在同一提交中。破坏性变化使用 `!` 或正文中的 `BREAKING CHANGE:` 标记。
 
-## 7. Pull Request 要求
+## 8. Pull Request 要求
 
 PR 描述应说明：
 
@@ -121,7 +136,7 @@ PR 描述应说明：
 - 文档和 CHANGELOG 是否同步；
 - 是否涉及发布资产、设置格式、规则 key、CSP 或凭据。
 
-## 8. Definition of Done
+## 9. Definition of Done
 
 - 实现符合现有模块边界；
 - 相关测试通过且没有未解释 warning；
@@ -132,7 +147,7 @@ PR 描述应说明：
 - 涉及桌面能力时完成 Tauri smoke；
 - 涉及规则时验证默认状态、稳定 key、迁移、GUI/TUI 兼容性和幂等性。
 
-## 9. 发布和安全
+## 10. 发布和安全
 
 正式发布只从 `master` 创建 `vX.Y.Z` tag，预发布版本可从 `dev` 创建带后缀的 tag。GitHub Actions 负责 `dev` / `master` 的常规分支 CI；GitLab 只接收合法 `v*` tag，用于 Linux/Windows 构建和资产汇总；公开 Release 由维护者人工审阅和发布。
 
