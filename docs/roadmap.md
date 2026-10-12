@@ -102,18 +102,67 @@ span-aware 混合管线、规则注册表、阶段依赖、结构/语义 span �
 
 - [x] 确认存储策略 ADR（[decisions/settings-storage-policy.md](decisions/settings-storage-policy.md)）并按方案 B 落地：exe 目录优先，不可写时回退平台应用数据目录并提示 `UsingAppDataFallback`；TUI/GUI 共用；6 项决策单测覆盖（同目录优先/双位置并存/只读回退/均不可读/探针/legacy 固定）。
 
-## P0：开放 PR 评估修复（进行中）
+## P0：开放 PR 评估与处置（2026-10-12 评估轮）
 
-本节记录对仓库全部开放 PR 的评估结论与后续修复计划。评估范围为 12 个开放 PR（含 1 个功能 PR 与 11 个 Dependabot PR）。
+本节记录仓库**当前全部开放 PR**（14 项，全部来自 Dependabot）的评估结论与处置意见。评估基线：`dev` = `eff7f68`、`master` = `0d89eba`（v0.6.2 发布基线）；核对项包括 PR 基础分支、CI 状态、锁文件实际解析版本、advisory 影响范围、Actions tag SHA 与验证 profile 覆盖范围。
 
-### 评估结论要点
+### 处置意见（按 PR）
+
+| PR | 变更 | 基础分支 | CI | 处置意见 |
+| --- | --- | --- | --- | --- |
+| #102 | `actions/setup-node` 7.0.0 → 7.1.0 | `dev` | 全绿 | 可合并；SHA `949feb2` 与上游 tag `v7.1.0` 一致，`ci.yml` 由普通 CI 覆盖 |
+| #99 | `actions/upload-artifact` 7.0.1 → 7.0.2 | `dev` | 全绿 | 可合并；SHA `cf430e0` 与 tag `v7.0.2` 一致，仅 `release.yml` 受影响，纳入发布演练复验 |
+| #100 | `actions/download-artifact` 8.0.1 → 8.0.2 | `dev` | 全绿 | 可合并；SHA `9000827` 与 tag `v8.0.2` 一致，同上 |
+| #97 | `vite` 8.3.0 → 8.3.1 | `dev` | 全绿 | 可合并（patch；需 `frontend` + `checks` + 许可证清单同步） |
+| #96 | `vitest` 5.0.1 → 5.0.3 | `dev` | 全绿 | 可合并（patch；同上） |
+| #94 | `@types/node` 26.6.2 → 26.6.3 | `dev` | 全绿 | 可合并（仅类型定义；同上） |
+| #92 | `lucide-react` 1.48.0 → 1.49.0 | `dev` | 全绿 | 可合并（minor；同上） |
+| #95 | `@tauri-apps/api` 2.11.1 → 2.12.1 | `dev` | 全绿 | 与 #93 合并为同一次 Tauri 2.12.x 升级；生产运行时依赖，需桌面 smoke |
+| #93 | `tauri` 2.11.6 → 2.12.1（连带 wry 0.39、tao、brotli 9、html5ever 0.39 等） | `dev` | 全绿 | 与 #95 及 `@tauri-apps/cli` 2.12.x 同批；`rust` + `feature` + 许可证 + 审计门禁；Windows 原生验证（扩展 Q6） |
+| #91 | `tauri-build` 2.6.3 → 2.7.1（连带 dom_query / html5ever 0.39 / selectors 等） | `dev` | 全绿 | 随 #93 同批；构建期依赖，仍建议 Windows 构建复验 |
+| #101 | `tauri-plugin-wdio` 1.4.0 → 1.5.0 | `dev` | 全绿 | 暂缓：`e2e-wdio` feature 无任何 CI/profile 覆盖，且 JS 侧仍为 1.3.0（见跨 PR 发现 2、3） |
+| #98 | `tauri-plugin-wdio-webdriver` 1.4.0 → 1.5.0（连带 Windows `webview2-com` / `windows` 0.62） | `dev` | 全绿 | 同 #101，另需 Windows provider 侧确认 |
+| #89 | `frontend` `undici` 8.10.0 → 8.11.2（安全更新） | `master` | 全绿 | **关闭**：`dev` 已是 8.11.2，不直接改 `master`，随 dev → master 发布 PR 生效 |
+| #90 | `e2e` `undici` 6.28.0 → 6.29.0、7.29.0 → 7.30.0（安全更新） | `master` | 全绿 | **关闭**：`dev` 的 overrides 已固定 6.28.1 / 7.29.1，即对应 advisory 的修复版本 |
+
+说明：#89 / #90 是 Dependabot 安全更新，按 GitHub 行为定向默认分支 `master`；两项的修复在 `dev` 已存在（`dev` 前端锁文件 `undici` = 8.11.2，`e2e` overrides 解析为 6.28.1 / 7.29.1，均在 advisory 影响范围之外），直接合并会与 dev → master 流程在锁文件上产生分叉。
+
+### 跨 PR 发现（当前无对应 PR）
+
+1. **`--profile audit` 在 `dev` 当前不通过**（用 `scripts/verify.py` 自身的审计函数复现）：
+   - 前端：`source-map-js` 1.2.1（`GHSA-68fv-2mgg-jv7q`，high，修复版 1.2.2，npm 报告 `fixAvailable=true`；`postcss`、`css-tree`、`@tailwindcss/node` 的 `^1.2.1` 约束允许 1.2.2，刷新锁文件即可）；
+   - E2E：4 个未登记 advisory —— `GHSA-c475-qrg2-pj4r`（`basic-ftp` ≤ 6.2.0，已装 5.3.1，上游 latest 6.2.3，`get-uri` 仍约束 `^5.3.1`，属跨 major）、`GHSA-vfj7-8cjw-p6xm`（`braces` ≤ 3.0.3，上游 latest 即 3.0.3，暂无修复版）、`GHSA-gfhx-hw2g-v5hg`（`serialize-javascript` 7.1.1 → 7.1.2，已有同 major override 可直接抬高）、`GHSA-r4xh-jqrq-34v2`（`smol-toml` ≤ 1.8.0，上游 latest 1.9.1）；
+   - 这些 advisory 的发布/修订时间在 2026-09-30 至 2026-10-05 之间，晚于本文件与 `CHANGELOG.md` 引用的 2026-09-30 审计结果，因此「审计通过」「前端 0 漏洞」的表述已过期，v0.7.0-pre1 发布前必须重跑；
+   - `docs/decisions/e2e-audit-policy.json` 中 `extract-zip` 的 `review_after` 为 2026-10-06，已过期；`scripts/verify.py` 只读取 `accepted_advisories` 的 id，不检查 `review_after`，因此过期登记不会自动失败，需要人工复核或补一道显式检查。
+2. **`e2e-wdio` feature 不在任何验证覆盖范围**：`--profile rust` 覆盖 default 与 `tui`，`--profile feature` 覆盖 `simplified-trad-conversion`，GitHub CI 也不构建 `e2e-wdio`（`tauri-plugin-wdio`、`tauri-plugin-wdio-webdriver` 均为该 feature 的可选依赖）。因此 #98 / #101 的「CI 全绿」不构成可编译证据；最低要求是合并前执行 `cargo check --manifest-path src-tauri/Cargo.toml --features e2e-wdio`，并考虑补入 profile。
+3. **Rust 插件与 JS 侧版本脱节**：上游以同一版本号同步发布 Rust `tauri-plugin-wdio` 与 npm `@wdio/tauri-service` / `@wdio/tauri-plugin`（当前均为 1.5.0），而 `e2e` 仍固定 `@wdio/tauri-service` / `@wdio/tauri-plugin` 1.3.0（前端 devDependency 为 1.4.0）。单独抬高 Rust 插件到 1.5.0 会形成 1.5.0 ↔ 1.3.0 组合，需同批升级 JS 侧或暂缓。
+4. **`.github/dependabot.yml` 未登记 `/e2e` npm ecosystem**，因此 `e2e` 依赖不会收到常规版本更新，只在安全更新时以默认分支（`master`）为目标的 PR 出现（#90 即属此类）。建议补充 `/e2e` 条目并沿用 `target-branch: dev`，同时确认每个 ecosystem 的 `open-pull-requests-limit`。
+5. **Tauri 2.12.x 升级集不完整**：本轮只有 `@tauri-apps/api` 2.12.1（#95）与 Rust `tauri` 2.12.1（#93），`@tauri-apps/cli` 仍为 2.11.5（上游 latest 2.12.2）。`docs/upgrade-runbook.md` §5 要求先升级 `@tauri-apps/api` 与 `@tauri-apps/cli`，再评估 Rust `tauri` / `tauri-build`，因此三项应作为一次逻辑升级处理。
+6. **`master` 定向安全更新缺少成文流程**：本轮出现两个以 `master` 为基线的安全更新 PR，而 `CONTRIBUTING.md` §2 规定变更经 dev → master 发布 PR 进入 `master`。建议在 `docs/upgrade-runbook.md`（或 `CONTRIBUTING.md` §10）明确安全修复到达 `master` 的路径，避免逐个直接合并造成锁文件分叉。
+
+### 统一门禁提醒
+
+- GitHub CI 只运行 `rust` / `frontend` / `checks` 三个 job，不运行 `--profile audit`、`--profile feature`、`--profile release` 与 E2E，因此 CI 全绿不等于 `CONTRIBUTING.md` §9 的 Definition of Done；
+- 任何改动 `frontend/package-lock.json` 或 `src-tauri/Cargo.lock` 的 PR 都必须重新生成 `docs/licenses.md`（该清单记录精确版本，许可证门禁 `generate_licenses.py --check` 位于 `--profile audit` 内），否则合并后审计失败；
+- 依赖升级的提交拆分与验证范围按 `docs/upgrade-runbook.md` §6、§8 执行，并在 `CHANGELOG.md` 的 `Unreleased` 记录。
+
+### 建议处置顺序
+
+1. 先恢复依赖门禁（见跨 PR 发现 1）：前端锁文件刷新到 `source-map-js` 1.2.2；E2E 抬高 `serialize-javascript` 与 `smol-toml` override；对 `basic-ftp`、`braces` 决定「修复」还是「限期风险接受」，并续期 `extract-zip` 登记；
+2. 合并 Actions 三项（#102、#99、#100），在 `CHANGELOG.md` 记录，并把发布工作流的 artifact 上传/下载路径纳入下一次发布演练（Q7 / Q8）；
+3. 合并前端 patch/minor 四项（#97、#96、#94、#92），逐项独立提交，重新生成 `docs/licenses.md`，执行 `frontend` + `checks` + `audit`；
+4. 将 Tauri 2.12.x 作为一次逻辑升级处理（#95 + #93 + #91 + `@tauri-apps/cli` 2.12.x），执行 `rust` + `feature` + `audit` + 许可证清单与桌面 smoke，并把 Windows 原生验证并入 Q6 / Q8；
+5. 暂缓 #98、#101，待 JS 侧版本协同与 `e2e-wdio` 编译检查（含 Windows provider 侧）完成后处理；
+6. 关闭 #89、#90 并注明原因与跟踪位置（dev → master 发布 PR），在 master 同步后复核告警是否消除。
+
+### 上一轮（2026-09-30）评估结论要点
 
 - **#86（GUI 中文布局）存在两处必须修复的问题**：设置分类化后，现有 GUI E2E 未同步分类切换，导致 `selection-and-persistence`、`restart-settings`、`gui-visual-artifacts` 等 spec 访问未挂载控件；且设置底栏「恢复默认」在非规则分类仍调用规则恢复回调，语义误导。
 - **#80（opencc-fmmseg 0.12.1）无版本不一致问题**：该 PR 分支的 `Cargo.toml` 已为 `0.12.0` 且与 `Cargo.lock` 一致，`dev` 已通过 #73 升级到 0.12.0。此前评估基于落后分支得出的「manifest/lock 不一致」结论不成立。
 - **#80 的真实缺口是验证覆盖**：`scripts/verify.py` 的 Rust 步骤覆盖 default 与 `tui`，不覆盖 `simplified-trad-conversion`，因此 CI 绿灯不能证明简繁转换链路可用。
 - **#69 / #67 / #65 / #64（Actions 跨主版本升级）CI 失败的直接原因是既有 `cli.rs` rustfmt 不合规**，而非 Actions 新版本本身；`dev` 已由 #77 修复该格式问题，这四个 PR 需更新基线后重新验证。
 
-### 修复计划
+### 上一轮（2026-09-30）修复计划
 
 - [x] #86：新增 E2E 设置分类切换辅助函数，更新所有跨分类访问的 spec（`selection-and-persistence`、`restart-settings`、`gui-visual-artifacts`、`simplified-trad-conversion`），并验证关闭重开设置时的分类状态行为；
 - [x] #86：非规则分类移除底栏「恢复默认」，或在实现分类级恢复后使用明确命名的独立回调，禁止复用规则恢复回调（已改为「恢复默认规则」且仅在规则分类渲染）；
