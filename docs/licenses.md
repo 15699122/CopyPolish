@@ -4,11 +4,11 @@
 `src-tauri/Cargo.lock` 对应的 `cargo metadata --locked`；npm 依赖来自
 `frontend/package-lock.json` 的 `packages` 条目。
 
-> 生成日期：2026-09-30；依赖升级后必须重新生成并审阅差异。
+> 生成日期：2026-10-12；依赖升级后必须重新生成并审阅差异。
 
 ## 汇总
 
-- Rust 依赖：431 条（含不同版本的同名包）；
+- Rust 依赖：419 条（含不同版本的同名包）；
 - npm 依赖：285 条；
 - 许可证字段缺失：0 条。
 
@@ -21,7 +21,7 @@
 | `Apache-2.0 / MIT` | 1 |
 | `Apache-2.0 AND MIT` | 1 |
 | `Apache-2.0 OR BSL-1.0` | 1 |
-| `Apache-2.0 OR MIT` | 45 |
+| `Apache-2.0 OR MIT` | 43 |
 | `Apache-2.0 WITH LLVM-exception` | 1 |
 | `Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT` | 3 |
 | `Apache-2.0/MIT` | 3 |
@@ -33,14 +33,14 @@
 | `BlueOak-1.0.0` | 1 |
 | `CC0-1.0` | 1 |
 | `CC0-1.0 OR MIT-0 OR Apache-2.0` | 1 |
-| `ISC` | 7 |
-| `MIT` | 305 |
-| `MIT OR Apache-2.0` | 203 |
+| `ISC` | 6 |
+| `MIT` | 304 |
+| `MIT OR Apache-2.0` | 200 |
 | `MIT OR Apache-2.0 OR LGPL-2.1-or-later` | 2 |
 | `MIT OR Apache-2.0 OR Zlib` | 2 |
 | `MIT OR Zlib OR Apache-2.0` | 1 |
 | `MIT-0` | 2 |
-| `MIT/Apache-2.0` | 18 |
+| `MIT/Apache-2.0` | 13 |
 | `MPL-2.0` | 29 |
 | `Unicode-3.0` | 18 |
 | `Unlicense OR MIT` | 9 |
@@ -54,8 +54,8 @@
 |---|---:|---|
 | `adler2` | `2.0.1` | `0BSD OR MIT OR Apache-2.0` |
 | `aho-corasick` | `1.1.5` | `Unlicense OR MIT` |
-| `alloc-no-stdlib` | `2.0.4` | `BSD-3-Clause` |
-| `alloc-stdlib` | `0.2.4` | `BSD-3-Clause` |
+| `alloc-no-stdlib` | `3.0.0` | `BSD-3-Clause` |
+| `alloc-stdlib` | `0.3.0` | `BSD-3-Clause` |
 | `android_system_properties` | `0.1.6` | `MIT OR Apache-2.0` |
 | `anyhow` | `1.0.104` | `MIT OR Apache-2.0` |
 | `atk` | `0.18.2` | `MIT` |
@@ -64,14 +64,15 @@
 | `autocfg` | `1.5.1` | `Apache-2.0 OR MIT` |
 | `base64` | `0.21.7` | `MIT OR Apache-2.0` |
 | `base64` | `0.22.1` | `MIT OR Apache-2.0` |
+| `base64` | `0.23.1` | `MIT OR Apache-2.0` |
 | `bit-set` | `0.8.0` | `Apache-2.0 OR MIT` |
 | `bit-vec` | `0.8.0` | `Apache-2.0 OR MIT` |
 | `bitflags` | `1.3.2` | `MIT/Apache-2.0` |
 | `bitflags` | `2.13.1` | `MIT OR Apache-2.0` |
 | `block-buffer` | `0.10.4` | `MIT OR Apache-2.0` |
 | `block2` | `0.6.2` | `MIT` |
-| `brotli` | `8.0.4` | `BSD-3-Clause AND MIT` |
-| `brotli-decompressor` | `5.0.3` | `BSD-3-Clause/MIT` |
+| `brotli` | `9.0.0` | `BSD-3-Clause AND MIT` |
+| `brotli-decompressor` | `6.0.1` | `BSD-3-Clause/MIT` |
 | `bs58` | `0.5.1` | `MIT/Apache-2.0` |
 | `bumpalo` | `3.20.3` | `MIT OR Apache-2.0` |
 | `bytemuck` | `1.25.2` | `Zlib OR Apache-2.0 OR MIT` |
@@ -82,10 +83,10 @@
 | `camino` | `1.2.5` | `MIT OR Apache-2.0` |
 | `cargo-platform` | `0.1.9` | `MIT OR Apache-2.0` |
 | `cargo_metadata` | `0.19.2` | `MIT` |
-| `cargo_toml` | `0.22.3` | `Apache-2.0 OR MIT` |
+| `cargo_toml` | `1.0.1` | `Apache-2.0 OR MIT` |
 | `cc` | `1.4.4` | `MIT OR Apache-2.0` |
 | `cesu8` | `1.1.0` | `Apache-2.0/MIT` |
-| `cfb` | `0.7.3` | `MIT` |
+| `cfb` | `0.14.0` | `MIT` |
 | `cfg-expr` | `0.15.8` | `MIT OR Apache-2.0` |
 | `cfg-if` | `1.0.4` | `MIT OR Apache-2.0` |
 | `chrono` | `0.4.45` | `MIT OR Apache-2.0` |
@@ -100,10 +101,9 @@
 | `crossbeam-channel` | `0.5.16` | `MIT OR Apache-2.0` |
 | `crossbeam-utils` | `0.8.22` | `MIT OR Apache-2.0` |
 | `crypto-common` | `0.1.7` | `MIT OR Apache-2.0` |
-| `cssparser` | `0.36.0` | `MPL-2.0` |
-| `cssparser-macros` | `0.6.1` | `MPL-2.0` |
-| `ctor` | `0.8.0` | `Apache-2.0 OR MIT` |
-| `ctor-proc-macro` | `0.0.7` | `Apache-2.0 OR MIT` |
+| `cssparser` | `0.37.0` | `MPL-2.0` |
+| `cssparser-macros` | `0.7.1` | `MPL-2.0` |
+| `ctor` | `1.0.13` | `Apache-2.0 OR MIT` |
 | `darling` | `0.23.0` | `MIT` |
 | `darling_core` | `0.23.0` | `MIT` |
 | `darling_macro` | `0.23.0` | `MIT` |
@@ -115,18 +115,16 @@
 | `derive_more` | `2.1.1` | `MIT` |
 | `derive_more-impl` | `2.1.1` | `MIT` |
 | `digest` | `0.10.7` | `MIT OR Apache-2.0` |
-| `dirs` | `6.0.0` | `MIT OR Apache-2.0` |
+| `dirs` | `7.0.0` | `MIT OR Apache-2.0` |
 | `dirs-sys` | `0.5.0` | `MIT OR Apache-2.0` |
 | `dispatch2` | `0.3.1` | `Zlib OR Apache-2.0 OR MIT` |
 | `displaydoc` | `0.2.7` | `MIT OR Apache-2.0` |
 | `dlopen2` | `0.8.2` | `MIT` |
 | `dlopen2_derive` | `0.4.3` | `MIT` |
-| `dom_query` | `0.27.0` | `MIT` |
+| `dom_query` | `0.28.0` | `MIT` |
 | `dpi` | `0.1.2` | `Apache-2.0 AND MIT` |
 | `dtoa` | `1.0.11` | `MIT OR Apache-2.0` |
 | `dtoa-short` | `0.3.5` | `MPL-2.0` |
-| `dtor` | `0.3.0` | `Apache-2.0 OR MIT` |
-| `dtor-proc-macro` | `0.0.6` | `Apache-2.0 OR MIT` |
 | `dunce` | `1.0.5` | `CC0-1.0 OR MIT-0 OR Apache-2.0` |
 | `dyn-clone` | `1.0.20` | `MIT OR Apache-2.0` |
 | `embed-resource` | `3.0.11` | `MIT` |
@@ -178,7 +176,7 @@
 | `heck` | `0.4.1` | `MIT OR Apache-2.0` |
 | `heck` | `0.5.0` | `MIT OR Apache-2.0` |
 | `hex` | `0.4.3` | `MIT OR Apache-2.0` |
-| `html5ever` | `0.38.0` | `MIT OR Apache-2.0` |
+| `html5ever` | `0.39.0` | `MIT OR Apache-2.0` |
 | `http` | `1.5.0` | `MIT OR Apache-2.0` |
 | `http-body` | `1.1.0` | `MIT` |
 | `http-body-util` | `0.1.5` | `MIT` |
@@ -200,7 +198,7 @@
 | `idna_adapter` | `1.2.2` | `Apache-2.0 OR MIT` |
 | `indexmap` | `1.9.3` | `Apache-2.0 OR MIT` |
 | `indexmap` | `2.14.0` | `Apache-2.0 OR MIT` |
-| `infer` | `0.19.0` | `MIT` |
+| `infer` | `0.22.0` | `MIT` |
 | `ipnet` | `2.12.1` | `MIT OR Apache-2.0` |
 | `itoa` | `1.0.18` | `MIT OR Apache-2.0` |
 | `javascriptcore-rs` | `1.1.2` | `MIT` |
@@ -215,9 +213,9 @@
 | `jni-sys` | `0.4.1` | `MIT OR Apache-2.0` |
 | `jni-sys-macros` | `0.4.1` | `MIT OR Apache-2.0` |
 | `js-sys` | `0.3.104` | `MIT OR Apache-2.0` |
-| `json-patch` | `3.0.1` | `MIT/Apache-2.0` |
-| `jsonptr` | `0.6.3` | `MIT OR Apache-2.0` |
-| `keyboard-types` | `0.7.0` | `MIT OR Apache-2.0` |
+| `json-patch` | `4.2.0` | `MIT/Apache-2.0` |
+| `jsonptr` | `0.7.1` | `MIT OR Apache-2.0` |
+| `keyboard-types` | `0.8.3` | `MIT OR Apache-2.0` |
 | `libappindicator` | `0.9.0` | `Apache-2.0 OR MIT` |
 | `libappindicator-sys` | `0.9.0` | `Apache-2.0 OR MIT` |
 | `libc` | `0.2.189` | `MIT OR Apache-2.0` |
@@ -227,14 +225,15 @@
 | `litemap` | `0.8.3` | `Unicode-3.0` |
 | `lock_api` | `0.4.14` | `MIT OR Apache-2.0` |
 | `log` | `0.4.33` | `MIT OR Apache-2.0` |
-| `markup5ever` | `0.38.0` | `MIT OR Apache-2.0` |
+| `markup5ever` | `0.39.0` | `MIT OR Apache-2.0` |
 | `memchr` | `2.8.3` | `Unlicense OR MIT` |
 | `memoffset` | `0.9.1` | `MIT` |
 | `mime` | `0.3.17` | `MIT OR Apache-2.0` |
 | `miniz_oxide` | `0.8.9` | `MIT OR Zlib OR Apache-2.0` |
 | `mio` | `1.2.2` | `MIT` |
-| `muda` | `0.19.3` | `Apache-2.0 OR MIT` |
+| `muda` | `0.20.0` | `Apache-2.0 OR MIT` |
 | `ndk` | `0.9.0` | `MIT OR Apache-2.0` |
+| `ndk-context` | `0.1.1` | `MIT OR Apache-2.0` |
 | `ndk-sys` | `0.6.0+11769913` | `MIT OR Apache-2.0` |
 | `new_debug_unreachable` | `1.0.6` | `MIT` |
 | `num-conv` | `0.2.2` | `MIT OR Apache-2.0` |
@@ -309,7 +308,7 @@
 | `schemars` | `1.2.2` | `MIT` |
 | `schemars_derive` | `0.8.22` | `MIT` |
 | `scopeguard` | `1.2.0` | `MIT OR Apache-2.0` |
-| `selectors` | `0.36.1` | `MPL-2.0` |
+| `selectors` | `0.38.0` | `MPL-2.0` |
 | `semver` | `1.0.28` | `MIT OR Apache-2.0` |
 | `serde` | `1.0.229` | `MIT OR Apache-2.0` |
 | `serde-untagged` | `0.1.9` | `MIT OR Apache-2.0` |
@@ -347,16 +346,16 @@
 | `sync_wrapper` | `1.0.2` | `Apache-2.0` |
 | `synstructure` | `0.13.2` | `MIT` |
 | `system-deps` | `6.2.2` | `MIT OR Apache-2.0` |
-| `tao` | `0.35.3` | `Apache-2.0` |
+| `tao` | `0.37.1` | `Apache-2.0` |
 | `tao-macros` | `0.1.4` | `MIT OR Apache-2.0` |
 | `target-lexicon` | `0.12.16` | `Apache-2.0 WITH LLVM-exception` |
-| `tauri` | `2.11.6` | `Apache-2.0 OR MIT` |
-| `tauri-build` | `2.6.3` | `Apache-2.0 OR MIT` |
-| `tauri-codegen` | `2.6.3` | `Apache-2.0 OR MIT` |
-| `tauri-macros` | `2.6.3` | `Apache-2.0 OR MIT` |
-| `tauri-runtime` | `2.11.3` | `Apache-2.0 OR MIT` |
-| `tauri-runtime-wry` | `2.11.4` | `Apache-2.0 OR MIT` |
-| `tauri-utils` | `2.9.3` | `Apache-2.0 OR MIT` |
+| `tauri` | `2.12.2` | `Apache-2.0 OR MIT` |
+| `tauri-build` | `2.7.1` | `Apache-2.0 OR MIT` |
+| `tauri-codegen` | `2.7.2` | `Apache-2.0 OR MIT` |
+| `tauri-macros` | `2.7.2` | `Apache-2.0 OR MIT` |
+| `tauri-runtime` | `2.12.1` | `Apache-2.0 OR MIT` |
+| `tauri-runtime-wry` | `2.12.1` | `Apache-2.0 OR MIT` |
+| `tauri-utils` | `2.10.1` | `Apache-2.0 OR MIT` |
 | `tauri-winres` | `0.3.6` | `MIT` |
 | `tendril` | `0.5.1` | `MIT OR Apache-2.0` |
 | `thiserror` | `1.0.69` | `MIT OR Apache-2.0` |
@@ -372,10 +371,8 @@
 | `tokio` | `1.53.1` | `MIT` |
 | `tokio-util` | `0.7.19` | `MIT` |
 | `toml` | `0.8.2` | `MIT OR Apache-2.0` |
-| `toml` | `0.9.12+spec-1.1.0` | `MIT OR Apache-2.0` |
 | `toml` | `1.1.4+spec-1.1.0` | `MIT OR Apache-2.0` |
 | `toml_datetime` | `0.6.3` | `MIT OR Apache-2.0` |
-| `toml_datetime` | `0.7.5+spec-1.1.0` | `MIT OR Apache-2.0` |
 | `toml_datetime` | `1.1.1+spec-1.1.0` | `MIT OR Apache-2.0` |
 | `toml_edit` | `0.19.15` | `MIT OR Apache-2.0` |
 | `toml_edit` | `0.20.2` | `MIT OR Apache-2.0` |
@@ -388,20 +385,15 @@
 | `tower-service` | `0.3.3` | `MIT` |
 | `tracing` | `0.1.44` | `MIT` |
 | `tracing-core` | `0.1.36` | `MIT` |
-| `tray-icon` | `0.24.2` | `MIT OR Apache-2.0` |
+| `tray-icon` | `0.25.1` | `MIT OR Apache-2.0` |
 | `try-lock` | `0.2.5` | `MIT` |
 | `typeid` | `1.0.3` | `MIT OR Apache-2.0` |
 | `typenum` | `1.20.1` | `MIT OR Apache-2.0` |
-| `unic-char-property` | `0.9.0` | `MIT/Apache-2.0` |
-| `unic-char-range` | `0.9.0` | `MIT/Apache-2.0` |
-| `unic-common` | `0.9.0` | `MIT/Apache-2.0` |
-| `unic-ucd-ident` | `0.9.0` | `MIT/Apache-2.0` |
-| `unic-ucd-version` | `0.9.0` | `MIT/Apache-2.0` |
 | `unicode-ident` | `1.0.24` | `(MIT OR Apache-2.0) AND Unicode-3.0` |
 | `unicode-segmentation` | `1.13.3` | `MIT OR Apache-2.0` |
 | `unsafe-libyaml` | `0.2.11` | `MIT` |
 | `url` | `2.5.8` | `MIT OR Apache-2.0` |
-| `urlpattern` | `0.3.0` | `MIT` |
+| `urlpattern` | `0.6.0` | `MIT` |
 | `utf8_iter` | `1.0.4` | `Apache-2.0 OR MIT` |
 | `uuid` | `1.24.1` | `Apache-2.0 OR MIT` |
 | `version-compare` | `0.2.1` | `MIT` |
@@ -419,37 +411,34 @@
 | `wasm-bindgen-shared` | `0.2.127` | `MIT OR Apache-2.0` |
 | `wasm-streams` | `0.5.0` | `MIT OR Apache-2.0` |
 | `web-sys` | `0.3.104` | `MIT OR Apache-2.0` |
+| `web-time` | `1.1.0` | `MIT OR Apache-2.0` |
 | `web_atoms` | `0.2.6` | `MIT OR Apache-2.0` |
 | `webkit2gtk` | `2.0.2` | `MIT` |
 | `webkit2gtk-sys` | `2.0.2` | `MIT` |
-| `webview2-com` | `0.38.2` | `MIT` |
+| `webview2-com` | `0.39.1` | `MIT` |
 | `webview2-com-macros` | `0.8.1` | `MIT` |
-| `webview2-com-sys` | `0.38.2` | `MIT` |
+| `webview2-com-sys` | `0.39.1` | `MIT` |
 | `winapi` | `0.3.9` | `MIT/Apache-2.0` |
 | `winapi-i686-pc-windows-gnu` | `0.4.0` | `MIT/Apache-2.0` |
 | `winapi-util` | `0.1.11` | `Unlicense OR MIT` |
 | `winapi-x86_64-pc-windows-gnu` | `0.4.0` | `MIT/Apache-2.0` |
-| `window-vibrancy` | `0.6.0` | `Apache-2.0 OR MIT` |
-| `windows` | `0.61.3` | `MIT OR Apache-2.0` |
-| `windows-collections` | `0.2.0` | `MIT OR Apache-2.0` |
-| `windows-core` | `0.61.2` | `MIT OR Apache-2.0` |
+| `window-vibrancy` | `0.8.1` | `Apache-2.0 OR MIT` |
+| `windows` | `0.62.2` | `MIT OR Apache-2.0` |
+| `windows-collections` | `0.3.2` | `MIT OR Apache-2.0` |
 | `windows-core` | `0.62.2` | `MIT OR Apache-2.0` |
-| `windows-future` | `0.2.1` | `MIT OR Apache-2.0` |
+| `windows-future` | `0.3.2` | `MIT OR Apache-2.0` |
 | `windows-implement` | `0.60.2` | `MIT OR Apache-2.0` |
 | `windows-interface` | `0.59.3` | `MIT OR Apache-2.0` |
-| `windows-link` | `0.1.3` | `MIT OR Apache-2.0` |
 | `windows-link` | `0.2.1` | `MIT OR Apache-2.0` |
-| `windows-numerics` | `0.2.0` | `MIT OR Apache-2.0` |
-| `windows-result` | `0.3.4` | `MIT OR Apache-2.0` |
+| `windows-numerics` | `0.3.1` | `MIT OR Apache-2.0` |
 | `windows-result` | `0.4.1` | `MIT OR Apache-2.0` |
-| `windows-strings` | `0.4.2` | `MIT OR Apache-2.0` |
 | `windows-strings` | `0.5.1` | `MIT OR Apache-2.0` |
 | `windows-sys` | `0.45.0` | `MIT OR Apache-2.0` |
 | `windows-sys` | `0.59.0` | `MIT OR Apache-2.0` |
 | `windows-sys` | `0.61.2` | `MIT OR Apache-2.0` |
 | `windows-targets` | `0.42.2` | `MIT OR Apache-2.0` |
 | `windows-targets` | `0.52.6` | `MIT OR Apache-2.0` |
-| `windows-threading` | `0.1.0` | `MIT OR Apache-2.0` |
+| `windows-threading` | `0.2.1` | `MIT OR Apache-2.0` |
 | `windows-version` | `0.1.7` | `MIT OR Apache-2.0` |
 | `windows_aarch64_gnullvm` | `0.42.2` | `MIT OR Apache-2.0` |
 | `windows_aarch64_gnullvm` | `0.52.6` | `MIT OR Apache-2.0` |
@@ -467,12 +456,11 @@
 | `windows_x86_64_msvc` | `0.42.2` | `MIT OR Apache-2.0` |
 | `windows_x86_64_msvc` | `0.52.6` | `MIT OR Apache-2.0` |
 | `winnow` | `0.5.40` | `MIT` |
-| `winnow` | `0.7.15` | `MIT` |
 | `winnow` | `1.0.4` | `MIT` |
 | `winreg` | `0.55.0` | `MIT` |
 | `wit-bindgen` | `0.57.1` | `Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT` |
 | `writeable` | `0.6.4` | `Unicode-3.0` |
-| `wry` | `0.55.1` | `Apache-2.0 OR MIT` |
+| `wry` | `0.57.0` | `Apache-2.0 OR MIT` |
 | `x11` | `2.21.0` | `MIT` |
 | `x11-dl` | `2.21.0` | `MIT` |
 | `yoke` | `0.8.3` | `Unicode-3.0` |
@@ -592,18 +580,19 @@
 | `@tailwindcss/oxide-win32-x64-msvc` | `4.3.3` | `MIT` |
 | `@tailwindcss/vite` | `4.3.3` | `MIT` |
 | `@tauri-apps/api` | `2.11.1` | `Apache-2.0 OR MIT` |
-| `@tauri-apps/cli` | `2.11.5` | `Apache-2.0 OR MIT` |
-| `@tauri-apps/cli-darwin-arm64` | `2.11.5` | `Apache-2.0 OR MIT` |
-| `@tauri-apps/cli-darwin-x64` | `2.11.5` | `Apache-2.0 OR MIT` |
-| `@tauri-apps/cli-linux-arm-gnueabihf` | `2.11.5` | `Apache-2.0 OR MIT` |
-| `@tauri-apps/cli-linux-arm64-gnu` | `2.11.5` | `Apache-2.0 OR MIT` |
-| `@tauri-apps/cli-linux-arm64-musl` | `2.11.5` | `Apache-2.0 OR MIT` |
-| `@tauri-apps/cli-linux-riscv64-gnu` | `2.11.5` | `Apache-2.0 OR MIT` |
-| `@tauri-apps/cli-linux-x64-gnu` | `2.11.5` | `Apache-2.0 OR MIT` |
-| `@tauri-apps/cli-linux-x64-musl` | `2.11.5` | `Apache-2.0 OR MIT` |
-| `@tauri-apps/cli-win32-arm64-msvc` | `2.11.5` | `Apache-2.0 OR MIT` |
-| `@tauri-apps/cli-win32-ia32-msvc` | `2.11.5` | `Apache-2.0 OR MIT` |
-| `@tauri-apps/cli-win32-x64-msvc` | `2.11.5` | `Apache-2.0 OR MIT` |
+| `@tauri-apps/api` | `2.12.1` | `Apache-2.0 OR MIT` |
+| `@tauri-apps/cli` | `2.12.2` | `Apache-2.0 OR MIT` |
+| `@tauri-apps/cli-darwin-arm64` | `2.12.2` | `Apache-2.0 OR MIT` |
+| `@tauri-apps/cli-darwin-x64` | `2.12.2` | `Apache-2.0 OR MIT` |
+| `@tauri-apps/cli-linux-arm-gnueabihf` | `2.12.2` | `Apache-2.0 OR MIT` |
+| `@tauri-apps/cli-linux-arm64-gnu` | `2.12.2` | `Apache-2.0 OR MIT` |
+| `@tauri-apps/cli-linux-arm64-musl` | `2.12.2` | `Apache-2.0 OR MIT` |
+| `@tauri-apps/cli-linux-riscv64-gnu` | `2.12.2` | `Apache-2.0 OR MIT` |
+| `@tauri-apps/cli-linux-x64-gnu` | `2.12.2` | `Apache-2.0 OR MIT` |
+| `@tauri-apps/cli-linux-x64-musl` | `2.12.2` | `Apache-2.0 OR MIT` |
+| `@tauri-apps/cli-win32-arm64-msvc` | `2.12.2` | `Apache-2.0 OR MIT` |
+| `@tauri-apps/cli-win32-ia32-msvc` | `2.12.2` | `Apache-2.0 OR MIT` |
+| `@tauri-apps/cli-win32-x64-msvc` | `2.12.2` | `Apache-2.0 OR MIT` |
 | `@tauri-apps/plugin-log` | `2.9.1` | `MIT OR Apache-2.0` |
 | `@testing-library/dom` | `10.4.1` | `MIT` |
 | `@testing-library/jest-dom` | `7.0.1` | `MIT` |
@@ -614,7 +603,7 @@
 | `@types/chai` | `5.2.3` | `MIT` |
 | `@types/deep-eql` | `4.0.2` | `MIT` |
 | `@types/estree` | `1.0.9` | `MIT` |
-| `@types/node` | `26.6.2` | `MIT` |
+| `@types/node` | `26.6.3` | `MIT` |
 | `@types/react` | `19.3.0` | `MIT` |
 | `@types/react-dom` | `19.3.0` | `MIT` |
 | `@typescript/typescript-aix-ppc64` | `7.0.2` | `Apache-2.0` |
@@ -638,8 +627,8 @@
 | `@typescript/typescript-win32-arm64` | `7.0.2` | `Apache-2.0` |
 | `@typescript/typescript-win32-x64` | `7.0.2` | `Apache-2.0` |
 | `@vitejs/plugin-react` | `6.1.1` | `MIT` |
-| `@vitest/mocker` | `5.0.1` | `MIT` |
-| `@vitest/spy` | `5.0.1` | `MIT` |
+| `@vitest/mocker` | `5.0.3` | `MIT` |
+| `@vitest/spy` | `5.0.3` | `MIT` |
 | `@wdio/logger` | `9.29.1` | `MIT` |
 | `@wdio/native-spy` | `1.3.0` | `MIT` |
 | `@wdio/native-utils` | `2.7.0` | `MIT` |
@@ -711,10 +700,11 @@
 | `loglevel` | `1.9.2` | `MIT` |
 | `loglevel-plugin-prefix` | `0.8.4` | `MIT` |
 | `lru-cache` | `11.5.3` | `BlueOak-1.0.0` |
-| `lucide-react` | `1.48.0` | `ISC` |
+| `lucide-react` | `1.49.0` | `ISC` |
 | `lz-string` | `1.5.0` | `MIT` |
 | `magic-string` | `0.30.21` | `MIT` |
 | `magic-string` | `1.4.1` | `MIT` |
+| `magic-string` | `1.4.3` | `MIT` |
 | `mdn-data` | `2.27.1` | `CC0-1.0` |
 | `min-indent` | `1.0.1` | `MIT` |
 | `ms` | `2.1.3` | `MIT` |
@@ -739,10 +729,8 @@
 | `safe-regex2` | `5.1.1` | `MIT` |
 | `saxes` | `6.0.0` | `ISC` |
 | `scheduler` | `0.28.0` | `MIT` |
-| `siginfo` | `2.0.0` | `ISC` |
-| `smol-toml` | `1.8.0` | `BSD-3-Clause` |
-| `source-map-js` | `1.2.1` | `BSD-3-Clause` |
-| `stackback` | `0.0.2` | `MIT` |
+| `smol-toml` | `1.9.1` | `BSD-3-Clause` |
+| `source-map-js` | `1.2.2` | `BSD-3-Clause` |
 | `std-env` | `4.2.0` | `MIT` |
 | `strip-ansi` | `7.2.0` | `MIT` |
 | `strip-indent` | `3.0.0` | `MIT` |
@@ -762,14 +750,14 @@
 | `undici-types` | `8.9.0` | `MIT` |
 | `use-callback-ref` | `1.3.3` | `MIT` |
 | `use-sidecar` | `1.1.3` | `MIT` |
-| `vite` | `8.3.0` | `MIT` |
-| `vitest` | `5.0.1` | `MIT` |
+| `vite` | `8.3.1` | `MIT` |
+| `vitest` | `5.0.3` | `MIT` |
 | `w3c-xmlserializer` | `6.0.0` | `MIT` |
 | `webidl-conversions` | `8.0.1` | `BSD-2-Clause` |
 | `whatwg-mimetype` | `5.0.0` | `MIT` |
 | `whatwg-url` | `16.0.1` | `MIT` |
 | `whatwg-url` | `17.1.2` | `MIT` |
-| `why-is-node-running` | `2.3.0` | `MIT` |
+| `why-is-node-running` | `3.2.1` | `MIT` |
 | `xml-name-validator` | `5.0.0` | `Apache-2.0` |
 | `xmlchars` | `2.2.0` | `MIT` |
 | `yaml` | `2.9.0` | `ISC` |

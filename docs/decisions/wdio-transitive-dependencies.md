@@ -1,7 +1,7 @@
 # E2E 传递依赖修复记录
 
-> **状态**：部分 Accepted（2026-09-30 复核，见 §7）。`deepmerge-ts`、`serialize-javascript`、`undici`、`brace-expansion`、`ip-address` 已通过 override 修复；
-> `@puppeteer/browsers`/`extract-zip` 仍受上游依赖链阻塞，保留后续评估。
+> **状态**：部分 Accepted（2026-10-12 复核，见 §8）。`deepmerge-ts`、`serialize-javascript`、`smol-toml`、`undici`、`brace-expansion`、`ip-address` 已通过 override 修复；
+> `@puppeteer/browsers`/`extract-zip`、`basic-ftp`、`braces` 仍受上游依赖链阻塞，保留限期风险接受与后续评估。
 
 ## 1. 当前依赖链
 
@@ -129,3 +129,43 @@ GHSA-7pqw-9j4j-h8q3 到 [e2e-audit-policy.json](e2e-audit-policy.json)，
 同时修正 `scripts/verify.py --profile audit`，使 Cargo 审计显式读取
 `src-tauri/Cargo.lock`，避免从仓库根目录执行时误报缺少锁文件。由于 E2E advisory
 服务不可用且剩余依赖链没有兼容的安全升级，本次仍不将路线图中的持续维护项标记为完成。
+
+## 8. 2026-10-12 维护复核（开放 PR 处置轮）
+
+本次复核在评估全部开放 PR 时重新执行审计，发现 2026-09-30 之后新发布/修订的 advisory
+已使 `--profile audit` 重新变红，因此按「先恢复门禁、再合并依赖 PR」的顺序处理。
+
+复核前（`dev` = `eff7f68`）的实际结果：
+
+- 前端：1 个 high —— `source-map-js@1.2.1`（GHSA-68fv-2mgg-jv7q，影响范围 `>=1.0.0 <1.2.2`）；
+  另有 moderate `smol-toml@1.8.0`（GHSA-r4xh-jqrq-34v2，`<=1.8.0`）。
+- E2E：20 个 high/critical 条目，根 advisory 为 `extract-zip`（已登记）、
+  `basic-ftp@5.3.1`（GHSA-c475-qrg2-pj4r，`<=6.2.0`）、`braces@3.0.3`
+  （GHSA-vfj7-8cjw-p6xm，`<=3.0.3`）与 `serialize-javascript@7.1.1`
+  （GHSA-gfhx-hw2g-v5hg，`>=7.1.1 <7.1.2`），以及 `smol-toml@1.8.0`。
+
+本次处置：
+
+| 根包 | 受影响范围 | 处置 |
+| --- | --- | --- |
+| `source-map-js` | `1.2.1` | 刷新 `frontend/package-lock.json` 到同 major 修复版 `1.2.2`（父约束 `^1.2.1` 允许，无 manifest 变更） |
+| `smol-toml` | `1.8.0`（前端与 E2E） | 前端刷新到 `1.9.1`；E2E 新增 override `"smol-toml": "1.9.1"`（同 major，父约束 `^1.6.0`/`^1.7.1` 允许） |
+| `serialize-javascript` | `7.1.1` | 既有 override 由 `7.1.1` 抬到 `7.1.2`（同 major） |
+| `basic-ftp` | `5.3.1`（经 `get-uri`） | **无同 major 修复版**：修复版 `6.2.3` 属跨 major，而 `get-uri`（含最新 `8.0.1`）仍约束 `^5.3.1`；按 §8.1 原则不采用跨 major override，登记限期风险接受（`GHSA-c475-qrg2-pj4r`，复核期限 2026-11-30） |
+| `braces` | `3.0.3`（经 `mocha → chokidar`） | **上游无 patched version**（`3.0.3` 即 latest）；修复需迁移到 chokidar 4+/mocha 12 线路，超出当前 WebdriverIO 9 工具链，登记限期风险接受（`GHSA-vfj7-8cjw-p6xm`，复核期限 2026-11-30） |
+| `extract-zip` | `2.0.1` | 保持风险接受，复核期限由 2026-10-06 续期到 2026-11-30；本次确认 `2.0.1` 仍为 npm latest |
+
+处置后验证：
+
+- `Frontend dependency audit`：无 high/critical；
+- `E2E dependency audit`：20 个 high/critical 条目全部由 4 个已登记 advisory
+  （`GHSA-7pqw-9j4j-h8q3`、`GHSA-c475-qrg2-pj4r`、`GHSA-jmr9-qjv8-65gv`、`GHSA-vfj7-8cjw-p6xm`）覆盖；
+- `python3 scripts/verify.py --profile frontend`（`npm ci`、Vitest、Vite build）通过；
+- `npm run typecheck --prefix e2e` 通过；
+- `python3 scripts/generate_licenses.py --check` 与 `python3 scripts/generate_sbom.py --check` 通过
+  （Rust 431 条、npm 285 条、SBOM 716 组件）。
+
+下一次复核条件：`get-uri`（或 `proxy-agent` 链路）发布允许 `basic-ftp` 6.x 的版本，
+或上游发布 `braces` 修复版 / `extract-zip` 修复版。届时重新执行
+`npm ci --prefix e2e`、`npm run typecheck --prefix e2e`、embedded/W3C provider 回归与
+`python3 scripts/verify.py --profile audit`，并更新本文件与 `e2e-audit-policy.json`。
