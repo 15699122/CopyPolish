@@ -155,6 +155,16 @@ span-aware 混合管线、规则注册表、阶段依赖、结构/语义 span �
 5. 暂缓 #98、#101，待 JS 侧版本协同与 `e2e-wdio` 编译检查（含 Windows provider 侧）完成后处理；
 6. 关闭 #89、#90 并注明原因与跟踪位置（dev → master 发布 PR），在 master 同步后复核告警是否消除。
 
+### 执行结果（2026-10-12）
+
+- **已合并到 `dev`**：#102（`a1bd56e`）、#97（`f33a576`）、#94（`50f56b7`）、#92（`8f0a552`）、#95（`ace2a57`）、#91（`cae49e3`）、#96（`88d9d93`，Dependabot 自动 rebase 后合并）、#93（`ab568ea`，目标版本随上游更新为 `tauri` 2.12.2 后合并）；
+- **依赖门禁已恢复**：前端 `source-map-js` 1.2.2、`smol-toml` 1.9.1；E2E `serialize-javascript` 7.1.2、新增 `smol-toml` override 1.9.1；`basic-ftp`（GHSA-c475-qrg2-pj4r）与 `braces`（GHSA-vfj7-8cjw-p6xm）登记为限期风险接受（复核期限 2026-11-30），`extract-zip` 两项接受续期至 2026-11-30；`python3 scripts/verify.py --profile audit` 通过（RustSec 0 漏洞、前端与 E2E npm 审计通过、SBOM 704 组件、许可证清单一致）；
+- **Tauri 2.12.x 升级集已齐**：`@tauri-apps/api` 2.12.1（#95）、`tauri` 2.12.2（#93）、`tauri-build` 2.7.1（#91）与 `@tauri-apps/cli` 2.11.5 → 2.12.2（本分支提交）；
+- **受阻**：#99、#100 修改 `.github/workflows/release.yml`，当前自动化身份缺少 `workflows` 权限（`refusing to allow a GitHub App to create or update workflow`），无法合并；需具备该权限的维护者合并，或改用带 `workflows` 范围的凭据；
+- **暂缓**：#98、#101（`e2e-wdio` feature 无验证覆盖，且 JS 侧 `@wdio/tauri-service` / `@wdio/tauri-plugin` 仍为 1.3.0）；
+- **已关闭**：#89、#90（安全修复已在 `dev`，随 dev → master 发布 PR 生效）；
+- **未执行 / 待补**：`--profile feature`（当前 Linux 工作环境缺少 GTK / WebKitGTK 系统依赖，无法构建 Tauri crate）、E2E embedded/W3C provider 回归（同上）、Windows 原生 Tauri 2.12.x 构建与运行验证（见 [validation/windows.md](validation/windows.md) Q6）。
+
 ### 上一轮（2026-09-30）评估结论要点
 
 - **#86（GUI 中文布局）存在两处必须修复的问题**：设置分类化后，现有 GUI E2E 未同步分类切换，导致 `selection-and-persistence`、`restart-settings`、`gui-visual-artifacts` 等 spec 访问未挂载控件；且设置底栏「恢复默认」在非规则分类仍调用规则恢复回调，语义误导。

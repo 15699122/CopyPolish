@@ -93,7 +93,7 @@ Computer Use / GUI automation 不可用导致的**无法执行**不是功能失�
 
 优先级：`P0`（必须验证，失败意味着任务不能完成）、`P1`（重要的平台兼容性验证）、`P2`（建议验证，但不阻塞主要功能）。
 
-### 4.2 当前队列（截至 2026-09-30）
+### 4.2 当前队列（截至 2026-10-12）
 
 | ID | 验证项 | 状态 | 优先级 | 阻塞后续 Linux 开发 |
 | --- | --- | --- | --- | --- |
@@ -102,11 +102,11 @@ Computer Use / GUI automation 不可用导致的**无法执行**不是功能失�
 | Q3 | 发布前 Windows 资产与启动 smoke（GUI + TUI） | `WINDOWS_VERIFICATION_PENDING` | P1 | 否 |
 | Q4 | GUI 中文布局与排版（WebView2/DPI/窗口控制/剪贴板） | `WINDOWS_VERIFICATION_PENDING` | P1 | 否 |
 | Q5 | 简繁转换 feature 构建（opencc-fmmseg 0.12.x） | `WINDOWS_VERIFICATION_PENDING` | P1 | 否 |
-| Q6 | Tauri 运行时与 CLI 补丁升级（#85、#79） | `WINDOWS_VERIFICATION_PENDING` | P1 | 否 |
+| Q6 | Tauri 运行时与 CLI 升级（#85、#79、#91、#93、#95、CLI 2.12.2） | `WINDOWS_VERIFICATION_PENDING` | P1 | 否 |
 | Q7 | 发布链路 Actions 跨主版本升级（#69、#67、#65、#64） | `LINUX_VERIFIED`（发布链路已在 CI 实测） | P2 | 否 |
 | Q8 | v0.7.0-pre1 发布候选资产与上传/下载链路 | `WINDOWS_VERIFICATION_PENDING` | P0 | 否 |
 
-当前无 `WINDOWS_VERIFICATION_BLOCKING` 项。Q5–Q7 于 2026-09-30 开放 PR 评估后新增，Q8 于同日 `v0.7.0-pre1` 发布准备阶段新增；计划见 `docs/roadmap.md`「P0：v0.7.0-pre1 发布准备」。
+当前无 `WINDOWS_VERIFICATION_BLOCKING` 项。Q5–Q7 于 2026-09-30 开放 PR 评估后新增，Q8 于同日 `v0.7.0-pre1` 发布准备阶段新增；Q6 的范围于 2026-10-12 评估轮扩展到 Tauri 2.12.x 升级集；计划见 `docs/roadmap.md`「P0：开放 PR 评估与处置（2026-10-12 评估轮）」与「P0：v0.7.0-pre1 发布准备」。
 
 **Q7 状态说明（2026-09-30）**：四个 Actions PR（#65、#64、#69、#67）已 squash 合并到 `dev`，组合演练 run **36689011567** 与最终基线复验 run **36693479446** 均在 GitHub Actions 上实际执行，`validate → build-linux → build-windows → windows-smoke → assemble` 全部 `success`，artifact 上传、跨平台下载与汇总链路均产出完整资产。因此发布链路的**自动化部分已取得真实执行证据**，不再依赖普通 PR CI 推断；仍保留本项以记录 Windows 资产在真实环境的人工复核。
 
@@ -159,13 +159,15 @@ Computer Use / GUI automation 不可用导致的**无法执行**不是功能失�
 - expected result：feature 构建编译通过且转换输出正确；默认构建行为不变；不出现 native 链接或运行时错误；
 - 备注：需先在 Linux 侧为该 feature 建立可执行的验证入口，否则本项无法在 Windows 上给出有效结论。
 
-#### Q6 — Tauri 运行时与 CLI 补丁升级（#85、#79）
+#### Q6 — Tauri 运行时与 CLI 升级（#85、#79、#91、#93、#95）
 
-- related change：开放 PR #85（`@tauri-apps/cli` 2.11.4 → 2.11.5）、#79（Rust `tauri` 2.11.5 → 2.11.6）；
+- related change：已合并 #85（`@tauri-apps/cli` 2.11.4 → 2.11.5）、#79（Rust `tauri` 2.11.5 → 2.11.6）；2026-10-12 评估轮新增 #91（`tauri-build` 2.6.3 → 2.7.1）、#93（Rust `tauri` 2.11.6 → 2.12.2，连带 `tauri-runtime` / `tauri-runtime-wry` 2.12.1 与 `wry` 0.55.1 → 0.57.0）、#95（`@tauri-apps/api` 2.11.1 → 2.12.1），以及本仓库提交的 `@tauri-apps/cli` 2.11.5 → 2.12.2；
 - relevant files / modules：`frontend/package-lock.json`、`src-tauri/Cargo.lock`、Tauri 打包配置；
-- why Windows validation is required：Tauri 打包、MSVC 构建、WebView2 宿主行为与前端单测覆盖范围不同，补丁版本也可能在 Windows 侧引入差异；
-- exact behavior to verify：Windows 原生 `cargo build` 与 Tauri 打包成功；应用启动、WebView2 加载、窗口控制与剪贴板行为正常；
+- why Windows validation is required：Tauri 打包、MSVC 构建、WebView2 宿主行为与前端单测覆盖范围不同，次要版本也可能在 Windows 侧引入差异；
+- exact behavior to verify：Windows 原生 `cargo build` 与 Tauri 打包成功；应用启动、WebView2 加载、窗口控制与剪贴板行为正常；发布资产仍能正常生成；
 - prerequisite：Windows 原生 checkout 与 MSVC 工具链；
+- Linux 侧已取得证据（2026-10-12）：#91 / #93 的 PR CI 在 GitHub Actions 上实际执行 `--profile rust`（fmt / clippy / test，default 与 `tui`）通过；本轮恢复依赖门禁后 `--profile audit` 通过（RustSec 0 漏洞、前端与 E2E npm 审计通过、SBOM 与许可证清单一致）；
+- Linux 侧未执行：`--profile feature`（当前 Linux 工作环境缺少 GTK / WebKitGTK 系统依赖，无法构建 Tauri crate），需在具备系统依赖的 Linux 环境或 Windows 侧补跑；
 - expected result：构建与运行行为与升级前一致。
 
 #### Q7 — 发布链路 Actions 跨主版本升级（#69、#67、#65、#64）
