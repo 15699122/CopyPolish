@@ -22,7 +22,8 @@
   },
   "overrides": {
     "deepmerge-ts": "8.0.2",
-    "serialize-javascript": "7.1.1",
+    "serialize-javascript": "7.1.2",
+    "smol-toml": "1.9.1",
     "ip-address": "10.7.2",
     "undici@>=6.25.0 <6.28.1": "6.28.1",
     "undici@>=7.0.0 <7.29.1": "7.29.1",

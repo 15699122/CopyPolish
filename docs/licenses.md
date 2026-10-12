@@ -4,7 +4,7 @@
 `src-tauri/Cargo.lock` 对应的 `cargo metadata --locked`；npm 依赖来自
 `frontend/package-lock.json` 的 `packages` 条目。
 
-> 生成日期：2026-09-30；依赖升级后必须重新生成并审阅差异。
+> 生成日期：2026-10-12；依赖升级后必须重新生成并审阅差异。
 
 ## 汇总
 
@@ -740,8 +740,8 @@
 | `saxes` | `6.0.0` | `ISC` |
 | `scheduler` | `0.28.0` | `MIT` |
 | `siginfo` | `2.0.0` | `ISC` |
-| `smol-toml` | `1.8.0` | `BSD-3-Clause` |
-| `source-map-js` | `1.2.1` | `BSD-3-Clause` |
+| `smol-toml` | `1.9.1` | `BSD-3-Clause` |
+| `source-map-js` | `1.2.2` | `BSD-3-Clause` |
 | `stackback` | `0.0.2` | `MIT` |
 | `std-env` | `4.2.0` | `MIT` |
 | `strip-ansi` | `7.2.0` | `MIT` |
