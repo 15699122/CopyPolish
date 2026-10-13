@@ -105,6 +105,7 @@ Computer Use / GUI automation 不可用导致的**无法执行**不是功能失�
 | Q6 | Tauri 运行时与 CLI 升级（#85、#79、#91、#93、#95、CLI 2.12.2） | `WINDOWS_VERIFICATION_PENDING` | P1 | 否 |
 | Q7 | 发布链路 Actions 跨主版本升级（#69、#67、#65、#64） | `LINUX_VERIFIED`（发布链路已在 CI 实测） | P2 | 否 |
 | Q8 | v0.7.0-pre1 发布候选资产与上传/下载链路 | `WINDOWS_VERIFICATION_PENDING` | P0 | 否 |
+| Q9 | E2E wdio provider 1.5.0（Rust + JS 同步升级，#98、#101） | `WINDOWS_VERIFICATION_PENDING` | P1 | 否 |
 
 当前无 `WINDOWS_VERIFICATION_BLOCKING` 项。Q5–Q7 于 2026-09-30 开放 PR 评估后新增，Q8 于同日 `v0.7.0-pre1` 发布准备阶段新增；Q6 的范围于 2026-10-12 评估轮扩展到 Tauri 2.12.x 升级集；计划见 `docs/roadmap.md`「P0：开放 PR 评估与处置（2026-10-12 评估轮）」与「P0：v0.7.0-pre1 发布准备」。
 
@@ -169,6 +170,17 @@ Computer Use / GUI automation 不可用导致的**无法执行**不是功能失�
 - Linux 侧已取得证据（2026-10-12）：#91 / #93 的 PR CI 在 GitHub Actions 上实际执行 `--profile rust`（fmt / clippy / test，default 与 `tui`）通过；本轮恢复依赖门禁后 `--profile audit` 通过（RustSec 0 漏洞、前端与 E2E npm 审计通过、SBOM 与许可证清单一致）；
 - Linux 侧未执行：`--profile feature`（当前 Linux 工作环境缺少 GTK / WebKitGTK 系统依赖，无法构建 Tauri crate），需在具备系统依赖的 Linux 环境或 Windows 侧补跑；
 - expected result：构建与运行行为与升级前一致。
+
+#### Q9 — E2E wdio provider 1.5.0（Rust + JS 同步升级）
+
+- related change：Rust `tauri-plugin-wdio` / `tauri-plugin-wdio-webdriver` 1.4.0 → 1.5.0（#98、#101）与 JS `@wdio/tauri-service` / `@wdio/tauri-plugin` 1.3.0 → 1.5.0（`e2e`）、前端 devDependency `@wdio/tauri-plugin` 1.4.0 → 1.5.0；
+- relevant files / modules：`src-tauri/Cargo.lock`、`src-tauri/Cargo.toml`（`e2e-wdio` feature）、`e2e/package.json`、`e2e/wdio.conf.ts`、`frontend/package.json`；
+- why Windows validation is required：embedded WebDriver server 运行在应用进程内，Windows 侧的 WebView2 宿主、进程清理与端口/会话行为与 Linux 不同；且 `e2e-wdio` feature 不在任何 `scripts/verify.py` profile 或 GitHub CI 覆盖范围内；
+- exact behavior to verify：`cargo check --features e2e-wdio` 在具备系统依赖的环境可编译；Windows 原生 embedded provider 会话建立、spec 运行与退出清理正常；标准 W3C provider 兼容性 smoke 仍通过；
+- prerequisite：Windows 原生 checkout 与 MSVC 工具链；Linux 侧需具备 GTK / WebKitGTK 系统依赖才能执行 feature 编译检查；
+- Linux 侧已取得证据（2026-10-12）：`npm ci --prefix e2e`、`npm run typecheck --prefix e2e`（`wdio.conf.ts` 的 `driverProvider` / `embeddedPort` 选项在 1.5.0 typings 下通过）、关键包动态导入与 `--profile audit` 均通过；
+- Linux 侧未执行：`cargo check --features e2e-wdio`、E2E embedded / W3C provider 回归（当前工作环境缺少 GTK / WebKitGTK 系统依赖）；
+- expected result：provider 行为与升级前一致，无会话建立失败或进程残留。
 
 #### Q7 — 发布链路 Actions 跨主版本升级（#69、#67、#65、#64）
 

@@ -7,6 +7,16 @@ updates:
     open-pull-requests-limit: 5
     target-branch: dev
 
+  # E2E 工具链（WebdriverIO + Tauri provider）独立维护。此前未登记该 ecosystem，
+  # 导致 e2e 依赖只在安全更新时以默认分支（master）为目标出现；见
+  # docs/upgrade-runbook.md §8.2 与 docs/decisions/wdio-transitive-dependencies.md。
+  - package-ecosystem: npm
+    directory: /e2e
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    target-branch: dev
+
   - package-ecosystem: cargo
     directory: /src-tauri
     schedule:
