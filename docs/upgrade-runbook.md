@@ -172,3 +172,13 @@ embedded provider、W3C smoke、Windows 原生回归、`npm audit` 和许可证�
 4. 许可证清单、审计结果和文档。
 
 Dependabot PR 仍须遵守本 Runbook：人工审阅变更范围，运行统一验证入口，并确认 `docs/licenses.md` 与锁文件同步。
+
+### 8.2 安全修复与 `master`
+
+Dependabot **安全更新**（security updates）按 GitHub 行为以默认分支 `master` 为目标，而常规版本更新按本 Runbook §1 的配置以 `dev` 为目标。两类 PR 到达 `master` 的路径不同，处理方式如下：
+
+1. **不把安全更新 PR 直接合并进 `master`**：`master` 是已验证的发布基线（`CONTRIBUTING.md` §2），直接合并锁文件类 PR 会与 dev → master 发布流程在 `frontend/package-lock.json` / `e2e/package-lock.json` 上产生分叉；
+2. **先在 `dev` 落地等价修复**：优先使用**同 major** 的 `overrides` 或锁文件刷新（见 §8.1 与 [decisions/wdio-transitive-dependencies.md](decisions/wdio-transitive-dependencies.md)）；无法同 major 修复时，在 [decisions/e2e-audit-policy.json](decisions/e2e-audit-policy.json) 登记有期限、范围明确的风险接受；
+3. **随发布推广到 `master`**：修复经 dev → master 发布 PR 进入 `master`，推广后复核对应 Dependabot 告警是否关闭，并在验证文档中记录；
+4. **关闭以 `master` 为目标的重复 PR**：在 PR 中说明「修复已在 `dev`、随发布 PR 生效」及跟踪位置，不直接合并，避免制造需要反向合并的锁文件分叉；
+5. **流程性限制**：改动 `.github/workflows/**` 的 PR 必须由具备 `workflows` 权限的身份合并——GitHub App 缺少该权限时会被拒绝（`refusing to allow a GitHub App to create or update workflow ... without workflows permission`），因此涉及工作流的升级（Actions 版本、发布链路）以及包含工作流差异的 dev → master 推广 PR，都需要在合并环节安排具备该权限的维护者。
