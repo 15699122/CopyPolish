@@ -14,6 +14,7 @@
 ### Changed
 
 - 依赖升级：GitHub Actions `actions/setup-node` 7.1.0、`actions/upload-artifact` 7.0.2、`actions/download-artifact` 8.0.2；前端 `vite` 8.3.1、`vitest` 5.0.3、`@types/node` 26.6.3、`lucide-react` 1.49.0；Tauri 2.12.x 升级集（Rust `tauri` 2.12.2、`tauri-build` 2.7.1，JS `@tauri-apps/api` 2.12.1、`@tauri-apps/cli` 2.12.2）。Windows 原生构建与运行验证、`--profile feature` 补跑见 `docs/validation/windows.md` 队列 Q6。
+- E2E 工具链协同升级：`@wdio/tauri-service` / `@wdio/tauri-plugin` 1.3.0 → 1.5.0（`e2e`）与前端 devDependency `@wdio/tauri-plugin` 1.4.0 → 1.5.0，与 Rust `tauri-plugin-wdio` / `tauri-plugin-wdio-webdriver` 1.5.0 对齐（provider 验证见 `docs/validation/windows.md` Q9）；`.github/dependabot.yml` 新增 `/e2e` npm ecosystem（`target-branch: dev`），安全修复到达 `master` 的路径成文于 `docs/upgrade-runbook.md` §8.2。
 
 ### Fixed
 

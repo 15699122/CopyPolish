@@ -165,6 +165,15 @@ span-aware 混合管线、规则注册表、阶段依赖、结构/语义 span �
 - **已关闭**：#89、#90（安全修复已在 `dev`，随 dev → master 发布 PR 生效）；
 - **未执行 / 待补**：`--profile feature`（当前 Linux 工作环境缺少 GTK / WebKitGTK 系统依赖，无法构建 Tauri crate）、E2E embedded/W3C provider 回归（同上）、Windows 原生 Tauri 2.12.x 构建与运行验证（见 [validation/windows.md](validation/windows.md) Q6）。
 
+### 执行结果补充（2026-10-12 第二轮：E2E 工具链协同）
+
+- **#103 落地**（`551c828`）：依赖门禁恢复、`@tauri-apps/cli` 2.11.5 → 2.12.2 与相关文档；
+- **E2E wdio 工具链协同升级**：`@wdio/tauri-service` / `@wdio/tauri-plugin` 1.3.0 → 1.5.0（`e2e`）与前端 devDependency `@wdio/tauri-plugin` 1.4.0 → 1.5.0，随后合并 #98 / #101（Rust `tauri-plugin-wdio` / `tauri-plugin-wdio-webdriver` 1.4.0 → 1.5.0），消除 Rust 1.5.0 ↔ JS 1.3.0 的版本脱节；
+- **`.github/dependabot.yml` 新增 `/e2e` npm ecosystem**（`target-branch: dev`）：e2e 依赖进入常规更新轨道，不再只在安全更新时以 `master` 为目标出现；
+- **`docs/upgrade-runbook.md` 新增 §8.2**：成文安全修复到达 `master` 的路径，以及改动 `.github/workflows/**` 的 PR 需要 `workflows` 权限的合并限制；
+- **本轮未执行（已入队列）**：`cargo check --features e2e-wdio` 与 E2E embedded / W3C provider 回归（当前 Linux 工作环境缺少 GTK / WebKitGTK 系统依赖，无法构建 Tauri crate）→ [validation/windows.md](validation/windows.md) Q9；
+- **仍受阻**：#99、#100 以及 dev → master 推广 PR（含 `.github/workflows/**` 差异）需要具备 `workflows` 权限的维护者合并。
+
 ### 上一轮（2026-09-30）评估结论要点
 
 - **#86（GUI 中文布局）存在两处必须修复的问题**：设置分类化后，现有 GUI E2E 未同步分类切换，导致 `selection-and-persistence`、`restart-settings`、`gui-visual-artifacts` 等 spec 访问未挂载控件；且设置底栏「恢复默认」在非规则分类仍调用规则恢复回调，语义误导。
