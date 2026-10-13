@@ -4,12 +4,12 @@
 `src-tauri/Cargo.lock` 对应的 `cargo metadata --locked`；npm 依赖来自
 `frontend/package-lock.json` 的 `packages` 条目。
 
-> 生成日期：2026-10-12；依赖升级后必须重新生成并审阅差异。
+> 生成日期：2026-10-13；依赖升级后必须重新生成并审阅差异。
 
 ## 汇总
 
 - Rust 依赖：419 条（含不同版本的同名包）；
-- npm 依赖：285 条；
+- npm 依赖：284 条；
 - 许可证字段缺失：0 条。
 
 | 许可证字段 | 数量 |
@@ -21,7 +21,7 @@
 | `Apache-2.0 / MIT` | 1 |
 | `Apache-2.0 AND MIT` | 1 |
 | `Apache-2.0 OR BSL-1.0` | 1 |
-| `Apache-2.0 OR MIT` | 43 |
+| `Apache-2.0 OR MIT` | 42 |
 | `Apache-2.0 WITH LLVM-exception` | 1 |
 | `Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT` | 3 |
 | `Apache-2.0/MIT` | 3 |
@@ -579,7 +579,6 @@
 | `@tailwindcss/oxide-win32-arm64-msvc` | `4.3.3` | `MIT` |
 | `@tailwindcss/oxide-win32-x64-msvc` | `4.3.3` | `MIT` |
 | `@tailwindcss/vite` | `4.3.3` | `MIT` |
-| `@tauri-apps/api` | `2.11.1` | `Apache-2.0 OR MIT` |
 | `@tauri-apps/api` | `2.12.1` | `Apache-2.0 OR MIT` |
 | `@tauri-apps/cli` | `2.12.2` | `Apache-2.0 OR MIT` |
 | `@tauri-apps/cli-darwin-arm64` | `2.12.2` | `Apache-2.0 OR MIT` |
@@ -593,7 +592,7 @@
 | `@tauri-apps/cli-win32-arm64-msvc` | `2.12.2` | `Apache-2.0 OR MIT` |
 | `@tauri-apps/cli-win32-ia32-msvc` | `2.12.2` | `Apache-2.0 OR MIT` |
 | `@tauri-apps/cli-win32-x64-msvc` | `2.12.2` | `Apache-2.0 OR MIT` |
-| `@tauri-apps/plugin-log` | `2.9.1` | `MIT OR Apache-2.0` |
+| `@tauri-apps/plugin-log` | `2.10.0` | `MIT OR Apache-2.0` |
 | `@testing-library/dom` | `10.4.1` | `MIT` |
 | `@testing-library/jest-dom` | `7.0.1` | `MIT` |
 | `@testing-library/react` | `16.3.3` | `MIT` |
@@ -630,11 +629,11 @@
 | `@vitest/mocker` | `5.0.3` | `MIT` |
 | `@vitest/spy` | `5.0.3` | `MIT` |
 | `@wdio/logger` | `9.29.1` | `MIT` |
-| `@wdio/native-spy` | `1.3.0` | `MIT` |
-| `@wdio/native-utils` | `2.7.0` | `MIT` |
-| `@wdio/tauri-plugin` | `1.4.0` | `MIT` |
+| `@wdio/native-spy` | `1.4.0` | `MIT` |
+| `@wdio/native-utils` | `2.8.0` | `MIT` |
+| `@wdio/tauri-plugin` | `1.5.0` | `MIT` |
 | `ansi-regex` | `5.0.1` | `MIT` |
-| `ansi-regex` | `6.3.0` | `MIT` |
+| `ansi-regex` | `6.4.0` | `MIT` |
 | `ansi-styles` | `5.2.0` | `MIT` |
 | `aria-hidden` | `1.2.6` | `MIT` |
 | `aria-query` | `5.3.0` | `Apache-2.0` |
@@ -726,7 +725,7 @@
 | `require-from-string` | `2.0.2` | `MIT` |
 | `ret` | `0.5.0` | `MIT` |
 | `rolldown` | `1.2.9` | `MIT` |
-| `safe-regex2` | `5.1.1` | `MIT` |
+| `safe-regex2` | `5.1.2` | `MIT` |
 | `saxes` | `6.0.0` | `ISC` |
 | `scheduler` | `0.28.0` | `MIT` |
 | `smol-toml` | `1.9.1` | `BSD-3-Clause` |
@@ -760,4 +759,4 @@
 | `why-is-node-running` | `3.2.1` | `MIT` |
 | `xml-name-validator` | `5.0.0` | `Apache-2.0` |
 | `xmlchars` | `2.2.0` | `MIT` |
-| `yaml` | `2.9.0` | `ISC` |
+| `yaml` | `2.9.1` | `ISC` |
