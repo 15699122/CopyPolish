@@ -83,3 +83,13 @@ roadmap §P1「字符转换」要求先做独立 Spike，确认 Rust 依赖、�
   Windows CI 实测一次生产构建以确认工具链兼容。
 - GUI/TUI 尚无转换控件；默认构建不启用该 feature，接入 UI 时再决定是否随安装默认开启。
 - 全角半角与 Unicode 等价字符转换属另一独立条目，不在此 Spike 范围。
+
+## 更新（2026-10-26）：`opencc-fmmseg` 0.13.0 移除 native `zstd`
+
+`opencc-fmmseg` 0.13.0 不再依赖 `zstd` / `zstd-safe` / `zstd-sys`（连带移除 `jobserver`）。本节的对比数据（含 zstd 编译的 ~29s 构建时间、2.1 MB 二进制增量、许可证清单新增 `zstd*` 等）来自 **0.12.1**，需要在 feature 构建上重新测量后更新；`rayon`、`serde_cbor` 等依赖不受影响。
+
+影响：
+
+- feature 构建不再需要 zstd 的 vendored C 工具链，跨平台构建风险下降；
+- 默认构建仍然不启用该 feature（体积与能力边界决策不变），`simplified-trad-capability.md` 中「native `zstd-sys` 构建成本」的表述可随之弱化；
+- 词典压缩格式随版本变化，`--profile feature` 与 `docs/validation/windows.md` Q5 的转换回归必须基于 0.13.0 重新验证。

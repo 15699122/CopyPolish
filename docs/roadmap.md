@@ -182,6 +182,14 @@ span-aware 混合管线、规则注册表、阶段依赖、结构/语义 span �
 - **已关闭**：#115、#114、#119（`dev` 已修复或不受影响）、#116（`dev` 已升到 vite 8.3.5）；
 - **仍受阻**：#99、#100（`release.yml` 差异需要 `workflows` 权限）。#118 证明 `ci.yml` 的 Actions 升级可正常合并，限制实际集中在 `release.yml`，因此 dev → master 推广仍需维护者处理。
 
+### 执行结果补充（2026-10-26 第四轮：#99/#100 合并与 #110 预处理）
+
+- **#99、#100 已由维护者合并**（`abf6049`、`2386633`）：`release.yml` 现为 `upload-artifact` v7.0.2 / `download-artifact` v8.0.2，SHA 与上游 tag 一致；发布链路仍建议在下一次演练（Q7 / Q8）复验资产上传、下载与汇总；
+- **#110（`opencc-fmmseg` 0.13.0）已准备完整变更并以 draft PR 提交**：`Cargo.toml` / `Cargo.lock`（移除 `zstd` / `zstd-safe` / `zstd-sys` 与 `jobserver`）+ 决策记录更新 + CHANGELOG，原 Dependabot PR 关闭并由其取代；
+  - 本机已完成：`cargo metadata --locked`、`--profile audit`（RustSec 0 漏洞、SBOM 710 组件、许可证清单一致）与 `--profile checks`；许可证清单不含该可选依赖，故无需重生成；
+  - **仍需执行**：`python3 scripts/verify.py --profile feature`（需 GTK / WebKitGTK 系统依赖），以及合并后按 Q5 复核 Windows feature E2E 的双向转换；
+- 本轮结束后 Dependabot 待处理 PR 清零。
+
 ### 上一轮（2026-09-30）评估结论要点
 
 - **#86（GUI 中文布局）存在两处必须修复的问题**：设置分类化后，现有 GUI E2E 未同步分类切换，导致 `selection-and-persistence`、`restart-settings`、`gui-visual-artifacts` 等 spec 访问未挂载控件；且设置底栏「恢复默认」在非规则分类仍调用规则恢复回调，语义误导。
