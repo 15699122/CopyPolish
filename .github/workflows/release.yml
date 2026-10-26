@@ -125,7 +125,7 @@ jobs:
         run: ./scripts/build_release_local.sh "$RELEASE_TAG"
 
       - name: Upload Linux artifacts
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: release-linux-${{ env.RELEASE_TAG }}
           path: |
@@ -156,7 +156,7 @@ jobs:
         run: .\scripts\build_release_local.ps1 $env:RELEASE_TAG
 
       - name: Upload Windows artifacts
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: release-windows-${{ env.RELEASE_TAG }}
           path: |
@@ -260,7 +260,7 @@ jobs:
             --dist-dir dist/final --platform all --include-metadata
 
       - name: Upload full release artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: CopyPolish-${{ env.RELEASE_TAG }}-release
           path: dist/final/*
