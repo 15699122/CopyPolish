@@ -4,7 +4,7 @@
 `src-tauri/Cargo.lock` 对应的 `cargo metadata --locked`；npm 依赖来自
 `frontend/package-lock.json` 的 `packages` 条目。
 
-> 生成日期：2026-10-13；依赖升级后必须重新生成并审阅差异。
+> 生成日期：2026-10-26；依赖升级后必须重新生成并审阅差异。
 
 ## 汇总
 
@@ -525,7 +525,7 @@
 | `@jridgewell/sourcemap-codec` | `1.6.0` | `MIT` |
 | `@jridgewell/trace-mapping` | `0.3.31` | `MIT` |
 | `@napi-rs/wasm-runtime` | `1.1.4` | `MIT` |
-| `@oxc-project/types` | `0.150.0` | `MIT` |
+| `@oxc-project/types` | `0.155.0` | `MIT` |
 | `@radix-ui/number` | `1.1.3` | `MIT` |
 | `@radix-ui/primitive` | `1.1.7` | `MIT` |
 | `@radix-ui/react-checkbox` | `1.3.11` | `MIT` |
@@ -548,21 +548,21 @@
 | `@radix-ui/react-use-effect-event` | `0.0.5` | `MIT` |
 | `@radix-ui/react-use-layout-effect` | `1.1.4` | `MIT` |
 | `@radix-ui/react-use-size` | `1.1.4` | `MIT` |
-| `@rolldown/binding-android-arm-eabi` | `1.2.9` | `MIT` |
-| `@rolldown/binding-android-arm64` | `1.2.9` | `MIT` |
-| `@rolldown/binding-darwin-arm64` | `1.2.9` | `MIT` |
-| `@rolldown/binding-darwin-x64` | `1.2.9` | `MIT` |
-| `@rolldown/binding-freebsd-x64` | `1.2.9` | `MIT` |
-| `@rolldown/binding-linux-arm-gnueabihf` | `1.2.9` | `MIT` |
-| `@rolldown/binding-linux-arm64-gnu` | `1.2.9` | `MIT` |
-| `@rolldown/binding-linux-arm64-musl` | `1.2.9` | `MIT` |
-| `@rolldown/binding-linux-ppc64-gnu` | `1.2.9` | `MIT` |
-| `@rolldown/binding-linux-s390x-gnu` | `1.2.9` | `MIT` |
-| `@rolldown/binding-linux-x64-gnu` | `1.2.9` | `MIT` |
-| `@rolldown/binding-linux-x64-musl` | `1.2.9` | `MIT` |
-| `@rolldown/binding-openharmony-arm64` | `1.2.9` | `MIT` |
-| `@rolldown/binding-win32-arm64-msvc` | `1.2.9` | `MIT` |
-| `@rolldown/binding-win32-x64-msvc` | `1.2.9` | `MIT` |
+| `@rolldown/binding-android-arm-eabi` | `1.2.15` | `MIT` |
+| `@rolldown/binding-android-arm64` | `1.2.15` | `MIT` |
+| `@rolldown/binding-darwin-arm64` | `1.2.15` | `MIT` |
+| `@rolldown/binding-darwin-x64` | `1.2.15` | `MIT` |
+| `@rolldown/binding-freebsd-x64` | `1.2.15` | `MIT` |
+| `@rolldown/binding-linux-arm-gnueabihf` | `1.2.15` | `MIT` |
+| `@rolldown/binding-linux-arm64-gnu` | `1.2.15` | `MIT` |
+| `@rolldown/binding-linux-arm64-musl` | `1.2.15` | `MIT` |
+| `@rolldown/binding-linux-ppc64-gnu` | `1.2.15` | `MIT` |
+| `@rolldown/binding-linux-s390x-gnu` | `1.2.15` | `MIT` |
+| `@rolldown/binding-linux-x64-gnu` | `1.2.15` | `MIT` |
+| `@rolldown/binding-linux-x64-musl` | `1.2.15` | `MIT` |
+| `@rolldown/binding-openharmony-arm64` | `1.2.15` | `MIT` |
+| `@rolldown/binding-win32-arm64-msvc` | `1.2.15` | `MIT` |
+| `@rolldown/binding-win32-x64-msvc` | `1.2.15` | `MIT` |
 | `@rolldown/pluginutils` | `1.0.1` | `MIT` |
 | `@tailwindcss/node` | `4.3.3` | `MIT` |
 | `@tailwindcss/oxide` | `4.3.3` | `MIT` |
@@ -707,12 +707,12 @@
 | `mdn-data` | `2.27.1` | `CC0-1.0` |
 | `min-indent` | `1.0.1` | `MIT` |
 | `ms` | `2.1.3` | `MIT` |
-| `nanoid` | `3.3.19` | `MIT` |
+| `nanoid` | `3.3.20` | `MIT` |
 | `obug` | `2.1.4` | `MIT` |
 | `parse5` | `8.0.1` | `MIT` |
 | `picocolors` | `1.1.1` | `ISC` |
 | `picomatch` | `4.0.7` | `MIT` |
-| `postcss` | `8.5.28` | `MIT` |
+| `postcss` | `8.5.31` | `MIT` |
 | `pretty-format` | `27.5.1` | `MIT` |
 | `punycode` | `2.3.1` | `MIT` |
 | `react` | `19.3.0` | `MIT` |
@@ -724,7 +724,7 @@
 | `redent` | `3.0.0` | `MIT` |
 | `require-from-string` | `2.0.2` | `MIT` |
 | `ret` | `0.5.0` | `MIT` |
-| `rolldown` | `1.2.9` | `MIT` |
+| `rolldown` | `1.2.15` | `MIT` |
 | `safe-regex2` | `5.1.2` | `MIT` |
 | `saxes` | `6.0.0` | `ISC` |
 | `scheduler` | `0.28.0` | `MIT` |
@@ -745,11 +745,11 @@
 | `tr46` | `6.0.0` | `MIT` |
 | `tslib` | `2.8.1` | `0BSD` |
 | `typescript` | `7.0.2` | `Apache-2.0` |
-| `undici` | `8.11.2` | `MIT` |
+| `undici` | `8.12.3` | `MIT` |
 | `undici-types` | `8.9.0` | `MIT` |
 | `use-callback-ref` | `1.3.3` | `MIT` |
 | `use-sidecar` | `1.1.3` | `MIT` |
-| `vite` | `8.3.1` | `MIT` |
+| `vite` | `8.3.5` | `MIT` |
 | `vitest` | `5.0.3` | `MIT` |
 | `w3c-xmlserializer` | `6.0.0` | `MIT` |
 | `webidl-conversions` | `8.0.1` | `BSD-2-Clause` |
