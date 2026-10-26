@@ -15,6 +15,7 @@
 
 - 依赖升级：GitHub Actions `actions/setup-node` 7.1.0、`actions/upload-artifact` 7.0.2、`actions/download-artifact` 8.0.2；前端 `vite` 8.3.1、`vitest` 5.0.3、`@types/node` 26.6.3、`lucide-react` 1.49.0；Tauri 2.12.x 升级集（Rust `tauri` 2.12.2、`tauri-build` 2.7.1，JS `@tauri-apps/api` 2.12.1、`@tauri-apps/cli` 2.12.2）。Windows 原生构建与运行验证、`--profile feature` 补跑见 `docs/validation/windows.md` 队列 Q6。
 - E2E 工具链协同升级：`@wdio/tauri-service` / `@wdio/tauri-plugin` 1.3.0 → 1.5.0（`e2e`）与前端 devDependency `@wdio/tauri-plugin` 1.4.0 → 1.5.0，与 Rust `tauri-plugin-wdio` / `tauri-plugin-wdio-webdriver` 1.5.0 对齐（provider 验证见 `docs/validation/windows.md` Q9）；`.github/dependabot.yml` 新增 `/e2e` npm ecosystem（`target-branch: dev`），安全修复到达 `master` 的路径成文于 `docs/upgrade-runbook.md` §8.2。
+- 依赖升级：`actions/setup-python` 7.1.0、`@vitejs/plugin-react` 6.1.2、`@radix-ui/react-checkbox` 1.4.1、`@radix-ui/react-scroll-area` 1.4.0、`@tauri-apps/cli` 2.12.3、`serde_json` 1.0.154、`tauri-build` 2.7.2；`docs/licenses.md` 同步到 419 Rust / 291 npm。
 
 ### Fixed
 
@@ -25,6 +26,7 @@
 - 修复 E2E 工具链的传递依赖漏洞：对 `undici`（6.x/7.x 两条依赖线）、`brace-expansion`（1.x/2.x）与 `ip-address` 使用**同 major 版本区间**的 `overrides` 升级到修复版本，E2E 审计 advisory 从 16 个降为 2 个；override 后 `npm ci`、E2E typecheck 与关键包动态导入均通过。
 - `extract-zip` 的 GHSA-7pqw-9j4j-h8q3 新增为限期风险接受（复核期限 2026-10-06）。该包 2.0.1 已是 npm 当前 latest，两个 advisory 均无 patched version，唯一自动修复是破坏性的 WebdriverIO 8 降级；风险范围限于 E2E 工具链，不进入生产应用与发布资产。详见 [decisions/e2e-audit-policy.json](docs/decisions/e2e-audit-policy.json) 与 [decisions/wdio-transitive-dependencies.md](docs/decisions/wdio-transitive-dependencies.md) §7。
 - 恢复依赖审计门禁：前端 `source-map-js` 刷新到 1.2.2（GHSA-68fv-2mgg-jv7q，high）与 `smol-toml` 1.9.1（GHSA-r4xh-jqrq-34v2）；E2E `serialize-javascript` override 由 7.1.1 抬到 7.1.2（GHSA-gfhx-hw2g-v5hg）并新增同 major `smol-toml` override（1.9.1）。`basic-ftp`（GHSA-c475-qrg2-pj4r）与 `braces`（GHSA-vfj7-8cjw-p6xm）因上游无同 major 修复版，登记为限期风险接受（复核期限 2026-11-30）；`extract-zip` 两项既有接受同步续期至 2026-11-30。恢复后 `python3 scripts/verify.py --profile audit` 通过（RustSec 0 漏洞、前端与 E2E npm 审计通过、SBOM 716 组件、许可证清单一致）。
+- 再次恢复依赖审计门禁（2026-10-26）：前端 `undici` 8.11.2 → 8.12.3（`GHSA-xjj6-f33q-929c` high 等 3 项）与 `vite` 8.3.1 → 8.3.5（8.3.0–8.3.2 的 6 项 advisory，含 launch-editor 的 Windows 相关项）；E2E overrides 抬到 `undici` 6.29.1 / 7.30.1、`serialize-javascript` 7.1.4、`ip-address` 10.7.5；`braces` 的 `GHSA-vfj7-8cjw-p6xm` 已被上游撤回并移出登记。恢复后 E2E 审计 17 个 high/critical 条目由 3 个已登记 advisory 覆盖。
 
 ### Release policy
 

@@ -169,3 +169,31 @@ GHSA-7pqw-9j4j-h8q3 到 [e2e-audit-policy.json](e2e-audit-policy.json)，
 或上游发布 `braces` 修复版 / `extract-zip` 修复版。届时重新执行
 `npm ci --prefix e2e`、`npm run typecheck --prefix e2e`、embedded/W3C provider 回归与
 `python3 scripts/verify.py --profile audit`，并更新本文件与 `e2e-audit-policy.json`。
+
+## 9. 2026-10-26 维护复核（安全门禁恢复）
+
+本次复核在执行开放 PR 评估时发现 `--profile audit` 在 `dev` 上再次变红，因此先恢复门禁、再合并依赖 PR。
+
+复核前（`dev` = `2fb6e0a`）的实际结果：
+
+- 前端 2 个 high：`undici@8.11.2`（`GHSA-xjj6-f33q-929c` high，加 `GHSA-4qv8-2p9j-2685`、`GHSA-f72v-6w45-q472`，影响 `>=8.0.0 <8.12.2`；经 `jsdom` 的 `^8.10.2` 引入）与 `vite@8.3.1`（`>=8.3.0 <=8.3.2` 的 6 个 advisory，含 `launch-editor` 的 Windows 相关项）；
+- E2E 5 个未登记 advisory：`undici` 的 6.x/7.x 线（修复版 `6.29.1` / `7.30.1`，此前 override 固定的 `6.28.1` / `7.29.1` 已落在影响区间内）、`serialize-javascript`（`GHSA-m5mm-p8h7-m29v`，`<7.1.3`）、`ip-address`（`GHSA-rxp7-6hxx-x8q5`，`<=10.7.3`）。
+
+本次处置（全部为同 major 修复）：
+
+| 根包 | 处置 |
+| --- | --- |
+| `undici`（前端） | 锁文件刷新到 `8.12.3`（父约束 `^8.10.2` 允许，无 manifest 变更） |
+| `undici`（E2E 6.x/7.x） | override 区间与目标同步抬高：`undici@>=6.25.0 <6.29.1` → `6.29.1`、`undici@>=7.0.0 <7.30.1` → `7.30.1` |
+| `serialize-javascript` | override `7.1.2` → `7.1.4` |
+| `ip-address` | override `10.7.2` → `10.7.5` |
+| `braces` | `GHSA-vfj7-8cjw-p6xm` **已被上游撤回**（`withdrawn`），不再出现在审计报告中，因此从 `e2e-audit-policy.json` 移除该登记；`braces@3.0.3` 仍随 `mocha → chokidar 3` 安装，但无有效 advisory |
+
+处置后验证（2026-10-26）：
+
+- `Frontend dependency audit`：无 high/critical；
+- `E2E dependency audit`：17 个 high/critical 条目全部由 3 个已登记 advisory（`GHSA-jmr9-qjv8-65gv`、`GHSA-7pqw-9j4j-h8q3`、`GHSA-c475-qrg2-pj4r`）覆盖；
+- `python3 scripts/verify.py --profile frontend`（`npm ci`、Vitest、Vite build）通过；
+- `python3 scripts/generate_licenses.py --check` 与 `python3 scripts/generate_sbom.py --check` 通过（419 Rust / 291 npm；SBOM 组件数随锁文件更新）。
+
+剩余接受项与复核期限不变：`extract-zip` 两项与 `basic-ftp` 仍为 2026-11-30 前复核；上游发布修复版后按同 major 优先修复的原则处理。

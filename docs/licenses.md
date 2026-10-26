@@ -9,7 +9,7 @@
 ## 汇总
 
 - Rust 依赖：419 条（含不同版本的同名包）；
-- npm 依赖：284 条；
+- npm 依赖：291 条；
 - 许可证字段缺失：0 条。
 
 | 许可证字段 | 数量 |
@@ -34,7 +34,7 @@
 | `CC0-1.0` | 1 |
 | `CC0-1.0 OR MIT-0 OR Apache-2.0` | 1 |
 | `ISC` | 6 |
-| `MIT` | 304 |
+| `MIT` | 311 |
 | `MIT OR Apache-2.0` | 200 |
 | `MIT OR Apache-2.0 OR LGPL-2.1-or-later` | 2 |
 | `MIT OR Apache-2.0 OR Zlib` | 2 |
@@ -315,7 +315,7 @@
 | `serde_core` | `1.0.229` | `MIT OR Apache-2.0` |
 | `serde_derive` | `1.0.229` | `MIT OR Apache-2.0` |
 | `serde_derive_internals` | `0.29.1` | `MIT OR Apache-2.0` |
-| `serde_json` | `1.0.151` | `MIT OR Apache-2.0` |
+| `serde_json` | `1.0.154` | `MIT OR Apache-2.0` |
 | `serde_repr` | `0.1.21` | `MIT OR Apache-2.0` |
 | `serde_spanned` | `0.6.9` | `MIT OR Apache-2.0` |
 | `serde_spanned` | `1.1.1` | `MIT OR Apache-2.0` |
@@ -350,7 +350,7 @@
 | `tao-macros` | `0.1.4` | `MIT OR Apache-2.0` |
 | `target-lexicon` | `0.12.16` | `Apache-2.0 WITH LLVM-exception` |
 | `tauri` | `2.12.2` | `Apache-2.0 OR MIT` |
-| `tauri-build` | `2.7.1` | `Apache-2.0 OR MIT` |
+| `tauri-build` | `2.7.2` | `Apache-2.0 OR MIT` |
 | `tauri-codegen` | `2.7.2` | `Apache-2.0 OR MIT` |
 | `tauri-macros` | `2.7.2` | `Apache-2.0 OR MIT` |
 | `tauri-runtime` | `2.12.1` | `Apache-2.0 OR MIT` |
@@ -528,11 +528,13 @@
 | `@oxc-project/types` | `0.155.0` | `MIT` |
 | `@radix-ui/number` | `1.1.3` | `MIT` |
 | `@radix-ui/primitive` | `1.1.7` | `MIT` |
-| `@radix-ui/react-checkbox` | `1.3.11` | `MIT` |
+| `@radix-ui/primitive` | `1.2.0` | `MIT` |
+| `@radix-ui/react-checkbox` | `1.4.1` | `MIT` |
 | `@radix-ui/react-compose-refs` | `1.1.5` | `MIT` |
 | `@radix-ui/react-context` | `1.2.2` | `MIT` |
+| `@radix-ui/react-context` | `1.3.0` | `MIT` |
 | `@radix-ui/react-dialog` | `1.1.23` | `MIT` |
-| `@radix-ui/react-direction` | `1.1.4` | `MIT` |
+| `@radix-ui/react-direction` | `1.2.0` | `MIT` |
 | `@radix-ui/react-dismissable-layer` | `1.1.19` | `MIT` |
 | `@radix-ui/react-focus-guards` | `1.1.6` | `MIT` |
 | `@radix-ui/react-focus-scope` | `1.1.16` | `MIT` |
@@ -540,14 +542,19 @@
 | `@radix-ui/react-label` | `2.1.15` | `MIT` |
 | `@radix-ui/react-portal` | `1.1.17` | `MIT` |
 | `@radix-ui/react-presence` | `1.1.10` | `MIT` |
+| `@radix-ui/react-presence` | `1.1.11` | `MIT` |
 | `@radix-ui/react-primitive` | `2.1.10` | `MIT` |
-| `@radix-ui/react-scroll-area` | `1.2.18` | `MIT` |
+| `@radix-ui/react-primitive` | `2.2.0` | `MIT` |
+| `@radix-ui/react-scroll-area` | `1.4.0` | `MIT` |
 | `@radix-ui/react-slot` | `1.3.3` | `MIT` |
+| `@radix-ui/react-slot` | `1.5.0` | `MIT` |
 | `@radix-ui/react-use-callback-ref` | `1.1.4` | `MIT` |
+| `@radix-ui/react-use-callback-ref` | `1.1.5` | `MIT` |
 | `@radix-ui/react-use-controllable-state` | `1.2.6` | `MIT` |
+| `@radix-ui/react-use-controllable-state` | `1.3.0` | `MIT` |
 | `@radix-ui/react-use-effect-event` | `0.0.5` | `MIT` |
 | `@radix-ui/react-use-layout-effect` | `1.1.4` | `MIT` |
-| `@radix-ui/react-use-size` | `1.1.4` | `MIT` |
+| `@radix-ui/react-use-size` | `1.1.5` | `MIT` |
 | `@rolldown/binding-android-arm-eabi` | `1.2.15` | `MIT` |
 | `@rolldown/binding-android-arm64` | `1.2.15` | `MIT` |
 | `@rolldown/binding-darwin-arm64` | `1.2.15` | `MIT` |
@@ -580,18 +587,18 @@
 | `@tailwindcss/oxide-win32-x64-msvc` | `4.3.3` | `MIT` |
 | `@tailwindcss/vite` | `4.3.3` | `MIT` |
 | `@tauri-apps/api` | `2.12.1` | `Apache-2.0 OR MIT` |
-| `@tauri-apps/cli` | `2.12.2` | `Apache-2.0 OR MIT` |
-| `@tauri-apps/cli-darwin-arm64` | `2.12.2` | `Apache-2.0 OR MIT` |
-| `@tauri-apps/cli-darwin-x64` | `2.12.2` | `Apache-2.0 OR MIT` |
-| `@tauri-apps/cli-linux-arm-gnueabihf` | `2.12.2` | `Apache-2.0 OR MIT` |
-| `@tauri-apps/cli-linux-arm64-gnu` | `2.12.2` | `Apache-2.0 OR MIT` |
-| `@tauri-apps/cli-linux-arm64-musl` | `2.12.2` | `Apache-2.0 OR MIT` |
-| `@tauri-apps/cli-linux-riscv64-gnu` | `2.12.2` | `Apache-2.0 OR MIT` |
-| `@tauri-apps/cli-linux-x64-gnu` | `2.12.2` | `Apache-2.0 OR MIT` |
-| `@tauri-apps/cli-linux-x64-musl` | `2.12.2` | `Apache-2.0 OR MIT` |
-| `@tauri-apps/cli-win32-arm64-msvc` | `2.12.2` | `Apache-2.0 OR MIT` |
-| `@tauri-apps/cli-win32-ia32-msvc` | `2.12.2` | `Apache-2.0 OR MIT` |
-| `@tauri-apps/cli-win32-x64-msvc` | `2.12.2` | `Apache-2.0 OR MIT` |
+| `@tauri-apps/cli` | `2.12.3` | `Apache-2.0 OR MIT` |
+| `@tauri-apps/cli-darwin-arm64` | `2.12.3` | `Apache-2.0 OR MIT` |
+| `@tauri-apps/cli-darwin-x64` | `2.12.3` | `Apache-2.0 OR MIT` |
+| `@tauri-apps/cli-linux-arm-gnueabihf` | `2.12.3` | `Apache-2.0 OR MIT` |
+| `@tauri-apps/cli-linux-arm64-gnu` | `2.12.3` | `Apache-2.0 OR MIT` |
+| `@tauri-apps/cli-linux-arm64-musl` | `2.12.3` | `Apache-2.0 OR MIT` |
+| `@tauri-apps/cli-linux-riscv64-gnu` | `2.12.3` | `Apache-2.0 OR MIT` |
+| `@tauri-apps/cli-linux-x64-gnu` | `2.12.3` | `Apache-2.0 OR MIT` |
+| `@tauri-apps/cli-linux-x64-musl` | `2.12.3` | `Apache-2.0 OR MIT` |
+| `@tauri-apps/cli-win32-arm64-msvc` | `2.12.3` | `Apache-2.0 OR MIT` |
+| `@tauri-apps/cli-win32-ia32-msvc` | `2.12.3` | `Apache-2.0 OR MIT` |
+| `@tauri-apps/cli-win32-x64-msvc` | `2.12.3` | `Apache-2.0 OR MIT` |
 | `@tauri-apps/plugin-log` | `2.10.0` | `MIT OR Apache-2.0` |
 | `@testing-library/dom` | `10.4.1` | `MIT` |
 | `@testing-library/jest-dom` | `7.0.1` | `MIT` |
@@ -625,7 +632,7 @@
 | `@typescript/typescript-sunos-x64` | `7.0.2` | `Apache-2.0` |
 | `@typescript/typescript-win32-arm64` | `7.0.2` | `Apache-2.0` |
 | `@typescript/typescript-win32-x64` | `7.0.2` | `Apache-2.0` |
-| `@vitejs/plugin-react` | `6.1.1` | `MIT` |
+| `@vitejs/plugin-react` | `6.1.2` | `MIT` |
 | `@vitest/mocker` | `5.0.3` | `MIT` |
 | `@vitest/spy` | `5.0.3` | `MIT` |
 | `@wdio/logger` | `9.29.1` | `MIT` |

@@ -174,6 +174,14 @@ span-aware 混合管线、规则注册表、阶段依赖、结构/语义 span �
 - **本轮未执行（已入队列）**：`cargo check --features e2e-wdio` 与 E2E embedded / W3C provider 回归（当前 Linux 工作环境缺少 GTK / WebKitGTK 系统依赖，无法构建 Tauri crate）→ [validation/windows.md](validation/windows.md) Q9；
 - **仍受阻**：#99、#100 以及 dev → master 推广 PR（含 `.github/workflows/**` 差异）需要具备 `workflows` 权限的维护者合并。
 
+### 执行结果补充（2026-10-26 第三轮：安全门禁恢复与 PR 清理）
+
+- **门禁再次变红并已恢复**（本 PR）：前端 `undici` 8.11.2 → 8.12.3、`vite` 8.3.1 → 8.3.5；E2E overrides `undici` 6.29.1 / 7.30.1、`serialize-javascript` 7.1.4、`ip-address` 10.7.5；`braces` 的 `GHSA-vfj7-8cjw-p6xm` 已被上游撤回，登记从 `e2e-audit-policy.json` 移除；`--profile audit` 重新通过（详见 [decisions/wdio-transitive-dependencies.md](decisions/wdio-transitive-dependencies.md) §9）；
+- **已合并到 `dev`**：#118（`b08c983`，`actions/setup-python` 7.1.0，SHA 与上游 tag 一致）、#111（`3b80761`）、#105（`7570f2c`）、#107（`3e4aed8`）、#106（`c30ff6a`）、#109（`d493c75`）、#108（`ec5277e`）；
+- **待处理**：#117（`tauri` 2.12.5）在 #107 落地后与 `Cargo.lock` 冲突，等待 Dependabot 自动 rebase 后合并；#113（`react` 19.3.1）Frontend 测试失败，不合并，改为协同升级 `react` + `react-dom`；#110（`opencc-fmmseg` 0.13.0）属 feature 依赖，需先执行 `--profile feature`；
+- **已关闭**：#115、#114、#119（`dev` 已修复或不受影响）、#116（`dev` 已升到 vite 8.3.5）；
+- **仍受阻**：#99、#100（`release.yml` 差异需要 `workflows` 权限）。#118 证明 `ci.yml` 的 Actions 升级可正常合并，限制实际集中在 `release.yml`，因此 dev → master 推广仍需维护者处理。
+
 ### 上一轮（2026-09-30）评估结论要点
 
 - **#86（GUI 中文布局）存在两处必须修复的问题**：设置分类化后，现有 GUI E2E 未同步分类切换，导致 `selection-and-persistence`、`restart-settings`、`gui-visual-artifacts` 等 spec 访问未挂载控件；且设置底栏「恢复默认」在非规则分类仍调用规则恢复回调，语义误导。
