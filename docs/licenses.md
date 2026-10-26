@@ -35,9 +35,9 @@
 | `CC0-1.0 OR MIT-0 OR Apache-2.0` | 1 |
 | `ISC` | 6 |
 | `MIT` | 311 |
-| `MIT OR Apache-2.0` | 200 |
+| `MIT OR Apache-2.0` | 199 |
 | `MIT OR Apache-2.0 OR LGPL-2.1-or-later` | 2 |
-| `MIT OR Apache-2.0 OR Zlib` | 2 |
+| `MIT OR Apache-2.0 OR Zlib` | 3 |
 | `MIT OR Zlib OR Apache-2.0` | 1 |
 | `MIT-0` | 2 |
 | `MIT/Apache-2.0` | 13 |
@@ -185,7 +185,7 @@
 | `hyper-util` | `0.1.20` | `MIT` |
 | `iana-time-zone` | `0.1.65` | `MIT OR Apache-2.0` |
 | `iana-time-zone-haiku` | `0.1.2` | `MIT OR Apache-2.0` |
-| `ico` | `0.5.0` | `MIT` |
+| `ico` | `0.6.0` | `MIT` |
 | `icu_collections` | `2.3.0` | `Unicode-3.0` |
 | `icu_locale_core` | `2.3.0` | `Unicode-3.0` |
 | `icu_normalizer` | `2.3.0` | `Unicode-3.0` |
@@ -272,7 +272,6 @@
 | `pin-project-lite` | `0.2.17` | `Apache-2.0 OR MIT` |
 | `pkg-config` | `0.3.34` | `MIT OR Apache-2.0` |
 | `plist` | `1.10.0` | `MIT` |
-| `png` | `0.17.16` | `MIT OR Apache-2.0` |
 | `png` | `0.18.1` | `MIT OR Apache-2.0` |
 | `portable-atomic` | `1.15.0` | `Apache-2.0 OR MIT` |
 | `portable-atomic-util` | `0.2.7` | `Apache-2.0 OR MIT` |
@@ -336,10 +335,11 @@
 | `soup3` | `0.5.0` | `MIT` |
 | `soup3-sys` | `0.5.0` | `MIT` |
 | `stable_deref_trait` | `1.2.1` | `MIT OR Apache-2.0` |
+| `static_vcruntime` | `3.0.0` | `MIT OR Apache-2.0 OR Zlib` |
 | `string_cache` | `0.9.0` | `MIT OR Apache-2.0` |
 | `string_cache_codegen` | `0.6.1` | `MIT OR Apache-2.0` |
 | `strsim` | `0.11.1` | `MIT` |
-| `swift-rs` | `1.0.8` | `MIT OR Apache-2.0` |
+| `swift-rs` | `1.0.9` | `MIT OR Apache-2.0` |
 | `syn` | `1.0.109` | `MIT OR Apache-2.0` |
 | `syn` | `2.0.119` | `MIT OR Apache-2.0` |
 | `syn` | `3.0.3` | `MIT OR Apache-2.0` |
@@ -349,13 +349,13 @@
 | `tao` | `0.37.1` | `Apache-2.0` |
 | `tao-macros` | `0.1.4` | `MIT OR Apache-2.0` |
 | `target-lexicon` | `0.12.16` | `Apache-2.0 WITH LLVM-exception` |
-| `tauri` | `2.12.2` | `Apache-2.0 OR MIT` |
-| `tauri-build` | `2.7.2` | `Apache-2.0 OR MIT` |
-| `tauri-codegen` | `2.7.2` | `Apache-2.0 OR MIT` |
-| `tauri-macros` | `2.7.2` | `Apache-2.0 OR MIT` |
-| `tauri-runtime` | `2.12.1` | `Apache-2.0 OR MIT` |
-| `tauri-runtime-wry` | `2.12.1` | `Apache-2.0 OR MIT` |
-| `tauri-utils` | `2.10.1` | `Apache-2.0 OR MIT` |
+| `tauri` | `2.12.5` | `Apache-2.0 OR MIT` |
+| `tauri-build` | `2.7.4` | `Apache-2.0 OR MIT` |
+| `tauri-codegen` | `2.7.4` | `Apache-2.0 OR MIT` |
+| `tauri-macros` | `2.7.4` | `Apache-2.0 OR MIT` |
+| `tauri-runtime` | `2.12.2` | `Apache-2.0 OR MIT` |
+| `tauri-runtime-wry` | `2.12.3` | `Apache-2.0 OR MIT` |
+| `tauri-utils` | `2.10.2` | `Apache-2.0 OR MIT` |
 | `tauri-winres` | `0.3.6` | `MIT` |
 | `tendril` | `0.5.1` | `MIT OR Apache-2.0` |
 | `thiserror` | `1.0.69` | `MIT OR Apache-2.0` |
