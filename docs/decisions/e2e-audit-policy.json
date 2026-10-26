@@ -53,23 +53,6 @@
       "owner": "CopyPolish maintainers",
       "review_after": "2026-11-30",
       "tracking": "docs/decisions/wdio-transitive-dependencies.md"
-    },
-    {
-      "id": "GHSA-vfj7-8cjw-p6xm",
-      "severity": "high",
-      "package": "braces",
-      "affected_range": "<=3.0.3",
-      "dependency_chain": "mocha -> chokidar -> braces",
-      "reason": "Stack-exhaustion denial of service through deeply nested patterns. braces 3.0.3 is the latest published version and no patched release exists; the fix requires moving to the chokidar 4+/mocha 12 line, which is outside the pinned WebdriverIO 9 mocha framework toolchain.",
-      "scope": "E2E tooling; not included in production application or release assets",
-      "mitigations": [
-        "E2E runners invoke mocha programmatically and never use --watch or user-supplied glob patterns",
-        "E2E runs use trusted repository-controlled inputs and CI artifacts are not treated as production data",
-        "The E2E audit fails for any high/critical advisory not explicitly listed here"
-      ],
-      "owner": "CopyPolish maintainers",
-      "review_after": "2026-11-30",
-      "tracking": "docs/decisions/wdio-transitive-dependencies.md"
     }
   ]
 }
